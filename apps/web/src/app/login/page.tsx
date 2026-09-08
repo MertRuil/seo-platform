@@ -147,7 +147,7 @@ export default function LoginPage() {
                 className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
               >
                 <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Mert Ruil</div>
-                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
+                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Kurucu)</div>
               </button>
 
               <button
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
               >
                 <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Aybo</div>
-                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
+                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Ortak)</div>
               </button>
             </div>
           </div>
