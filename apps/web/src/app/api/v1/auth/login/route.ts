@@ -5,8 +5,15 @@ const AUTHORIZED_USERS = [
   {
     id: "usr_mert_01",
     email: "mert@seo.com",
-    password: "Mert123!",
+    password: "0706Ma*",
     fullName: "Mert Ruil",
+    role: "Sistem Yöneticisi",
+  },
+  {
+    id: "usr_aybo_01",
+    email: "aybo@seo.com",
+    password: "kardesler123",
+    fullName: "Aybo",
     role: "Sistem Yöneticisi",
   },
   {
