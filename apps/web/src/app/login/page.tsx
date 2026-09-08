@@ -120,34 +120,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Hızlı Erişim Kutusu */}
-          <div className="mt-6 pt-5 border-t border-slate-800/80">
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Tek Tıkla Hızlı Yetkili Girişi (Test / Ekip):</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("mert@seo.com", "0706Ma*")}
-                className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
-              >
-                <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Mert Ruil</div>
-                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("aybo@seo.com", "kardesler123")}
-                className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
-              >
-                <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Aybo</div>
-                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Alt Güvenlik Bildirimi */}
