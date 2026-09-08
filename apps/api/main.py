@@ -15,7 +15,8 @@ from apps.api.routes import (
     integrations,
     graph,
     experiments,
-    quick_audit
+    quick_audit,
+    knowledge
 )
 
 @asynccontextmanager
@@ -72,6 +73,10 @@ openapi_tags = [
         "description": "Difference-in-Differences nedensellik ve SEO deney takip motoru.",
     },
     {
+        "name": "Knowledge & RAG",
+        "description": "Seviye-1 resmi SEO bilgi deposu, hibrit RAG arama, doğrulama ve otonom kürasyon uç noktaları.",
+    },
+    {
         "name": "Health",
         "description": "Sistem canlılık ve veritabanı bağlantı sağlık kontrolleri.",
     }
@@ -125,6 +130,7 @@ app.include_router(executions.router, prefix="/api/v1")
 app.include_router(integrations.router, prefix="/api/v1")
 app.include_router(experiments.router, prefix="/api/v1")
 app.include_router(quick_audit.router, prefix="/api/v1")
+app.include_router(knowledge.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

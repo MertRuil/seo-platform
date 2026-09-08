@@ -43,7 +43,7 @@ class KnowledgeCuratorAgent:
         content = doc.get("content", "")
         canonical_url = doc.get("canonical_url", "")
         declared_status = doc.get("status", "ACTIVE")
-        doc_id = doc.get("id", f"doc-{int(time.time()*1000)}")
+        doc_id = doc.get("id") or f"doc-{int(time.time()*1000)}"
 
         # Estimate tokens (approx 1 word = 1.3 tokens)
         word_count = len(content.split())
