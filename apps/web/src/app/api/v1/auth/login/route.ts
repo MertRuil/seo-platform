@@ -7,21 +7,30 @@ const AUTHORIZED_USERS = [
     email: "mert@seo.com",
     password: "0706Ma*",
     fullName: "Mert Ruil",
-    role: "Sistem Yöneticisi",
+    role: "Süper Yönetici (Kurucu)",
+    isAdmin: true,
+    isSuperAdmin: true,
+    permissions: ["*"],
   },
   {
     id: "usr_aybo_01",
     email: "aybo@seo.com",
     password: "kardesler123",
     fullName: "Aybo",
-    role: "Sistem Yöneticisi",
+    role: "Süper Yönetici (Ortak)",
+    isAdmin: true,
+    isSuperAdmin: true,
+    permissions: ["*"],
   },
   {
     id: "usr_admin_01",
     email: "admin@seoplatform.com",
     password: "Admin123!",
     fullName: "Baş Yönetici",
-    role: "Sistem Yöneticisi",
+    role: "Süper Yönetici",
+    isAdmin: true,
+    isSuperAdmin: true,
+    permissions: ["*"],
   },
   {
     id: "usr_partner_01",
@@ -29,6 +38,9 @@ const AUTHORIZED_USERS = [
     password: "Ekip123!",
     fullName: "SEO Ekip Üyesi",
     role: "SEO Uzmanı",
+    isAdmin: false,
+    isSuperAdmin: false,
+    permissions: ["read", "crawl", "audit"],
   }
 ];
 
@@ -67,6 +79,9 @@ export async function POST(request: Request) {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        isAdmin: user.isAdmin,
+        isSuperAdmin: user.isSuperAdmin,
+        permissions: user.permissions,
       },
       expires_in: 86400, // 24 saat
     };

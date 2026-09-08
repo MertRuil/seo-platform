@@ -8,6 +8,9 @@ export interface UserProfile {
   email: string;
   fullName: string;
   role: string;
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  permissions?: string[];
 }
 
 interface AuthContextType {
