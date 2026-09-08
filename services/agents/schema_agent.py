@@ -20,7 +20,7 @@ class StructuredDataAgent:
             GroundedCitation(
                 source_id=r.chunk_id,
                 document_title=r.document_title,
-                canonical_url="https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data",
+                canonical_url=r.canonical_url or "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data",
                 excerpt=r.content[:300]
             )
             for r in rag_results

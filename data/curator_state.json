@@ -1,0 +1,137 @@
+{
+  "current_day": 4,
+  "days_completed": 6,
+  "total_documents_processed": 18,
+  "total_verified": 12,
+  "total_rejected": 6,
+  "total_deprecated": 0,
+  "daily_history": [
+    {
+      "day": 1,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 3,
+        "rpm_limit": 15,
+        "current_tpm": 150,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    },
+    {
+      "day": 2,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 6,
+        "rpm_limit": 15,
+        "current_tpm": 300,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    },
+    {
+      "day": 3,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 9,
+        "rpm_limit": 15,
+        "current_tpm": 450,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    },
+    {
+      "day": 1,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 3,
+        "rpm_limit": 15,
+        "current_tpm": 150,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    },
+    {
+      "day": 2,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 6,
+        "rpm_limit": 15,
+        "current_tpm": 300,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    },
+    {
+      "day": 3,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 9,
+        "rpm_limit": 15,
+        "current_tpm": 450,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
+    }
+  ],
+  "last_updated": "2026-09-08T23:16:39.637678+00:00"
+}

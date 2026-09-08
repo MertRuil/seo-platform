@@ -18,7 +18,7 @@ def test_priority_engine_score_calculation():
     )
     assert score_low < score_critical
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ai_orchestrator_issue_pipeline():
     rag = HybridKnowledgeStore()
     rag.add_chunk(

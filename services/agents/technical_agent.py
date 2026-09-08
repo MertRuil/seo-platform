@@ -20,7 +20,7 @@ class TechnicalSEOAgent:
             GroundedCitation(
                 source_id=r.chunk_id,
                 document_title=r.document_title,
-                canonical_url="https://developers.google.com/search/docs",
+                canonical_url=r.canonical_url or "https://developers.google.com/search/docs",
                 excerpt=r.content[:300]
             )
             for r in rag_results

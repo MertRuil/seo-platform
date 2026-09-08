@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     DEFAULT_LLM_MODEL: str = "gemini-1.5-pro"
     DEFAULT_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
+    # RAG Knowledge System & Rate Limiting
+    RAG_RATE_LIMIT_RPM: int = 15
+    RAG_RATE_LIMIT_TPM: int = 50000
+    RAG_DAILY_REQUEST_BUDGET: int = 1500
+    RAG_DAILY_TOKEN_BUDGET: int = 500000
+    RAG_VERIFICATION_MIN_CONFIDENCE: float = 0.85
+    RAG_STORE_PATH: str = "data/knowledge_store.json"
+
     # Google Search Console OAuth
     GOOGLE_OAUTH_CLIENT_ID: Optional[str] = None
     GOOGLE_OAUTH_CLIENT_SECRET: Optional[str] = None

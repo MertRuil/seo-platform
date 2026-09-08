@@ -24,7 +24,7 @@ def rag_store():
 def llm():
     return DeterministicTestLLMProvider()
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_content_agent(llm, rag_store):
     agent = ContentSEOAgent(llm, rag_store)
     res = await agent.analyze_content(
@@ -35,7 +35,7 @@ async def test_content_agent(llm, rag_store):
     assert res.risk_level == "HIGH"
     assert "YMYL" in res.expected_impact
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_link_agent(llm, rag_store):
     agent = InternalLinkingAgent(llm, rag_store)
     res = await agent.analyze_link_opportunity(
@@ -47,7 +47,7 @@ async def test_link_agent(llm, rag_store):
     assert res.category == "INTERNAL_LINKING"
     assert res.citations is not None
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_schema_agent(llm, rag_store):
     agent = StructuredDataAgent(llm, rag_store)
     res = await agent.analyze_schema(
@@ -57,7 +57,7 @@ async def test_schema_agent(llm, rag_store):
     )
     assert res.category == "STRUCTURED_DATA"
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_strategy_agent(llm, rag_store):
     agent = SEOStrategyAgent(llm, rag_store)
     res = await agent.generate_roadmap(
@@ -68,7 +68,7 @@ async def test_strategy_agent(llm, rag_store):
     )
     assert res.category == "STRATEGY_ROADMAP"
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_orchestrator_full_suite(llm, rag_store):
     orchestrator = AiOrchestrator(llm, rag_store)
     roadmap = await orchestrator.generate_strategic_roadmap(
