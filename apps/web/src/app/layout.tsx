@@ -1,5 +1,6 @@
 import "./globals.css";
-import { Navigation } from "@/components/Navigation";
+import { AuthProvider } from "@/context/AuthContext";
+import { AppLayoutShell } from "@/components/AppLayoutShell";
 
 export const metadata = {
   title: "Otonom AI SEO Platformu | SEO İşletim Sistemi",
@@ -13,11 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" className="dark">
-      <body className="bg-slate-950 text-slate-100 flex min-h-screen antialiased selection:bg-indigo-500 selection:text-white">
-        <Navigation />
-        <main className="flex-1 ml-64 p-8 overflow-y-auto min-h-screen">
-          {children}
-        </main>
+      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white font-sans">
+        <AuthProvider>
+          <AppLayoutShell>{children}</AppLayoutShell>
+        </AuthProvider>
       </body>
     </html>
   );
