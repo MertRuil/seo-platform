@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,18 +27,6 @@ export default function LoginPage() {
 
     if (!result.success) {
       setError(result.error || "Giriş yapılamadı. Bilgilerinizi kontrol edin.");
-    }
-  };
-
-  const handleQuickLogin = async (userEmail: string, userPass: string) => {
-    setEmail(userEmail);
-    setPassword(userPass);
-    setIsLoading(true);
-    setError(null);
-    const result = await login(userEmail, userPass);
-    setIsLoading(false);
-    if (!result.success) {
-      setError(result.error || "Hızlı giriş başarısız oldu.");
     }
   };
 
@@ -132,34 +120,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Hızlı Erişim Kutusu */}
-          <div className="mt-6 pt-5 border-t border-slate-800/80">
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Tek Tıkla Hızlı Yetkili Girişi (Test / Ekip):</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("mert@seo.com", "0706Ma*")}
-                className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
-              >
-                <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Mert Ruil</div>
-                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Kurucu)</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("aybo@seo.com", "kardesler123")}
-                className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
-              >
-                <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Aybo</div>
-                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Ortak)</div>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Alt Güvenlik Bildirimi */}
