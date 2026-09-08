@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -27,18 +27,6 @@ export default function LoginPage() {
 
     if (!result.success) {
       setError(result.error || "Giriş yapılamadı. Bilgilerinizi kontrol edin.");
-    }
-  };
-
-  const handleQuickLogin = async (userEmail: string, userPass: string) => {
-    setEmail(userEmail);
-    setPassword(userPass);
-    setIsLoading(true);
-    setError(null);
-    const result = await login(userEmail, userPass);
-    setIsLoading(false);
-    if (!result.success) {
-      setError(result.error || "Hızlı giriş başarısız oldu.");
     }
   };
 
@@ -147,7 +135,7 @@ export default function LoginPage() {
                 className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
               >
                 <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Mert Ruil</div>
-                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Kurucu)</div>
+                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
               </button>
 
               <button
@@ -156,7 +144,7 @@ export default function LoginPage() {
                 className="px-3 py-2 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-indigo-500/40 rounded-lg text-left text-xs transition-all group"
               >
                 <div className="font-semibold text-slate-200 group-hover:text-indigo-400">Aybo</div>
-                <div className="text-[10px] text-emerald-400 font-medium">Süper Yönetici (Ortak)</div>
+                <div className="text-[10px] text-slate-400">Sistem Yöneticisi</div>
               </button>
             </div>
           </div>
