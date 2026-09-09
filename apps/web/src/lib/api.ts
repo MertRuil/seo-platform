@@ -44,8 +44,9 @@ class ApiClient {
       ...(options.headers as Record<string, string>),
     };
 
-    if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`;
+    const activeToken = this.token || (typeof window !== "undefined" ? localStorage.getItem("seo_auth_token") : null);
+    if (activeToken) {
+      headers["Authorization"] = `Bearer ${activeToken}`;
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {

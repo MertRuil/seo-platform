@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { 
   ShieldCheck, 
   AlertTriangle, 
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 export default function GenelBakisPage() {
+  const router = useRouter();
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
       {/* Üst Başlık & Rozetler */}
@@ -46,7 +48,10 @@ export default function GenelBakisPage() {
       {/* Ana Performans Göstergeleri (KPI Kartları) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* SEO Sağlık Skoru */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all">
+        <div 
+          onClick={() => router.push("/health")}
+          className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-indigo-500/50 hover:bg-slate-900 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>Teknik SEO Sağlığı</span>
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -62,7 +67,10 @@ export default function GenelBakisPage() {
         </div>
 
         {/* Kritik Sorunlar */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all">
+        <div 
+          onClick={() => router.push("/issues")}
+          className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-amber-500/50 hover:bg-slate-900 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>Kritik Teknik Sorunlar</span>
             <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -77,7 +85,10 @@ export default function GenelBakisPage() {
         </div>
 
         {/* 28 Günlük Organik Tıklama */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all">
+        <div 
+          onClick={() => router.push("/performance")}
+          className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-indigo-500/50 hover:bg-slate-900 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>28 Günlük Organik Tıklama (GSC)</span>
             <MousePointerClick className="w-4 h-4 text-indigo-400" />
@@ -92,7 +103,10 @@ export default function GenelBakisPage() {
         </div>
 
         {/* Core Web Vitals */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-slate-700 transition-all">
+        <div 
+          onClick={() => router.push("/cwv")}
+          className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-sm hover:border-teal-500/50 hover:bg-slate-900 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
             <span>Web Hayati Değerleri (CrUX p75)</span>
             <Zap className="w-4 h-4 text-teal-400" />
@@ -130,7 +144,8 @@ export default function GenelBakisPage() {
               score: 96,
               reason: "Dairesel canonical yönlendirmeleri arama motoru botlarının sayfayı dizine eklemesini engeller.",
               source: "Google Search Central: Canonicalization Kılavuzu",
-              actionLabel: "Diff İncele & Düzelt"
+              actionLabel: "Diff İncele & Düzelt",
+              targetHref: "/changes"
             },
             {
               title: "Yüksek Gösterimli / Düşük Tıklamalı Başlık Etiketi Optimizasyonu",
@@ -139,7 +154,8 @@ export default function GenelBakisPage() {
               score: 84,
               reason: "'otonom seo yazılımı' sorgusu 42.000 gösterimde 4.2 pozisyondayken yalnızca %1.8 tıklama alıyor.",
               source: "GSC Search Analytics Motoru",
-              actionLabel: "Başlığı Optimize Et"
+              actionLabel: "Başlığı Optimize Et",
+              targetHref: "/opportunities"
             },
             {
               title: "/fiyatlandirma Sayfasına Eksik İç Bağlantıları Ekleyin",
@@ -148,7 +164,8 @@ export default function GenelBakisPage() {
               score: 79,
               reason: "Yüksek dönüşümlü fiyatlandırma sayfası, site genelinden sadece 3 iç bağlantı alarak zayıf kalıyor.",
               source: "NetworkX Site Grafı & PageRank Analizörü",
-              actionLabel: "Anchor Önerilerini Gör"
+              actionLabel: "Anchor Önerilerini Gör",
+              targetHref: "/links"
             }
           ].map((item, idx) => (
             <div key={idx} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg bg-slate-950/70 border border-slate-800/80 hover:border-slate-700 transition-all gap-4">
@@ -172,7 +189,10 @@ export default function GenelBakisPage() {
                 <div className="text-sm font-bold text-white">
                   {item.score} <span className="text-xs text-slate-500 font-normal">/ 100 Puan</span>
                 </div>
-                <button className="mt-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition-all shadow-sm flex items-center gap-1">
+                <button 
+                  onClick={() => router.push(item.targetHref)}
+                  className="mt-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-semibold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                >
                   <span>{item.actionLabel}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>

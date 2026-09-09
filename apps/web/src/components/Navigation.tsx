@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { 
   BarChart3, 
@@ -67,7 +68,7 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
           const Icon = item.icon;
           const isActive = currentPath === item.href;
           return (
-            <a
+            <Link
               key={item.name}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
@@ -78,7 +79,7 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
             >
               <Icon className="w-4 h-4 shrink-0" />
               <span>{item.name}</span>
-            </a>
+            </Link>
           );
         })}
       </nav>

@@ -116,6 +116,7 @@ export default function LoginPage() {
         if (nextAttempts >= 3 || res.show_forgot_password) {
           setError(`Şifreniz ${nextAttempts} kez hatalı girildi. Güvenliğiniz için lütfen şifrenizi sıfırlayın.`);
           setForgotEmail(email);
+          setShowForgotPasswordModal(true);
         } else {
           setError(res.error || `Geçersiz e-posta veya şifre (${nextAttempts}/3 deneme).`);
         }

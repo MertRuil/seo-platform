@@ -72,11 +72,11 @@ export default function FirsatlarPage() {
     };
 
     try {
-      const kayitli = localStorage.getItem("dentleon_changesets");
+      const kayitli = localStorage.getItem("seo_platform_changesets") || localStorage.getItem("dentleon_changesets");
       const mevcutListe = kayitli ? JSON.parse(kayitli) : [];
       const guncel = [yeniSet, ...mevcutListe];
-      localStorage.setItem("dentleon_changesets", JSON.stringify(guncel));
-      localStorage.setItem("dentleon_active_changeset_id", yeniSetId);
+      localStorage.setItem("seo_platform_changesets", JSON.stringify(guncel));
+      localStorage.setItem("seo_platform_active_changeset_id", yeniSetId);
     } catch (e) {
       console.error(e);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   BookOpen,
   ShieldCheck,
@@ -12,7 +13,9 @@ import {
   Activity,
   Layers,
   Send,
-  Loader2
+  Loader2,
+  Lock,
+  Shield
 } from "lucide-react";
 
 interface SourceItem {
@@ -64,6 +67,9 @@ const FALLBACK_SOURCES: SourceItem[] = [
 ];
 
 export default function BilgiBeyniPage() {
+  const { user, token } = useAuth();
+  const canIngest = Boolean(user?.isAdmin || user?.isSuperAdmin || user?.role?.toLowerCase().includes("yönetici") || user?.role === "SEO_MANAGER");
+
   const [sources, setSources] = useState<SourceItem[]>(FALLBACK_SOURCES);
   const [stats, setStats] = useState<StatsData>({
     total_chunks: 44,
@@ -137,9 +143,14 @@ export default function BilgiBeyniPage() {
     setIsIngesting(true);
     setIngestResult(null);
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE}/knowledge/verify-and-ingest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           title: ingestTitle,
           canonical_url: ingestUrl,
@@ -148,6 +159,14 @@ export default function BilgiBeyniPage() {
         })
       });
       const data = await res.json();
+      if (!res.ok) {
+        setIngestResult({
+          verification_status: "REJECTED",
+          reasons: [data.detail || "Yetkilendirme veya doğrulama hatası."]
+        });
+        return;
+      }
+
       setIngestResult(data);
       if (data.verification_status === "VERIFIED") {
         setStats(prev => ({
@@ -156,8 +175,8 @@ export default function BilgiBeyniPage() {
           verified_chunks: prev.verified_chunks + (data.chunks_ingested || 1)
         }));
       }
-    } catch (e) {
-      setIngestResult({ verification_status: "ERROR", reasons: ["API bağlantı hatası."] });
+    } catch (e: any) {
+      setIngestResult({ verification_status: "ERROR", reasons: ["API bağlantı hatası: " + (e.message || String(e))] });
     } finally {
       setIsIngesting(false);
     }
@@ -270,51 +289,61 @@ export default function BilgiBeyniPage() {
           Sisteme yanlış bilgi girmesini engelleyin: Bir SEO iddiasını sisteme sunarak anti-mit denetiminden geçirin.
         </p>
 
-        <form onSubmit={handleIngestVerify} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {canIngest ? (
+          <form onSubmit={handleIngestVerify} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Doküman Başlığı</label>
+                <input
+                  type="text"
+                  value={ingestTitle}
+                  onChange={(e) => setIngestTitle(e.target.value)}
+                  placeholder="Örn: Google Search Central: Sitemaps Protocol Update"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Kanonik URL (Otorite Alan Adı)</label>
+                <input
+                  type="url"
+                  value={ingestUrl}
+                  onChange={(e) => setIngestUrl(e.target.value)}
+                  placeholder="https://developers.google.com/search/docs/..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  required
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Doküman Başlığı</label>
-              <input
-                type="text"
-                value={ingestTitle}
-                onChange={(e) => setIngestTitle(e.target.value)}
-                placeholder="Örn: Google Search Central: Sitemaps Protocol Update"
+              <label className="block text-xs font-medium text-slate-400 mb-1">Doküman İçeriği / İddia Metni</label>
+              <textarea
+                value={ingestContent}
+                onChange={(e) => setIngestContent(e.target.value)}
+                rows={3}
+                placeholder="Doküman içeriğini veya doğrulamak istediğiniz SEO önermesini girin..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 required
               />
             </div>
+            <button
+              type="submit"
+              disabled={isIngesting}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {isIngesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              <span>Sorgula, Doğrula ve RAG Deposuna Ekle</span>
+            </button>
+          </form>
+        ) : (
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 flex items-center gap-3">
+            <Lock className="w-5 h-5 text-indigo-400 shrink-0" />
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Kanonik URL (Otorite Alan Adı)</label>
-              <input
-                type="url"
-                value={ingestUrl}
-                onChange={(e) => setIngestUrl(e.target.value)}
-                placeholder="https://developers.google.com/search/docs/..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                required
-              />
+              <span className="font-semibold text-slate-200 block">Kürasyon Kapısı Yönetici Yetkisi Gerektirir</span>
+              <span>RAG Bilgi Bankasına yeni resmi kural ve doküman besleme yetkisi yalnızca Platform ve SEO Yöneticilerine aittir. Mevcut tüm seviye-1 doğrulanmış SEO kurallarını yukarıdaki arama alanından anında inceleyebilirsiniz.</span>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Doküman İçeriği / İddia Metni</label>
-            <textarea
-              value={ingestContent}
-              onChange={(e) => setIngestContent(e.target.value)}
-              rows={3}
-              placeholder="Doküman içeriğini veya doğrulamak istediğiniz SEO önermesini girin..."
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isIngesting}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
-          >
-            {isIngesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            <span>Sorgula, Doğrula ve RAG Deposuna Ekle</span>
-          </button>
-        </form>
+        )}
 
         {ingestResult && (
           <div className={`mt-4 p-4 rounded-lg border ${

@@ -70,10 +70,13 @@ export default function SeoSorunlariPage() {
     }
   ];
 
+  const STORAGE_KEY_CHANGESETS = "seo_platform_changesets";
+  const STORAGE_KEY_ACTIVE_ID = "seo_platform_active_changeset_id";
+
   useEffect(() => {
     // Daha önce oluşturulmuş setleri yükle
     try {
-      const kayitli = localStorage.getItem("dentleon_changesets");
+      const kayitli = localStorage.getItem(STORAGE_KEY_CHANGESETS) || localStorage.getItem("dentleon_changesets");
       if (kayitli) {
         const parsed = JSON.parse(kayitli);
         const ids = parsed.map((p: any) => p.sorunId);
@@ -107,12 +110,12 @@ export default function SeoSorunlariPage() {
     };
 
     try {
-      const kayitli = localStorage.getItem("dentleon_changesets");
+      const kayitli = localStorage.getItem(STORAGE_KEY_CHANGESETS) || localStorage.getItem("dentleon_changesets");
       const mevcutListe = kayitli ? JSON.parse(kayitli) : [];
       // Mevcut varsa güncelle veya başa ekle
       const guncel = [yeniSet, ...mevcutListe.filter((item: any) => item.sorunId !== sorun.id)];
-      localStorage.setItem("dentleon_changesets", JSON.stringify(guncel));
-      localStorage.setItem("dentleon_active_changeset_id", yeniSetId);
+      localStorage.setItem(STORAGE_KEY_CHANGESETS, JSON.stringify(guncel));
+      localStorage.setItem(STORAGE_KEY_ACTIVE_ID, yeniSetId);
     } catch (e) {
       console.error("Storage error:", e);
     }

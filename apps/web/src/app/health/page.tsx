@@ -17,7 +17,7 @@ export default function SiteSagligiPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-emerald-400" />
@@ -27,6 +27,12 @@ export default function SiteSagligiPage() {
             20+ deterministik SEO kuralı taranarak sıfır yapay zeka yanılsaması (zero-hallucination) ile hesaplanmıştır.
           </p>
         </div>
+        <Link
+          href="/crawls"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+        >
+          <span>Yeni Canlı Tarama Başlat</span>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

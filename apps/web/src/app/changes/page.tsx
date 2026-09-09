@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { GitCommit, RotateCcw, Check, CheckCircle2, ShieldCheck, Play, ArrowRight, Loader2, ExternalLink, RefreshCw, Copy, Info } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { GitCommit, RotateCcw, Check, CheckCircle2, ShieldCheck, Play, ArrowRight, Loader2, ExternalLink, RefreshCw, Copy, Info, Lock, Shield } from "lucide-react";
 
 interface ChangeSetData {
   id: string;
@@ -17,7 +18,13 @@ interface ChangeSetData {
   olusturulmaTarihi?: string;
 }
 
+const STORAGE_KEY_CHANGESETS = "seo_platform_changesets";
+const STORAGE_KEY_ACTIVE_ID = "seo_platform_active_changeset_id";
+
 export default function DegisikliklerPage() {
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.isAdmin || user?.isSuperAdmin);
+
   const [changeSets, setChangeSets] = useState<ChangeSetData[]>([]);
   const [aktifIndex, setAktifIndex] = useState(0);
   const [islemde, setIslemde] = useState(false);
@@ -41,12 +48,12 @@ export default function DegisikliklerPage() {
 
   useEffect(() => {
     try {
-      const kayitli = localStorage.getItem("dentleon_changesets");
+      const kayitli = localStorage.getItem(STORAGE_KEY_CHANGESETS) || localStorage.getItem("dentleon_changesets");
       if (kayitli) {
         const parsed = JSON.parse(kayitli);
         if (parsed.length > 0) {
           setChangeSets(parsed);
-          const aktifId = localStorage.getItem("dentleon_active_changeset_id");
+          const aktifId = localStorage.getItem(STORAGE_KEY_ACTIVE_ID) || localStorage.getItem("dentleon_active_changeset_id");
           if (aktifId) {
             const idx = parsed.findIndex((p: ChangeSetData) => p.id === aktifId);
             if (idx !== -1) setAktifIndex(idx);
@@ -63,6 +70,10 @@ export default function DegisikliklerPage() {
   const aktifSet = changeSets[aktifIndex] || varsayilanSetler[0];
 
   const handleUygula = async () => {
+    if (!isAdmin) {
+      setBildirim({ tip: "hata", mesaj: "Yalnızca Sistem ve Platform Yöneticileri değişiklikleri canlıya uygulayabilir." });
+      return;
+    }
     setIslemde(true);
     setBildirim(null);
 
@@ -75,7 +86,7 @@ export default function DegisikliklerPage() {
       durum: "UYGULANDI"
     };
     setChangeSets(guncel);
-    localStorage.setItem("dentleon_changesets", JSON.stringify(guncel));
+    localStorage.setItem(STORAGE_KEY_CHANGESETS, JSON.stringify(guncel));
     setIslemde(false);
 
     setBildirim({
@@ -85,6 +96,10 @@ export default function DegisikliklerPage() {
   };
 
   const handleGeriAl = async () => {
+    if (!isAdmin) {
+      setBildirim({ tip: "hata", mesaj: "Yalnızca Sistem ve Platform Yöneticileri atomik geri alma yapabilir." });
+      return;
+    }
     setIslemde(true);
     setBildirim(null);
 
@@ -96,7 +111,7 @@ export default function DegisikliklerPage() {
       durum: "GERİ_ALINDI"
     };
     setChangeSets(guncel);
-    localStorage.setItem("dentleon_changesets", JSON.stringify(guncel));
+    localStorage.setItem(STORAGE_KEY_CHANGESETS, JSON.stringify(guncel));
     setIslemde(false);
 
     setBildirim({
@@ -186,7 +201,12 @@ export default function DegisikliklerPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {aktifSet.durum === "UYGULANDI" ? (
+            {!isAdmin ? (
+              <span className="px-3 py-1.5 rounded text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Yalnızca Yönetici Onayıyla Uygulanabilir (Salt Okunur)</span>
+              </span>
+            ) : aktifSet.durum === "UYGULANDI" ? (
               <>
                 <span className="px-3 py-1.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
