@@ -1,6 +1,7 @@
 import os
 from typing import List
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from services.security.jwt_auth import get_current_user_payload
 from packages.config.settings import settings
 from packages.contracts.knowledge import (
     KnowledgeSearchRequest,
@@ -149,14 +150,26 @@ async def search_knowledge(request: KnowledgeSearchRequest):
     )
 
 @router.post("/verify-and-ingest", response_model=DocumentIngestResponse)
-async def verify_and_ingest_document(request: DocumentIngestRequest):
+async def verify_and_ingest_document(
+    request: DocumentIngestRequest,
+    payload: dict = Depends(get_current_user_payload)
+):
     """
     Submits a candidate document to the autonomous curator agent:
-    1. Verifies source authority tier.
-    2. Runs deterministic anti-myth checks.
-    3. Rejects false claims or unverified community sources.
-    4. Chunks and ingests verified documents into the RAG knowledge store.
+    1. Requires ADMIN or OWNER authorization.
+    2. Verifies source authority tier.
+    3. Runs deterministic anti-myth checks.
+    4. Rejects false claims or unverified community sources.
+    5. Chunks and ingests verified documents into the RAG knowledge store.
     """
+    user_role = payload.get("role", "")
+    is_admin = payload.get("is_admin", False)
+    if not is_admin and user_role not in ("OWNER", "ADMIN", "SEO_MANAGER"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yalnızca yetkili platform ve SEO yöneticileri RAG bilgi deposuna veri ekleyebilir."
+        )
+
     doc_payload = {
         "id": request.id,
         "title": request.title,

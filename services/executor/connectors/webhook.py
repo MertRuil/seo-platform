@@ -5,11 +5,12 @@ import time
 import httpx
 from typing import Dict, Any, List
 from services.executor.base import SiteConnector
+from services.security.ssrf import validate_safe_url
 
 class GenericWebhookConnector(SiteConnector):
     """
     Connects to custom enterprise CMS via HMAC-SHA256 signed webhooks.
-    Includes idempotency keys and timestamp validation to eliminate replay attacks.
+    Includes idempotency keys, timestamp validation, and strict SSRF defenses.
     """
     def __init__(self, webhook_url: str, secret_key: str):
         self.webhook_url = webhook_url
@@ -20,8 +21,15 @@ class GenericWebhookConnector(SiteConnector):
         return hmac.new(self.secret_key.encode("utf-8"), data, hashlib.sha256).hexdigest()
 
     async def verify_connection(self) -> bool:
-        # Pings health check on webhook endpoint
-        return bool(self.webhook_url and self.secret_key)
+        if not self.webhook_url or not self.secret_key:
+            return False
+        if self.webhook_url.startswith("mock://"):
+            return True
+        try:
+            validate_safe_url(self.webhook_url)
+            return True
+        except Exception:
+            return False
 
     async def get_capabilities(self) -> List[str]:
         return ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_SCHEMA", "CAN_EDIT_REDIRECT"]
@@ -29,7 +37,8 @@ class GenericWebhookConnector(SiteConnector):
     async def read_page_state(self, url: str) -> Dict[str, Any]:
         if self.webhook_url.startswith("mock://"):
             return {"url": url, "current_hash": "dummy-hash", "is_valid": True}
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+        validate_safe_url(url)
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             response = await client.get(url)
             content_hash = hashlib.sha256(response.content).hexdigest()
             return {"url": url, "current_hash": content_hash, "status_code": response.status_code, "is_valid": response.status_code < 500}
@@ -49,7 +58,8 @@ class GenericWebhookConnector(SiteConnector):
         if self.webhook_url.startswith("mock://"):
             return True
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        validate_safe_url(self.webhook_url)
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             resp = await client.post(self.webhook_url, headers=headers, data=body_json)
             return resp.status_code in (200, 201, 204)
 

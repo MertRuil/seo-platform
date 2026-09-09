@@ -20,7 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; failed_attempts?: number; show_forgot_password?: boolean }>;
   register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   oauthLogin: (provider: "google" | "github" | "microsoft") => Promise<{ success: boolean; error?: string }>;
-  forgotPassword: (email: string, newPassword?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  forgotPassword: (email: string, code?: string, newPassword?: string) => Promise<{ success: boolean; step?: string; message?: string; error?: string }>;
   logout: () => void;
 }
 
@@ -151,12 +151,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const forgotPassword = async (email: string, newPassword?: string) => {
+  const forgotPassword = async (email: string, code?: string, newPassword?: string) => {
     try {
       const res = await fetch("/api/v1/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, newPassword }),
+        body: JSON.stringify({ email, code, newPassword }),
       });
 
       const data = await res.json();
@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "İşlem gerçekleştirilemedi." };
       }
 
-      return { success: true, message: data.message };
+      return { success: true, step: data.step, message: data.message };
     } catch (err: any) {
       return { success: false, error: "Sunucuyla iletişim kurulamadı: " + err.message };
     }

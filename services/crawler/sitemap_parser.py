@@ -27,6 +27,11 @@ class SitemapParser:
         if not clean_content:
             result.is_valid = False
             result.error_message = "Empty sitemap content"
+        # Reject XML containing DOCTYPE or ENTITY definitions to eliminate XML Entity Expansion (Billion Laughs / XXE DoS)
+        upper = clean_content[:2048].upper()
+        if "<!DOCTYPE" in upper or "<!ENTITY" in upper:
+            result.is_valid = False
+            result.error_message = "Security policy violation: XML with DTD or ENTITY declarations is not permitted"
             return result
 
         try:

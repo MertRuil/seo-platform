@@ -121,7 +121,9 @@ async def health_ready():
             await conn.execute(Base.metadata.tables['users'].select().limit(1))
         db_status = "connected"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        import logging
+        logging.getLogger("uvicorn.error").error(f"Health ready DB check failed: {e}")
+        db_status = "unhealthy"
     return {"status": "ready" if db_status == "connected" else "degraded", "database": db_status}
 
 # Mount API v1 Routers

@@ -4,11 +4,13 @@ import json
 import httpx
 from typing import Dict, Any, List
 from services.executor.base import SiteConnector
+from services.security.ssrf import validate_safe_url
 
 class WordPressConnector(SiteConnector):
     """
     WordPress REST API Connector utilizing Application Passwords.
-    Supports updating post titles, content, Yoast/RankMath SEO meta, and canonical URLs.
+    Supports updating post titles, content, Yoast/RankMath SEO meta, and canonical URLs
+    with strict SSRF network protection.
     """
     def __init__(self, wp_url: str, username: str, app_password: str):
         self.wp_url = wp_url.rstrip("/")
@@ -26,6 +28,7 @@ class WordPressConnector(SiteConnector):
         if self.wp_url.startswith("mock://"):
             return True
         try:
+            validate_safe_url(self.wp_url)
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.get(f"{self.wp_url}/wp-json/wp/v2/users/me", headers=self._get_headers())
                 return res.status_code == 200
@@ -38,7 +41,8 @@ class WordPressConnector(SiteConnector):
     async def read_page_state(self, url: str) -> Dict[str, Any]:
         if self.wp_url.startswith("mock://"):
             return {"url": url, "current_hash": "wp-mock-hash", "title": "Mock Title"}
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+        validate_safe_url(url)
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
             response = await client.get(url)
             return {
                 "url": url,
@@ -51,6 +55,7 @@ class WordPressConnector(SiteConnector):
         if self.wp_url.startswith("mock://"):
             return True
 
+        validate_safe_url(self.wp_url)
         target_id = change_item.get("post_id", 1)
         endpoint = f"{self.wp_url}/wp-json/wp/v2/posts/{target_id}"
 

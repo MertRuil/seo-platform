@@ -12,6 +12,7 @@ build/
 dist/
 apps/web/.next/
 apps/web/node_modules/
+*.tsbuildinfo
 
 # Python cache & artifacts
 __pycache__/

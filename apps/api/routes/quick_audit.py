@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 import asyncio
+import time
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from services.crawler.safe_client import SafeHttpClient
@@ -13,6 +14,23 @@ from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
 
 router = APIRouter(prefix="/audit", tags=["Hızlı Site Denetimi"])
+
+# Per-IP Rate Limiting: max 5 quick audits per 60 seconds
+_IP_AUDIT_HISTORY: Dict[str, List[float]] = {}
+MAX_AUDITS_PER_MINUTE = 5
+
+def _enforce_audit_rate_limit(client_ip: str):
+    now = time.time()
+    history = _IP_AUDIT_HISTORY.get(client_ip, [])
+    recent = [t for t in history if now - t < 60.0]
+    if len(recent) >= MAX_AUDITS_PER_MINUTE:
+        _IP_AUDIT_HISTORY[client_ip] = recent
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Hızlı denetim istek kotasına ulaştınız (dakikada maksimum 5 analiz). Lütfen biraz bekleyin."
+        )
+    recent.append(now)
+    _IP_AUDIT_HISTORY[client_ip] = recent
 
 class QuickAuditRequest(BaseModel):
     url: str = Field(..., description="Taranacak ve analiz edilecek web sitesi adresi (örn: https://example.com)")
@@ -45,11 +63,14 @@ KNOWLEDGE_STORE = _build_knowledge_store()
 AUDIT_CAPACITY = asyncio.Semaphore(4)
 
 @router.post("/quick", response_model=QuickAuditResponse, status_code=status.HTTP_200_OK)
-async def perform_quick_site_audit(req: QuickAuditRequest):
+async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
     """
     Canlı bir web sitesinin URL'sini alarak anında tarar,
     deterministik SEO kurallarını ve AI uzman ajanlarını çalıştırır.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    _enforce_audit_rate_limit(client_ip)
+
     try:
         normalized_url = UrlNormalizer.normalize(req.url)
     except (TypeError, ValueError) as exc:

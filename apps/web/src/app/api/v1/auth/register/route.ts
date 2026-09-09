@@ -1,5 +1,26 @@
 import { NextResponse } from "next/server";
 import { authStore } from "@/lib/auth-users";
+import crypto from "crypto";
+
+const JWT_SECRET = process.env.APP_SECRET_KEY || "autonomous-seo-platform-secure-token-signing-key-2026";
+
+function createSignedToken(user: { id: string; email: string; role: string; isAdmin?: boolean }) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    type: "access",
+    is_admin: Boolean(user.isAdmin),
+    exp: Math.floor(Date.now() / 1000) + 86400,
+    iat: Math.floor(Date.now() / 1000),
+  })).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -45,8 +66,8 @@ export async function POST(request: Request) {
 
     authStore.addUser(newUser);
 
-    // Otomatik oturum belirteci oluştur
-    const token = `jwt_seo_${Buffer.from(`${newUser.id}:${Date.now()}`).toString("base64")}`;
+    // Güvenli imzalı oturum belirteci oluştur
+    const token = createSignedToken({ id: newUser.id, email: newUser.email, role: newUser.role, isAdmin: newUser.isAdmin });
 
     const responseData = {
       success: true,
@@ -70,7 +91,7 @@ export async function POST(request: Request) {
     res.cookies.set({
       name: "seo_platform_token",
       value: token,
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 86400,
       path: "/",

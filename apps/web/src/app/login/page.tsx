@@ -42,7 +42,9 @@ export default function LoginPage() {
   // Şifre 3 kez yanlış girildiğinde tetiklenen güvenlik durumu
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState<"enter_email" | "enter_code">("enter_email");
   const [forgotEmail, setForgotEmail] = useState("");
+  const [resetCodeInput, setResetCodeInput] = useState("");
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
@@ -135,8 +137,8 @@ export default function LoginPage() {
     }
   };
 
-  // Şifre Sıfırlama Talebi
-  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+  // 1. Adım: E-postaya 6 Haneli Güvenlik Kodu Gönderme
+  const handleSendResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError(null);
     setForgotSuccess(null);
@@ -147,18 +149,48 @@ export default function LoginPage() {
     }
 
     setForgotLoading(true);
-    const res = await forgotPassword(forgotEmail, newPasswordInput || undefined);
+    const res = await forgotPassword(forgotEmail);
+    setForgotLoading(false);
+
+    if (!res.success) {
+      setForgotError(res.error || "Doğrulama kodu gönderilemedi.");
+    } else {
+      setForgotStep("enter_code");
+      setForgotSuccess(res.message || "6 haneli doğrulama kodu e-posta adresinize iletildi.");
+    }
+  };
+
+  // 2. Adım: Kod Doğrulama ve Yeni Şifre Belirleme
+  const handleVerifyAndResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError(null);
+    setForgotSuccess(null);
+
+    if (!resetCodeInput.trim()) {
+      setForgotError("Lütfen e-postanıza gönderilen 6 haneli kodu girin.");
+      return;
+    }
+
+    if (!newPasswordInput || newPasswordInput.length < 8) {
+      setForgotError("Yeni şifreniz en az 8 karakter olmalıdır.");
+      return;
+    }
+
+    setForgotLoading(true);
+    const res = await forgotPassword(forgotEmail, resetCodeInput, newPasswordInput);
     setForgotLoading(false);
 
     if (!res.success) {
       setForgotError(res.error || "Şifre sıfırlama işlemi başarısız oldu.");
     } else {
-      setForgotSuccess(res.message || "Şifre sıfırlama işlemi tamamlandı.");
+      setForgotSuccess(res.message || "Şifreniz başarıyla sıfırlandı.");
       setFailedAttempts(0);
       setTimeout(() => {
         setShowForgotPasswordModal(false);
-        setForgotSuccess(null);
+        setForgotStep("enter_email");
+        setResetCodeInput("");
         setNewPasswordInput("");
+        setForgotSuccess(null);
         setSuccessMessage("Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.");
       }, 2000);
     }
@@ -620,67 +652,121 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Kayıtlı E-Posta Adresi
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="ornek@sirket.com"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
+            {forgotStep === "enter_email" ? (
+              <form onSubmit={handleSendResetCode} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Kayıtlı E-Posta Adresi
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="ornek@sirket.com"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">
+                    Güvenliğiniz için bu adrese 10 dakika geçerli tek kullanımlık doğrulama kodu gönderilecektir.
+                  </p>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Yeni Şifreniz (İsteğe Bağlı)
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={newPasswordInput}
-                    onChange={(e) => setNewPasswordInput(e.target.value)}
-                    placeholder="Yeni şifrenizi belirleyin (min 8 karakter)..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPasswordModal(false);
+                      setForgotStep("enter_email");
+                    }}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Gönderiliyor...</span>
+                      </>
+                    ) : (
+                      <span>Doğrulama Kodu Gönder</span>
+                    )}
+                  </button>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Boş bırakırsanız e-postanıza tek kullanımlık kurtarma bağlantısı iletilir.
-                </p>
-              </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyAndResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    6 Haneli Doğrulama Kodu
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={resetCodeInput}
+                      onChange={(e) => setResetCodeInput(e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 tracking-widest font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {forgotEmail} adresine gönderilen 6 haneli onay kodunu girin.
+                  </p>
+                </div>
 
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPasswordModal(false)}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
-                >
-                  {forgotLoading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>İşleniyor...</span>
-                    </>
-                  ) : (
-                    <span>Şifreyi Güncelle</span>
-                  )}
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Yeni Şifreniz
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      placeholder="En az 8 karakter..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep("enter_email")}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+                  >
+                    Geri
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Güncelleniyor...</span>
+                      </>
+                    ) : (
+                      <span>Şifremi Güncelle</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

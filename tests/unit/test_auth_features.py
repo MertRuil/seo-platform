@@ -1,3 +1,4 @@
+import uuid
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
@@ -18,9 +19,10 @@ async def prepare_database():
 async def test_failed_attempts_and_forgot_password_flow():
     transport = ASGITransport(app=api_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        unique_email = f"user_{uuid.uuid4().hex[:8]}@example.com"
         # Register a test user
         reg_res = await client.post("/api/v1/auth/register", json={
-            "email": "test_lockout@example.com",
+            "email": unique_email,
             "password": "CorrectPassword123!",
             "full_name": "Lockout Tester"
         })
@@ -28,7 +30,7 @@ async def test_failed_attempts_and_forgot_password_flow():
 
         # 1st wrong attempt
         res1 = await client.post("/api/v1/auth/login", json={
-            "email": "test_lockout@example.com",
+            "email": unique_email,
             "password": "WrongPassword1"
         })
         assert res1.status_code == 401
@@ -37,7 +39,7 @@ async def test_failed_attempts_and_forgot_password_flow():
 
         # 2nd wrong attempt
         res2 = await client.post("/api/v1/auth/login", json={
-            "email": "test_lockout@example.com",
+            "email": unique_email,
             "password": "WrongPassword2"
         })
         assert res2.status_code == 401
@@ -46,7 +48,7 @@ async def test_failed_attempts_and_forgot_password_flow():
 
         # 3rd wrong attempt -> Should trigger X-Show-Forgot-Password: true
         res3 = await client.post("/api/v1/auth/login", json={
-            "email": "test_lockout@example.com",
+            "email": unique_email,
             "password": "WrongPassword3"
         })
         assert res3.status_code == 401
@@ -56,7 +58,7 @@ async def test_failed_attempts_and_forgot_password_flow():
 
         # Request forgot password
         forgot_res = await client.post("/api/v1/auth/forgot-password", json={
-            "email": "test_lockout@example.com"
+            "email": unique_email
         })
         assert forgot_res.status_code == 200
         forgot_data = forgot_res.json()
@@ -64,16 +66,23 @@ async def test_failed_attempts_and_forgot_password_flow():
         token = forgot_data["reset_token"]
         assert token is not None
 
-        # Reset password
+        # Reset password with valid token
         reset_res = await client.post("/api/v1/auth/reset-password", json={
             "token": token,
             "new_password": "NewBrandPassword123!"
         })
         assert reset_res.status_code == 200
 
+        # Attempting to use the SAME token again should fail (one-time use)
+        replay_res = await client.post("/api/v1/auth/reset-password", json={
+            "token": token,
+            "new_password": "AnotherPassword123!"
+        })
+        assert replay_res.status_code == 400
+
         # Login with new password
         login_res = await client.post("/api/v1/auth/login", json={
-            "email": "test_lockout@example.com",
+            "email": unique_email,
             "password": "NewBrandPassword123!"
         })
         assert login_res.status_code == 200
@@ -83,9 +92,10 @@ async def test_failed_attempts_and_forgot_password_flow():
 async def test_oauth_login_flow():
     transport = ASGITransport(app=api_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        unique_oauth_email = f"oauth_{uuid.uuid4().hex[:8]}@example.com"
         res = await client.post("/api/v1/auth/oauth", json={
             "provider": "google",
-            "email": "google_user@example.com",
+            "email": unique_oauth_email,
             "full_name": "Google Tester"
         })
         assert res.status_code == 200

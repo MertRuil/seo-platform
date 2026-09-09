@@ -2,6 +2,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from apps.api.routes.knowledge import router as knowledge_router
+from services.security.jwt_auth import create_access_token
 
 # Test FastAPI instance mounting the knowledge router under /api/v1
 api_app = FastAPI(title="Knowledge API Test")
@@ -51,15 +52,29 @@ async def test_knowledge_search_endpoint():
         assert top["verification_status"] == "VERIFIED"
 
 @pytest.mark.anyio
-async def test_knowledge_verify_and_ingest_rejection():
+async def test_knowledge_verify_and_ingest_requires_auth():
     transport = ASGITransport(app=api_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Submit debunked myth
+        # Request WITHOUT token must return 401
+        res = await client.post("/api/v1/knowledge/verify-and-ingest", json={
+            "title": "Unauthorized Document",
+            "content": "Malicious content without token",
+            "canonical_url": "https://example.com/unauth"
+        })
+        assert res.status_code == 401
+
+@pytest.mark.anyio
+async def test_knowledge_verify_and_ingest_rejection():
+    transport = ASGITransport(app=api_app)
+    token = create_access_token({"sub": "admin_test", "is_admin": True, "role": "ADMIN"})
+    headers = {"Authorization": f"Bearer {token}"}
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Submit debunked myth with authorized admin token
         res = await client.post("/api/v1/knowledge/verify-and-ingest", json={
             "title": "Quick SEO Hacks",
             "content": "Add 20 meta keywords to rank higher on Google search results pages.",
             "canonical_url": "https://developers.google.com/search/docs/fakes"
-        })
+        }, headers=headers)
         assert res.status_code == 200
         data = res.json()
         assert data["verification_status"] == "REJECTED"
@@ -69,13 +84,15 @@ async def test_knowledge_verify_and_ingest_rejection():
 @pytest.mark.anyio
 async def test_knowledge_verify_and_ingest_success():
     transport = ASGITransport(app=api_app)
+    token = create_access_token({"sub": "admin_test", "is_admin": True, "role": "ADMIN"})
+    headers = {"Authorization": f"Bearer {token}"}
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Submit valid Level 1 doc
+        # Submit valid Level 1 doc with authorized admin token
         res = await client.post("/api/v1/knowledge/verify-and-ingest", json={
             "title": "Google Search Central: Sitemaps Protocol Update",
             "content": "# XML Sitemaps Architecture\nSitemaps allow search engines to discover crawlable URLs across large sites.",
             "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/update"
-        })
+        }, headers=headers)
         assert res.status_code == 200
         data = res.json()
         assert data["verification_status"] == "VERIFIED"

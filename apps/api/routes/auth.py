@@ -11,11 +11,8 @@ from packages.contracts.auth import (
 from services.security.crypto import hash_password, verify_password
 from services.security.jwt_auth import create_access_token, create_refresh_token, get_current_user_payload
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# In-memory tracking of failed login attempts per email
-FAILED_ATTEMPTS: Dict[str, int] = {}
-RESET_TOKENS: Dict[str, str] = {}  # token -> email
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
@@ -79,29 +76,56 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
         refresh_token=create_refresh_token(token_data)
     )
 
+import time
+import secrets
+from packages.config.settings import settings
+
+# In-memory tracking of failed login attempts per email (capped to prevent memory leaks)
+FAILED_ATTEMPTS: Dict[str, int] = {}
+RESET_TOKENS: Dict[str, dict] = {}  # token -> {"email": str, "expires_at": float}
+
+def _cleanup_expired_tokens():
+    now = time.time()
+    expired = [t for t, data in RESET_TOKENS.items() if now > data["expires_at"]]
+    for t in expired:
+        RESET_TOKENS.pop(t, None)
+
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 async def forgot_password(req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     clean_email = req.email.strip().lower()
     result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalars().first()
 
+    _cleanup_expired_tokens()
     import uuid
-    reset_token = f"rst_{uuid.uuid4().hex[:16]}"
-    RESET_TOKENS[reset_token] = clean_email
+    reset_token = f"rst_{uuid.uuid4().hex[:24]}"
+    # 15 minutes TTL
+    RESET_TOKENS[reset_token] = {
+        "email": clean_email,
+        "expires_at": time.time() + 900
+    }
     FAILED_ATTEMPTS.pop(clean_email, None)
 
+    # In production, never return reset token in JSON response (security best practice)
+    is_dev_or_test = settings.ENVIRONMENT.lower() in {"development", "test"}
     return ForgotPasswordResponse(
         success=True,
         message=f"{clean_email} adresine şifre sıfırlama bağlantısı gönderildi.",
-        reset_token=reset_token
+        reset_token=reset_token if is_dev_or_test else None
     )
 
 @router.post("/reset-password")
 async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
-    email = RESET_TOKENS.get(req.token)
-    if not email:
+    _cleanup_expired_tokens()
+    record = RESET_TOKENS.get(req.token)
+    if not record:
         raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş sıfırlama bağlantısı.")
 
+    if time.time() > record["expires_at"]:
+        RESET_TOKENS.pop(req.token, None)
+        raise HTTPException(status_code=400, detail="Şifre sıfırlama bağlantısının süresi dolmuş (15 dakika). Lütfen tekrar talep edin.")
+
+    email = record["email"]
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalars().first()
     if not user:
@@ -124,10 +148,18 @@ async def oauth_login(req: OAuthLoginRequest, db: AsyncSession = Depends(get_db)
     result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalars().first()
 
+    # Security check: If target user exists and has admin privileges, require verified token
+    if user and user.is_platform_admin and not req.token and settings.ENVIRONMENT.lower() == "production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yönetici hesapları için OAuth sağlayıcı doğrulama belirteci (token) zorunludur."
+        )
+
     if not user:
+        random_pwd = secrets.token_urlsafe(32)
         user = User(
             email=clean_email,
-            hashed_password=hash_password("OAuthRandomPass999!"),
+            hashed_password=hash_password(random_pwd),
             full_name=full_name,
             is_active=True
         )

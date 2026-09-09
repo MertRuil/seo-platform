@@ -4,7 +4,7 @@ import { authStore } from "@/lib/auth-users";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, newPassword } = body;
+    const { email, code, newPassword, action } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -23,17 +23,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Şifre sıfırlama talebi
-    if (newPassword) {
-      if (String(newPassword).length < 8) {
+    // 1. Şifre Güncelleme Adımı (Kod + Yeni Şifre zorunludur)
+    if (newPassword || code) {
+      if (!code || !String(code).trim()) {
         return NextResponse.json(
-          { error: "Yeni şifre en az 8 karakter olmalıdır." },
+          { error: "Güvenlik gerekçesiyle şifre sıfırlamak için 6 haneli doğrulama kodu zorunludur." },
           { status: 400 }
         );
       }
 
-      authStore.updatePassword(cleanEmail, String(newPassword));
-      authStore.clearFailedAttempts(cleanEmail);
+      if (!newPassword || String(newPassword).length < 8) {
+        return NextResponse.json(
+          { error: "Yeni şifre en az 8 karakter uzunluğunda olmalıdır." },
+          { status: 400 }
+        );
+      }
+
+      const resetResult = authStore.verifyAndResetPassword(cleanEmail, String(code).trim(), String(newPassword));
+      if (!resetResult.success) {
+        return NextResponse.json(
+          { error: resetResult.error || "Geçersiz veya süresi dolmuş kod." },
+          { status: 400 }
+        );
+      }
 
       return NextResponse.json({
         success: true,
@@ -41,14 +53,15 @@ export async function POST(request: Request) {
       });
     }
 
-    // Sıfırlama kodu / linki gönderimi simülasyonu
-    authStore.clearFailedAttempts(cleanEmail);
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // 2. Doğrulama Kodu Talebi (Kod üretilir, ASLA API yanıtında dışarı sızdırılmaz)
+    const resetCode = authStore.createResetCode(cleanEmail);
+    // Gerçek prodüksiyonda SMTP/SendGrid e-posta servisine iletilir:
+    // console.log(`[SECURE DISPATCH] Reset code for ${cleanEmail} sent via email.`);
 
     return NextResponse.json({
       success: true,
-      message: `${cleanEmail} adresine 6 haneli şifre sıfırlama kodu gönderildi.`,
-      reset_code: resetCode,
+      step: "code_sent",
+      message: `${cleanEmail} adresine 6 haneli tek kullanımlık güvenlik kodu gönderildi (10 dakika geçerlidir).`,
     });
   } catch (err: any) {
     return NextResponse.json(
