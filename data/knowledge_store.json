@@ -145,7 +145,7 @@
       "Always use absolute URLs for rel=canonical links."
     ],
     "verification_confidence": 0.98,
-    "verified_at": "2026-09-09T15:00:18.193142+00:00",
+    "verified_at": "2026-09-09T18:00:06.753601+00:00",
     "source_hash": "270788fbdc7e85b3bd3a8102e16697c707d7c5014146145ea73396164fad0786"
   },
   "day1-robots-txt-chunk-0": {
@@ -294,7 +294,7 @@
       "Disallowing a URL does not prevent indexing if linked externally."
     ],
     "verification_confidence": 0.98,
-    "verified_at": "2026-09-09T15:00:18.212719+00:00",
+    "verified_at": "2026-09-09T18:00:06.781265+00:00",
     "source_hash": "627af8ccb7e07fbb3239c8cbec5b4999e0a59a57340f9f3b0842ccbe937390dc"
   }
 }
