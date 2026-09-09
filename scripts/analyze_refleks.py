@@ -1,5 +1,17 @@
+import sys
+import os
 import asyncio
 import json
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Reconfigure stdout/stderr for Windows UTF-8 compatibility
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from selectolax.parser import HTMLParser
 from services.crawler.safe_client import SafeHttpClient
 

@@ -7,7 +7,7 @@ from services.crawler.html_extractor import HtmlExtractor
 from services.crawler.url_normalizer import UrlNormalizer
 from services.seo_engine.engine import SeoRuleEngine
 from services.agents.orchestrator import AiOrchestrator
-from services.agents.base import DeterministicTestLLMProvider
+from services.agents.base import get_llm_provider
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
@@ -83,7 +83,7 @@ async def perform_quick_site_audit(req: QuickAuditRequest):
 
     # 2. RAG Bilgi Beyni & AI Ajanları
     orchestrator = AiOrchestrator(
-        llm_provider=DeterministicTestLLMProvider(),
+        llm_provider=get_llm_provider(),
         knowledge_store=KNOWLEDGE_STORE
     )
 

@@ -68,3 +68,170 @@ class DeterministicTestLLMProvider(LLMProvider):
                 )
             ]
         )
+
+
+class GoogleGenAIProvider(LLMProvider):
+    """Production LLM provider using Google Gemini via async REST API."""
+    def __init__(self, api_key: str, model: str = "gemini-1.5-pro", rate_limiter=None):
+        self.api_key = api_key
+        self.model = model
+        self.rate_limiter = rate_limiter
+        self.endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    async def generate(self, prompt: str, system_instruction: str = "", temperature: float = 0.2) -> str:
+        import httpx
+        if self.rate_limiter:
+            await self.rate_limiter.acquire(estimated_tokens=len(prompt.split()) * 2)
+
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": temperature}
+        }
+        if system_instruction:
+            payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                self.endpoint,
+                params={"key": self.api_key},
+                headers={"Content-Type": "application/json"},
+                json=payload
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        output_schema: Type[BaseModel],
+        system_instruction: str = "",
+        temperature: float = 0.1
+    ) -> BaseModel:
+        import json
+        import httpx
+        if self.rate_limiter:
+            await self.rate_limiter.acquire(estimated_tokens=len(prompt.split()) * 2)
+
+        schema_json = json.dumps(output_schema.model_json_schema())
+        augmented_prompt = f"{prompt}\n\nRespond strictly with valid JSON conforming to this schema:\n{schema_json}"
+
+        payload = {
+            "contents": [{"parts": [{"text": augmented_prompt}]}],
+            "generationConfig": {
+                "temperature": temperature,
+                "responseMimeType": "application/json"
+            }
+        }
+        if system_instruction:
+            payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                self.endpoint,
+                params={"key": self.api_key},
+                headers={"Content-Type": "application/json"},
+                json=payload
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            parsed_json = json.loads(raw_text)
+            return output_schema.model_validate(parsed_json)
+
+
+class OpenAIProvider(LLMProvider):
+    """Production LLM provider for OpenAI GPT models."""
+    def __init__(self, api_key: str, model: str = "gpt-4o", rate_limiter=None):
+        self.api_key = api_key
+        self.model = model
+        self.rate_limiter = rate_limiter
+        self.endpoint = "https://api.openai.com/v1/chat/completions"
+
+    async def generate(self, prompt: str, system_instruction: str = "", temperature: float = 0.2) -> str:
+        import httpx
+        if self.rate_limiter:
+            await self.rate_limiter.acquire(estimated_tokens=len(prompt.split()) * 2)
+
+        messages = []
+        if system_instruction:
+            messages.append({"role": "system", "content": system_instruction})
+        messages.append({"role": "user", "content": prompt})
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(self.endpoint, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        output_schema: Type[BaseModel],
+        system_instruction: str = "",
+        temperature: float = 0.1
+    ) -> BaseModel:
+        import json
+        import httpx
+        if self.rate_limiter:
+            await self.rate_limiter.acquire(estimated_tokens=len(prompt.split()) * 2)
+
+        schema_json = json.dumps(output_schema.model_json_schema())
+        messages = []
+        if system_instruction:
+            messages.append({"role": "system", "content": f"{system_instruction}\nRespond ONLY in valid JSON matching this schema: {schema_json}"})
+        messages.append({"role": "user", "content": prompt})
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "response_format": {"type": "json_object"}
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(self.endpoint, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data["choices"][0]["message"]["content"]
+            parsed_json = json.loads(raw_text)
+            return output_schema.model_validate(parsed_json)
+
+
+def get_llm_provider(rate_limiter=None) -> LLMProvider:
+    """
+    Factory function returning the configured LLM provider.
+    Falls back gracefully to DeterministicTestLLMProvider if no live keys are configured.
+    """
+    from packages.config.settings import settings
+    provider_name = (settings.LLM_PROVIDER or "").lower()
+
+    if provider_name == "google" and settings.GOOGLE_API_KEY:
+        return GoogleGenAIProvider(
+            api_key=settings.GOOGLE_API_KEY,
+            model=settings.DEFAULT_LLM_MODEL or "gemini-1.5-pro",
+            rate_limiter=rate_limiter
+        )
+    elif provider_name == "openai" and settings.OPENAI_API_KEY:
+        return OpenAIProvider(
+            api_key=settings.OPENAI_API_KEY,
+            model=settings.DEFAULT_LLM_MODEL or "gpt-4o",
+            rate_limiter=rate_limiter
+        )
+
+    return DeterministicTestLLMProvider()
+

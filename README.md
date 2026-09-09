@@ -70,21 +70,48 @@ pip install -r requirements.txt
 pip install aiosqlite "pydantic[email]" email-validator
 ```
 
-### 3.3. Run Tests
+### 3.3. Initialize Database & Seed Knowledge Brain
 ```bash
-# Execute full automated test suite (35+ unit, security, integration, and golden tests)
+# Initialize database schema and pre-load official Level-1 SEO guidelines & demo admin
+python scripts/init_db.py
+
+# Or force local SQLite database for quick development:
+python scripts/init_db.py --sqlite
+```
+Default credentials created:
+- **Email:** `admin@seo-platform.local`
+- **Password:** `AdminPass123!`
+- **Organization:** `Acme Digital Agency`
+
+### 3.4. Run Tests
+```bash
+# Execute full automated test suite (84 unit, security, RAG, integration, and golden tests)
 pytest -v
 ```
 
-### 3.4. Run Local API Server
+### 3.5. Run Local API Server
 ```bash
 uvicorn apps.api.main:app --reload --port 8000
 ```
 API Documentation will be accessible at: `http://localhost:8000/docs`
 
-### 3.5. Run with Docker Compose
+### 3.6. Run Next.js Frontend
 ```bash
-docker-compose -f infra/docker/docker-compose.yml up --build
+cd apps/web
+npm run dev
+```
+Dashboard will be accessible at: `http://localhost:3000` (including Knowledge Brain at `/knowledge`)
+
+### 3.7. Run Autonomous RAG Curator
+```bash
+# Run continuous or simulated multi-day curation & fact verification
+python scripts/run_rag_curator.py --days 3 --seed
+```
+
+### 3.8. Run with Docker Compose
+```bash
+# Single-command root execution:
+docker compose up --build
 ```
 This boots:
 - PostgreSQL 16 with pgvector on port `5432`

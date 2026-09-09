@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from typing import Dict, Any, Callable, Awaitable
-from apps.worker.tasks import run_crawl_job, run_audit_and_ai_job
+from apps.worker.tasks import run_crawl_job, run_audit_and_ai_job, run_rag_curator_job
 from arq import create_pool
 from arq.connections import RedisSettings
 from packages.config.settings import settings
@@ -31,6 +31,8 @@ class AsyncWorkerQueue:
                 await run_crawl_job(kwargs["crawl_run_id"])
             elif task_name == "audit_and_ai":
                 await run_audit_and_ai_job(kwargs["site_id"], kwargs["crawl_run_id"])
+            elif task_name == "rag_curator":
+                await run_rag_curator_job(kwargs.get("days", 1))
             else:
                 logger.warning(f"Unknown task: {task_name}")
         finally:
@@ -55,8 +57,11 @@ async def crawl(ctx, crawl_run_id: str):
 async def audit_and_ai(ctx, site_id: str, crawl_run_id: str):
     return await run_audit_and_ai_job(site_id, crawl_run_id)
 
+async def rag_curator(ctx, days: int = 1):
+    return await run_rag_curator_job(days)
+
 class WorkerSettings:
-    functions = [crawl, audit_and_ai]
+    functions = [crawl, audit_and_ai, rag_curator]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     max_jobs = 10
 

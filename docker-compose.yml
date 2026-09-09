@@ -54,7 +54,7 @@ services:
 
   api:
     build:
-      context: ../..
+      context: .
       dockerfile: infra/docker/Dockerfile.api
     container_name: seo_platform_api
     restart: unless-stopped
@@ -79,7 +79,7 @@ services:
 
   worker:
     build:
-      context: ../..
+      context: .
       dockerfile: infra/docker/Dockerfile.worker
     container_name: seo_platform_worker
     restart: unless-stopped
@@ -98,7 +98,7 @@ services:
 
   web:
     build:
-      context: ../..
+      context: .
       dockerfile: infra/docker/Dockerfile.web
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1

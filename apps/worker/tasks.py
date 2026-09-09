@@ -6,7 +6,7 @@ from packages.shared.models import CrawlRun, Site, CrawlPage, Recommendation
 from services.crawler.crawler_service import CrawlerService
 from services.seo_engine.engine import SeoRuleEngine
 from services.agents.orchestrator import AiOrchestrator
-from services.agents.base import DeterministicTestLLMProvider
+from services.agents.base import get_llm_provider
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
@@ -77,7 +77,7 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                     )
 
             orchestrator = AiOrchestrator(
-                llm_provider=DeterministicTestLLMProvider(),
+                llm_provider=get_llm_provider(),
                 knowledge_store=knowledge_store
             )
 
@@ -115,3 +115,11 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
         except Exception as e:
             logger.error(f"Audit & AI job failed: {e}")
             return 0
+
+
+async def run_rag_curator_job(days: int = 1) -> Dict[str, Any]:
+    """Background worker task to run autonomous RAG knowledge curation and verification."""
+    from services.rag.curator_agent import AutonomousRAGCurator
+    curator = AutonomousRAGCurator()
+    return await curator.simulate_multi_day_run(days=days)
+

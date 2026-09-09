@@ -32,6 +32,7 @@ KnowledgeStatusEnum = Enum('ACTIVE', 'DEPRECATED', 'REMOVED', 'HISTORICAL', name
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -46,6 +47,7 @@ class User(Base):
 
 class Organization(Base):
     __tablename__ = 'organizations'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
@@ -72,10 +74,12 @@ class Membership(Base):
 
     __table_args__ = (
         UniqueConstraint('user_id', 'organization_id', name='uq_user_organization'),
+        {'extend_existing': True}
     )
 
 class Site(Base):
     __tablename__ = 'sites'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -103,6 +107,7 @@ class Site(Base):
 
 class SiteVerification(Base):
     __tablename__ = 'site_verifications'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -116,6 +121,7 @@ class SiteVerification(Base):
 
 class SiteConnector(Base):
     __tablename__ = 'site_connectors'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -130,6 +136,7 @@ class SiteConnector(Base):
 
 class CrawlRun(Base):
     __tablename__ = 'crawl_runs'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -149,6 +156,7 @@ class CrawlRun(Base):
 
 class CrawlPage(Base):
     __tablename__ = 'crawl_pages'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     crawl_run_id = Column(String(36), ForeignKey('crawl_runs.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -178,6 +186,7 @@ class CrawlPage(Base):
 # Phase 4 Models: GSC, CrUX, Lighthouse, OAuth
 class OAuthCredential(Base):
     __tablename__ = 'oauth_credentials'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -190,6 +199,7 @@ class OAuthCredential(Base):
 
 class GscSearchMetric(Base):
     __tablename__ = 'gsc_search_metrics'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -208,6 +218,7 @@ class GscSearchMetric(Base):
 
 class CruxMetric(Base):
     __tablename__ = 'crux_metrics'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -220,6 +231,7 @@ class CruxMetric(Base):
 
 class LighthouseRun(Base):
     __tablename__ = 'lighthouse_runs'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -234,6 +246,7 @@ class LighthouseRun(Base):
 # Phase 5 Models: Knowledge Brain
 class KnowledgeSource(Base):
     __tablename__ = 'knowledge_sources'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
@@ -245,27 +258,38 @@ class KnowledgeSource(Base):
 
 class KnowledgeDocument(Base):
     __tablename__ = 'knowledge_documents'
+    __table_args__ = {'extend_existing': True}
 
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    source_id = Column(String(36), ForeignKey('knowledge_sources.id', ondelete='CASCADE'), nullable=False, index=True)
+    id = Column(String(100), primary_key=True, default=generate_uuid)
+    source_id = Column(String(36), ForeignKey('knowledge_sources.id', ondelete='SET NULL'), nullable=True, index=True)
     title = Column(String(255), nullable=False)
-    canonical_url = Column(Text, nullable=False)
-    content_hash = Column(String(64), nullable=False)
+    canonical_url = Column(Text, nullable=False, unique=True, index=True)
+    authority_level = Column(String(50), default='LEVEL_1_OFFICIAL', nullable=False)
+    content_hash = Column(String(64), nullable=True)
+    source_hash = Column(String(64), nullable=True)
     status = Column(String(50), default='ACTIVE', nullable=False)  # 'ACTIVE', 'DEPRECATED', 'REMOVED', 'HISTORICAL'
     version = Column(Integer, default=1, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    updated_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     source = relationship("KnowledgeSource", back_populates="documents")
     chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
 
 class KnowledgeChunk(Base):
     __tablename__ = 'knowledge_chunks'
+    __table_args__ = {'extend_existing': True}
 
-    id = Column(String(36), primary_key=True, default=generate_uuid)
-    document_id = Column(String(36), ForeignKey('knowledge_documents.id', ondelete='CASCADE'), nullable=False, index=True)
+    id = Column(String(150), primary_key=True, default=generate_uuid)
+    document_id = Column(String(100), ForeignKey('knowledge_documents.id', ondelete='CASCADE'), nullable=False, index=True)
+    document_title = Column(String(255), nullable=True)
     heading_path = Column(Text, nullable=False, default="[]")  # JSON-encoded array
     content = Column(Text, nullable=False)
+    canonical_url = Column(Text, nullable=True)
+    authority_level = Column(String(50), default='LEVEL_1_OFFICIAL', nullable=False)
+    verification_status = Column(String(50), default='VERIFIED', nullable=False)
+    verified_claims = Column(Text, nullable=False, default="[]")  # JSON-encoded list of claims
+    verification_confidence = Column(Numeric(4, 2), default=1.00, nullable=False)
     token_count = Column(Integer, default=0, nullable=False)
     embedding_json = Column(Text, nullable=True)  # JSON-encoded vector float array
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
@@ -275,6 +299,7 @@ class KnowledgeChunk(Base):
 # Phase 6 & 8 Models: Recommendations, ChangeSets, Connectors
 class Recommendation(Base):
     __tablename__ = 'recommendations'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -297,6 +322,7 @@ class Recommendation(Base):
 
 class ChangeSet(Base):
     __tablename__ = 'change_sets'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -313,6 +339,7 @@ class ChangeSet(Base):
 
 class ChangeItem(Base):
     __tablename__ = 'change_items'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     change_set_id = Column(String(36), ForeignKey('change_sets.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -327,6 +354,7 @@ class ChangeItem(Base):
 
 class AuditLog(Base):
     __tablename__ = 'audit_logs'
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)

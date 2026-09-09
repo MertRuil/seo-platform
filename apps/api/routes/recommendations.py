@@ -13,7 +13,7 @@ from apps.api.routes.sites import verify_site_access
 from services.security.jwt_auth import get_current_user_payload
 from apps.worker.worker import worker_queue
 from services.agents.orchestrator import AiOrchestrator
-from services.agents.base import DeterministicTestLLMProvider
+from services.agents.base import get_llm_provider
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.seo_engine.engine import SeoRuleEngine
 
@@ -95,7 +95,7 @@ async def get_strategic_roadmap(
     opportunity_count = len((await db.execute(select(GscSearchMetric.id).where(GscSearchMetric.site_id == site_id))).all())
 
     orchestrator = AiOrchestrator(
-        llm_provider=DeterministicTestLLMProvider(),
+        llm_provider=get_llm_provider(),
         knowledge_store=HybridKnowledgeStore()
     )
     roadmap = await orchestrator.generate_strategic_roadmap(

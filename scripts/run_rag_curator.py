@@ -6,6 +6,12 @@ import os
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Reconfigure stdout/stderr for Windows UTF-8 compatibility
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.curator_agent import AutonomousRAGCurator
 from services.rag.seeds import SEED_DOCUMENTS
