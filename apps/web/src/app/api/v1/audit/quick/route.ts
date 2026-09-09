@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validateSafeAuditUrl, SSRFSecurityError } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
+
+// IP tabanlı istek kotası: 60 saniyede maksimum 5 analiz
+const IP_AUDIT_HISTORY = new Map<string, number[]>();
+const MAX_AUDITS_PER_MINUTE = 5;
+
+function checkRateLimit(clientIp: string): boolean {
+  const now = Date.now();
+  const history = IP_AUDIT_HISTORY.get(clientIp) || [];
+  const recent = history.filter(t => now - t < 60000);
+  if (recent.length >= MAX_AUDITS_PER_MINUTE) {
+    IP_AUDIT_HISTORY.set(clientIp, recent);
+    return false;
+  }
+  recent.push(now);
+  IP_AUDIT_HISTORY.set(clientIp, recent);
+  return true;
+}
 
 interface IssueDetail {
   rule_id: string;
@@ -21,6 +39,14 @@ interface AiRecommendation {
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    if (!checkRateLimit(clientIp)) {
+      return NextResponse.json(
+        { detail: "Hızlı denetim istek kotasına ulaştınız (dakikada maksimum 5 analiz). Lütfen biraz bekleyin." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     let targetUrl: string = body.url;
 
@@ -33,6 +59,17 @@ export async function POST(req: NextRequest) {
 
     if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
       targetUrl = "https://" + targetUrl;
+    }
+
+    // SSRF Güvenlik Doğrulaması (Yerel ağ, loopback ve bulut metadata engelleme)
+    try {
+      const validatedUrlObj = await validateSafeAuditUrl(targetUrl);
+      targetUrl = validatedUrlObj.href;
+    } catch (ssrfErr: any) {
+      return NextResponse.json(
+        { detail: ssrfErr.message || "Geçersiz veya engellenen hedef URL (SSRF koruması)." },
+        { status: 400 }
+      );
     }
 
     // 1. Önce yerel Python FastAPI varsa ona iletmeyi dene
@@ -73,9 +110,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const finalUrl = fetchResponse.url;
+
+    // Yönlendirme sonrası hedef adres için de SSRF doğrulaması
+    try {
+      await validateSafeAuditUrl(finalUrl);
+    } catch (redirectSsrfErr: any) {
+      return NextResponse.json(
+        { detail: `Yönlendirme güvenliği ihlali (SSRF): Hedef yönlendirme adresi engellendi.` },
+        { status: 400 }
+      );
+    }
+
     const responseTimeMs = Date.now() - t0;
     const statusCode = fetchResponse.status;
-    const finalUrl = fetchResponse.url;
     const html = await fetchResponse.text();
 
     // HTML Ayrıştırma (Tüm ECMAScript hedefleriyle tam uyumlu regex)

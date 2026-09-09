@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { GitCommit, RotateCcw, Check, CheckCircle2, ShieldCheck, Play, ArrowRight, Loader2, ExternalLink, RefreshCw, Copy, Info, Lock, Shield } from "lucide-react";
 
@@ -194,7 +195,7 @@ export default function DegisikliklerPage() {
             <h3 className="text-base font-bold text-white">{aktifSet.baslik}</h3>
             <p className="text-xs text-indigo-300 font-mono mt-1 flex items-center gap-1">
               <span>Etkilenen Sayfa:</span>
-              <a href={aktifSet.etkilenenSayfa} target="_blank" rel="noreferrer" className="underline hover:text-indigo-200">
+              <a href={aktifSet.etkilenenSayfa} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-200">
                 {aktifSet.etkilenenSayfa}
               </a>
             </p>
@@ -323,13 +324,13 @@ export default function DegisikliklerPage() {
               <Copy className="w-3.5 h-3.5" />
               <span>{kopyalandi ? "✓ Kod Panoya Kopyalandı!" : "Düzeltilmiş Kodu Kopyala"}</span>
             </button>
-            <a
+            <Link
               href="/integrations"
               className="text-xs text-indigo-400 hover:text-indigo-300 font-medium underline flex items-center gap-1"
             >
               <span>Otomatik yazması için siteyi Entegrasyonlara bağla</span>
               <ArrowRight className="w-3 h-3" />
-            </a>
+            </Link>
           </div>
         </div>
 

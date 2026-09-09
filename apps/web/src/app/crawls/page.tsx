@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { Layers, Play, CheckCircle2, AlertTriangle, ShieldCheck, Globe, ArrowRight, Loader2, Sparkles, ChevronRight } from "lucide-react";
 
 export default function SiteTaramalariPage() {
   const router = useRouter();
+  const { token } = useAuth();
   const [hedefUrl, setHedefUrl] = useState("https://example.com");
   const [yukleniyor, setYukleniyor] = useState(false);
   const [analizSonucu, setAnalizSonucu] = useState<any>(null);
@@ -36,7 +38,7 @@ export default function SiteTaramalariPage() {
       console.error(e);
     }
 
-    setBildirim(`✓ "${iss.title}" için otonom düzeltme seti (#${yeniSetId}) oluşturuldu!`);
+    setBildirim(`✓ "${iss.title}" için otonom düzeltme seti (#${yeniSetId}) oluşturuldu! Değişiklik sayfasına yönlendiriliyorsunuz...`);
     setTimeout(() => {
       router.push("/changes");
     }, 800);
@@ -62,11 +64,14 @@ export default function SiteTaramalariPage() {
     setAnalizSonucu(null);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ||
-        (process.env.NODE_ENV === "production" ? "/api/v1" : "http://localhost:8000/api/v1");
-      const res = await fetch(`${baseUrl}/audit/quick`, {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch("/api/v1/audit/quick", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ url: hedefUrl, max_pages: 10 })
       });
 
@@ -95,6 +100,21 @@ export default function SiteTaramalariPage() {
           Dilediğiniz web sitesi adresini girin; crawler anında tarlasın, deterministik kuralları çalıştırsın ve yapay zeka önerilerini çıkarsın.
         </p>
       </div>
+
+      {bildirim && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-medium">{bildirim}</span>
+          </div>
+          <button
+            onClick={() => router.push("/changes")}
+            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
+          >
+            Hemen İncele
+          </button>
+        </div>
+      )}
 
       {/* Canlı URL Giriş Kutusu */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
