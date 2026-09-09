@@ -22,10 +22,17 @@ from apps.api.routes import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Setup tables on startup if in dev/test
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        import logging
+        logging.getLogger("uvicorn").warning(f"Database connection warning at startup: {e}")
     yield
-    await engine.dispose()
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
 
 openapi_tags = [
     {

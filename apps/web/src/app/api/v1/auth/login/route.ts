@@ -1,48 +1,5 @@
 import { NextResponse } from "next/server";
-
-// Kayıtlı yetkili kullanıcılar listesi
-const AUTHORIZED_USERS = [
-  {
-    id: "usr_mert_01",
-    email: "mert@seo.com",
-    password: "0706Ma*",
-    fullName: "Mert Ruil",
-    role: "Süper Yönetici (Kurucu)",
-    isAdmin: true,
-    isSuperAdmin: true,
-    permissions: ["*"],
-  },
-  {
-    id: "usr_aybo_01",
-    email: "aybo@seo.com",
-    password: "kardesler123",
-    fullName: "Aybo",
-    role: "Süper Yönetici (Ortak)",
-    isAdmin: true,
-    isSuperAdmin: true,
-    permissions: ["*"],
-  },
-  {
-    id: "usr_admin_01",
-    email: "admin@seoplatform.com",
-    password: "Admin123!",
-    fullName: "Baş Yönetici",
-    role: "Süper Yönetici",
-    isAdmin: true,
-    isSuperAdmin: true,
-    permissions: ["*"],
-  },
-  {
-    id: "usr_partner_01",
-    email: "ekip@seoplatform.com",
-    password: "Ekip123!",
-    fullName: "SEO Ekip Üyesi",
-    role: "SEO Uzmanı",
-    isAdmin: false,
-    isSuperAdmin: false,
-    permissions: ["read", "crawl", "audit"],
-  }
-];
+import { authStore } from "@/lib/auth-users";
 
 export async function POST(request: Request) {
   try {
@@ -57,18 +14,28 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    const user = AUTHORIZED_USERS.find(
-      (u) => u.email.toLowerCase() === cleanEmail && u.password === String(password)
-    );
+    const user = authStore.findUserByEmail(cleanEmail);
 
-    if (!user) {
+    if (!user || user.password !== String(password)) {
+      const attempts = authStore.incrementFailedAttempts(cleanEmail);
+      const showForgotPassword = attempts >= 3;
+
       return NextResponse.json(
-        { error: "Geçersiz e-posta adresi veya şifre!" },
+        {
+          error: showForgotPassword
+            ? `Şifre ${attempts} kez hatalı girildi. Güvenliğiniz için lütfen şifrenizi sıfırlayın.`
+            : `Geçersiz e-posta veya şifre (${attempts}/3 deneme).`,
+          failed_attempts: attempts,
+          show_forgot_password: showForgotPassword,
+        },
         { status: 401 }
       );
     }
 
-    // Sahte ama güvenli oturum belirteci (Serverless ortam için)
+    // Başarılı giriş -> hatalı denemeleri temizle
+    authStore.clearFailedAttempts(cleanEmail);
+
+    // Oturum belirteci
     const token = `jwt_seo_${Buffer.from(`${user.id}:${Date.now()}`).toString("base64")}`;
 
     const responseData = {
@@ -88,7 +55,7 @@ export async function POST(request: Request) {
 
     const res = NextResponse.json(responseData, { status: 200 });
 
-    // Cookie olarak da saklayalım (opsiyonel güvenlik)
+    // Cookie olarak saklayalım
     res.cookies.set({
       name: "seo_platform_token",
       value: token,

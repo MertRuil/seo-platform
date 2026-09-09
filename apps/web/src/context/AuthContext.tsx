@@ -17,7 +17,10 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; failed_attempts?: number; show_forgot_password?: boolean }>;
+  register: (fullName: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  oauthLogin: (provider: "google" | "github" | "microsoft") => Promise<{ success: boolean; error?: string }>;
+  forgotPassword: (email: string, newPassword?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
   logout: () => void;
 }
 
@@ -56,10 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isLoginPage = pathname === "/login";
 
     if (!user && !isLoginPage) {
-      // Oturum yok ve login sayfasında değil -> Girişe yönlendir
       router.replace("/login");
     } else if (user && isLoginPage) {
-      // Oturum var ve login sayfasına girmeye çalışıyor -> Ana sayfaya yönlendir
       router.replace("/");
     }
   }, [user, loading, pathname, router]);
@@ -75,7 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
 
       if (!res.ok) {
-        return { success: false, error: data.error || "Giriş başarısız oldu." };
+        return {
+          success: false,
+          error: data.error || "Giriş başarısız oldu.",
+          failed_attempts: data.failed_attempts || 0,
+          show_forgot_password: Boolean(data.show_forgot_password),
+        };
       }
 
       setUser(data.user);
@@ -91,18 +97,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const register = async (fullName: string, email: string, password: string) => {
+    try {
+      const res = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.error || "Kayıt işlemi başarısız oldu." };
+      }
+
+      setUser(data.user);
+      setToken(data.access_token);
+
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+      localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
+
+      router.replace("/");
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: "Sunucuyla iletişim kurulamadı: " + err.message };
+    }
+  };
+
+  const oauthLogin = async (provider: "google" | "github" | "microsoft") => {
+    try {
+      const res = await fetch("/api/v1/auth/oauth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.error || "SSO girişi başarısız oldu." };
+      }
+
+      setUser(data.user);
+      setToken(data.access_token);
+
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+      localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
+
+      router.replace("/");
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: "SSO sunucuyla iletişim hatası: " + err.message };
+    }
+  };
+
+  const forgotPassword = async (email: string, newPassword?: string) => {
+    try {
+      const res = await fetch("/api/v1/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.error || "İşlem gerçekleştirilemedi." };
+      }
+
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return { success: false, error: "Sunucuyla iletişim kurulamadı: " + err.message };
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
     localStorage.removeItem(STORAGE_KEY_USER);
     localStorage.removeItem(STORAGE_KEY_TOKEN);
-    // Cookie'yi de temizle
     document.cookie = "seo_platform_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.replace("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, oauthLogin, forgotPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
