@@ -1,9 +1,9 @@
 {
   "current_day": 2,
-  "days_completed": 10,
-  "total_documents_processed": 30,
-  "total_verified": 20,
-  "total_rejected": 10,
+  "days_completed": 11,
+  "total_documents_processed": 33,
+  "total_verified": 22,
+  "total_rejected": 11,
   "total_deprecated": 0,
   "daily_history": [
     {
@@ -215,7 +215,28 @@
         "cache_hits": 0,
         "rejected_limit_hits": 0
       }
+    },
+    {
+      "day": 1,
+      "documents_evaluated": 3,
+      "verified": 2,
+      "rejected": 1,
+      "chunks_ingested": 2,
+      "metrics": {
+        "current_rpm": 3,
+        "rpm_limit": 15,
+        "current_tpm": 150,
+        "tpm_limit": 50000,
+        "requests_today": 3,
+        "daily_request_budget": 1500,
+        "request_quota_used_pct": 0.2,
+        "tokens_today": 150,
+        "daily_token_budget": 500000,
+        "token_quota_used_pct": 0.0,
+        "cache_hits": 0,
+        "rejected_limit_hits": 0
+      }
     }
   ],
-  "last_updated": "2026-09-09T06:00:06.955027+00:00"
+  "last_updated": "2026-09-09T12:00:19.106118+00:00"
 }
