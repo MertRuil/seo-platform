@@ -105,10 +105,18 @@ async def add_member(
             Membership.role.in_(['OWNER', 'ADMIN'])
         )
     )
-    if not member_check.scalars().first():
+    current_mem = member_check.scalars().first()
+    if not current_mem:
         raise HTTPException(
             status_code=403,
             detail="Yalnızca Organizasyon SAHİBİ (OWNER) veya YÖNETİCİSİ (ADMIN) üye ekleyebilir."
+        )
+
+    # Güvenlik Kontrolü (Yetki Yükseltme Engeli): Yalnızca OWNER olan biri başka bir kullanıcıya OWNER rolü verebilir
+    if req.role == 'OWNER' and current_mem.role != 'OWNER':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yalnızca mevcut bir Organizasyon Sahibi (OWNER) başka bir kullanıcıya OWNER rolü atayabilir."
         )
 
     # Eklenmek istenen kullanıcıyı bul

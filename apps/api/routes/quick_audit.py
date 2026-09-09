@@ -15,11 +15,26 @@ from services.rag.chunker import SemanticChunker
 
 router = APIRouter(prefix="/audit", tags=["Hızlı Site Denetimi"])
 
-# Per-IP Rate Limiting: max 5 quick audits per 60 seconds
+# Per-IP Rate Limiting: max 5 quick audits per 60 seconds (with memory leak protection)
 _IP_AUDIT_HISTORY: Dict[str, List[float]] = {}
 MAX_AUDITS_PER_MINUTE = 5
+MAX_IP_TRACKING_ENTRIES = 5000
+
+def _cleanup_ip_audit_history():
+    now = time.time()
+    if len(_IP_AUDIT_HISTORY) > 500:
+        stale_ips = [
+            ip for ip, timestamps in _IP_AUDIT_HISTORY.items()
+            if not timestamps or now - timestamps[-1] >= 60.0
+        ]
+        for ip in stale_ips:
+            _IP_AUDIT_HISTORY.pop(ip, None)
+    if len(_IP_AUDIT_HISTORY) > MAX_IP_TRACKING_ENTRIES:
+        for ip in list(_IP_AUDIT_HISTORY.keys())[:1000]:
+            _IP_AUDIT_HISTORY.pop(ip, None)
 
 def _enforce_audit_rate_limit(client_ip: str):
+    _cleanup_ip_audit_history()
     now = time.time()
     history = _IP_AUDIT_HISTORY.get(client_ip, [])
     recent = [t for t in history if now - t < 60.0]

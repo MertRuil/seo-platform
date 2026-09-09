@@ -100,13 +100,30 @@ app = FastAPI(
 )
 
 # CORS Configuration
+origins = list(set([settings.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"]))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Failed-Attempts", "X-Show-Forgot-Password"]
 )
+
+import logging
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+_err_logger = logging.getLogger("uvicorn.error")
+
+@app.exception_handler(Exception)
+async def global_unhandled_exception_handler(request: Request, exc: Exception):
+    """Sterilize unhandled exceptions to prevent internal server stack trace disclosure."""
+    _err_logger.error(f"Beklenmeyen sistem hatası [URL: {request.url.path}]: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Sunucu tarafında beklenmeyen bir hata meydana geldi. Lütfen sistem yöneticisi ile iletişime geçin."}
+    )
 
 # Health Endpoints (Section 167)
 @app.get("/health/live", tags=["Health"])

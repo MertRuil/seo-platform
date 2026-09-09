@@ -57,6 +57,8 @@ def resolve_domain_ips(hostname: str) -> List[str]:
     except socket.gaierror as e:
         raise SSRFSecurityException(f"DNS resolution failed for hostname '{hostname}': {str(e)}")
 
+ALLOWED_WEB_PORTS = {80, 443, 8080, 8443}
+
 def validate_safe_url(url: str) -> Tuple[str, str, List[str]]:
     """
     Validates that a URL is strictly HTTP/HTTPS and does not resolve to any blocked IP.
@@ -67,12 +69,20 @@ def validate_safe_url(url: str) -> Tuple[str, str, List[str]]:
     if parsed.scheme.lower() not in ("http", "https"):
         raise SSRFSecurityException(f"Invalid scheme '{parsed.scheme}': only HTTP and HTTPS are permitted")
 
+    if parsed.username or parsed.password:
+        raise SSRFSecurityException("URL credentials are not permitted")
+
     hostname = parsed.hostname
     if not hostname:
         raise SSRFSecurityException("URL must contain a valid hostname")
 
     hostname_lower = hostname.lower().strip(".")
-    if hostname_lower in BLOCKED_HOSTNAMES:
+    if (
+        hostname_lower in BLOCKED_HOSTNAMES
+        or hostname_lower.endswith(".localhost")
+        or hostname_lower.endswith(".local")
+        or hostname_lower.endswith(".internal")
+    ):
         raise SSRFSecurityException(f"Access to blocked hostname '{hostname}' is denied")
 
     # If hostname is an IP literal
@@ -80,9 +90,15 @@ def validate_safe_url(url: str) -> Tuple[str, str, List[str]]:
         ipaddress.ip_address(hostname_lower)
         if is_ip_blocked(hostname_lower):
             raise SSRFSecurityException(f"Direct IP access to private/metadata IP '{hostname_lower}' is blocked")
+        if parsed.port and parsed.port not in ALLOWED_WEB_PORTS:
+            raise SSRFSecurityException(f"Port '{parsed.port}' is not permitted for web crawling")
         return parsed.scheme.lower(), hostname_lower, [hostname_lower]
     except ValueError:
         pass
+
+    # Restrict allowed ports for hostnames
+    if parsed.port and parsed.port not in ALLOWED_WEB_PORTS:
+        raise SSRFSecurityException(f"Port '{parsed.port}' is not permitted for web crawling")
 
     # Resolve hostname via DNS
     resolved_ips = resolve_domain_ips(hostname_lower)

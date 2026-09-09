@@ -40,3 +40,18 @@ def test_validate_safe_url_blocks_invalid_schemes():
     with pytest.raises(SSRFSecurityException) as exc:
         validate_safe_url("gopher://127.0.0.1:6379")
     assert "only HTTP and HTTPS" in str(exc.value)
+
+def test_validate_safe_url_blocks_non_web_ports():
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://example.com:22/")
+    assert "Port '22' is not permitted" in str(exc.value)
+
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://example.com:6379/")
+    assert "Port '6379' is not permitted" in str(exc.value)
+
+def test_validate_safe_url_blocks_credentials():
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://user:pass@example.com/")
+    assert "credentials are not permitted" in str(exc.value)
+

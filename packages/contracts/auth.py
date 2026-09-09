@@ -3,12 +3,12 @@ from typing import Optional
 
 class UserRegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8, description="Minimum 8 characters")
+    password: str = Field(..., min_length=8, max_length=128, description="Minimum 8, maksimum 128 karakter")
     full_name: Optional[str] = None
 
 class UserLoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, max_length=128, description="Maksimum 128 karakter")
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -32,7 +32,7 @@ class ForgotPasswordResponse(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(..., min_length=8, description="Minimum 8 characters")
+    new_password: str = Field(..., min_length=8, max_length=128, description="Minimum 8, maksimum 128 karakter")
 
 class OAuthLoginRequest(BaseModel):
     provider: str  # "google", "github", "microsoft"

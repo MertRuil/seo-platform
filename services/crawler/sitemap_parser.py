@@ -19,16 +19,24 @@ class SitemapParseResult:
 
 class SitemapParser:
     MAX_URLS = 50000
+    MAX_CONTENT_SIZE = 10 * 1024 * 1024  # 10 MB
 
     @staticmethod
     def parse_xml(content: str) -> SitemapParseResult:
         result = SitemapParseResult()
+        if len(content) > SitemapParser.MAX_CONTENT_SIZE:
+            result.is_valid = False
+            result.error_message = "Security policy violation: Sitemap XML size exceeds maximum limit of 10MB"
+            return result
+
         clean_content = content.strip()
         if not clean_content:
             result.is_valid = False
             result.error_message = "Empty sitemap content"
-        # Reject XML containing DOCTYPE or ENTITY definitions to eliminate XML Entity Expansion (Billion Laughs / XXE DoS)
-        upper = clean_content[:2048].upper()
+            return result
+
+        # Reject XML containing DOCTYPE or ENTITY definitions across entire document to eliminate XML Entity Expansion (Billion Laughs / XXE DoS)
+        upper = clean_content.upper()
         if "<!DOCTYPE" in upper or "<!ENTITY" in upper:
             result.is_valid = False
             result.error_message = "Security policy violation: XML with DTD or ENTITY declarations is not permitted"
