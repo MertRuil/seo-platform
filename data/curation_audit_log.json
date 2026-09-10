@@ -3950,5 +3950,197 @@
     "chunks_ingested": 1,
     "reasons": [],
     "verified_at": "2026-09-10T00:00:21.609796+00:00"
+  },
+  {
+    "doc_id": "day1-canonical",
+    "title": "Google Search Central: Consolidate Duplicate URLs with Rel Canonical",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:07.921567+00:00"
+  },
+  {
+    "doc_id": "day1-myth-keywords",
+    "title": "SEO Blog: Why Meta Keywords Tag Is Essential for 2026 Ranking",
+    "canonical_url": "https://random-unverified-seo-blog.com/meta-keywords-tips",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_3_COMMUNITY",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: Meta Keywords Tag Ranking Factor. Truth: Google has officially ignored the meta keywords tag for ranking for over a decade."
+    ],
+    "verified_at": "2026-09-10T03:00:07.937224+00:00",
+    "rejected_claims": [
+      "Meta Keywords Tag Ranking Factor: Matched pattern 'meta\\s+keywords.*(boost|improves?|helps?|ranks?|factor|signal)'"
+    ]
+  },
+  {
+    "doc_id": "day1-robots-txt",
+    "title": "Google Search Central: Robots.txt Specification (RFC 9309)",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:07.950056+00:00"
+  },
+  {
+    "doc_id": "day1-canonical",
+    "title": "Google Search Central: Consolidate Duplicate URLs with Rel Canonical",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.603122+00:00"
+  },
+  {
+    "doc_id": "day1-myth-keywords",
+    "title": "SEO Blog: Why Meta Keywords Tag Is Essential for 2026 Ranking",
+    "canonical_url": "https://random-unverified-seo-blog.com/meta-keywords-tips",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_3_COMMUNITY",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: Meta Keywords Tag Ranking Factor. Truth: Google has officially ignored the meta keywords tag for ranking for over a decade."
+    ],
+    "verified_at": "2026-09-10T03:00:19.609063+00:00",
+    "rejected_claims": [
+      "Meta Keywords Tag Ranking Factor: Matched pattern 'meta\\s+keywords.*(boost|improves?|helps?|ranks?|factor|signal)'"
+    ]
+  },
+  {
+    "doc_id": "day1-robots-txt",
+    "title": "Google Search Central: Robots.txt Specification (RFC 9309)",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.623207+00:00"
+  },
+  {
+    "doc_id": "day2-cwv",
+    "title": "W3C & Google: Core Web Vitals Standards and User Experience",
+    "canonical_url": "https://developers.google.com/search/docs/appearance/core-web-vitals",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.636854+00:00"
+  },
+  {
+    "doc_id": "day2-myth-rel-next",
+    "title": "Legacy SEO: rel=next and rel=prev are required by Google for pagination",
+    "canonical_url": "https://unverified-forum.com/pagination-rules",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_3_COMMUNITY",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: rel=next/prev as Indexing Directive. Truth: Google retired rel=next/prev as an indexing signal in 2019. It is no longer supported for search."
+    ],
+    "verified_at": "2026-09-10T03:00:19.648457+00:00",
+    "rejected_claims": [
+      "rel=next/prev as Indexing Directive: Matched pattern 'rel=[\\\"']?(next|prev)[\\\"']?.*(required|directive|indexes?|google\\s+uses)'"
+    ]
+  },
+  {
+    "doc_id": "day2-structured-data",
+    "title": "Google Search Central: Schema.org Structured Data Guidelines",
+    "canonical_url": "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.659764+00:00"
+  },
+  {
+    "doc_id": "day3-sitemaps",
+    "title": "Google Search Central: XML Sitemaps Protocol and Architecture",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.672522+00:00"
+  },
+  {
+    "doc_id": "day3-myth-word-count",
+    "title": "SEO Forum: Minimum 2500 words is a direct ranking factor in Google",
+    "canonical_url": "https://seo-growth-hacks.com/word-count-ranking",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_3_COMMUNITY",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: Exact Word Count as Ranking Factor. Truth: Google search advocates have repeatedly confirmed that word count is not a ranking factor."
+    ],
+    "verified_at": "2026-09-10T03:00:19.684319+00:00",
+    "rejected_claims": [
+      "Exact Word Count as Ranking Factor: Matched pattern 'word\\s+count\\s+is\\s+a\\s+(direct\\s+)?ranking\\s+(factor|signal)'"
+    ]
+  },
+  {
+    "doc_id": "day3-deprecated-preferred-domain",
+    "title": "Google Search Console: Preferred Domain Setting (Legacy)",
+    "canonical_url": "https://developers.google.com/search/docs/historical/preferred-domain",
+    "verification_status": "DEPRECATED",
+    "confidence": 1.0,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [
+      "Deprecated search feature."
+    ],
+    "verified_at": "2026-09-10T03:00:19.697630+00:00"
+  },
+  {
+    "doc_id": "doc-1789009219756",
+    "title": "Quick SEO Hacks",
+    "canonical_url": "https://developers.google.com/search/docs/fakes",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: Meta Keywords Tag Ranking Factor. Truth: Google has officially ignored the meta keywords tag for ranking for over a decade."
+    ],
+    "verified_at": "2026-09-10T03:00:19.756415+00:00",
+    "rejected_claims": [
+      "Meta Keywords Tag Ranking Factor: Matched pattern 'meta\\s+keywords.*(boost|improves?|helps?|ranks?|factor|signal)'"
+    ]
+  },
+  {
+    "doc_id": "doc-1789009219777",
+    "title": "Google Search Central: Sitemaps Protocol Update",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/update",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:19.777781+00:00"
+  },
+  {
+    "doc_id": "doc_auth_01",
+    "title": "Google Search Central: Robots.txt Rules",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/robots/update",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T03:00:20.025349+00:00"
   }
 ]
