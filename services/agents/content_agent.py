@@ -57,6 +57,8 @@ Is YMYL Sector: {is_ymyl}
         if is_ymyl or any(term in target_url.lower() for term in ["health", "med", "finance", "loan", "law", "legal"]):
             res.risk_level = "HIGH"
             res.expected_impact += " [YMYL: Human Editorial Review Mandatory]"
+        else:
+            res.risk_level = "LOW"
 
         res.category = "CONTENT_OPTIMIZATION"
         if not res.citations and citations:

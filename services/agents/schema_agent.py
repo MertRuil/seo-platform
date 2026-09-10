@@ -51,6 +51,7 @@ Detected Type: {detected_page_type}
         )
 
         res.category = "STRUCTURED_DATA"
+        res.risk_level = "LOW"
         if not res.citations and citations:
             res.citations = citations
 

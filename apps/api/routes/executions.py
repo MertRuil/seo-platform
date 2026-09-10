@@ -22,28 +22,17 @@ from services.executor.connectors.git import GitBasedConnector
 from services.executor.connectors.cloudflare import CloudflareWorkerConnector
 from services.security.crypto import decrypt_secret
 
+from services.executor.connector_factory import build_connector_from_record
+
 router = APIRouter(prefix="/organizations/{org_id}/sites/{site_id}", tags=["Safe Execution & Rollback"])
 
 def build_connector(record: SiteConnector):
     try:
-        credentials = json.loads(decrypt_secret(record.encrypted_credentials))
+        return build_connector_from_record(record)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Connector credentials could not be decrypted") from exc
-    if record.connector_type == "GENERIC_WEBHOOK":
-        return GenericWebhookConnector(record.base_url or "", credentials.get("secret_key", ""))
-    if record.connector_type == "WORDPRESS_REST":
-        return WordPressConnector(record.base_url or "", credentials.get("username", ""), credentials.get("app_password", ""))
-    if record.connector_type == "GIT_PR":
-        return GitBasedConnector(credentials.get("repo_full_name", ""), credentials.get("access_token", ""), credentials.get("default_branch", "main"))
-    if record.connector_type == "CLOUDFLARE_WORKER":
-        return CloudflareWorkerConnector(
-            zone_id=credentials.get("zone_id", ""),
-            api_token=credentials.get("api_token", ""),
-            account_id=credentials.get("account_id"),
-            kv_namespace_id=credentials.get("kv_namespace_id"),
-            base_url=record.base_url or ""
-        )
-    raise HTTPException(status_code=400, detail="Unsupported connector type")
 
 @router.post("/change-sets", response_model=ChangeSetResponse, status_code=status.HTTP_201_CREATED)
 async def create_change_set(

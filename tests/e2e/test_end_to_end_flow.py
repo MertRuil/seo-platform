@@ -54,7 +54,7 @@ async def test_complete_autonomous_seo_lifecycle():
             "site_type": "ECOMMERCE",
             "language": "en",
             "country": "US",
-            "execution_mode": "AUTO_LOW_RISK"
+            "execution_mode": "REVIEW_ALL"
         }, headers=auth_headers)
         site_id = site_res.json()["id"]
 
@@ -173,3 +173,159 @@ async def test_complete_autonomous_seo_lifecycle():
             "state_before": '{"canonical": "https://flagship-store.com/404-broken"}'
         })
         assert rollback_res is True
+
+@pytest.mark.asyncio
+async def test_zero_touch_autonomous_lifecycle():
+    """
+    100% Zero-Touch Autonomous SEO Pipeline Test:
+    Site Onboarding (AUTO_LOW_RISK) -> Page Crawl Simulation ->
+    Automatic Audit & AI Orchestrator ->
+    Autonomous Low-Risk Execution -> Auto ChangeSet Creation & Safe Execution ->
+    Automatic Rollback Safety Check -> State RESOLVED without human clicks.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg = await client.post("/api/v1/auth/register", json={
+            "email": "auto-pilot@autonomous-seo.org",
+            "password": "SecurePassword123!",
+            "full_name": "Autonomous Auto-Pilot"
+        })
+        assert reg.status_code == 201
+
+        login = await client.post("/api/v1/auth/login", json={
+            "email": "auto-pilot@autonomous-seo.org",
+            "password": "SecurePassword123!"
+        })
+        token = login.json()["access_token"]
+        auth_headers = {"Authorization": f"Bearer {token}"}
+
+        org_res = await client.post("/api/v1/organizations", json={
+            "name": "Self Healing SEO Corp",
+            "slug": "self-healing-seo"
+        }, headers=auth_headers)
+        org_id = org_res.json()["id"]
+
+        site_res = await client.post(f"/api/v1/organizations/{org_id}/sites", json={
+            "name": "Auto Store",
+            "primary_url": "https://auto-store.com",
+            "site_type": "ECOMMERCE",
+            "language": "en",
+            "country": "US",
+            "execution_mode": "AUTO_LOW_RISK"
+        }, headers=auth_headers)
+        site_id = site_res.json()["id"]
+
+        # Create CrawlRun record
+        crawl_trigger = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/crawls",
+            json={"crawl_mode": "GOOGLEBOT_SIMULATION", "max_pages": 10, "max_depth": 2},
+            headers=auth_headers
+        )
+        crawl_id = crawl_trigger.json()["id"]
+
+        # Populate pages with low-risk canonical issue
+        async with engine.begin() as conn:
+            from packages.shared.models import CrawlPage
+            from sqlalchemy import insert
+            await conn.execute(
+                insert(CrawlPage).values([
+                    {
+                        "id": "auto-page-1",
+                        "crawl_run_id": crawl_id,
+                        "site_id": site_id,
+                        "url": "https://auto-store.com/catalog",
+                        "normalized_url": "https://auto-store.com/catalog",
+                        "depth": 1,
+                        "status_code": 200,
+                        "content_type": "text/html",
+                        "response_time_ms": 110,
+                        "is_fetchable": True,
+                        "is_crawlable_by_google": True,
+                        "has_noindex": False,
+                        "is_indexable_candidate": True,
+                        "canonical_target": "https://auto-store.com/catalog",
+                        "is_canonical": True,
+                        "in_sitemap": True,
+                        "title": None,
+                        "meta_description": None,
+                        "word_count": 450,
+                        "raw_html_hash": "dummy-hash",
+                        "main_content_hash": "dummy-hash"
+                    },
+                    {
+                        "id": "auto-page-2",
+                        "crawl_run_id": crawl_id,
+                        "site_id": site_id,
+                        "url": "https://auto-store.com/broken-target",
+                        "normalized_url": "https://auto-store.com/broken-target",
+                        "depth": 2,
+                        "status_code": 404,
+                        "content_type": "text/html",
+                        "response_time_ms": 85,
+                        "is_fetchable": False,
+                        "is_crawlable_by_google": False,
+                        "has_noindex": False,
+                        "is_indexable_candidate": False,
+                        "canonical_target": None,
+                        "is_canonical": False,
+                        "in_sitemap": False,
+                        "title": "Not Found",
+                        "meta_description": None,
+                        "word_count": 0,
+                        "raw_html_hash": "hash-broken",
+                        "main_content_hash": "hash-broken"
+                    }
+                ])
+            )
+
+        # Trigger Autonomous Audit & AI Auto-Pilot
+        recs_count = await run_audit_and_ai_job(site_id=site_id, crawl_run_id=crawl_id)
+        assert recs_count > 0, "Recommendations must be generated"
+
+        # Verify: Low-risk recommendation must be automatically RESOLVED by auto-pilot
+        recs_res = await client.get(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/recommendations",
+            headers=auth_headers
+        )
+        assert recs_res.status_code == 200
+        recs = recs_res.json()
+        assert len(recs) >= 1
+
+        resolved_recs = [r for r in recs if r["status"] == "RESOLVED"]
+        assert len(resolved_recs) >= 1, "At least one low-risk recommendation must be automatically RESOLVED"
+
+        # Verify: ChangeSet was automatically generated and marked SUCCESS
+        from packages.shared.database import AsyncSessionLocal
+        from packages.shared.models import ChangeSet, ChangeItem, AuditLog
+        from sqlalchemy.future import select
+
+        async with AsyncSessionLocal() as session:
+            cs_res = await session.execute(
+                select(ChangeSet).where(ChangeSet.site_id == site_id)
+            )
+            change_sets = cs_res.scalars().all()
+            assert len(change_sets) >= 1
+            auto_cs = change_sets[0]
+            assert auto_cs.status == "SUCCESS"
+            assert auto_cs.created_by == "autonomous-seo-pilot"
+            assert auto_cs.approved_by == "autonomous-seo-pilot"
+
+            # Check ChangeItem
+            ci_res = await session.execute(
+                select(ChangeItem).where(ChangeItem.change_set_id == auto_cs.id)
+            )
+            items = ci_res.scalars().all()
+            assert len(items) >= 1
+            assert items[0].status == "SUCCESS"
+            assert items[0].operation in ("UPDATE_META", "UPDATE_CANONICAL", "INJECT_SCHEMA")
+
+            # Check AuditLog
+            audit_res = await session.execute(
+                select(AuditLog).where(
+                    AuditLog.site_id == site_id,
+                    AuditLog.action == "AUTONOMOUS_EXECUTE_LOW_RISK"
+                )
+            )
+            audits = audit_res.scalars().all()
+            assert len(audits) >= 1
+

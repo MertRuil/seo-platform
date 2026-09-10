@@ -58,9 +58,14 @@ Raw Title: {page_data.get('title')}
             temperature=0.1
         )
 
-        # Enforce canonical / noindex risk tiers deterministically
+        # Enforce canonical / noindex / server error risk tiers deterministically
+        res.category = "TECHNICAL_SEO"
         if "CANONICAL" in rule_id or "NOINDEX" in rule_id:
             res.risk_level = "CRITICAL"
+        elif any(k in rule_id for k in ["500", "5XX", "SERVER"]):
+            res.risk_level = "CRITICAL"
+        else:
+            res.risk_level = "HIGH"
 
         if not res.citations and citations:
             res.citations = citations
