@@ -19,6 +19,7 @@ from services.executor.executor_service import SafeSiteExecutor
 from services.executor.connectors.webhook import GenericWebhookConnector
 from services.executor.connectors.wordpress import WordPressConnector
 from services.executor.connectors.git import GitBasedConnector
+from services.executor.connectors.cloudflare import CloudflareWorkerConnector
 from services.security.crypto import decrypt_secret
 
 router = APIRouter(prefix="/organizations/{org_id}/sites/{site_id}", tags=["Safe Execution & Rollback"])
@@ -34,6 +35,14 @@ def build_connector(record: SiteConnector):
         return WordPressConnector(record.base_url or "", credentials.get("username", ""), credentials.get("app_password", ""))
     if record.connector_type == "GIT_PR":
         return GitBasedConnector(credentials.get("repo_full_name", ""), credentials.get("access_token", ""), credentials.get("default_branch", "main"))
+    if record.connector_type == "CLOUDFLARE_WORKER":
+        return CloudflareWorkerConnector(
+            zone_id=credentials.get("zone_id", ""),
+            api_token=credentials.get("api_token", ""),
+            account_id=credentials.get("account_id"),
+            kv_namespace_id=credentials.get("kv_namespace_id"),
+            base_url=record.base_url or ""
+        )
     raise HTTPException(status_code=400, detail="Unsupported connector type")
 
 @router.post("/change-sets", response_model=ChangeSetResponse, status_code=status.HTTP_201_CREATED)
@@ -122,7 +131,7 @@ async def execute_change_set(
     db: AsyncSession = Depends(get_db)
 ):
     user_id = payload.get("sub")
-    await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+    site = await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
 
     res_cs = await db.execute(select(ChangeSet).where(ChangeSet.id == change_set_id, ChangeSet.site_id == site_id))
     cs = res_cs.scalars().first()
@@ -187,6 +196,18 @@ async def execute_change_set(
     cs.status = "SUCCESS" if all_success else "FAILED"
     cs.executed_at = datetime.now(timezone.utc)
     await db.commit()
+
+    # Otonom Anlık İndeksleme: Başarıyla uygulanan sayfaları IndexNow protokolüne bildir
+    if all_success:
+        try:
+            import asyncio
+            from services.integrations.indexing_client import IndexNowClient
+            target_urls = [item.target_url for item in completed_items if item.target_url]
+            if target_urls:
+                indexing_client = IndexNowClient()
+                asyncio.create_task(indexing_client.submit_urls(host=site.domain, url_list=target_urls))
+        except Exception:
+            pass
 
     return ExecutionResultResponse(
         success=all_success,

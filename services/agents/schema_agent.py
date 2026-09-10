@@ -54,4 +54,33 @@ Detected Type: {detected_page_type}
         if not res.citations and citations:
             res.citations = citations
 
+        # Automatically synthesize valid Google-compliant JSON-LD script tag
+        from services.seo_engine.schema_generator import SchemaGenerator
+        if "FAQ" in str(current_schema_json).upper():
+            sample_faq = SchemaGenerator.generate_faq_schema([
+                {"question": "Bu hizmet nasıl çalışır?", "answer": "Platformumuz otonom SEO denetimi ve otomatik optimizasyon sağlar."},
+                {"question": "Sonuçları ne zaman görebilirim?", "answer": "Arama motoru indeksleme süresine bağlı olarak 2-4 hafta içinde sıralama etkileri gözlemlenir."}
+            ])
+            script_tag = SchemaGenerator.to_script_tag(sample_faq)
+            res.diff_preview = {
+                "operation": "INJECT_HTML_BEFORE_CLOSING_HEAD",
+                "target_url": target_url,
+                "html_to_inject": script_tag,
+                "schema_type": "FAQPage"
+            }
+        elif "ARTICLE" in str(current_schema_json).upper():
+            sample_article = SchemaGenerator.generate_article_schema(
+                headline=res.title or "SEO En İyi Uygulamaları Kılavuzu",
+                author_name="SEO Uzman Editörü",
+                publisher_name="Autonomous SEO Platform",
+                date_published="2026-09-10"
+            )
+            script_tag = SchemaGenerator.to_script_tag(sample_article)
+            res.diff_preview = {
+                "operation": "INJECT_HTML_BEFORE_CLOSING_HEAD",
+                "target_url": target_url,
+                "html_to_inject": script_tag,
+                "schema_type": "Article"
+            }
+
         return res

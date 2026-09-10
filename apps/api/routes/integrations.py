@@ -87,3 +87,54 @@ async def get_opportunities(
         )
         for o in opps
     ]
+
+from packages.contracts.indexing import (
+    IndexNowSubmitRequest,
+    IndexNowSubmitResponse,
+    GoogleIndexingSubmitRequest,
+    GoogleIndexingSubmitResponse
+)
+from services.integrations.indexing_client import IndexNowClient, GoogleIndexingClient
+
+@router.post("/indexnow", response_model=IndexNowSubmitResponse)
+async def submit_urls_to_indexnow(
+    org_id: str,
+    site_id: str,
+    req: IndexNowSubmitRequest,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Submits a batch of URLs to the IndexNow protocol (Bing, Yandex, Seznam).
+    """
+    user_id = payload.get("sub")
+    site = await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+
+    client = IndexNowClient(key=req.key)
+    result = await client.submit_urls(
+        host=req.host or site.domain,
+        url_list=req.url_list,
+        key_location=req.key_location
+    )
+    return IndexNowSubmitResponse(**result)
+
+@router.post("/google-indexing", response_model=GoogleIndexingSubmitResponse)
+async def submit_url_to_google_indexing(
+    org_id: str,
+    site_id: str,
+    req: GoogleIndexingSubmitRequest,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Submits a URL update or deletion notification to Google Indexing API.
+    """
+    user_id = payload.get("sub")
+    await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+
+    client = GoogleIndexingClient()
+    result = await client.publish_url_notification(
+        url=req.url,
+        action_type=req.action_type
+    )
+    return GoogleIndexingSubmitResponse(**result)

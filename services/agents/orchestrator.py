@@ -62,12 +62,29 @@ class AiOrchestrator:
             target_url = issue.evidence.get("url") or issue.evidence.get("page_url", "")
             page_data = pages_by_url.get(target_url, {})
 
-            # Route schema issues to Schema Agent, others to Technical Agent
-            if "SCHEMA" in issue.rule_id:
+            # Smart specialist agent dispatching
+            rule_upper = issue.rule_id.upper()
+            if "SCHEMA" in rule_upper:
                 rec_output = await self.schema_agent.analyze_schema(
                     target_url=target_url,
                     current_schema_json=str(issue.evidence),
-                    detected_page_type="WebPage"
+                    detected_page_type=page_data.get("page_type", "WebPage")
+                )
+            elif any(k in rule_upper for k in ["CONTENT", "THIN", "TITLE", "META", "HEADING", "KEYWORD"]):
+                rec_output = await self.content_agent.analyze_content(
+                    target_url=target_url,
+                    page_data=page_data
+                )
+            elif any(k in rule_upper for k in ["LINK", "ORPHAN", "ANCHOR"]):
+                source_url = issue.evidence.get("source_url") or target_url
+                target_dest = issue.evidence.get("target_url") or target_url
+                topic = issue.evidence.get("target_topic") or issue.title
+                snippet = issue.evidence.get("snippet") or page_data.get("body_snippet") or page_data.get("title", "")
+                rec_output = await self.link_agent.analyze_link_opportunity(
+                    source_url=source_url,
+                    target_url=target_dest,
+                    target_topic=topic,
+                    source_snippet=snippet
                 )
             else:
                 rec_output = await self.technical_agent.analyze_issue(

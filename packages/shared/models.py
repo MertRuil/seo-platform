@@ -26,7 +26,7 @@ IssueSeverityEnum = Enum('INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='issu
 RiskLevelEnum = Enum('INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='risk_level')
 ExecutionModeEnum = Enum('SUGGEST_ONLY', 'REVIEW_ALL', 'AUTO_LOW_RISK', 'AUTO_LOW_AND_APPROVED_MEDIUM', name='execution_mode')
 ChangeSetStatusEnum = Enum('DRAFT', 'WAITING_APPROVAL', 'APPROVED', 'EXECUTING', 'SUCCESS', 'FAILED', 'ROLLED_BACK', 'CANCELLED', name='change_set_status')
-ConnectorTypeEnum = Enum('WORDPRESS_REST', 'GIT_PR', 'GENERIC_WEBHOOK', name='connector_type')
+ConnectorTypeEnum = Enum('WORDPRESS_REST', 'GIT_PR', 'GENERIC_WEBHOOK', 'CLOUDFLARE_WORKER', name='connector_type')
 KnowledgeAuthorityEnum = Enum('LEVEL_1_OFFICIAL', 'LEVEL_2_HIGH_QUALITY', 'LEVEL_3_INDUSTRY', 'LEVEL_4_COMMUNITY', name='knowledge_authority')
 KnowledgeStatusEnum = Enum('ACTIVE', 'DEPRECATED', 'REMOVED', 'HISTORICAL', name='knowledge_status')
 

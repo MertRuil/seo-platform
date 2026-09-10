@@ -58,6 +58,7 @@ Is YMYL Sector: {is_ymyl}
             res.risk_level = "HIGH"
             res.expected_impact += " [YMYL: Human Editorial Review Mandatory]"
 
+        res.category = "CONTENT_OPTIMIZATION"
         if not res.citations and citations:
             res.citations = citations
 
