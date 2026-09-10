@@ -9,6 +9,9 @@ class GitBasedConnector(SiteConnector):
     Ensures safe, version-controlled audit trails for modern headless and JAMstack websites.
     """
     def __init__(self, repo_full_name: str, access_token: str, default_branch: str = "main"):
+        import re
+        if repo_full_name and not repo_full_name.startswith("mock/") and not re.match(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$", repo_full_name):
+            raise ValueError("Geçersiz Git depo adı biçimi: 'sahip/depo' bekleniyor")
         self.repo = repo_full_name  # e.g. "owner/repo"
         self.token = access_token
         self.default_branch = default_branch

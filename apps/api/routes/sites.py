@@ -33,6 +33,7 @@ async def verify_site_access(org_id: str, site_id: str, user_id: str, db: AsyncS
     return site
 
 def normalize_domain_name(url: str) -> tuple[str, str, str]:
+    from services.security.ssrf import BLOCKED_HOSTNAMES, is_ip_blocked
     parsed = urlparse(url)
     if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
         raise HTTPException(status_code=400, detail="Invalid URL: scheme (http/https) and domain required")
@@ -40,6 +41,25 @@ def normalize_domain_name(url: str) -> tuple[str, str, str]:
     if parsed.username or parsed.password:
         raise HTTPException(status_code=400, detail="URL credentials are not permitted")
     domain = parsed.hostname.lower().rstrip(".")
+
+    # SSRF / Boundary Defense: Reject internal, loopback, and metadata targets
+    if (
+        domain in BLOCKED_HOSTNAMES
+        or domain.endswith(".localhost")
+        or domain.endswith(".local")
+        or domain.endswith(".internal")
+    ):
+        raise HTTPException(status_code=400, detail="Loopback, local, or internal domains are not permitted")
+
+    # Check if domain is a direct IP address
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(domain)
+        if is_ip_blocked(str(ip)):
+            raise HTTPException(status_code=400, detail="Private or cloud metadata IP addresses are not permitted")
+    except ValueError:
+        pass
+
     # Normalized domain: strip 'www.' for identity grouping
     normalized_domain = domain[4:] if domain.startswith("www.") else domain
     return scheme, domain, normalized_domain

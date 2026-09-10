@@ -26,6 +26,14 @@ class CloudflareWorkerConnector(SiteConnector):
         kv_namespace_id: Optional[str] = None,
         base_url: Optional[str] = None
     ):
+        import re
+        if zone_id and not re.match(r"^[a-zA-Z0-9_\-]+$", zone_id):
+            raise ValueError("Geçersiz Cloudflare zone_id biçimi")
+        if account_id and not re.match(r"^[a-zA-Z0-9_\-]+$", account_id):
+            raise ValueError("Geçersiz Cloudflare account_id biçimi")
+        if kv_namespace_id and not re.match(r"^[a-zA-Z0-9_\-]+$", kv_namespace_id):
+            raise ValueError("Geçersiz Cloudflare kv_namespace_id biçimi")
+
         self.zone_id = zone_id
         self.api_token = api_token
         self.account_id = account_id

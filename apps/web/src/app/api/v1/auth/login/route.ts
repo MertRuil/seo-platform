@@ -34,6 +34,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (String(password).length > 128) {
+      return NextResponse.json(
+        { error: "Şifre en fazla 128 karakter olabilir." },
+        { status: 400 }
+      );
+    }
+
     const cleanEmail = String(email).trim().toLowerCase();
     const user = authStore.findUserByEmail(cleanEmail);
 

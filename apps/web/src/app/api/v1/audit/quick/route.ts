@@ -157,18 +157,18 @@ export async function POST(req: NextRequest) {
       .trim();
     const wordCount = cleanText ? cleanText.split(" ").length : 0;
 
-    // robots.txt ve sitemap.xml canlı kontrolü
+    // robots.txt ve sitemap.xml canlı kontrolü (Açık yönlendirme ve SSRF kalkanı için redirect: 'manual')
     let robotsOk = false;
     let sitemapOk = false;
     try {
       const robotsUrl = new URL("/robots.txt", finalUrl).href;
-      const rResp = await fetch(robotsUrl, { method: "HEAD", signal: AbortSignal.timeout(3000) });
+      const rResp = await fetch(robotsUrl, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
       robotsOk = rResp.ok;
     } catch {}
 
     try {
       const sitemapUrl = new URL("/sitemap.xml", finalUrl).href;
-      const sResp = await fetch(sitemapUrl, { method: "HEAD", signal: AbortSignal.timeout(3000) });
+      const sResp = await fetch(sitemapUrl, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
       sitemapOk = sResp.ok;
     } catch {}
 

@@ -154,3 +154,38 @@ Platformu tam otonom kurumsal seviyeye taşıyan 5 kritik eksik sistem sıfırda
   - `test_orchestrator_smart_multi_agent_dispatching`: Başarılı.
 - **Frontend TypeScript Derlemesi (`npx tsc --noEmit`):** **0 Hata** ile kusursuz tamamlandı.
 
+---
+
+## 9. 🛡️ Kapsamlı Güvenlik Açığı Taraması ve Kapatılan Açıklar
+
+Tüm kod tabanı, API uç noktaları, servisler ve bağlayıcılar tek tek taranarak aşağıdaki güvenlik açıkları kapatılmıştır:
+
+1. **Kiracı İzolasyonu ve Alan Adı Sınır Koruması (`apps/api/routes/integrations.py`):**
+   - `/indexnow` ve `/google-indexing` uç noktalarında, kullanıcının seçili sitenin yetkisiyle üçüncü taraf ya da rakip sitelere ait URL'leri arama motorlarına bildirmesi engellendi. Hedef ana bilgisayar (`host`) ve URL listesindeki her bir adresin `site.normalized_domain` ile birebir eşleştiği doğrulandı.
+   - `IndexNowClient.submit_urls` metodunda `key_location` parametresinin hedef alan adı dışına veya harici IP adreslerine yönelmesi engellendi (SSRF yansıma kalkanı).
+
+2. **Dahili Ağ ve Bulut Metadata Hedefli Site Kaydı Engeli (`apps/api/routes/sites.py`):**
+   - `normalize_domain_name` fonksiyonuna kontrol eklenerek `localhost`, `*.local`, `*.internal`, `*.localhost` alan adları ile `127.0.0.1`, `169.254.169.254` gibi özel IP ve bulut metadata adreslerinin sisteme site olarak eklenmesi API girişinde HTTP 400 ile engellendi.
+
+3. **Geri Alma (Rollback) Veri Tipi Güvenliği (`apps/api/routes/executions.py`):**
+   - `execute_change_set` içerisinde geri alma durumunda `json.loads(completed.state_before)` çağrısı, `state_before` zaten bir Python sözlüğü (`dict`) veya `None` olduğunda oluşan `TypeError` hatasına karşı korumaya alındı; geri alma sürecinin başarısız işaretlenmesi riski ortadan kaldırıldı.
+
+4. **Kanonik E-Posta Normalizasyonu (`apps/api/routes/auth.py` ve `organizations.py`):**
+   - Kayıt (`/register`), giriş (`/login`) ve organizasyona üye ekleme (`add_member`) adımlarında e-posta adresleri `.strip().lower()` ile standartlaştırıldı. Büyük/küçük harf farklılığıyla tekilleştirme kontrollerini aşma ve mükerrer hesap açma riski kapatıldı.
+
+5. **JWT Token Özne (Subject) Doğrulaması (`services/security/jwt_auth.py`):**
+   - `get_current_user_payload` fonksiyonunda `sub` parametresinin varlığı ve dolu olduğu doğrulanarak eksik veya boş kimlikli belirteçlerin API'ye erişmesi engellendi.
+
+6. **Bağlayıcı Yolu Manipülasyonu ve Kod Enjeksiyonu Koruması (`services/executor/connectors/`):**
+   - `CloudflareWorkerConnector`: `zone_id`, `account_id` ve `kv_namespace_id` parametrelerine regex format doğrulaması (`^[a-zA-Z0-9_\-]+$`) getirilerek REST API yol aşımı (path traversal) engellendi.
+   - `WordPressConnector`: `post_id` parametresi zorunlu tamsayıya (`int`) dönüştürüldü; `../../` dizin aşımı girişimi engellendi.
+   - `GitBasedConnector`: `repo_full_name` parametresine format denetimi getirildi (`owner/repo`).
+
+7. **Frontend Şifre DoS ve Açık Yönlendirme Koruması (`apps/web/`):**
+   - Next.js auth rotalarında (`/api/v1/auth/register` ve `/api/v1/auth/login`) 128 karakterlik üst sınır eklenerek şifre tabanlı kaynak tüketimi (Algorithmic DoS) engellendi.
+   - Hızlı denetim motorunda (`/api/v1/audit/quick`) `robots.txt` ve `sitemap.xml` isteklerine `redirect: "manual"` direktifi verilerek hedef sitenin yönlendirme ile dahili ağları taratması engellendi.
+
+- **Nihai Test Sonucu:** **118 / 118 Test Başarılı** (%100 Başarı Oranı).
+- **TypeScript Derlemesi:** **0 Hata**.
+
+

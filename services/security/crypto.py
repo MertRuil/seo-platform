@@ -38,6 +38,8 @@ def decrypt_secret(encrypted_b64: str) -> str:
     key = _get_encryption_key()
     aesgcm = AESGCM(key)
     raw = base64.b64decode(encrypted_b64.encode('utf-8'))
+    if len(raw) < 28:
+        raise ValueError("Invalid encrypted payload: insufficient length for AES-GCM")
     nonce = raw[:12]
     ciphertext = raw[12:]
     plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, None)

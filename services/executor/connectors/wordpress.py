@@ -52,11 +52,15 @@ class WordPressConnector(SiteConnector):
             }
 
     async def apply_change(self, change_item: Dict[str, Any]) -> bool:
+        try:
+            target_id = int(change_item.get("post_id", 1))
+        except (ValueError, TypeError):
+            return False
+
         if self.wp_url.startswith("mock://"):
             return True
 
         validate_safe_url(self.wp_url)
-        target_id = change_item.get("post_id", 1)
         endpoint = f"{self.wp_url}/wp-json/wp/v2/posts/{target_id}"
 
         payload = {}

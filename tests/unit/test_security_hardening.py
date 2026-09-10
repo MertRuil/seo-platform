@@ -236,3 +236,85 @@ async def test_cors_expose_headers():
         assert "x-failed-attempts" in expose_headers.lower()
         assert "x-show-forgot-password" in expose_headers.lower()
 
+@pytest.mark.anyio
+async def test_site_creation_rejects_loopback_and_metadata_targets():
+    transport = ASGITransport(app=main_app)
+    user_token = create_access_token({"sub": "user_sec_01", "email": "user@sec.local"})
+    headers = {"Authorization": f"Bearer {user_token}"}
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create org
+        org_res = await client.post("/api/v1/organizations", json={
+            "name": "Sec Test Org",
+            "slug": f"sec-test-{uuid.uuid4().hex[:6]}"
+        }, headers=headers)
+        org_id = org_res.json()["id"]
+
+        # 1. Attempt to register localhost
+        res_local = await client.post(f"/api/v1/organizations/{org_id}/sites", json={
+            "name": "Localhost Site",
+            "primary_url": "http://localhost:8000"
+        }, headers=headers)
+        assert res_local.status_code == 400
+        assert "not permitted" in res_local.json()["detail"].lower()
+
+        # 2. Attempt to register 169.254.169.254 cloud metadata
+        res_meta = await client.post(f"/api/v1/organizations/{org_id}/sites", json={
+            "name": "Metadata Site",
+            "primary_url": "http://169.254.169.254/computeMetadata"
+        }, headers=headers)
+        assert res_meta.status_code == 400
+        assert "not permitted" in res_meta.json()["detail"].lower()
+
+@pytest.mark.anyio
+async def test_indexnow_tenant_isolation():
+    transport = ASGITransport(app=main_app)
+    user_token = create_access_token({"sub": "user_sec_02", "email": "user2@sec.local"})
+    headers = {"Authorization": f"Bearer {user_token}"}
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        org_res = await client.post("/api/v1/organizations", json={
+            "name": "Tenant Org",
+            "slug": f"tenant-{uuid.uuid4().hex[:6]}"
+        }, headers=headers)
+        org_id = org_res.json()["id"]
+
+        site_res = await client.post(f"/api/v1/organizations/{org_id}/sites", json={
+            "name": "My Tenant Site",
+            "primary_url": "https://tenant-domain.com"
+        }, headers=headers)
+        site_id = site_res.json()["id"]
+
+        # Attempt to submit URLs belonging to an external competitor domain
+        res_unauthorized_host = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/integrations/indexnow",
+            json={
+                "host": "competitor.com",
+                "url_list": ["https://competitor.com/stolen-page"]
+            },
+            headers=headers
+        )
+        assert res_unauthorized_host.status_code == 400
+        assert "yalnızca seçili siteye ait" in res_unauthorized_host.json()["detail"].lower()
+
+def test_crypto_decrypt_secret_short_payload_raises():
+    import base64
+    from services.security.crypto import decrypt_secret
+    short_b64 = base64.b64encode(b"short").decode("utf-8")
+    with pytest.raises(ValueError) as exc:
+        decrypt_secret(short_b64)
+    assert "insufficient length" in str(exc.value)
+
+def test_cloudflare_connector_rejects_path_traversal():
+    from services.executor.connectors.cloudflare import CloudflareWorkerConnector
+    with pytest.raises(ValueError):
+        CloudflareWorkerConnector(zone_id="../../evil", api_token="secret")
+    with pytest.raises(ValueError):
+        CloudflareWorkerConnector(zone_id="validzone", api_token="secret", account_id="../bad_account")
+
+@pytest.mark.asyncio
+async def test_wordpress_connector_rejects_invalid_post_id():
+    wp = WordPressConnector("mock://myblog.com", "admin", "pass")
+    # Non-integer post_id string must be safely rejected without crashing or path traversal
+    applied = await wp.apply_change({"post_id": "../../wp-config.php", "state_after": {"title": "Hack"}})
+    assert applied is False
+
+

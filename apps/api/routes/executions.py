@@ -185,7 +185,12 @@ async def execute_change_set(
             rolled_back = exec_res.rolled_back
             for completed in reversed(completed_items):
                 try:
-                    backup = json.loads(completed.state_before)
+                    if isinstance(completed.state_before, str):
+                        backup = json.loads(completed.state_before)
+                    elif isinstance(completed.state_before, dict):
+                        backup = completed.state_before
+                    else:
+                        backup = {}
                     await connector.rollback_change(backup)
                     completed.status = "ROLLED_BACK"
                     rolled_back = True

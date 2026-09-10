@@ -64,14 +64,15 @@ async def register(req: UserRegisterRequest, db: AsyncSession = Depends(get_db))
     if len(req.password) > 128:
         raise HTTPException(status_code=400, detail="Parola maksimum 128 karakter olabilir.")
 
-    result = await db.execute(select(User).where(User.email == req.email))
+    clean_email = req.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == clean_email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
     user = User(
-        email=req.email,
+        email=clean_email,
         hashed_password=hash_password(req.password),
-        full_name=req.full_name
+        full_name=req.full_name.strip() if req.full_name else None
     )
     db.add(user)
     await db.commit()
@@ -90,7 +91,7 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Parola maksimum 128 karakter olabilir.")
 
     clean_email = req.email.strip().lower()
-    result = await db.execute(select(User).where(User.email == req.email))
+    result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalars().first()
 
     if not user or not verify_password(req.password, user.hashed_password):

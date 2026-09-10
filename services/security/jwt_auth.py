@@ -51,4 +51,10 @@ async def get_current_user_payload(credentials: Optional[HTTPAuthorizationCreden
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not payload.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token subject missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return payload

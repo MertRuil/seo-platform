@@ -86,10 +86,18 @@ class IndexNowClient:
                 "key_used": self.key
             }
 
+        # Validate key_location if provided to prevent SSRF and protocol violations
+        validated_key_location = self.get_key_location(clean_host)
+        if key_location:
+            parsed_loc = urlparse(key_location)
+            loc_host = (parsed_loc.hostname or "").lower().removeprefix("www.")
+            if parsed_loc.scheme.lower() in ("http", "https") and (loc_host == clean_host or loc_host.endswith("." + clean_host)):
+                validated_key_location = key_location
+
         payload = {
             "host": clean_host,
             "key": self.key,
-            "keyLocation": key_location or self.get_key_location(clean_host),
+            "keyLocation": validated_key_location,
             "urlList": valid_urls[:10000]
         }
 

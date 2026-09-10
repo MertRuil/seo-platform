@@ -120,7 +120,8 @@ async def add_member(
         )
 
     # Eklenmek istenen kullanıcıyı bul
-    target_user_result = await db.execute(select(User).where(User.email == req.email))
+    clean_target_email = req.email.strip().lower()
+    target_user_result = await db.execute(select(User).where(User.email == clean_target_email))
     target_user = target_user_result.scalars().first()
     if not target_user:
         raise HTTPException(
