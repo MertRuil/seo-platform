@@ -4664,5 +4664,43 @@
     "chunks_ingested": 1,
     "reasons": [],
     "verified_at": "2026-09-10T07:32:20.148585+00:00"
+  },
+  {
+    "doc_id": "day1-canonical",
+    "title": "Google Search Central: Consolidate Duplicate URLs with Rel Canonical",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T09:00:21.016532+00:00"
+  },
+  {
+    "doc_id": "day1-myth-keywords",
+    "title": "SEO Blog: Why Meta Keywords Tag Is Essential for 2026 Ranking",
+    "canonical_url": "https://random-unverified-seo-blog.com/meta-keywords-tips",
+    "verification_status": "REJECTED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_3_COMMUNITY",
+    "chunks_ingested": 0,
+    "reasons": [
+      "Contains debunked claim: Meta Keywords Tag Ranking Factor. Truth: Google has officially ignored the meta keywords tag for ranking for over a decade."
+    ],
+    "verified_at": "2026-09-10T09:00:21.025213+00:00",
+    "rejected_claims": [
+      "Meta Keywords Tag Ranking Factor: Matched pattern 'meta\\s+keywords.*(boost|improves?|helps?|ranks?|factor|signal)'"
+    ]
+  },
+  {
+    "doc_id": "day1-robots-txt",
+    "title": "Google Search Central: Robots.txt Specification (RFC 9309)",
+    "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt",
+    "verification_status": "VERIFIED",
+    "confidence": 0.98,
+    "authority_level": "LEVEL_1_OFFICIAL",
+    "chunks_ingested": 1,
+    "reasons": [],
+    "verified_at": "2026-09-10T09:00:21.040093+00:00"
   }
 ]
