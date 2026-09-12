@@ -1,10 +1,11 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { DensityProvider } from "@/context/DensityContext";
 import { AppLayoutShell } from "@/components/AppLayoutShell";
 
 export const metadata = {
-  title: "Otonom AI SEO Platformu | SEO İşletim Sistemi",
-  description: "Kurumsal seviyede otonom SEO yönetim sistemi, teknik denetim ve AI optimizasyon platformu",
+  title: "CALPEO | Arama Görünürlüğü ve Kanıt İşletim Sistemi",
+  description: "Aramada görün. Yanıtlarda seçil. Sonucu kanıtla. SEO, GEO ve AEO için birleşik karar ve kanıt platformu.",
 };
 
 export default function RootLayout({
@@ -14,11 +15,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" className="dark">
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white font-sans">
+      <body className="bg-calpeo-night text-[#f4f3ee] min-h-screen antialiased selection:bg-calpeo-blue selection:text-white font-sans">
         <AuthProvider>
-          <AppLayoutShell>{children}</AppLayoutShell>
+          <DensityProvider>
+            <AppLayoutShell>{children}</AppLayoutShell>
+          </DensityProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

@@ -3,8 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --background: #0b0f19;
-  --foreground: #f8fafc;
+  --paper: #f3f0e8;
+  --white: #fbfaf6;
+  --ink: #171714;
+  --muted: #6f6d66;
+  --border: #d7d2c7;
+  --blue: #3157e5;
+  --teal: #148b79;
+  --night: #171817;
+  --night2: #202120;
+  --nightline: #343633;
+  --background: #171817;
+  --foreground: #f4f3ee;
 }
 
 body {
@@ -12,3 +22,32 @@ body {
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
+
+/* CALPEO Signal Loop Mark */
+.calpeo-mark {
+  width: 22px;
+  height: 14px;
+  border: 2.5px solid var(--blue);
+  border-right-color: var(--teal);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #343633;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #474a45;
+}
+

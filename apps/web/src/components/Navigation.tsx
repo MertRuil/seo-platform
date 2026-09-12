@@ -2,10 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { 
   BarChart3, 
-  Globe, 
+  ShieldCheck, 
   AlertTriangle, 
   FileText, 
   TrendingUp, 
@@ -18,93 +19,158 @@ import {
   FlaskConical, 
   BookOpen, 
   Sliders, 
-  ShieldCheck, 
   History,
   LogOut,
-  User as UserIcon
 } from "lucide-react";
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
+interface NavGroup {
+  label: string;
+  items: {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: string;
+  }[];
 }
 
-const navItems: NavItem[] = [
-  { name: "Genel Bakış", href: "/", icon: BarChart3 },
-  { name: "Site Sağlığı", href: "/health", icon: ShieldCheck },
-  { name: "SEO Sorunları", href: "/issues", icon: AlertTriangle },
-  { name: "Taranan Sayfalar", href: "/pages", icon: FileText },
-  { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
-  { name: "Büyüme Fırsatları", href: "/opportunities", icon: Lightbulb },
-  { name: "İç Link Analizi", href: "/links", icon: Link2 },
-  { name: "Yapılandırılmış Veri", href: "/schema", icon: Code2 },
-  { name: "Web Hayati Değerleri", href: "/cwv", icon: Zap },
-  { name: "Site Taramaları", href: "/crawls", icon: Layers },
-  { name: "Değişiklik & Diff", href: "/changes", icon: GitCommit },
-  { name: "SEO Deneyleri", href: "/experiments", icon: FlaskConical },
-  { name: "SEO Bilgi Beyni (RAG)", href: "/knowledge", icon: BookOpen },
-  { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
-  { name: "Denetim Günlüğü", href: "/audit", icon: History },
+const navGroups: NavGroup[] = [
+  {
+    label: "Genel",
+    items: [
+      { name: "Genel Görünüm", href: "/", icon: BarChart3 },
+      { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "4" },
+    ],
+  },
+  {
+    label: "Görünürlük (SEO & GEO)",
+    items: [
+      { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
+      { name: "Yanıt Motorları & Atıflar", href: "/knowledge", icon: BookOpen, badge: "AI" },
+    ],
+  },
+  {
+    label: "Site & Teknik Sağlık",
+    items: [
+      { name: "Teknik Sağlık", href: "/health", icon: ShieldCheck },
+      { name: "Kritik Sorunlar", href: "/issues", icon: AlertTriangle, badge: "3" },
+      { name: "Taranan Sayfalar", href: "/pages", icon: FileText },
+      { name: "Yapılandırılmış Veri", href: "/schema", icon: Code2 },
+      { name: "İç Link Grafı", href: "/links", icon: Link2 },
+      { name: "Web Hayati Değerleri", href: "/cwv", icon: Zap },
+    ],
+  },
+  {
+    label: "Çalışma & Doğrulama",
+    items: [
+      { name: "Değişiklikler & Diff", href: "/changes", icon: GitCommit },
+      { name: "SEO Deneyleri", href: "/experiments", icon: FlaskConical },
+      { name: "Site Taramaları", href: "/crawls", icon: Layers },
+    ],
+  },
+  {
+    label: "Yönetim",
+    items: [
+      { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
+      { name: "Denetim Günlüğü", href: "/audit", icon: History },
+    ],
+  },
 ];
 
 export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-screen fixed left-0 top-0 select-none z-50">
-      <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30 text-lg">
-          Ω
-        </div>
-        <div>
-          <h1 className="font-bold text-slate-100 text-sm tracking-wide">SEO İŞLETİM SİSTEMİ</h1>
-          <p className="text-xs text-slate-400">Otonom AI Platformu</p>
-        </div>
+    <aside className="w-64 bg-[#171817] border-r border-[#343633] flex flex-col h-screen fixed left-0 top-0 select-none z-50 text-[#f4f3ee]">
+      {/* CALPEO Marka Başlığı */}
+      <div className="p-4 border-b border-[#343633] flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="relative w-7 h-7 flex items-center justify-center">
+            <Image 
+              src="/brand/calpeo-logo-signal-loop-v1.png" 
+              alt="CALPEO Logo" 
+              width={28} 
+              height={28} 
+              className="object-contain rounded-sm"
+              priority
+            />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-sm tracking-wider text-white">CALPEO</span>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#3157e5]/20 text-[#3157e5] border border-[#3157e5]/30">
+                PRO
+              </span>
+            </div>
+            <p className="text-[10px] text-[#6f6d66] font-medium leading-none mt-0.5">
+              Kanıt & Karar Sistemi
+            </p>
+          </div>
+        </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentPath === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                isActive
-                  ? "bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 font-semibold shadow-sm"
-                  : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span>{item.name}</span>
-            </Link>
-          );
-        })}
+      {/* Navigasyon Listesi */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#656661] px-2.5 mb-1.5">
+              {group.label}
+            </div>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentPath === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-medium transition-all ${
+                      isActive
+                        ? "bg-[#292a28] text-white font-semibold border-l-2 border-[#3157e5] pl-2 shadow-sm"
+                        : "text-[#999994] hover:text-[#f4f3ee] hover:bg-[#202120]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#3157e5]" : "text-[#77736c]"}`} />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    {item.badge && (
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                        isActive 
+                          ? "bg-[#3157e5]/20 text-[#3157e5]" 
+                          : "bg-[#202120] text-[#77736c] border border-[#343633]"
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Alt Profil & Çıkış Kartı */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/60 space-y-3">
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span className="font-medium">Sistem Durumu</span>
-          <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Canlı & Güvenli
+      {/* Alt Profil ve Sistem Durumu */}
+      <div className="p-3 border-t border-[#343633] bg-[#141514] space-y-2.5">
+        <div className="flex items-center justify-between text-[10px] text-[#77736c] px-1">
+          <span className="font-medium">Ölçüm Durumu</span>
+          <span className="flex items-center gap-1.5 text-[#148b79] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#148b79] animate-pulse"></span>
+            Canlı & Doğrulanmış
           </span>
         </div>
 
         {/* Kullanıcı Kartı */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
+        <div className="flex items-center justify-between pt-2 border-t border-[#292a28] px-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#3157e5] to-[#148b79] flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
               {user?.fullName?.charAt(0) || "M"}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-200 truncate">
+              <div className="text-xs font-medium text-[#f4f3ee] truncate">
                 {user?.fullName || "Mert Ruil"}
               </div>
-              <div className="text-[10px] text-indigo-400 font-medium truncate">
+              <div className="text-[10px] text-[#6f6d66] truncate font-mono">
                 {user?.role || "Yönetici"}
               </div>
             </div>
@@ -113,7 +179,7 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
           <button
             onClick={logout}
             title="Oturumu Kapat"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all ml-1 shrink-0"
+            className="p-1.5 rounded-md text-[#77736c] hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>

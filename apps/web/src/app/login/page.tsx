@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import {
   Lock,
@@ -198,44 +199,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden font-sans">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#171817] relative overflow-hidden font-sans">
       {/* Arka plan ışık efektleri */}
-      <div className="absolute top-1/4 left-1/4 w-[28rem] h-[28rem] bg-indigo-600/15 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-1/4 right-1/4 w-[28rem] h-[28rem] bg-violet-600/15 rounded-full blur-3xl pointer-events-none translate-x-1/2 translate-y-1/2" />
-      <div className="absolute top-1/2 right-1/3 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/4 w-[26rem] h-[26rem] bg-[#3157e5]/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-1/4 right-1/4 w-[26rem] h-[26rem] bg-[#148b79]/10 rounded-full blur-3xl pointer-events-none translate-x-1/2 translate-y-1/2" />
 
       <div className="w-full max-w-lg z-10 my-8">
         {/* Logo & Başlık */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-800 text-white font-black text-3xl shadow-xl shadow-indigo-500/30 mb-3.5 border border-indigo-400/30 transition-transform hover:scale-105">
-            Ω
+          <div className="relative w-14 h-14 mx-auto mb-3 flex items-center justify-center">
+            <Image 
+              src="/brand/calpeo-logo-signal-loop-v1.png" 
+              alt="CALPEO Logo" 
+              width={56} 
+              height={56} 
+              className="object-contain"
+              priority
+            />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-            SEO PLATFORMU
-            <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold tracking-normal">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+            CALPEO
+            <span className="text-xs px-2 py-0.5 rounded bg-[#3157e5]/20 text-[#3157e5] border border-[#3157e5]/30 font-mono font-bold tracking-normal">
               PRO v2.0
             </span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1 font-medium">
-            Otonom Yapay Zeka SEO İşletim Sistemi
+          <p className="text-sm text-[#8c8d89] mt-1 font-medium">
+            Kontrol sende. Kanıt ekranda.
           </p>
         </div>
 
         {/* Ana Kart */}
-        <div className="bg-slate-900/85 backdrop-blur-2xl border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/80 relative">
+        <div className="bg-[#202120] border border-[#343633] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
           
           {/* Giriş Yap / Kayıt Ol Sekmeleri */}
-          <div className="flex p-1 bg-slate-950/80 rounded-xl border border-slate-800/80 mb-6">
+          <div className="flex p-1 bg-[#171817] rounded-lg border border-[#343633] mb-6">
             <button
               type="button"
               onClick={() => {
                 setAuthMode("login");
                 setError(null);
               }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                 authMode === "login"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  ? "bg-[#3157e5] text-white shadow-md shadow-[#3157e5]/30"
+                  : "text-[#8c8d89] hover:text-white hover:bg-[#202120]"
               }`}
             >
               <span>Giriş Yap</span>
@@ -246,16 +253,17 @@ export default function LoginPage() {
                 setAuthMode("register");
                 setError(null);
               }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                 authMode === "register"
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                  ? "bg-[#3157e5] text-white shadow-md shadow-[#3157e5]/30"
+                  : "text-[#8c8d89] hover:text-white hover:bg-[#202120]"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Yeni Kayıt Ol</span>
             </button>
           </div>
+
 
           {/* Giriş Entegrasyonları (OAuth / SSO Butonları) */}
           <div className="mb-6">
@@ -543,8 +551,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-3 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-sm shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 active:scale-[0.99] border border-indigo-400/20"
+              className="w-full mt-3 py-2.5 px-4 rounded-lg bg-[#3157e5] hover:bg-[#2546c7] text-white font-semibold text-xs tracking-wide shadow-md shadow-[#3157e5]/25 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-50 active:scale-[0.99] cursor-pointer"
             >
+
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
