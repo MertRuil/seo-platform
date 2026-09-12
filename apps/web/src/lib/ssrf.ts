@@ -230,7 +230,10 @@ export async function safeAuditFetch(
                   )
                 );
               }
-              return cb(null, clean, net.isIP(clean));
+              // Node 20+ (autoSelectFamily) `all: true` ile çağırır ve dizi bekler
+              return lookupOpts?.all
+                ? cb(null, [{ address: clean, family: net.isIP(clean) }])
+                : cb(null, clean, net.isIP(clean));
             }
 
             const records = await dns.lookup(clean, { all: true });
@@ -254,6 +257,7 @@ export async function safeAuditFetch(
 
             // IPv4 adreslerini önce dene (IPv6 yönlendirme sorunlarını önlemek için)
             const sorted = [...records].sort((a, b) => a.family - b.family);
+            if (lookupOpts?.all) return cb(null, sorted);
             cb(null, sorted[0].address, sorted[0].family);
           } catch (e) {
             cb(e);
