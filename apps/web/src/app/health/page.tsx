@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Printer } from "lucide-react";
 import { api } from "@/lib/api";
 import { DEMO_HEALTH, type HealthData, type HealthRule } from "@/lib/demo";
 import { healthToView } from "@/lib/mappers";
@@ -9,7 +9,7 @@ import { formatNumber } from "@/lib/format";
 import { useSiteData } from "@/hooks/useSiteData";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
-import { LinkButton } from "@/components/ui/Button";
+import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { SkeletonRows } from "@/components/ui/States";
@@ -29,7 +29,16 @@ export default function TeknikSaglikPage() {
         icon={<ShieldCheck className="w-5 h-5" />}
         title="Teknik sağlık ve kural analizi"
         description="13 deterministik kural; olgular HTTP yanıtından okunur, yapay zeka yorum eklemez. Puan, taranan sayfalar üzerinden hesaplanır."
-        actions={<LinkButton href="/crawls" variant="primary">Yeni tarama başlat</LinkButton>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>
+              Raporu Yazdır / PDF
+            </Button>
+            <LinkButton href="/crawls" variant="primary">
+              Yeni tarama başlat
+            </LinkButton>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

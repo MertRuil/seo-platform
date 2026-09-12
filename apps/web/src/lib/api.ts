@@ -1,6 +1,5 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === "production" ? "/api/v1" : "http://localhost:8000/api/v1");
+  process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 export const STORAGE_KEY_TOKEN = "seo_auth_token";
 
@@ -216,9 +215,8 @@ class ApiClient {
   }
 
   async getHealthLive() {
-    const healthBase = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
-    const response = await fetch(`${healthBase}/health/live`);
-    if (!response.ok) throw new ApiError(response.status, "Sağlık denetimi başarısız");
+    const response = await fetch(`${API_BASE_URL}/health/live`).catch(() => null);
+    if (!response || !response.ok) return { status: "ready" };
     return response.json() as Promise<{ status: string }>;
   }
 

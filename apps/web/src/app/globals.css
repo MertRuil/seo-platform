@@ -121,3 +121,34 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Yazdırma ve Müşteri Raporu (Print / PDF) Stilleri */
+@media print {
+  aside,
+  header,
+  nav,
+  button:not(.allow-print),
+  .no-print {
+    display: none !important;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #111111 !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .border-line {
+    border-color: #d1d5db !important;
+  }
+
+  .bg-surface, .bg-surface-2 {
+    background: #ffffff !important;
+  }
+}

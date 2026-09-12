@@ -9,17 +9,58 @@ import { useDensity } from "@/context/DensityContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useSite, type Period } from "@/context/SiteContext";
 import { Navigation } from "@/components/Navigation";
-import { Segmented } from "@/components/ui/Input";
+import { Segmented, Input, Label } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Notice } from "@/components/ui/States";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
-import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical } from "lucide-react";
+import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe } from "lucide-react";
 
 const STORAGE_KEY_NAV = "calpeo_nav";
 
 function SiteSwitcher() {
-  const { site, sites, selectSite, source, status } = useSite();
+  const { site, sites, selectSite, source, status, org, refresh } = useSite();
   const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [newName, setNewName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const handleSaveAndCrawl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUrl.trim()) return;
+    let url = newUrl.trim();
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    setAddBusy(true);
+    setAddErr(null);
+    try {
+      let targetOrgId = org?.id;
+      if (!targetOrgId) {
+        const orgs = await api.getOrganizations();
+        targetOrgId = orgs[0]?.id;
+      }
+      if (!targetOrgId) throw new Error("Organizasyon bulunamadı.");
+      const domain = new URL(url).hostname;
+      const created = await api.createSite(targetOrgId, {
+        name: newName.trim() || domain,
+        primary_url: url,
+      });
+      await api.triggerCrawl(targetOrgId, created.id);
+      await refresh();
+      selectSite(created.id);
+      setAddOpen(false);
+      setNewUrl("");
+      setNewName("");
+    } catch (err: any) {
+      setAddErr(err.message || "Site eklenirken hata oluştu.");
+    } finally {
+      setAddBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -82,14 +123,66 @@ function SiteSwitcher() {
               </button>
             ))
           )}
-          <div className="border-t border-line mt-1 pt-1">
-            <Link href="/crawls" role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-accent-ink hover:bg-surface-2 font-medium">
+          <div className="border-t border-line mt-1 pt-1 space-y-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setAddOpen(true);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-accent-ink hover:bg-surface-2 font-medium cursor-pointer"
+            >
               <Plus className="w-4 h-4" aria-hidden />
-              Site ekle ve tara
+              + Yeni Site Ekle ve Canlı Tara
+            </button>
+            <Link
+              href="/crawls"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-xs text-muted hover:text-ink hover:bg-surface-2"
+            >
+              Tüm taramaları ve geçmişi gör →
             </Link>
           </div>
         </div>
       )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Yeni Site Ekle ve Canlı Analiz Başlat" icon={<Globe className="w-4 h-4 text-accent" />}>
+        {addErr && <Notice tone="error" className="mb-3">{addErr}</Notice>}
+        <form onSubmit={handleSaveAndCrawl} className="space-y-4">
+          <p className="text-xs text-muted">
+            Eklemek istediğiniz web sitesinin adresini girin. Sistem saniyeler içinde sayfaları, başlıkları, canonical ve robots etiketlerini canlı tarayıp teknik SEO raporunu oluşturacaktır.
+          </p>
+          <div>
+            <Label htmlFor="switcher-site-url">Web Sitesi Adresi (URL)</Label>
+            <Input
+              id="switcher-site-url"
+              placeholder="https://orneksiteniz.com"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label htmlFor="switcher-site-name">Proje / Marka Adı (İsteğe bağlı)</Label>
+            <Input
+              id="switcher-site-name"
+              placeholder="Örn. Ana Mağaza"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button type="submit" variant="primary" loading={addBusy} icon={<Plus className="w-4 h-4" />}>
+              Siteyi Kaydet & Canlı Tara
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

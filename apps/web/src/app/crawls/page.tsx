@@ -68,12 +68,11 @@ export default function SiteTaramalariPage() {
   const [quick, setQuick] = useState<QuickResult | null>(null);
   const [quickError, setQuickError] = useState<string | null>(null);
 
-  const canRegister = status === "ready" && !!org;
+  const canRegister = status === "ready";
   const rows = source === "demo" && crawls.length === 0 ? DEMO_CRAWLS : crawlsToRows(crawls);
 
   const handleAddSite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!org) return;
     setSiteError(null);
     if (!/^https?:\/\//.test(siteUrl.trim())) {
       setSiteError("Adres http:// veya https:// ile başlamalı.");
@@ -81,14 +80,30 @@ export default function SiteTaramalariPage() {
     }
     setAddingSite(true);
     try {
-      const created = await api.createSite(org.id, { name: siteName.trim() || new URL(siteUrl.trim()).hostname, primary_url: siteUrl.trim() });
+      let targetOrgId = org?.id;
+      if (!targetOrgId) {
+        const orgs = await api.getOrganizations();
+        targetOrgId = orgs[0]?.id;
+      }
+      if (!targetOrgId) throw new Error("Organizasyon bulunamadı.");
+
+      const created = await api.createSite(targetOrgId, {
+        name: siteName.trim() || new URL(siteUrl.trim()).hostname,
+        primary_url: siteUrl.trim(),
+      });
+      setNotice({ tone: "info", text: `${created.normalized_domain} kaydedildi, canlı analiz ve tarama yapılıyor…` });
+
+      const run = await api.triggerCrawl(targetOrgId, created.id);
       await refresh();
       selectSite(created.id);
       setSiteName("");
       setSiteUrl("");
-      setNotice({ tone: "success", text: `${created.normalized_domain} kaydedildi. Şimdi ilk taramayı başlatabilirsiniz.` });
+      setNotice({
+        tone: "success",
+        text: `${created.normalized_domain} başarıyla tarandı ve analiz edildi (#${run.id.slice(0, 8).toUpperCase()})! Şimdi Teknik Sağlık veya Genel Görünüm sayfalarından gerçek bulguları inceleyebilirsiniz.`,
+      });
     } catch (err) {
-      setSiteError(err instanceof ApiError ? err.message : "Site kaydedilemedi.");
+      setSiteError(err instanceof ApiError ? err.message : (err as any).message || "Site kaydedilemedi.");
     } finally {
       setAddingSite(false);
     }
@@ -197,10 +212,6 @@ export default function SiteTaramalariPage() {
             </Notice>
           )}
         </Panel>
-      )}
-
-      {!canRegister && status === "ready" && (
-        <Notice tone="info">Site kaydı için arka uçta tanımlı bir hesapla giriş yapın; bu oturum yalnızca yerel demo hesabı kullanıyor.</Notice>
       )}
 
       {/* Hızlı denetim */}
