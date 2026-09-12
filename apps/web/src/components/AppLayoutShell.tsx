@@ -30,6 +30,11 @@ function SiteSwitcher() {
   const [addErr, setAddErr] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  const handleCloseAdd = React.useCallback(() => {
+    setAddOpen(false);
+    setAddErr(null);
+  }, []);
+
   const handleSaveAndCrawl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUrl.trim()) return;
@@ -147,7 +152,7 @@ function SiteSwitcher() {
         </div>
       )}
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Yeni Site Ekle ve Canlı Analiz Başlat" icon={<Globe className="w-4 h-4 text-accent" />}>
+      <Modal open={addOpen} onClose={handleCloseAdd} title="Yeni Site Ekle ve Canlı Analiz Başlat" icon={<Globe className="w-4 h-4 text-accent" />}>
         {addErr && <Notice tone="error" className="mb-3">{addErr}</Notice>}
         <form onSubmit={handleSaveAndCrawl} className="space-y-4">
           <p className="text-xs text-muted">
@@ -161,7 +166,6 @@ function SiteSwitcher() {
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               required
-              autoFocus
             />
           </div>
           <div>
@@ -174,7 +178,7 @@ function SiteSwitcher() {
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>
+            <Button type="button" variant="secondary" onClick={handleCloseAdd}>
               Vazgeç
             </Button>
             <Button type="submit" variant="primary" loading={addBusy} icon={<Plus className="w-4 h-4" />}>

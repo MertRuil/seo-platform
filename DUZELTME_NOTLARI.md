@@ -16,7 +16,7 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`7f6faff`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
 | **`7adad18`** | `fix(auth): isolate failed attempts per email, handle unregistered users and add code preview` | E-posta bazlı bağımsız hatalı giriş sayacı, kayıtlı olmayan hesap ayrımı, SMTP e-posta servisi ve dev simülasyon kod önizlemesi |
 | **`9aeaa54`** | `feat(mvp): evrensel serverless api katmanı, canlı tarama motoru ve 1-tıkla onboarding` | Dışarıdan doğrudan kullanım için sıfır bağımlılıklı serverless API, canlı çok sayfalı polite crawler, PageRank iç link grafı, 1-tıkla demo onboarding, canlı site ekleme ve PDF yazdırma |
-
+| **`(güncel)`** | `fix(ui & security): fix add-site modal focus loss bug and harden backend site creation against ssrf/xss` | Modal tuşa basışta odak kaybetme hatasının giderilmesi, SSRF ve DNS rebinding kalkanı, site adı XSS temizliği, mükerrer alan adı engellemesi |
 
 ---
 
@@ -400,3 +400,34 @@ Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_R
 5. **Müşteriye Sunulabilir SEO Raporu (PDF / Yazdır):**
    - **Sorun:** Denetim sonuçlarını müşteriye veya üst yönetime göndermek için dışa aktarma seçeneği yoktu.
    - **Çözüm:** `/health` sayfasına **"Raporu Yazdır / PDF"** butonu eklendi. `globals.css` içinde `@media print` şablonu oluşturularak menü ve butonlar gizlenip temiz, şık bir A4/PDF teknik SEO karnesi elde edilmesi sağlandı.
+
+---
+
+## 16. 🛠️ Yeni Site Ekle Odaklanma Hatası (Focus-Stealing Bug) Onarımı ve Backend Güvenlik Sıkılaştırması
+
+1. **"Proje / Marka Adı" Alanında Her Tuşa Basışta Çarpı (X) Butonuna Odaklanma Hatasının Çözümü:**
+   - **Sorun:** "Yeni Site Ekle" modalında proje/marka adı kutusuna yazı yazarken her tuşa basıldığında (`onKeyDown`/`onChange`) odak (focus) anında sağ üstteki kapatma ("X") butonuna kayıyordu. Kullanıcı her bir harf yazmak için tekrar tekrar input kutusuna tıklamak zorunda kalıyordu.
+   - **Kök Neden:** 
+     - `apps/web/src/components/ui/Modal.tsx` içindeki `useEffect` kancası, `onClose` prop'una bağımlıydı.
+     - Üst bileşen `AppLayoutShell.tsx` içinde `newName` state'i değiştikçe `SiteSwitcher` bileşeni re-render oluyor ve her tuş vuruşunda yeni bir inline `() => setAddOpen(false)` fonksiyonu üretiyordu.
+     - Bu sebeple `Modal`'ın `useEffect`'i her harfte baştan tetikleniyordu.
+     - Effect içinde `panelRef.current?.querySelector("input, button, ...")` çağrılıyordu ve modal penceresinin ilk karşılaştığı öğe başlık çubuğundaki Kapatma (`<button aria-label="Kapat"><X /></button>`) butonu olduğu için odağı her tuş vuruşunda zorla çarpıya çekiyordu.
+   - **Çözüm:**
+     - `onClose` referansı `useRef` ile sarmalanarak re-render döngülerinden izole edildi (`onCloseRef.current = onClose`).
+     - `prevOpenRef` ile durum takibi yapılarak, otomatik odaklamanın yalnızca modal ilk kez `false -> true` geçişi yaptığında bir defaya mahsus çalışması sağlandı.
+     - Odak kontrol kalkanı eklendi: Kullanıcı modal içinde yazı yazıyorsa (`panelRef.current.contains(document.activeElement)`), odak ASLA bozulmaz.
+     - İlk odaklama hedefi olarak başlık çubuğundaki buton yerine form gövdesindeki `input`/`textarea` öğelerine öncelik verildi.
+     - `AppLayoutShell.tsx` içinde `handleCloseAdd` `useCallback` ile sabitlendi ve çakışan ham `autoFocus` prop'u kaldırıldı.
+
+2. **Backend Güvenlik İncelemesi ve Sıkılaştırması (Açık Kapatma):**
+   - **İnceleme & Bulunan Açıklar:**
+     - Next.js serverless API katmanında (`apps/web/src/app/api/v1/organizations/[orgId]/sites/route.ts`) ve `serverless-store.ts` içinde `createSite` fonksiyonunda hedef URL'ye yönelik SSRF kontrolü yapılmıyordu. Saldırganlar `http://169.254.169.254` (AWS/GCP metadata) veya `http://127.0.0.1` (localhost port taraması) veya `javascript:` protokolünü sisteme kaydedebiliyordu.
+     - Site adına (`name`) yönelik XSS temizliği yapılmıyordu; `<script>alert('XSS')</script>` gibi etiketler ve zararlı kod blokları saklanabiliyordu.
+     - Bir organizasyona aynı alan adının (`normalized_domain`) mükerrer eklenmesi engellenmiyordu.
+     - Python FastAPI arka ucunda (`apps/api/routes/sites.py`) DNS çözümleme yapılmadığı için DNS Rebinding saldırılarına karşı açık mevcuttu.
+   - **Alınan Güvenlik Önlemleri:**
+     - **SSRF Kalkanı:** `validateSafeAuditUrl` entegre edilerek `169.254.169.254`, `127.0.0.1`, RFC 1918 özel ağları, `.localhost`, `.internal`, `.local` ve standart dışı portlar engellendi. Yalnızca geçerli HTTP/HTTPS protokolleri kabul edildi; `javascript:`, `file:`, `data:` protokolleri reddedildi.
+     - **DNS Rebinding & DNS Çözümleme:** Hem TypeScript hem Python (`resolve_domain_ips`) katmanında alan adının çözümlendiği IP'ler denetlendi.
+     - **XSS & Girdi Sanitizasyonu:** Site adındaki tüm `<script>...</script>` ve `<style>...</style>` blokları içerikleriyle birlikte temizlenir; HTML etiketleri ve ASCII kontrol karakterleri arındırılır; azami 100 karakter sınırı uygulanır.
+     - **Mükerrer Kayıt Engeli:** Aynı organizasyonda aynı alan adına sahip bir site zaten varsa işlem `HTTP 400` ile reddedilir.
+     - **Otomatik Test Paketi:** `apps/web/test-security-suite.ts` dosyasına Test 4 eklenerek bulut metadata engeli (4A), yerel ağ engeli (4B), protokol denetimi (4C), XSS temizliği (4D) ve mükerrer alan adı engeli (4E) başarıyla test edildi.

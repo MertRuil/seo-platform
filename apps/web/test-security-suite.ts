@@ -1,6 +1,8 @@
 import assert from "node:assert";
 import http from "node:http";
+import { NextRequest } from "next/server";
 import { POST as oauthPost } from "./src/app/api/v1/auth/oauth/route";
+import { POST as sitesPost } from "./src/app/api/v1/organizations/[orgId]/sites/route";
 import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "./src/lib/ssrf";
 
 async function runTests() {
@@ -131,11 +133,87 @@ async function runTests() {
       assert(err instanceof SSRFSecurityError || err.name === "SSRFSecurityError");
     }
     assert(redirectBlocked, "Redirect destination to cloud metadata was not blocked!");
-    console.log("  [PASS] 3B: Intermediate redirect hop to 169.254.169.254 blocked before fetch.");
+    console.log("  [PASS] 3B: Intermediate redirect hop to 169.254.169.254 blocked before fetch.\n");
 
   } finally {
     server.close();
   }
+
+  // TEST 4: Next.js Site Creation Security Hardening (Açık Kapatma: SSRF, XSS, Mükerrer Kayıt)
+  console.log("Test 4: Site Creation Endpoint Security Hardening");
+  const testOrgId = "org_sec_suite_" + Date.now().toString(36);
+
+  // 4A: SSRF cloud metadata rejection
+  const reqMetaSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Metadata Site",
+      primary_url: "http://169.254.169.254/latest/meta-data",
+    }),
+  });
+  const resMetaSite = await sitesPost(reqMetaSite, { params: { orgId: testOrgId } });
+  assert.strictEqual(resMetaSite.status, 400, "Cloud metadata target must be rejected with 400");
+  const dataMeta = await resMetaSite.json();
+  assert(dataMeta.detail.includes("Güvenlik engeli") || dataMeta.detail.includes("SSRF") || dataMeta.detail.includes("engellendi"));
+  console.log("  [PASS] 4A: Site creation with 169.254.169.254 blocked with 400.");
+
+  // 4B: SSRF localhost rejection
+  const reqLocalSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Localhost Site",
+      primary_url: "http://localhost:3000/admin",
+    }),
+  });
+  const resLocalSite = await sitesPost(reqLocalSite, { params: { orgId: testOrgId } });
+  assert.strictEqual(resLocalSite.status, 400, "Localhost target must be rejected with 400");
+  console.log("  [PASS] 4B: Site creation with localhost blocked with 400.");
+
+  // 4C: Non-HTTP protocol rejection (javascript:)
+  const reqJsSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "JS Site",
+      primary_url: "javascript:alert(document.cookie)",
+    }),
+  });
+  const resJsSite = await sitesPost(reqJsSite, { params: { orgId: testOrgId } });
+  assert.strictEqual(resJsSite.status, 400, "javascript: protocol must be rejected with 400");
+  console.log("  [PASS] 4C: Site creation with javascript: protocol blocked with 400.");
+
+  // 4D: XSS Sanitization in site name
+  const safeDomainUrl = "https://example.com";
+  const reqXssSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "<script>alert('XSS')</script>Güvenli Mağaza",
+      primary_url: safeDomainUrl,
+    }),
+  });
+  const resXssSite = await sitesPost(reqXssSite, { params: { orgId: testOrgId } });
+  const dataXss = await resXssSite.json();
+  assert.strictEqual(resXssSite.status, 201, `Legitimate site should be created with 201: ${JSON.stringify(dataXss)}`);
+  assert.strictEqual(dataXss.name, "Güvenli Mağaza", "Script tags must be stripped from site name");
+  console.log("  [PASS] 4D: XSS tags stripped from site name upon creation.");
+
+  // 4E: Duplicate site rejection in same organization
+  const reqDupSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "İkinci Kopya",
+      primary_url: "https://www.example.com/alt",
+    }),
+  });
+  const resDupSite = await sitesPost(reqDupSite, { params: { orgId: testOrgId } });
+  assert.strictEqual(resDupSite.status, 400, "Duplicate domain must be rejected with 400");
+  const dataDup = await resDupSite.json();
+  assert(dataDup.detail.includes("zaten kayıtlı"));
+  console.log("  [PASS] 4E: Duplicate domain creation prevented in organization.");
 
   console.log("\n==================================================");
   console.log("ALL NEXT.JS SECURITY TESTS PASSED SUCCESSFULLY!");

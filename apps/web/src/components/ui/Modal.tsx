@@ -16,17 +16,62 @@ interface ModalProps {
 /** Erişilebilir diyalog: role=dialog, Esc ile kapanır, açılınca odak içeri girer, gölge yalnızca burada. */
 export function Modal({ open, onClose, title, icon, children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const prevOpenRef = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      prevOpenRef.current = false;
+      return;
+    }
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onCloseRef.current();
+      }
     };
     document.addEventListener("keydown", onKey);
-    const first = panelRef.current?.querySelector<HTMLElement>("input, button, textarea, select, [tabindex]");
-    first?.focus();
+
+    // Sadece modal İLK KEZ açıldığında (false -> true) odaklama yap
+    // Formda yazı yazarken veya üst bileşen re-render olduğunda kullanıcının odağını asla çalma!
+    if (!prevOpenRef.current) {
+      prevOpenRef.current = true;
+      const timer = setTimeout(() => {
+        if (!panelRef.current) return;
+        // Odak zaten modal içindeki bir form elemanındaysa dokunma
+        if (panelRef.current.contains(document.activeElement)) return;
+
+        // 1. Varsa autofocus etiketli eleman
+        const auto = panelRef.current.querySelector<HTMLElement>("[autofocus], [data-autofocus]");
+        if (auto) {
+          auto.focus();
+          return;
+        }
+
+        // 2. Modal gövdesindeki ilk form girdisi (kapat 'X' butonunu değil form alanını hedefle)
+        const formInput = panelRef.current.querySelector<HTMLElement>(
+          "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])"
+        );
+        if (formInput) {
+          formInput.focus();
+          return;
+        }
+
+        // 3. Form girdisi yoksa panel içindeki ilk odaklanabilir eleman
+        const first = panelRef.current.querySelector<HTMLElement>("button, [tabindex]:not([tabindex='-1'])");
+        first?.focus();
+      }, 40);
+
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener("keydown", onKey);
+      };
+    }
+
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

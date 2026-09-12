@@ -58,7 +58,17 @@ def normalize_domain_name(url: str) -> tuple[str, str, str]:
         if is_ip_blocked(str(ip)):
             raise HTTPException(status_code=400, detail="Private or cloud metadata IP addresses are not permitted")
     except ValueError:
-        pass
+        # Check DNS resolution to catch DNS rebinding to private / internal IPs
+        from services.security.ssrf import resolve_domain_ips, SSRFSecurityException
+        try:
+            resolved_ips = resolve_domain_ips(domain)
+            for rip in resolved_ips:
+                if is_ip_blocked(rip):
+                    raise HTTPException(status_code=400, detail="Domain resolves to private or cloud metadata IP address")
+        except SSRFSecurityException:
+            pass
+        except Exception:
+            pass
 
     # Normalized domain: strip 'www.' for identity grouping
     normalized_domain = domain[4:] if domain.startswith("www.") else domain
@@ -86,9 +96,18 @@ async def create_site(
     if existing.scalars().first():
         raise HTTPException(status_code=400, detail="Site with this domain already registered in organization")
 
+    # Sanitize site name (anti-XSS and length limits)
+    import re
+    safe_name = re.sub(r"(?is)<script.*?>.*?</script>", "", req.name)
+    safe_name = re.sub(r"(?is)<style.*?>.*?</style>", "", safe_name)
+    safe_name = re.sub(r"<[^>]*>", "", safe_name)
+    safe_name = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", safe_name).strip()[:100]
+    if not safe_name:
+        safe_name = normalized_domain
+
     site = Site(
         organization_id=org_id,
-        name=req.name,
+        name=safe_name,
         domain=domain,
         normalized_domain=normalized_domain,
         primary_url=req.primary_url.rstrip('/'),

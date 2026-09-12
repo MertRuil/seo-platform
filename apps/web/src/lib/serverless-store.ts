@@ -277,19 +277,36 @@ export const serverlessStore = {
   },
 
   createSite(orgId: string, data: { name: string; primary_url: string; site_type?: string; execution_mode?: string }): SiteResponse {
-    let cleanUrl = data.primary_url.trim();
+    let cleanUrl = (data.primary_url || "").trim();
     if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
       cleanUrl = "https://" + cleanUrl;
     }
     const parsed = new URL(cleanUrl);
-    const domain = parsed.hostname;
+    const domain = parsed.hostname.toLowerCase();
     const normalized = domain.replace(/^www\./i, "");
+
+    // Organizasyon içinde aynı alan adının mükerrer eklenmesini engelle
+    const existingSites = this.getSites(orgId);
+    const duplicate = existingSites.find((s) => s.normalized_domain === normalized);
+    if (duplicate) {
+      throw new Error(`'${normalized}' alan adına sahip bir site bu organizasyonda zaten kayıtlı.`);
+    }
+
+    // Site adını temizle (HTML/XSS etiketlerini, script içeriklerini ve kontrol karakterlerini ayıkla, maks 100 karakter)
+    let safeName = (data.name || "")
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+      .trim()
+      .slice(0, 100);
+    if (!safeName) safeName = normalized || domain;
 
     const id = "site_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
     const site: SiteResponse = {
       id,
       organization_id: orgId,
-      name: data.name || domain,
+      name: safeName,
       domain,
       normalized_domain: normalized,
       primary_url: cleanUrl,
