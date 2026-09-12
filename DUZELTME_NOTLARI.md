@@ -15,6 +15,7 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`f9bb3ab`** | `feat(ui): add modern light mode with live theme toggle and calpeo editorial aesthetics` | ThemeContext, live toggle switch, layout/dashboard dual-mode refactor |
 | **`7f6faff`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
 | **`7adad18`** | `fix(auth): isolate failed attempts per email, handle unregistered users and add code preview` | E-posta bazlı bağımsız hatalı giriş sayacı, kayıtlı olmayan hesap ayrımı, SMTP e-posta servisi ve dev simülasyon kod önizlemesi |
+| **`9aeaa54`** | `feat(mvp): evrensel serverless api katmanı, canlı tarama motoru ve 1-tıkla onboarding` | Dışarıdan doğrudan kullanım için sıfır bağımlılıklı serverless API, canlı çok sayfalı polite crawler, PageRank iç link grafı, 1-tıkla demo onboarding, canlı site ekleme ve PDF yazdırma |
 
 
 ---
@@ -365,4 +366,37 @@ Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_R
  4. **Şifre Sıfırlama Modalı Çift Mod Uyumu:**
     - Modal pencereleri de CALPEO editoryal açık ve koyu tema belirteçlerine uyarlanarak her iki modda estetik ve erişilebilir kılındı.
 
+---
 
+## 15. 🌐 Dışarıdan Kullanılabilir Otonom MVP & Canlı Tarama Motoru (Universal Standalone MVP)
+
+1. **Evrensel Next.js API Katmanı & Hibrit Proxy:**
+   - **Sorun:** Web uygulaması istemci tarafında sabit `http://localhost:8000/api/v1` adresine istek atıyordu. Vercel, bulut veya dış bilgisayarlardan erişildiğinde arka uç kapalı olduğu için tüm ekranlar *"Arka uca ulaşılamıyor"* hatası veriyor; yeni site eklenemiyor ve tarama başlatılamıyordu.
+   - **Çözüm:** 
+     - İstemci `API_BASE_URL` göreceli `/api/v1` olarak ayarlandı (`apps/web/src/lib/api.ts`).
+     - `apps/web/src/lib/backend-proxy.ts` ile hibrit vekil kuruldu: Python FastAPI çalışıyorsa istekler arka uca iletilir; arka uç kapalıysa veya sunucusuz ortamdaysa `apps/web/src/lib/serverless-store.ts` devreye girer.
+     - Next.js üzerinde `/api/v1/organizations`, `/sites`, `/crawls`, `/health`, `/pages`, `/graph`, `/recommendations`, `/change-sets` gibi tüm REST uç noktaları eksiksiz oluşturuldu.
+
+2. **Otonom Canlı Çok Sayfalı Web Tarayıcısı (Multi-Page Polite Crawler):**
+   - **Sorun:** Canlı analiz yalnızca tek sayfalık yüzeysel bir kontroldü; sitenin derin sayfaları, iç bağlantıları ve PageRank dağılımı hesaplanamıyordu.
+   - **Çözüm:** 
+     - SSRF ve DNS Rebinding korumalı `safeAuditFetch` tabanlı canlı crawler geliştirildi (`apps/web/src/lib/serverless-store.ts`).
+     - Hedef sitenin ana sayfasındaki dahili `<a href>` bağlantıları taranarak 10-15 sayfaya kadar çok sayfalı polite keşif yapılır.
+     - 13 deterministik SEO kuralı (başlık, meta description, canonical, robots/noindex, H1 hiyerarşisi, eksik görsel alt etiketleri, kelime sayısı/thin content, JSON-LD şemaları, TTFB yanıt süresi) test edilir.
+     - Yönlendirilmiş link grafı üzerinden 10 iterasyonlu PageRank algoritması çalıştırılır; en güçlü sayfalar, yetim sayfalar (orphans) ve bağlamsal iç link fırsatları hesaplanır.
+     - Seviye-1 Google kurallarına dayalı öncelikli AI ajan önerileri üretilir.
+
+3. **1-Tıkla Canlı Demo & Giriş Yapmadan Anında Analiz:**
+   - **Sorun:** Dışarıdan gelen denetçiler, yatırımcılar veya müşteriler hazır demo hesap şifresini bilmek veya uzun form doldurmak zorundaydı.
+   - **Çözüm:** 
+     - Giriş ekranına (`/login`) **`🚀 Tek Tıkla Canlı Demo Girişi`** butonu eklendi; tıklandığı anda demo yönetici oturumu açılır.
+     - Giriş yapmadan çalışan **`⚡ Kendi Web Sitenizi Canlı Analiz Edin`** widget'ı yerleştirildi; ziyaretçi URL'sini yazıp analiz sonucunu anında görebilir ve tek tıkla projeyi panele aktarabilir.
+     - Hazır demo doldurma kısayolu eklendi (`admin@calpeo.io` / `CalpeoAdmin2026!`).
+
+4. **Üst Çubuktan Canlı Site Ekleme & Anında Tarama:**
+   - **Sorun:** Yeni bir müşteri sitesi eklemek için taramalar sayfasına gidip birden fazla form doldurmak gerekiyordu.
+   - **Çözüm:** Üst bar `SiteSwitcher` bileşenine (`apps/web/src/components/AppLayoutShell.tsx`) **`+ Yeni Site Ekle ve Canlı Tara`** modalı eklendi. URL girildiği anda site kaydedilir, otomatik taranır ve aktif site olarak seçilerek tüm panellere canlı veriler yüklenir.
+
+5. **Müşteriye Sunulabilir SEO Raporu (PDF / Yazdır):**
+   - **Sorun:** Denetim sonuçlarını müşteriye veya üst yönetime göndermek için dışa aktarma seçeneği yoktu.
+   - **Çözüm:** `/health` sayfasına **"Raporu Yazdır / PDF"** butonu eklendi. `globals.css` içinde `@media print` şablonu oluşturularak menü ve butonlar gizlenip temiz, şık bir A4/PDF teknik SEO karnesi elde edilmesi sağlandı.
