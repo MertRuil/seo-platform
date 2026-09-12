@@ -13,7 +13,7 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`b8a16fd`** | `güvenlik(frontend): ssrf koruma modülü, api kota sınırlaması ve bildirim iyileştirmeleri` | Next.js SSRF koruması, API rate limiting, bildirim ve harici link güvenliği |
 | **`d8d722e`** | `security(remediation): fix 6 specific vulnerabilities across oauth, ssrf, and crawler` | OAuth token doğrulama, GitHub email fallback, Google aud denetimi, redirect SSRF & IP pinning, prod env izolasyonu ve non-blocking async crawler DNS |
 | **`f9bb3ab`** | `feat(ui): add modern light mode with live theme toggle and calpeo editorial aesthetics` | ThemeContext, live toggle switch, layout/dashboard dual-mode refactor |
-| **`pending`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
+| **`7f6faff`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
 
 
 ---
