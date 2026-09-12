@@ -9,7 +9,7 @@ A production-grade autonomous SEO operating system that crawls websites, determi
 The platform strictly separates **deterministic technical verification** from **probabilistic AI reasoning**:
 
 1. **Facts:** HTTP status codes, headers, robots directives, canonical tags, and DOM structure are verified exclusively via deterministic Python code.
-2. **Deterministic SEO Rule Engine:** Evaluates 20+ rule categories without AI hallucination.
+2. **Deterministic SEO Rule Engine:** Evaluates 13 deterministic rules (canonical, robots/noindex, HTTP status, redirects, title/meta/H1, thin content, schema syntax) without AI involvement.
 3. **Performance Signals:** Google Search Console API, CrUX p75 field data, Lighthouse audits.
 4. **Trusted Knowledge:** Level-1 official documentation (Google Search Central, schema.org, W3C, RFCs).
 5. **Hybrid RAG:** Dense pgvector embeddings + lexical full-text matching + Reciprocal Rank Fusion (RRF) + cross-encoder reranking.

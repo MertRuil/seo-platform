@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { authStore } from "@/lib/auth-users";
 import { createSignedToken } from "@/lib/jwt";
+import { backendLogin } from "@/lib/backend-auth";
+
+function sessionResponse(token: string, user: Record<string, unknown>, source: "backend" | "local") {
+  const res = NextResponse.json({ access_token: token, token_type: "bearer", user, expires_in: 86400, source }, { status: 200 });
+  // httpOnly: true ile XSS korumalı güvenli çerez
+  res.cookies.set({
+    name: "seo_platform_token",
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 86400,
+    path: "/",
+    sameSite: "lax",
+  });
+  return res;
+}
 
 export async function POST(request: Request) {
   try {
@@ -22,6 +38,13 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+
+    // Önce arka uç (FastAPI): başarılıysa canlı veriye erişen gerçek JWT döner.
+    // Arka uç kapalıysa veya kullanıcı orada yoksa yerel depoya düşülür.
+    const bridged = await backendLogin(cleanEmail, String(password));
+    if (bridged.ok) {
+      return sessionResponse(bridged.session.access_token, bridged.session.user, "backend");
+    }
 
     // Brute-force lockout (5 failures / 15 min), checked before password verification
     if (authStore.isLockedOut(cleanEmail)) {
@@ -66,10 +89,9 @@ export async function POST(request: Request) {
     // Güvenli imzalı oturum belirteci üret
     const token = createSignedToken({ id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin });
 
-    const responseData = {
-      access_token: token,
-      token_type: "bearer",
-      user: {
+    return sessionResponse(
+      token,
+      {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
@@ -78,23 +100,8 @@ export async function POST(request: Request) {
         isSuperAdmin: user.isSuperAdmin,
         permissions: user.permissions,
       },
-      expires_in: 86400, // 24 saat
-    };
-
-    const res = NextResponse.json(responseData, { status: 200 });
-
-    // httpOnly: true ile XSS korumalı güvenli çerez
-    res.cookies.set({
-      name: "seo_platform_token",
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 86400,
-      path: "/",
-      sameSite: "lax",
-    });
-
-    return res;
+      "local"
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: "Giriş işlemi sırasında sunucu hatası oluştu: " + (err.message || String(err)) },

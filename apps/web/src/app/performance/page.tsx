@@ -1,95 +1,78 @@
 "use client";
 
 import React from "react";
-import { TrendingUp, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp } from "lucide-react";
+import { api } from "@/lib/api";
+import { DEMO_PERFORMANCE, type PerformanceData } from "@/lib/demo";
+import { gscToPerformance } from "@/lib/mappers";
+import { formatCompact, formatNumber, formatPercent } from "@/lib/format";
+import { useSiteData } from "@/hooks/useSiteData";
+import { useSite } from "@/context/SiteContext";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { MetricStrip } from "@/components/ui/MetricStrip";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { EmptyState, SkeletonRows } from "@/components/ui/States";
+
+type QueryRow = PerformanceData["queries"][number];
+
+const columns: Column<QueryRow>[] = [
+  { key: "query", header: "Sorgu", render: (r) => <span className="font-medium text-ink">{r.query}</span> },
+  { key: "clicks", header: "Tıklama", align: "right", render: (r) => <span className="font-mono text-evidence font-semibold">{formatNumber(r.clicks)}</span> },
+  { key: "impressions", header: "Gösterim", align: "right", render: (r) => <span className="font-mono text-muted">{formatNumber(r.impressions)}</span> },
+  { key: "ctr", header: "TO", align: "right", render: (r) => <span className="font-mono text-accent-ink font-semibold">{formatPercent(r.ctr, 2)}</span> },
+  { key: "position", header: "Ort. sıra", align: "right", render: (r) => <span className="font-mono text-ink font-semibold">{formatNumber(r.position, 1)}</span> },
+];
 
 export default function AramaPerformansiPage() {
-  const sorgular = [
-    { sorgu: "otonom seo platformu", tiklama: 14200, gosterim: 128000, to: "%11.09", pozisyon: "2.1" },
-    { sorgu: "yapay zeka seo işletim sistemi", tiklama: 9840, gosterim: 94500, to: "%10.41", pozisyon: "1.8" },
-    { sorgu: "teknik seo denetim yazılımı", tiklama: 6510, gosterim: 82000, to: "%7.93", pozisyon: "3.4" },
-    { sorgu: "otomatik canonical düzeltme", tiklama: 4200, gosterim: 68000, to: "%6.17", pozisyon: "4.2" },
-    { sorgu: "sayfa hızı ve lcp optimizasyonu", tiklama: 3150, gosterim: 54000, to: "%5.83", pozisyon: "5.1" }
-  ];
+  const { period } = useSite();
+  const res = useSiteData<PerformanceData>("performance", async ({ org, site }) => gscToPerformance(await api.getGscMetrics(org.id, site.id)), DEMO_PERFORMANCE, { requires: "site" });
+  const d = res.data;
+  const live = res.source === "live";
+  const hasData = d.queries.length > 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-[#3157e5] dark:text-indigo-400" />
-            <span>Google Search Console Arama Performansı</span>
-          </h1>
-          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
-            Organik arama sonuçlarındaki tıklama, gösterim, tıklama oranı (TO) ve ortalama sıra pozisyonu.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <DemoBanner source={res.source} reason={res.reason} error={res.error} />
+      <PageHeader
+        icon={<TrendingUp className="w-5 h-5" />}
+        title="Arama performansı"
+        description={`Google Search Console: tıklama, gösterim, tıklama oranı ve ortalama sıra · son ${period} gün.`}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Toplam Organik Tıklama</div>
-          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">142.8B</div>
-          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>Son 28 günde +%8.1 artış</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Toplam Gösterim</div>
-          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">2.41M</div>
-          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+%14.2 artış</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Ortalama Tıklama Oranı (TO)</div>
-          <div className="text-3xl font-extrabold text-[#3157e5] dark:text-indigo-400 mt-2">%5.95</div>
-          <div className="text-xs text-[#656971] dark:text-[#8c8d89] mt-1">Sektör ortalamasının üzerinde</div>
-        </div>
-
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Ortalama Sıra Pozisyonu</div>
-          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">6.8</div>
-          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+1.4 sıra yükselme</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
-          <h3 className="font-semibold text-[#121316] dark:text-white text-base">En Çok Trafik Getiren Arama Sorguları</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-[#4b4f58] dark:text-[#c4c6cd]">
-            <thead className="bg-[#f5f6f8] dark:bg-[#171817] text-[#656971] dark:text-[#8c8d89] border-b border-[#e2e4e8] dark:border-[#343633] uppercase font-semibold">
-              <tr>
-                <th className="p-4">Hedef Arama Sorgusu</th>
-                <th className="p-4 text-right">Tıklama</th>
-                <th className="p-4 text-right">Gösterim</th>
-                <th className="p-4 text-right">Tıklama Oranı (TO)</th>
-                <th className="p-4 text-right">Ort. Sıra</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
-              {sorgular.map((item, idx) => (
-                <tr key={idx} className="hover:bg-[#f9fafb] dark:hover:bg-[#262725] transition-colors">
-                  <td className="p-4 font-semibold text-[#121316] dark:text-white">{item.sorgu}</td>
-                  <td className="p-4 text-right font-mono text-[#0f927c] dark:text-emerald-400 font-bold">{item.tiklama.toLocaleString("tr-TR")}</td>
-                  <td className="p-4 text-right font-mono text-[#656971] dark:text-slate-300">{item.gosterim.toLocaleString("tr-TR")}</td>
-                  <td className="p-4 text-right font-mono text-[#3157e5] dark:text-indigo-400 font-bold">{item.to}</td>
-                  <td className="p-4 text-right font-mono text-[#121316] dark:text-white font-bold">{item.pozisyon}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {res.loading ? (
+        <Panel>
+          <SkeletonRows rows={3} />
+        </Panel>
+      ) : live && !hasData ? (
+        <Panel>
+          <EmptyState
+            title="Search Console verisi henüz yok"
+            description="Mülkü bağladığınızda son 16 aylık sorgu ve sayfa verisi burada görünür."
+            action={
+              <Link href="/integrations" className="text-sm font-semibold text-accent-ink hover:underline">
+                Search Console'u bağla →
+              </Link>
+            }
+          />
+        </Panel>
+      ) : (
+        <>
+          <MetricStrip
+            items={[
+              { label: "Organik tıklama", value: formatCompact(d.clicks), trend: d.deltas.clicks ? { text: d.deltas.clicks, direction: "up" } : undefined, hint: `${period} gün` },
+              { label: "Gösterim", value: formatCompact(d.impressions), trend: d.deltas.impressions ? { text: d.deltas.impressions, direction: "up" } : undefined },
+              { label: "Tıklama oranı", value: formatPercent(d.ctr, 2), tone: "default", hint: d.ctr > 0.05 ? "sektör ort. üstü" : undefined },
+              { label: "Ortalama sıra", value: formatNumber(d.position, 1), trend: d.deltas.position ? { text: d.deltas.position, direction: "up" } : undefined },
+            ]}
+          />
+          <Panel flush title="En çok trafik getiren sorgular" sub="Tıklamaya göre sıralı">
+            <DataTable columns={columns} rows={d.queries} rowKey={(r) => r.query} caption="Arama sorguları performans tablosu" />
+          </Panel>
+        </>
+      )}
     </div>
   );
 }

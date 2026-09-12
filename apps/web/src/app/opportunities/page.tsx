@@ -1,191 +1,184 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lightbulb, Sparkles, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Lightbulb, ArrowRight, ChevronRight } from "lucide-react";
+import { api } from "@/lib/api";
+import { DEMO_OPPORTUNITIES, type OpportunityItem } from "@/lib/demo";
+import { opportunitiesToView } from "@/lib/mappers";
+import { addChangeSet, newChangeSetId } from "@/lib/changesets";
+import { formatNumber, formatPercent } from "@/lib/format";
+import { useSiteData } from "@/hooks/useSiteData";
+import { useQueue } from "@/hooks/useQueue";
+import { useDensity } from "@/context/DensityContext";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel, Inset } from "@/components/ui/Panel";
+import { Button } from "@/components/ui/Button";
+import { Badge, SeverityBadge, severityStripeClass } from "@/components/ui/Badge";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
+import { cn } from "@/lib/cn";
 
-export default function FirsatlarPage() {
+export default function OncelikliIslerPage() {
   const router = useRouter();
-  const [islemdeIdx, setIslemdeIdx] = useState<number | null>(null);
-  const [bildirim, setBildirim] = useState<string | null>(null);
+  const { density } = useDensity();
+  const queue = useQueue();
+  const ops = useSiteData<OpportunityItem[]>("opportunities", async ({ org, site }) => opportunitiesToView(await api.getOpportunities(org.id, site.id)), DEMO_OPPORTUNITIES, { requires: "site" });
 
-  const firsatlar = [
-    {
-      kategori: "YÜKSEK GÖSTERİM - DÜŞÜK TIKLAMA",
-      sorgu: "otonom seo yazılımı",
-      sayfa: "https://flagship-store.com/yazilim",
-      gosterim: 42000,
-      tiklama: 750,
-      mevcutTO: "%1.78",
-      hedefTO: "%4.50",
-      potansiyelTrafik: "+1.140 Tıklama/Ay",
-      aksiyon: "Başlık ve meta açıklamasını kullanıcı arama niyetine odaklanacak şekilde AI ile revize edin.",
-      oncekiKod: `<title>SEO Yazılımı | Flagship</title>\n<meta name="description" content="SEO optimizasyon yazılımımız hakkında bilgiler.">`,
-      yeniKod: `<title>Otonom AI SEO Yazılımı ve Otomatik Sıralama Yükseltme | Flagship</title>\n<meta name="description" content="Yapay zeka destekli otonom SEO yazılımı ile teknik hataları otomatik onarın, Google'da 1. sayfaya yükselin. Hemen ücretsiz deneyin.">`
-    },
-    {
-      kategori: "2. SAYFA - 1. SAYFAYA YÜKSELTME",
-      sorgu: "yapay zeka canonical motoru",
-      sayfa: "https://flagship-store.com/ozellikler",
-      gosterim: 28500,
-      tiklama: 420,
-      mevcutTO: "%1.47",
-      hedefTO: "%6.00",
-      potansiyelTrafik: "+1.290 Tıklama/Ay",
-      aksiyon: "Sayfaya güçlü otoriteye sahip blog yazılarından doğrudan bağlamsal iç link ekleyin.",
-      oncekiKod: `<!-- /blog/seo-rehberi içinde bağlamsal link yok -->\n<p>Sayfalar arası bağlantı stratejisi önemlidir.</p>`,
-      yeniKod: `<!-- Bağlamsal PageRank akışı eklendi -->\n<p>Sayfalar arası bağlantı stratejisi önemlidir; özellikle <a href="/ozellikler" class="text-indigo-400 font-semibold">yapay zeka canonical motoru</a> kullanarak yinelenen içerik risklerini sıfıra indirebilirsiniz.</p>`
-    },
-    {
-      kategori: "ANAHTAR KELİME KANİBALİZASYONU",
-      sorgu: "site içi link analizi",
-      sayfa: "2 Farklı URL yarışıyor (/blog/linkler ve /ozellikler/link)",
-      gosterim: 19400,
-      tiklama: 310,
-      mevcutTO: "%1.60",
-      hedefTO: "%5.20",
-      potansiyelTrafik: "+700 Tıklama/Ay",
-      aksiyon: "İki sayfayı birleştirin veya rel=canonical ile ana ticari sayfayı yetkilendirin.",
-      oncekiKod: `<!-- /blog/linkler sayfasında bağımsız self-canonical -->\n<link rel="canonical" href="https://flagship-store.com/blog/linkler" />`,
-      yeniKod: `<!-- Kanibalizasyonu önlemek için ana ticari sayfaya canonical yönlendirmesi -->\n<link rel="canonical" href="https://flagship-store.com/ozellikler/link" />`
-    }
-  ];
+  const [busy, setBusy] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const handleOptimizasyonOlustur = async (f: typeof firsatlar[0], idx: number) => {
-    setIslemdeIdx(idx);
-    setBildirim(null);
-
-    await new Promise((r) => setTimeout(r, 700));
-
-    const yeniSetId = `CS-OPP-${Math.floor(1000 + Math.random() * 9000)}`;
-    const yeniSet = {
-      id: yeniSetId,
-      baslik: `Büyüme Fırsatı: "${f.sorgu}" Optimizasyonu`,
-      onem: "YÜKSEK",
-      etkilenenSayfa: f.sayfa,
-      kategori: "BÜYÜME_FIRSATI",
-      oneri: f.aksiyon,
+  const handleCreate = async (f: OpportunityItem, idx: number) => {
+    setBusy(idx);
+    setNotice(null);
+    await new Promise((r) => setTimeout(r, 500));
+    const id = newChangeSetId("CS-OPP");
+    addChangeSet({
+      id,
+      baslik: `Büyüme fırsatı: "${f.query}"`,
+      onem: "HIGH",
+      etkilenenSayfa: f.page,
+      kategori: "BÜYÜME FIRSATI",
+      oneri: f.action,
       durum: "BEKLİYOR",
-      oncekiKod: f.oncekiKod,
-      yeniKod: f.yeniKod,
-      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR")
-    };
-
-    try {
-      const kayitli = localStorage.getItem("seo_platform_changesets") || localStorage.getItem("dentleon_changesets");
-      const mevcutListe = kayitli ? JSON.parse(kayitli) : [];
-      const guncel = [yeniSet, ...mevcutListe];
-      localStorage.setItem("seo_platform_changesets", JSON.stringify(guncel));
-      localStorage.setItem("seo_platform_active_changeset_id", yeniSetId);
-    } catch (e) {
-      console.error(e);
-    }
-
-    setIslemdeIdx(null);
-    setBildirim(`✓ "${f.sorgu}" fırsatı için otonom optimizasyon seti (#${yeniSetId}) oluşturuldu! Değişiklik sayfasına yönlendiriliyorsunuz...`);
-
-    setTimeout(() => {
-      router.push("/changes");
-    }, 1000);
+      oncekiKod: f.before,
+      yeniKod: f.after,
+      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
+    });
+    setBusy(null);
+    setNotice(`"${f.query}" için optimizasyon seti #${id} oluşturuldu; diff sayfasına yönlendiriliyorsunuz.`);
+    setTimeout(() => router.push("/changes"), 900);
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
-            <Lightbulb className="w-6 h-6 text-amber-500" />
-            <span>Search Console Büyüme Fırsatları (Opportunity Engine)</span>
-          </h1>
-          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
-            Yüksek gösterim aldığı halde düşük tıklama alan sorgular ve kanibalizasyon tespitiyle hızlı organik trafik kazançları.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <DemoBanner source={queue.source} reason={queue.reason} error={queue.error} />
+      <PageHeader
+        icon={<Lightbulb className="w-5 h-5" />}
+        title="Öncelikli işler"
+        description="Etki sırasına dizilmiş karar kuyruğu: her satırda önem, beklenen etki, güven ve kanıt kaynağı. Altta Search Console'dan türeyen büyüme fırsatları."
+      />
 
-      {bildirim && (
-        <div className="p-4 rounded-xl bg-[#0f927c]/10 border border-[#0f927c]/30 text-[#0f927c] dark:text-emerald-300 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-[#0f927c] dark:text-emerald-400 shrink-0" />
-            <span className="font-medium">{bildirim}</span>
-          </div>
-          <button
-            onClick={() => router.push("/changes")}
-            className="px-3 py-1 bg-[#0f927c] hover:bg-[#0c7866] text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
-          >
-            Hemen İncele
-          </button>
-        </div>
+      {notice && (
+        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Diff'e git</Button>}>
+          {notice}
+        </Notice>
       )}
 
-      <div className="space-y-4">
-        {firsatlar.map((f, idx) => {
-          const yukleniyor = islemdeIdx === idx;
+      <Panel flush title="Karar kuyruğu" sub="Resmi belgeler ve site grafı formülleriyle önceliklendirilmiş" actions={<Badge tone="neutral" mono>{queue.pending} iş</Badge>}>
+        {queue.loading ? (
+          <div className="p-5">
+            <SkeletonRows rows={4} />
+          </div>
+        ) : queue.data.length === 0 ? (
+          <EmptyState title="Karar bekleyen iş yok" description="Tarama ve AI denetimi sonrası öneriler burada sıralanır." />
+        ) : (
+          <ul className="divide-y divide-line">
+            {queue.data.map((q) => (
+              <li key={q.id} className="grid grid-cols-[4px_1fr] hover:bg-surface-2 transition-colors">
+                <span className={cn("block", severityStripeClass(q.severity))} aria-hidden />
+                <div className="px-4 sm:px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 min-w-0">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SeverityBadge severity={q.severity} />
+                      <Badge tone="neutral" mono>
+                        {q.category}
+                      </Badge>
+                      <span className="text-sm font-semibold text-ink">{q.title}</span>
+                    </div>
+                    <p className="text-sm text-muted">{q.reason}</p>
+                    <div className="font-mono text-2xs text-muted flex flex-wrap gap-x-3">
+                      <span>
+                        Kanıt: <span className="text-evidence">{q.source}</span>
+                      </span>
+                      {q.impact && <span>Etki: {q.impact}</span>}
+                      {q.confidence !== undefined && <span>Güven: %{Math.round(q.confidence * 100)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex md:flex-col items-center md:items-end justify-between gap-2 shrink-0">
+                    <span className="font-mono text-xs text-muted">
+                      Öncelik <b className="text-ink text-sm tabular-nums">{q.score}</b> / 100
+                    </span>
+                    <Link href={q.href} className="inline-flex items-center gap-1 h-8 px-3 rounded-sm border border-line bg-surface text-xs font-semibold text-ink hover:bg-surface-2 hover:border-line-strong transition-colors">
+                      {q.actionLabel} <ChevronRight className="w-3.5 h-3.5 text-accent" aria-hidden />
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
 
-          return (
-            <div key={idx} className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 hover:border-[#cfd3da] dark:hover:border-[#484a46] transition-all space-y-4 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#e2e4e8] dark:border-[#343633] pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                    {f.kategori}
-                  </span>
-                  <span className="font-bold text-[#121316] dark:text-white text-base">"{f.sorgu}"</span>
-                </div>
-                <span className="text-xs font-bold text-[#0f927c] dark:text-emerald-400 bg-[#0f927c]/10 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-[#0f927c]/20 dark:border-emerald-500/20">
-                  Tahmini Kazanç: {f.potansiyelTrafik}
-                </span>
-              </div>
-
-              <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-mono bg-[#f5f6f8] dark:bg-[#171817] p-2.5 rounded border border-[#e2e4e8] dark:border-[#343633]">
-                Hedef URL: <span className="text-[#3157e5] dark:text-indigo-300 font-medium">{f.sayfa}</span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#f5f6f8] dark:bg-[#171817] p-3 rounded-lg border border-[#e2e4e8] dark:border-[#343633] text-xs">
-                <div>
-                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Aylık Gösterim</span>
-                  <span className="font-bold text-[#121316] dark:text-white font-mono">{f.gosterim.toLocaleString("tr-TR")}</span>
-                </div>
-                <div>
-                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Mevcut Tıklama</span>
-                  <span className="font-bold text-[#121316] dark:text-white font-mono">{f.tiklama.toLocaleString("tr-TR")}</span>
-                </div>
-                <div>
-                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Mevcut TO</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400 font-mono">{f.mevcutTO}</span>
-                </div>
-                <div>
-                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Hedeflenen TO</span>
-                  <span className="font-bold text-[#0f927c] dark:text-emerald-400 font-mono">{f.hedefTO}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                <p className="text-xs text-[#656971] dark:text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[#3157e5] dark:text-indigo-400 shrink-0" />
-                  <span>{f.aksiyon}</span>
-                </p>
-                <button
-                  onClick={() => handleOptimizasyonOlustur(f, idx)}
-                  disabled={yukleniyor}
-                  className="px-4 py-2 bg-[#3157e5] hover:bg-[#2546c7] disabled:bg-[#3157e5]/50 text-white rounded text-xs font-semibold transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
-                >
-                  {yukleniyor ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Optimizasyon Seti Hazırlanıyor...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Otonom Optimizasyonu Uygula</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      <div>
+        <h2 className="text-lg font-semibold text-ink">Büyüme fırsatları</h2>
+        <p className="text-sm text-muted">Yüksek gösterim alan ama düşük tıklama alan sorgular ve kanibalizasyon tespiti.</p>
       </div>
+      <DemoBanner source={ops.source} reason={ops.reason} error={ops.error} />
+
+      {ops.loading ? (
+        <Panel>
+          <SkeletonRows rows={4} />
+        </Panel>
+      ) : ops.data.length === 0 ? (
+        <Panel>
+          <EmptyState title="Fırsat bulunamadı" description="Search Console bağlıysa ve yeterli gösterim varsa fırsat motoru burada öneri üretir." />
+        </Panel>
+      ) : (
+        <ul className="space-y-3">
+          {ops.data.map((f, idx) => (
+            <li key={`${f.query}-${idx}`}>
+              <Panel>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="warn">{f.category}</Badge>
+                    <span className="text-base font-semibold text-ink">“{f.query}”</span>
+                  </div>
+                  <Badge tone="evidence">Tahmini kazanç {f.potential}</Badge>
+                </div>
+
+                <Inset className="mt-3 font-mono text-xs text-muted truncate">
+                  Hedef: <span className="text-accent-ink">{f.page}</span>
+                </Inset>
+
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <div className="text-muted">Aylık gösterim</div>
+                    <div className="font-mono font-semibold text-ink tabular-nums">{formatNumber(f.impressions)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Tıklama</div>
+                    <div className="font-mono font-semibold text-ink tabular-nums">{formatNumber(f.clicks)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Mevcut TO</div>
+                    <div className="font-mono font-semibold text-warn tabular-nums">{formatPercent(f.ctr, 2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Hedef TO</div>
+                    <div className="font-mono font-semibold text-evidence tabular-nums">{formatPercent(f.targetCtr, 2)}</div>
+                  </div>
+                </div>
+
+                {density === "expert" && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
+                    <pre className="whitespace-pre-wrap bg-critical-soft text-critical border-l-2 border-critical rounded-sm p-3 overflow-x-auto">{f.before}</pre>
+                    <pre className="whitespace-pre-wrap bg-evidence-soft text-evidence border-l-2 border-evidence rounded-sm p-3 overflow-x-auto">{f.after}</pre>
+                  </div>
+                )}
+
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <p className="text-sm text-muted">{f.action}</p>
+                  <Button size="sm" loading={busy === idx} onClick={() => handleCreate(f, idx)} icon={busy === idx ? undefined : <ArrowRight className="w-3.5 h-3.5" />} className="shrink-0">
+                    Optimizasyon seti oluştur
+                  </Button>
+                </div>
+              </Panel>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

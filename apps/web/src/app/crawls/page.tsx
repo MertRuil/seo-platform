@@ -2,324 +2,302 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Layers, Play, Globe, ChevronRight, ShieldCheck, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { Layers, Play, CheckCircle2, AlertTriangle, ShieldCheck, Globe, Loader2, ChevronRight } from "lucide-react";
+import { useSite } from "@/context/SiteContext";
+import { api, ApiError } from "@/lib/api";
+import { DEMO_CRAWLS, type CrawlRow } from "@/lib/demo";
+import { crawlsToRows } from "@/lib/mappers";
+import { addChangeSet, newChangeSetId } from "@/lib/changesets";
+import { formatNumber } from "@/lib/format";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel, Inset } from "@/components/ui/Panel";
+import { Button } from "@/components/ui/Button";
+import { Input, Label } from "@/components/ui/Input";
+import { Badge, SeverityBadge } from "@/components/ui/Badge";
+import { MetricStrip } from "@/components/ui/MetricStrip";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { Notice } from "@/components/ui/States";
+
+interface QuickIssue {
+  rule_id: string;
+  severity: string;
+  title: string;
+  description: string;
+  recommendation: string;
+  category?: string;
+}
+interface QuickResult {
+  health_score?: number;
+  overall_score?: number;
+  status_code?: number;
+  page_info?: { response_time_ms?: number; word_count?: number; title?: string; meta_description?: string; canonical_url?: string };
+  issues?: QuickIssue[];
+  ai_recommendations?: Array<{ title: string; description: string; reason: string; expected_impact: string; priority_score: number }>;
+}
+
+const crawlColumns: Column<CrawlRow>[] = [
+  { key: "id", header: "Tarama", render: (r) => <span className="font-mono font-semibold text-accent-ink">{r.id}</span> },
+  { key: "mode", header: "Mod", render: (r) => <span className="text-ink">{r.mode}</span> },
+  { key: "status", header: "Durum", align: "center", render: (r) => <Badge tone={r.status.startsWith("COMPLETED") ? "evidence" : r.status === "FAILED" ? "critical" : "accent"} mono>{r.status}</Badge> },
+  { key: "pages", header: "Sayfa", align: "right", render: (r) => <span className="font-mono">{formatNumber(r.pages)}</span> },
+  { key: "errors", header: "Hata", align: "right", render: (r) => <span className="font-mono text-muted">{r.errors}</span> },
+  { key: "duration", header: "Süre", align: "right", expertOnly: true, render: (r) => <span className="font-mono text-muted">{r.duration}</span> },
+  { key: "date", header: "Tarih", align: "right", render: (r) => <span className="text-muted">{r.date}</span> },
+];
 
 export default function SiteTaramalariPage() {
   const router = useRouter();
   const { token } = useAuth();
-  const [hedefUrl, setHedefUrl] = useState("https://example.com");
-  const [yukleniyor, setYukleniyor] = useState(false);
-  const [analizSonucu, setAnalizSonucu] = useState<any>(null);
-  const [hataMesaji, setHataMesaji] = useState<string | null>(null);
-  const [bildirim, setBildirim] = useState<string | null>(null);
+  const { org, site, sites, crawls, status, source, reason, refresh, selectSite } = useSite();
 
-  const handleSorunDuzeltmeSetiOlustur = (iss: any) => {
-    const yeniSetId = `CS-LIVE-${Math.floor(1000 + Math.random() * 9000)}`;
-    const yeniSet = {
-      id: yeniSetId,
-      baslik: `Canlı Tarama Düzeltmesi: ${iss.title}`,
-      onem: iss.severity || "ORTA",
-      etkilenenSayfa: hedefUrl,
+  // Site ekleme
+  const [siteName, setSiteName] = useState("");
+  const [siteUrl, setSiteUrl] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
+  const [siteError, setSiteError] = useState<string | null>(null);
+
+  // Tarama tetikleme
+  const [starting, setStarting] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "success" | "error" | "info"; text: string } | null>(null);
+
+  // Hızlı denetim
+  const [quickUrl, setQuickUrl] = useState("https://example.com");
+  const [quickBusy, setQuickBusy] = useState(false);
+  const [quick, setQuick] = useState<QuickResult | null>(null);
+  const [quickError, setQuickError] = useState<string | null>(null);
+
+  const canRegister = status === "ready" && !!org;
+  const rows = source === "demo" && crawls.length === 0 ? DEMO_CRAWLS : crawlsToRows(crawls);
+
+  const handleAddSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!org) return;
+    setSiteError(null);
+    if (!/^https?:\/\//.test(siteUrl.trim())) {
+      setSiteError("Adres http:// veya https:// ile başlamalı.");
+      return;
+    }
+    setAddingSite(true);
+    try {
+      const created = await api.createSite(org.id, { name: siteName.trim() || new URL(siteUrl.trim()).hostname, primary_url: siteUrl.trim() });
+      await refresh();
+      selectSite(created.id);
+      setSiteName("");
+      setSiteUrl("");
+      setNotice({ tone: "success", text: `${created.normalized_domain} kaydedildi. Şimdi ilk taramayı başlatabilirsiniz.` });
+    } catch (err) {
+      setSiteError(err instanceof ApiError ? err.message : "Site kaydedilemedi.");
+    } finally {
+      setAddingSite(false);
+    }
+  };
+
+  const handleStartCrawl = async () => {
+    if (!org || !site) return;
+    setStarting(true);
+    setNotice(null);
+    try {
+      const run = await api.triggerCrawl(org.id, site.id);
+      setNotice({ tone: "info", text: `Tarama #${run.id.slice(0, 8).toUpperCase()} kuyruğa alındı. Tamamlanınca AI denetimi otomatik başlar; bu sayfayı yenileyerek durumu görebilirsiniz.` });
+      await refresh();
+    } catch (err) {
+      setNotice({ tone: "error", text: err instanceof ApiError ? err.message : "Tarama başlatılamadı." });
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const handleQuick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = quickUrl.trim();
+    if (!/^https?:\/\//.test(trimmed)) {
+      setQuickError("Adres http:// veya https:// ile başlamalı.");
+      return;
+    }
+    setQuickBusy(true);
+    setQuickError(null);
+    setQuick(null);
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch("/api/v1/audit/quick", { method: "POST", headers, body: JSON.stringify({ url: trimmed, max_pages: 10 }) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Siteye erişilemedi veya analiz hatası oluştu.");
+      }
+      setQuick(await res.json());
+    } catch (err) {
+      setQuickError(err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu.");
+    } finally {
+      setQuickBusy(false);
+    }
+  };
+
+  const handleIssueSet = (iss: QuickIssue) => {
+    const id = newChangeSetId("CS-LIVE");
+    addChangeSet({
+      id,
+      baslik: `Canlı denetim düzeltmesi: ${iss.title}`,
+      onem: iss.severity || "MEDIUM",
+      etkilenenSayfa: quickUrl,
       kategori: iss.category || "TEKNİK",
       oneri: iss.recommendation,
       durum: "BEKLİYOR",
-      oncekiKod: `<!-- ${hedefUrl} üzerinde tespit edilen hata: ${iss.rule_id} -->\n${iss.description}`,
-      yeniKod: `<!-- Otonom Düzeltilmiş Çözüm Kodu -->\n${iss.recommendation}`,
-      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR")
-    };
-
-    try {
-      const kayitli = localStorage.getItem("seo_platform_changesets") || localStorage.getItem("dentleon_changesets");
-      const mevcutListe = kayitli ? JSON.parse(kayitli) : [];
-      localStorage.setItem("seo_platform_changesets", JSON.stringify([yeniSet, ...mevcutListe]));
-      localStorage.setItem("seo_platform_active_changeset_id", yeniSetId);
-    } catch (e) {
-      console.error(e);
-    }
-
-    setBildirim(`✓ "${iss.title}" için otonom düzeltme seti (#${yeniSetId}) oluşturuldu! Değişiklik sayfasına yönlendiriliyorsunuz...`);
-    setTimeout(() => {
-      router.push("/changes");
-    }, 800);
-  };
-
-  const gecmisTaramalar = [
-    { id: "CRAWL-9842", mod: "Googlebot Simülasyonu", durum: "TAMAMLANDI", sayfalar: 124, hata: 0, sure: "34 sn", tarih: "Bugün 00:15" },
-    { id: "CRAWL-9820", mod: "Site Sahibi Tam Denetimi", durum: "TAMAMLANDI", sayfalar: 118, hata: 1, sure: "42 sn", tarih: "Dün 14:30" }
-  ];
-
-  const handleCanliTarama = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hedefUrl) return;
-
-    const trimmed = hedefUrl.trim();
-    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-      setHataMesaji("Lütfen geçerli bir web adresi girin (http:// veya https:// ile başlamalıdır).");
-      return;
-    }
-
-    setYukleniyor(true);
-    setHataMesaji(null);
-    setAnalizSonucu(null);
-
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const res = await fetch("/api/v1/audit/quick", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ url: hedefUrl, max_pages: 10 })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Siteye erişilemedi veya analiz hatası oluştu.");
-      }
-
-      const data = await res.json();
-      setAnalizSonucu(data);
-    } catch (err: any) {
-      setHataMesaji(err.message || "Bilinmeyen bir hata oluştu.");
-    } finally {
-      setYukleniyor(false);
-    }
+      oncekiKod: `<!-- ${quickUrl} üzerinde tespit: ${iss.rule_id} -->\n${iss.description}`,
+      yeniKod: `<!-- Önerilen çözüm -->\n${iss.recommendation}`,
+      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
+    });
+    setNotice({ tone: "success", text: `"${iss.title}" için düzeltme seti #${id} oluşturuldu; diff sayfasına yönlendiriliyorsunuz.` });
+    setTimeout(() => router.push("/changes"), 800);
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
-      <div className="border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
-        <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
-          <Layers className="w-6 h-6 text-[#3157e5] dark:text-indigo-400" />
-          <span>Canlı Site Taraması & Otonom SEO Denetimi</span>
-        </h1>
-        <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
-          Dilediğiniz web sitesi adresini girin; crawler anında tarasın, deterministik kuralları çalıştırsın ve yapay zeka önerilerini çıkarsın.
-        </p>
-      </div>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <DemoBanner source={source} reason={reason} />
+      <PageHeader
+        icon={<Layers className="w-5 h-5" />}
+        title="Site taramaları"
+        description="Kayıtlı siteyi tarayın; tarama bitince kural motoru ve AI denetimi otomatik çalışır. Kayıtsız hızlı denetim için alttaki formu kullanın."
+        actions={
+          site ? (
+            <Button onClick={handleStartCrawl} loading={starting} icon={<Play className="w-3.5 h-3.5" />}>
+              Taramayı başlat
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {bildirim && (
-        <div className="p-4 rounded-xl bg-[#0f927c]/10 border border-[#0f927c]/30 text-[#0f927c] dark:text-emerald-300 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-[#0f927c] dark:text-emerald-400 shrink-0" />
-            <span className="font-medium">{bildirim}</span>
-          </div>
-          <button
-            onClick={() => router.push("/changes")}
-            className="px-3 py-1 bg-[#0f927c] hover:bg-[#0c7866] text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
-          >
-            Hemen İncele
-          </button>
-        </div>
+      {notice && (
+        <Notice tone={notice.tone} onClose={() => setNotice(null)}>
+          {notice.text}
+        </Notice>
       )}
 
-      {/* Canlı URL Giriş Kutusu */}
-      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 shadow-xs">
-        <form onSubmit={handleCanliTarama} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-[#656971] dark:text-[#8c8d89] uppercase tracking-wider mb-2">
-              Analiz Edilecek Hedef Web Sitesi (URL)
-            </label>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Globe className="w-4 h-4 text-[#8a8e96] dark:text-[#6f6d66] absolute left-3.5 top-3.5" />
-                <input
-                  type="url"
-                  required
-                  placeholder="https://siteniz.com"
-                  value={hedefUrl}
-                  onChange={(e) => setHedefUrl(e.target.value)}
-                  className="w-full bg-white dark:bg-[#171817] border border-[#cfd3da] dark:border-[#343633] rounded-lg pl-10 pr-4 py-3 text-sm text-[#121316] dark:text-white placeholder-[#8a8e96] dark:placeholder-[#6f6d66] focus:outline-none focus:border-[#3157e5] transition-all font-mono shadow-xs"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={yukleniyor}
-                className="px-6 py-3 bg-[#3157e5] hover:bg-[#2546c7] disabled:bg-[#3157e5]/50 text-white rounded-lg text-sm font-semibold transition-all shadow-xs flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-              >
-                {yukleniyor ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Canlı Taranıyor & Analiz Ediliyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Canlı Taramayı ve Analizi Başlat</span>
-                  </>
-                )}
-              </button>
+      {/* Onboarding: site yoksa kayıt formu */}
+      {canRegister && sites.length === 0 && (
+        <Panel title="İlk siteyi ekleyin" sub="Alan adı kaydedilir; ardından ilk tarama başlatılır ve tüm ekranlar canlı veriye geçer.">
+          <form onSubmit={handleAddSite} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <div>
+              <Label htmlFor="site-name">Site adı</Label>
+              <Input id="site-name" value={siteName} onChange={(e) => setSiteName(e.target.value)} placeholder="Acme Türkiye" />
             </div>
-          </div>
+            <div>
+              <Label htmlFor="site-url">Ana adres</Label>
+              <Input id="site-url" type="url" value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} placeholder="https://acme.com.tr" mono required />
+            </div>
+            <Button type="submit" loading={addingSite} icon={<Plus className="w-3.5 h-3.5" />}>
+              Kaydet
+            </Button>
+          </form>
+          {siteError && (
+            <Notice tone="error" className="mt-3">
+              {siteError}
+            </Notice>
+          )}
+        </Panel>
+      )}
+
+      {!canRegister && status === "ready" && (
+        <Notice tone="info">Site kaydı için arka uçta tanımlı bir hesapla giriş yapın; bu oturum yalnızca yerel demo hesabı kullanıyor.</Notice>
+      )}
+
+      {/* Hızlı denetim */}
+      <Panel title="Hızlı denetim" sub="Herhangi bir adresi kayıt gerektirmeden tarar, kuralları çalıştırır ve AI önerilerini çıkarır.">
+        <form onSubmit={handleQuick} className="flex flex-col sm:flex-row gap-2">
+          <Input icon={<Globe className="w-4 h-4" />} type="url" required value={quickUrl} onChange={(e) => setQuickUrl(e.target.value)} placeholder="https://siteniz.com" mono aria-label="Denetlenecek adres" />
+          <Button type="submit" loading={quickBusy} icon={<Play className="w-3.5 h-3.5" />} className="shrink-0">
+            Denetle
+          </Button>
         </form>
-
-        {hataMesaji && (
-          <div className="mt-4 p-4 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>Hata: {hataMesaji}</span>
-          </div>
+        {quickError && (
+          <Notice tone="error" className="mt-3">
+            {quickError}
+          </Notice>
         )}
-      </div>
+      </Panel>
 
-      {/* Canlı Analiz Sonuçları */}
-      {analizSonucu && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Teknik SEO Sağlık Skoru</span>
-              <div className="text-4xl font-extrabold text-[#0f927c] dark:text-emerald-400 mt-2">
-                {analizSonucu.health_score} <span className="text-xs text-[#8a8e96] dark:text-slate-500 font-normal">/ 100</span>
-              </div>
-              <span className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 block font-medium">Deterministik Kural Motoru</span>
-            </div>
+      {quick && (
+        <div className="space-y-5 animate-fade-in">
+          <MetricStrip
+            items={[
+              { label: "Teknik sağlık skoru", value: quick.health_score ?? quick.overall_score ?? "—", unit: "/ 100", tone: "evidence", hint: "kural motoru" },
+              { label: "HTTP yanıt kodu", value: quick.status_code ?? "—", hint: quick.page_info?.response_time_ms ? `${quick.page_info.response_time_ms} ms` : undefined },
+              { label: "Gövde kelime sayısı", value: formatNumber(quick.page_info?.word_count ?? 0), hint: "içerik derinliği" },
+              { label: "Bulunan sorun", value: quick.issues?.length ?? 0, tone: (quick.issues?.length ?? 0) > 0 ? "warn" : "evidence", hint: "aksiyon gerektiren" },
+            ]}
+          />
 
-            <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">HTTP Yanıt Kodu</span>
-              <div className="text-4xl font-extrabold text-[#121316] dark:text-white mt-2 font-mono">
-                {analizSonucu.status_code}
-              </div>
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] mt-1 block">Yanıt Süresi: {analizSonucu.page_info?.response_time_ms} ms</span>
-            </div>
-
-            <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Gövde Kelime Sayısı</span>
-              <div className="text-4xl font-extrabold text-[#121316] dark:text-white mt-2 font-mono">
-                {analizSonucu.page_info?.word_count || 0}
-              </div>
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] mt-1 block">İçerik Derinliği</span>
-            </div>
-
-            <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
-              <span className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Bulunan SEO Sorunları</span>
-              <div className="text-4xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 font-mono">
-                {analizSonucu.issues?.length || 0}
-              </div>
-              <span className="text-xs text-amber-600 dark:text-amber-500 mt-1 block font-medium">Aksiyon Gerektiren</span>
-            </div>
-          </div>
-
-          {/* Sayfa Detayları */}
-          <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 space-y-3 shadow-xs">
-            <h3 className="text-sm font-bold text-[#121316] dark:text-white uppercase tracking-wider">Taranan Sayfa Meta Verileri</h3>
-            <div className="space-y-2 text-xs font-mono">
-              <div className="p-2.5 rounded bg-[#f5f6f8] dark:bg-[#171817] border border-[#e2e4e8] dark:border-[#343633] flex justify-between">
-                <span className="text-[#656971] dark:text-[#8c8d89]">Sayfa Başlığı (&lt;title&gt;):</span>
-                <span className="text-[#121316] dark:text-white font-semibold">{analizSonucu.page_info?.title || "(Eksik)"}</span>
-              </div>
-              <div className="p-2.5 rounded bg-[#f5f6f8] dark:bg-[#171817] border border-[#e2e4e8] dark:border-[#343633] flex justify-between">
-                <span className="text-[#656971] dark:text-[#8c8d89]">Meta Açıklaması:</span>
-                <span className="text-[#121316] dark:text-white">{analizSonucu.page_info?.meta_description || "(Eksik - Arama motoru rastgele metin çekecek)"}</span>
-              </div>
-              <div className="p-2.5 rounded bg-[#f5f6f8] dark:bg-[#171817] border border-[#e2e4e8] dark:border-[#343633] flex justify-between">
-                <span className="text-[#656971] dark:text-[#8c8d89]">Canonical Etiketi:</span>
-                <span className="text-[#3157e5] dark:text-indigo-400">{analizSonucu.page_info?.canonical_url || "(Belirtilmemiş)"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tespit Edilen Kural İhlalleri */}
-          <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
-            <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
-              <h3 className="font-semibold text-[#121316] dark:text-white text-base">Deterministik Kural İhlalleri ve Çözümleri</h3>
-            </div>
-            <div className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
-              {analizSonucu.issues?.map((iss: any, idx: number) => (
-                <div key={idx} className="p-4 space-y-2 hover:bg-[#f9fafb] dark:hover:bg-[#262725] transition-colors">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      iss.severity === "CRITICAL" ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" :
-                      iss.severity === "HIGH" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20" :
-                      "bg-[#3157e5]/10 text-[#3157e5] dark:text-blue-400 border border-[#3157e5]/20"
-                    }`}>
-                      {iss.severity}
-                    </span>
-                    <span className="font-semibold text-[#121316] dark:text-white text-sm">{iss.title}</span>
-                    <span className="text-[#8a8e96] dark:text-[#70726d] font-mono text-xs">({iss.rule_id})</span>
-                  </div>
-                  <p className="text-xs text-[#656971] dark:text-slate-300">{iss.description}</p>
-                  <p className="text-xs text-[#0f927c] dark:text-emerald-400 font-medium">Öneri: {iss.recommendation}</p>
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      onClick={() => handleSorunDuzeltmeSetiOlustur(iss)}
-                      className="px-3 py-1.5 bg-[#3157e5] hover:bg-[#2546c7] text-white rounded text-xs font-semibold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Bu Sorun İçin Otonom Düzeltme Seti Oluştur</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+          <Panel title="Sayfa meta verileri">
+            <dl className="grid grid-cols-1 gap-2 font-mono text-xs">
+              {[
+                ["<title>", quick.page_info?.title || "(eksik)"],
+                ["Meta açıklaması", quick.page_info?.meta_description || "(eksik)"],
+                ["Canonical", quick.page_info?.canonical_url || "(belirtilmemiş)"],
+              ].map(([k, v]) => (
+                <Inset key={k} className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <dt className="text-muted shrink-0">{k}</dt>
+                  <dd className="text-ink sm:text-right break-all">{v}</dd>
+                </Inset>
               ))}
-            </div>
-          </div>
+            </dl>
+          </Panel>
 
-          {/* AI Uzman Ajan Önerileri */}
-          <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 space-y-4 shadow-xs">
-            <h3 className="font-bold text-[#121316] dark:text-white text-base flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-[#3157e5] dark:text-indigo-400" />
-              <span>Yapay Zeka Uzman Ajan Önerileri (Google Search Central RAG Kaynaklı)</span>
-            </h3>
-            <div className="space-y-3">
-              {analizSonucu.ai_recommendations?.map((rec: any, idx: number) => (
-                <div key={idx} className="p-4 rounded-lg bg-[#f5f6f8] dark:bg-[#171817] border border-[#e2e4e8] dark:border-[#343633] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-[#3157e5] dark:text-indigo-300">{rec.title}</span>
-                    <span className="text-xs font-bold text-[#0f927c] dark:text-emerald-400 bg-[#0f927c]/10 dark:bg-emerald-500/10 px-2.5 py-0.5 rounded border border-[#0f927c]/20 dark:border-emerald-500/20">
-                      Öncelik Puanı: {rec.priority_score}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#656971] dark:text-slate-300">{rec.description}</p>
-                  <p className="text-xs text-[#8a8e96] dark:text-[#70726d]">Teknik Gerekçe: {rec.reason}</p>
-                  <div className="pt-2 border-t border-[#e2e4e8] dark:border-[#343633] text-[11px] text-[#656971] dark:text-slate-400">
-                    Beklenen Etki: <span className="text-[#121316] dark:text-slate-200 font-medium">{rec.expected_impact}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <Panel flush title="Kural ihlalleri ve çözümleri">
+            {(quick.issues ?? []).length === 0 ? (
+              <p className="px-5 py-6 text-sm text-muted">Kural ihlali bulunmadı.</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {quick.issues!.map((iss, idx) => (
+                  <li key={idx} className="px-5 py-4 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <SeverityBadge severity={iss.severity} />
+                      <span className="text-sm font-semibold text-ink">{iss.title}</span>
+                      <span className="font-mono text-2xs text-muted">{iss.rule_id}</span>
+                    </div>
+                    <p className="text-sm text-muted">{iss.description}</p>
+                    <p className="text-sm text-evidence">Öneri: {iss.recommendation}</p>
+                    <div className="pt-1 flex justify-end">
+                      <Button size="sm" variant="secondary" onClick={() => handleIssueSet(iss)} icon={<ChevronRight className="w-3.5 h-3.5 text-accent" />}>
+                        Düzeltme seti oluştur
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {(quick.ai_recommendations ?? []).length > 0 && (
+            <Panel title={<span className="inline-flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-accent" aria-hidden />AI uzman ajan önerileri</span>} sub="Google Search Central belgelerine dayalı">
+              <ul className="space-y-3">
+                {quick.ai_recommendations!.map((rec, idx) => (
+                  <li key={idx}>
+                    <Inset className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-accent-ink">{rec.title}</span>
+                        <Badge tone="evidence" mono>
+                          Öncelik {rec.priority_score}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted">{rec.description}</p>
+                      <p className="text-xs text-muted">Gerekçe: {rec.reason}</p>
+                      <div className="pt-2 border-t border-line text-xs text-muted">
+                        Beklenen etki: <span className="text-ink font-medium">{rec.expected_impact}</span>
+                      </div>
+                    </Inset>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
         </div>
       )}
 
-      {/* Geçmiş Taramalar */}
-      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
-          <h3 className="font-semibold text-[#121316] dark:text-white text-base">Geçmiş Tarama Kayıtları</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-[#4b4f58] dark:text-[#c4c6cd]">
-            <thead className="bg-[#f5f6f8] dark:bg-[#171817] text-[#656971] dark:text-[#8c8d89] border-b border-[#e2e4e8] dark:border-[#343633] uppercase font-semibold">
-              <tr>
-                <th className="p-4">Tarama Kimliği</th>
-                <th className="p-4">Tarama Modu</th>
-                <th className="p-4 text-center">Durum</th>
-                <th className="p-4 text-right">Taranan Sayfa</th>
-                <th className="p-4 text-right">Hata</th>
-                <th className="p-4 text-right">Süre</th>
-                <th className="p-4 text-right">Tarih</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
-              {gecmisTaramalar.map((t, idx) => (
-                <tr key={idx} className="hover:bg-[#f9fafb] dark:hover:bg-[#262725] transition-colors">
-                  <td className="p-4 font-mono font-bold text-[#3157e5] dark:text-indigo-300">{t.id}</td>
-                  <td className="p-4 font-medium text-[#121316] dark:text-white">{t.mod}</td>
-                  <td className="p-4 text-center">
-                    <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-[#0f927c]/10 text-[#0f927c] dark:bg-emerald-500/10 dark:text-emerald-400 border border-[#0f927c]/20 dark:border-emerald-500/20">
-                      {t.durum}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right font-mono font-bold text-[#121316] dark:text-slate-200">{t.sayfalar}</td>
-                  <td className="p-4 text-right font-mono text-[#656971] dark:text-slate-300">{t.hata}</td>
-                  <td className="p-4 text-right font-mono text-[#8a8e96] dark:text-slate-400">{t.sure}</td>
-                  <td className="p-4 text-right text-[#8a8e96] dark:text-slate-400">{t.tarih}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Panel flush title="Tarama geçmişi" sub={site ? site.normalized_domain : "Örnek kayıtlar"}>
+        <DataTable columns={crawlColumns} rows={rows} rowKey={(r) => r.id} caption="Geçmiş taramalar" empty="Henüz tarama yok. Yukarıdan ilk taramayı başlatın." />
+      </Panel>
     </div>
   );
 }

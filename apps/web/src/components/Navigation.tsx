@@ -4,33 +4,39 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  BarChart3, 
-  ShieldCheck, 
-  AlertTriangle, 
-  FileText, 
-  TrendingUp, 
-  Lightbulb, 
-  Link2, 
-  Code2, 
-  Zap, 
-  Layers, 
-  GitCommit, 
-  FlaskConical, 
-  BookOpen, 
-  Sliders, 
+import { useQueue } from "@/hooks/useQueue";
+import { cn } from "@/lib/cn";
+import {
+  BarChart3,
+  ShieldCheck,
+  AlertTriangle,
+  FileText,
+  TrendingUp,
+  Lightbulb,
+  Link2,
+  Code2,
+  Zap,
+  Layers,
+  GitCommit,
+  FlaskConical,
+  BookOpen,
+  Sliders,
   History,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: "pending" | "critical";
+}
 
 interface NavGroup {
   label: string;
-  items: {
-    name: string;
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: string;
-  }[];
+  items: NavItem[];
 }
 
 const navGroups: NavGroup[] = [
@@ -38,25 +44,22 @@ const navGroups: NavGroup[] = [
     label: "Genel",
     items: [
       { name: "Genel Görünüm", href: "/", icon: BarChart3 },
-      { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "4" },
+      { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "pending" },
     ],
   },
   {
-    label: "Görünürlük (SEO & GEO)",
-    items: [
-      { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
-      { name: "Yanıt Motorları & Atıflar", href: "/knowledge", icon: BookOpen, badge: "AI" },
-    ],
+    label: "Görünürlük",
+    items: [{ name: "Arama Performansı", href: "/performance", icon: TrendingUp }],
   },
   {
     label: "Site & Teknik Sağlık",
     items: [
       { name: "Teknik Sağlık", href: "/health", icon: ShieldCheck },
-      { name: "Kritik Sorunlar", href: "/issues", icon: AlertTriangle, badge: "3" },
+      { name: "Sorunlar", href: "/issues", icon: AlertTriangle, badge: "critical" },
       { name: "Taranan Sayfalar", href: "/pages", icon: FileText },
       { name: "Yapılandırılmış Veri", href: "/schema", icon: Code2 },
       { name: "İç Link Grafı", href: "/links", icon: Link2 },
-      { name: "Web Hayati Değerleri", href: "/cwv", icon: Zap },
+      { name: "Web Vitals", href: "/cwv", icon: Zap },
     ],
   },
   {
@@ -71,120 +74,111 @@ const navGroups: NavGroup[] = [
     label: "Yönetim",
     items: [
       { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
+      { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
       { name: "Denetim Günlüğü", href: "/audit", icon: History },
     ],
   },
 ];
 
-export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
+interface NavigationProps {
+  currentPath?: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  onNavigate?: () => void;
+}
+
+export function Navigation({ currentPath = "/", collapsed = false, onToggleCollapse, onNavigate }: NavigationProps) {
   const { user, logout } = useAuth();
+  const queue = useQueue();
+  const badges: Record<"pending" | "critical", number> = { pending: queue.pending, critical: queue.critical };
 
   return (
-    <aside className="w-64 bg-white dark:bg-[#171817] border-r border-[#e0e2e6] dark:border-[#343633] flex flex-col h-screen fixed left-0 top-0 select-none z-50 text-[#121316] dark:text-[#f4f3ee] transition-colors duration-150">
-      {/* CALPEO Marka Başlığı */}
-      <div className="p-4 border-b border-[#e0e2e6] dark:border-[#343633] flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="relative w-7 h-7 flex items-center justify-center">
-            <Image 
-              src="/brand/calpeo-logo-signal-loop-v1.png" 
-              alt="CALPEO Logo" 
-              width={28} 
-              height={28} 
-              className="object-contain rounded-sm"
-              priority
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm tracking-wider text-[#121316] dark:text-white">CALPEO</span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#3157e5]/15 text-[#3157e5] border border-[#3157e5]/30">
-                PRO
-              </span>
-            </div>
-            <p className="text-[10px] text-[#696d76] dark:text-[#6f6d66] font-medium leading-none mt-0.5">
-              Kanıt & Karar Sistemi
-            </p>
-          </div>
+    <div className="flex flex-col h-full bg-surface text-ink">
+      {/* Marka */}
+      <div className={cn("h-14 border-b border-line flex items-center", collapsed ? "justify-center px-2" : "justify-between px-4")}>
+        <Link href="/" className="flex items-center gap-2.5 min-w-0" onClick={onNavigate}>
+          <Image src="/brand/calpeo-logo-signal-loop-v1.png" alt="CALPEO" width={28} height={28} className="object-contain rounded-sm shrink-0" priority />
+          {!collapsed && (
+            <span className="min-w-0">
+              <span className="block font-bold text-sm tracking-wider text-ink leading-4">CALPEO</span>
+              <span className="block text-2xs text-muted leading-4">Kanıt & karar sistemi</span>
+            </span>
+          )}
         </Link>
+        {!collapsed && onToggleCollapse && (
+          <button type="button" onClick={onToggleCollapse} aria-label="Menüyü daralt" title="Menüyü daralt" className="hidden lg:inline-flex w-8 h-8 items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+            <PanelLeftClose className="w-4 h-4" aria-hidden />
+          </button>
+        )}
       </div>
 
-      {/* Navigasyon Listesi */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+      {/* Menü */}
+      <nav aria-label="Ana menü" className={cn("flex-1 overflow-y-auto custom-scrollbar py-3", collapsed ? "px-2 space-y-3" : "px-3 space-y-4")}>
+        {collapsed && onToggleCollapse && (
+          <button type="button" onClick={onToggleCollapse} aria-label="Menüyü genişlet" title="Menüyü genişlet" className="w-full h-9 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+            <PanelLeftOpen className="w-4 h-4" aria-hidden />
+          </button>
+        )}
         {navGroups.map((group) => (
           <div key={group.label}>
-            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9a9da4] dark:text-[#656661] px-2.5 mb-1.5">
-              {group.label}
-            </div>
-            <div className="space-y-0.5">
+            {!collapsed && <div className="font-mono text-2xs font-semibold uppercase tracking-wider text-muted px-2.5 mb-1">{group.label}</div>}
+            {collapsed && <div className="border-t border-line mx-1 mb-2" aria-hidden />}
+            <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.href;
+                const count = item.badge ? badges[item.badge] : 0;
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-medium transition-all ${
-                      isActive
-                        ? "bg-[#ebefff] dark:bg-[#292a28] text-[#2442ad] dark:text-white font-semibold border-l-2 border-[#3157e5] pl-2 shadow-xs"
-                        : "text-[#666a72] dark:text-[#999994] hover:text-[#121316] dark:hover:text-[#f4f3ee] hover:bg-[#f5f6f8] dark:hover:bg-[#202120]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#3157e5]" : "text-[#7b7f87] dark:text-[#77736c]"}`} />
-                      <span className="truncate">{item.name}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                        isActive 
-                          ? "bg-[#3157e5]/20 text-[#3157e5]" 
-                          : "bg-[#eff1f4] dark:bg-[#202120] text-[#777b82] dark:text-[#77736c] border border-[#d9dce1] dark:border-[#343633]"
-                      }`}>
-                        {item.badge}
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={isActive ? "page" : undefined}
+                      title={collapsed ? item.name : undefined}
+                      className={cn(
+                        "flex items-center rounded-sm text-sm font-medium transition-colors min-h-[36px]",
+                        collapsed ? "justify-center px-0" : "justify-between px-2.5 gap-2",
+                        isActive ? "bg-accent-soft text-accent-ink font-semibold shadow-[inset_2px_0_0_var(--accent)]" : "text-muted hover:text-ink hover:bg-surface-2"
+                      )}
+                    >
+                      <span className={cn("flex items-center min-w-0", collapsed ? "gap-0" : "gap-2.5")}>
+                        <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-accent" : "text-faint")} />
+                        {!collapsed && <span className="truncate">{item.name}</span>}
                       </span>
-                    )}
-                  </Link>
+                      {!collapsed && count > 0 && (
+                        <span className={cn("font-mono text-2xs px-1.5 py-0.5 rounded-sm tabular-nums", item.badge === "critical" ? "bg-critical-soft text-critical" : "bg-surface-2 text-muted border border-line")}>
+                          {count}
+                        </span>
+                      )}
+                      {collapsed && count > 0 && <span className="sr-only">{count} kayıt</span>}
+                    </Link>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         ))}
       </nav>
 
-      {/* Alt Profil ve Sistem Durumu */}
-      <div className="p-3 border-t border-[#e0e2e6] dark:border-[#343633] bg-[#f8f9fa] dark:bg-[#141514] space-y-2.5 transition-colors">
-        <div className="flex items-center justify-between text-[10px] text-[#696d76] dark:text-[#77736c] px-1">
-          <span className="font-medium">Ölçüm Durumu</span>
-          <span className="flex items-center gap-1.5 text-[#0f927c] dark:text-[#148b79] font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0f927c] dark:bg-[#148b79] animate-pulse"></span>
-            Canlı & Doğrulanmış
-          </span>
-        </div>
-
-        {/* Kullanıcı Kartı */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#e5e7eb] dark:border-[#292a28] px-1">
+      {/* Kullanıcı */}
+      <div className={cn("border-t border-line", collapsed ? "p-2" : "p-3")}>
+        <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "justify-between gap-2")}>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#3157e5] to-[#148b79] flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
-              {user?.fullName?.charAt(0) || "M"}
+            <div className="w-8 h-8 rounded-full bg-accent-soft text-accent-ink flex items-center justify-center text-xs font-bold shrink-0" aria-hidden>
+              {user?.fullName?.charAt(0)?.toUpperCase() || "K"}
             </div>
-            <div className="min-w-0">
-              <div className="text-xs font-medium text-[#121316] dark:text-[#f4f3ee] truncate">
-                {user?.fullName || "Mert Ruil"}
+            {!collapsed && (
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-ink truncate">{user?.fullName || "Kullanıcı"}</div>
+                <div className="text-2xs text-muted truncate">{user?.role || ""}</div>
               </div>
-              <div className="text-[10px] text-[#696d76] dark:text-[#6f6d66] truncate font-mono">
-                {user?.role || "Yönetici"}
-              </div>
-            </div>
+            )}
           </div>
-
-          <button
-            onClick={logout}
-            title="Oturumu Kapat"
-            className="p-1.5 rounded-md text-[#696d76] dark:text-[#77736c] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0 cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
+          <button type="button" onClick={logout} aria-label="Oturumu kapat" title="Oturumu kapat" className="w-8 h-8 inline-flex items-center justify-center rounded-sm text-muted hover:text-critical hover:bg-critical-soft transition-colors cursor-pointer shrink-0">
+            <LogOut className="w-4 h-4" aria-hidden />
           </button>
         </div>
       </div>
-    </aside>
+    </div>
   );
 }

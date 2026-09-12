@@ -1,254 +1,171 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronRight, CheckCircle2, ExternalLink } from "lucide-react";
+import { api } from "@/lib/api";
+import { DEMO_ISSUES, type IssueItem, type Severity } from "@/lib/demo";
+import { healthToIssues } from "@/lib/mappers";
+import { addChangeSet, newChangeSetId, readChangeSets } from "@/lib/changesets";
+import { useSiteData } from "@/hooks/useSiteData";
+import { useDensity } from "@/context/DensityContext";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel, Inset } from "@/components/ui/Panel";
+import { Button } from "@/components/ui/Button";
+import { FilterChips } from "@/components/ui/Input";
+import { Badge, SeverityBadge, severityStripeClass } from "@/components/ui/Badge";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
+import { cn } from "@/lib/cn";
 
-interface SorunItem {
-  id: string;
-  baslik: string;
-  kategori: string;
-  onem: "KRİTİK" | "YÜKSEK" | "ORTA" | "DÜŞÜK";
-  etkilenenSayfa: string;
-  aciklama: string;
-  oneri: string;
-  oncekiKod: string;
-  yeniKod: string;
-}
+type Filter = "ALL" | Severity;
 
-export default function SeoSorunlariPage() {
+export default function SorunlarPage() {
   const router = useRouter();
-  const [filtre, setFiltre] = useState("TÜMÜ");
-  const [islemdeId, setIslemdeId] = useState<string | null>(null);
-  const [olusturulanSetler, setOlusturulanSetler] = useState<string[]>([]);
-  const [bildirim, setBildirim] = useState<string | null>(null);
+  const { density } = useDensity();
+  const res = useSiteData<IssueItem[]>("issues", async ({ org, site, crawl }) => healthToIssues(await api.getCrawlHealth(org.id, site.id, crawl!.id)), DEMO_ISSUES);
 
-  const sorunlar: SorunItem[] = [
-    {
-      id: "ISSUE-01",
-      baslik: "Canonical Döngüsü Tespit Edildi (A -> B -> A)",
-      kategori: "CANONICAL",
-      onem: "KRİTİK",
-      etkilenenSayfa: "https://flagship-store.com/urunler/kurumsal",
-      aciklama: "Sayfa kendisini başka bir URL'ye canonical olarak gösteriyor, o sayfa da ilk sayfaya geri dönüyor.",
-      oneri: "Sayfadaki rel=canonical etiketini doğrudan kendi mutlak URL'sine (self-referential) çevirin.",
-      oncekiKod: '<link rel="canonical" href="https://flagship-store.com/urunler/kurumsal-alt" />',
-      yeniKod: '<link rel="canonical" href="https://flagship-store.com/urunler/kurumsal" />'
-    },
-    {
-      id: "ISSUE-02",
-      baslik: "3 Kademeli Yönlendirme Zinciri (301 -> 301 -> 200)",
-      kategori: "YÖNLENDİRME",
-      onem: "YÜKSEK",
-      etkilenenSayfa: "https://flagship-store.com/blog/eski-yazi",
-      aciklama: "Tıklanan URL doğrudan hedefe varmak yerine ara 301 yönlendirmelerinden geçerek tarama bütçesi harcıyor.",
-      oneri: "İç bağlantıları doğrudan nihai hedef URL'ye işaret edecek şekilde güncelleyin.",
-      oncekiKod: '<a href="https://flagship-store.com/blog/eski-yazi">Rehberi Oku</a>\n<!-- 301 -> /blog/yazi-v2 -> /blog/guncel-rehber -->',
-      yeniKod: '<a href="https://flagship-store.com/blog/guncel-rehber">Rehberi Oku</a>\n<!-- Doğrudan 200 OK Nihai Hedef Bağlantısı -->'
-    },
-    {
-      id: "ISSUE-03",
-      baslik: "404 Hatası Veren Kırık İç Bağlantı",
-      kategori: "KIRIK_LİNK",
-      onem: "ORTA",
-      etkilenenSayfa: "https://flagship-store.com/hakkimizda",
-      aciklama: "Sayfa gövdesinde yer alan /ekip bağlantısı HTTP 404 yanıtı döndürüyor.",
-      oneri: "Bağlantıyı güncel çalışan ekip sayfasına yönlendirin veya etiketi kaldırın.",
-      oncekiKod: '<a href="/ekip" class="nav-link">Ekibimizle Tanışın</a>\n<!-- Yanıt: HTTP 404 Not Found -->',
-      yeniKod: '<a href="/kadromuz" class="nav-link">Ekibimizle Tanışın</a>\n<!-- Yanıt: HTTP 200 OK -->'
-    },
-    {
-      id: "ISSUE-04",
-      baslik: "Kısa Meta Açıklaması (Description)",
-      kategori: "İÇERİK",
-      onem: "DÜŞÜK",
-      etkilenenSayfa: "https://flagship-store.com/iletisim",
-      aciklama: "Meta açıklaması 45 karakter uzunluğunda; önerilen aralık 120-160 karakterdir.",
-      oneri: "Kullanıcı arama niyetini ve harekete geçirici mesajı içeren zengin açıklama ekleyin.",
-      oncekiKod: '<meta name="description" content="İletişim sayfası. Bize ulaşın.">',
-      yeniKod: '<meta name="description" content="Flagship Store müşteri hizmetleri ve destek ekibine 7/24 ulaşın. Adres, telefon ve canlı destek bilgilerimizle hemen iletişime geçin.">'
-    }
-  ];
-
-  const STORAGE_KEY_CHANGESETS = "seo_platform_changesets";
-  const STORAGE_KEY_ACTIVE_ID = "seo_platform_active_changeset_id";
+  const [filter, setFilter] = useState<Filter>("ALL");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [created, setCreated] = useState<string[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const kayitli = localStorage.getItem(STORAGE_KEY_CHANGESETS) || localStorage.getItem("dentleon_changesets");
-      if (kayitli) {
-        const parsed = JSON.parse(kayitli);
-        const ids = parsed.map((p: any) => p.sorunId);
-        setOlusturulanSetler(ids);
-      }
-    } catch {
-      // Hata durumunda sessizce devam et
-    }
+    setCreated(readChangeSets().map((s) => s.sorunId).filter((x): x is string => !!x));
   }, []);
 
-  const handleOtonomSetOlustur = async (sorun: SorunItem) => {
-    setIslemdeId(sorun.id);
-    setBildirim(null);
-
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const yeniSetId = `CS-${Math.floor(1000 + Math.random() * 9000)}`;
-    const yeniSet = {
-      id: yeniSetId,
-      sorunId: sorun.id,
-      baslik: sorun.baslik,
-      onem: sorun.onem,
-      etkilenenSayfa: sorun.etkilenenSayfa,
-      kategori: sorun.kategori,
-      oneri: sorun.oneri,
+  const handleCreateSet = async (issue: IssueItem) => {
+    setBusyId(issue.id);
+    setNotice(null);
+    await new Promise((r) => setTimeout(r, 500));
+    const id = newChangeSetId();
+    addChangeSet({
+      id,
+      sorunId: issue.id,
+      baslik: issue.title,
+      onem: issue.severity,
+      etkilenenSayfa: issue.url,
+      kategori: issue.category,
+      oneri: issue.fix,
       durum: "BEKLİYOR",
-      oncekiKod: sorun.oncekiKod,
-      yeniKod: sorun.yeniKod,
-      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR")
-    };
-
-    try {
-      const kayitli = localStorage.getItem(STORAGE_KEY_CHANGESETS) || localStorage.getItem("dentleon_changesets");
-      const mevcutListe = kayitli ? JSON.parse(kayitli) : [];
-      const guncel = [yeniSet, ...mevcutListe.filter((item: any) => item.sorunId !== sorun.id)];
-      localStorage.setItem(STORAGE_KEY_CHANGESETS, JSON.stringify(guncel));
-      localStorage.setItem(STORAGE_KEY_ACTIVE_ID, yeniSetId);
-    } catch (e) {
-      console.error("Storage error:", e);
-    }
-
-    setOlusturulanSetler((prev) => [...prev, sorun.id]);
-    setIslemdeId(null);
-    setBildirim(`✓ Otonom Düzeltme Seti (#${yeniSetId}) başarıyla hazırlandı! Diff ve önizleme sayfasına yönlendiriliyorsunuz...`);
-
-    setTimeout(() => {
-      router.push("/changes");
-    }, 1200);
+      oncekiKod: issue.before,
+      yeniKod: issue.after,
+      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
+    });
+    setCreated((prev) => [...prev, issue.id]);
+    setBusyId(null);
+    setNotice(`Düzeltme seti #${id} hazırlandı; diff sayfasına yönlendiriliyorsunuz.`);
+    setTimeout(() => router.push("/changes"), 900);
   };
 
-  const filtrelenmis = filtre === "TÜMÜ" ? sorunlar : sorunlar.filter(s => s.onem === filtre);
+  const list = filter === "ALL" ? res.data : res.data.filter((i) => i.severity === filter);
+  const counts = res.data.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.severity]: (acc[i.severity] ?? 0) + 1 }), {});
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-amber-500" />
-            <span>Tespit Edilen SEO Sorunları</span>
-          </h1>
-          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
-            Site taramalarında saptanan teknik ve içerik aksaklıkları. Otonom düzeltme seti oluşturarak anında diff incelemesi yapabilir ve uygulayabilirsiniz.
-          </p>
-        </div>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <DemoBanner source={res.source} reason={res.reason} error={res.error} />
+      <PageHeader
+        icon={<AlertTriangle className="w-5 h-5" />}
+        title="Tespit edilen sorunlar"
+        description="Taramada saptanan teknik ve içerik bulguları. Her bulgu için düzeltme seti oluşturup diff'i inceleyebilir, sonra uygulayabilirsiniz."
+        actions={
+          <FilterChips<Filter>
+            label="Önem filtresi"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "ALL", label: `Tümü (${res.data.length})` },
+              { value: "CRITICAL", label: `Kritik (${counts.CRITICAL ?? 0})` },
+              { value: "HIGH", label: `Yüksek (${counts.HIGH ?? 0})` },
+              { value: "MEDIUM", label: `Orta (${counts.MEDIUM ?? 0})` },
+              { value: "LOW", label: `Düşük (${counts.LOW ?? 0})` },
+            ]}
+          />
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          {["TÜMÜ", "KRİTİK", "YÜKSEK", "ORTA", "DÜŞÜK"].map((secenek) => (
-            <button
-              key={secenek}
-              onClick={() => setFiltre(secenek)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                filtre === secenek
-                  ? "bg-[#3157e5] text-white shadow-xs"
-                  : "bg-white dark:bg-[#202120] text-[#656971] dark:text-[#8c8d89] border border-[#dde0e5] dark:border-[#343633] hover:text-[#121316] dark:hover:text-white hover:bg-[#f5f6f8] dark:hover:bg-[#292a28]"
-              }`}
-            >
-              {secenek}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {bildirim && (
-        <div className="p-4 rounded-xl bg-[#0f927c]/10 border border-[#0f927c]/30 text-[#0f927c] dark:text-emerald-300 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-[#0f927c] dark:text-emerald-400 shrink-0" />
-            <span className="font-medium">{bildirim}</span>
-          </div>
-          <button
-            onClick={() => router.push("/changes")}
-            className="px-3 py-1 bg-[#0f927c] hover:bg-[#0c7866] text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
-          >
-            Hemen Git
-          </button>
-        </div>
+      {notice && (
+        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Diff'e git</Button>}>
+          {notice}
+        </Notice>
       )}
 
-      <div className="space-y-3">
-        {filtrelenmis.map((sorun) => {
-          const zatenOlusturuldu = olusturulanSetler.includes(sorun.id);
-          const yukleniyor = islemdeId === sorun.id;
+      {res.loading ? (
+        <Panel>
+          <SkeletonRows rows={6} />
+        </Panel>
+      ) : list.length === 0 ? (
+        <Panel>
+          <EmptyState icon={<CheckCircle2 className="w-8 h-8 text-evidence" />} title={filter === "ALL" ? "Bu taramada sorun bulunmadı" : "Bu önem düzeyinde sorun yok"} description="Kural motoru hiçbir ihlal raporlamadı. Yeni tarama sonrası liste güncellenir." />
+        </Panel>
+      ) : (
+        <ul className="space-y-3">
+          {list.map((issue) => {
+            const done = created.includes(issue.id);
+            const busy = busyId === issue.id;
+            return (
+              <li key={issue.id} className="bg-surface border border-line rounded-md grid grid-cols-[4px_1fr] overflow-hidden">
+                <span className={cn("block", severityStripeClass(issue.severity))} aria-hidden />
+                <div className="p-4 sm:p-5 space-y-3 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <SeverityBadge severity={issue.severity} />
+                      <Badge tone="neutral" mono>
+                        {issue.category}
+                      </Badge>
+                      <span className="text-base font-semibold text-ink">{issue.title}</span>
+                    </div>
+                    <span className="font-mono text-2xs text-muted shrink-0">{issue.id}</span>
+                  </div>
 
-          return (
-            <div key={sorun.id} className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 hover:border-[#cfd3da] dark:hover:border-[#484a46] transition-all space-y-3 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${
-                    sorun.onem === "KRİTİK" ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" :
-                    sorun.onem === "YÜKSEK" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20" :
-                    sorun.onem === "ORTA" ? "bg-[#3157e5]/10 text-[#3157e5] dark:text-blue-400 border border-[#3157e5]/20" :
-                    "bg-[#f0f1f4] dark:bg-[#2a2b29] text-[#656971] dark:text-[#8c8d89]"
-                  }`}>
-                    {sorun.onem}
-                  </span>
-                  <span className="font-semibold text-[#121316] dark:text-white text-base">{sorun.baslik}</span>
-                </div>
-                <span className="text-xs font-mono text-[#656971] dark:text-[#8c8d89]">{sorun.id}</span>
-              </div>
+                  <Inset className="font-mono text-xs text-accent-ink truncate">Etkilenen: {issue.url}</Inset>
 
-              <p className="text-xs text-[#3157e5] dark:text-indigo-300 bg-[#f5f6f8] dark:bg-[#171817] p-2.5 rounded border border-[#e2e4e8] dark:border-[#343633] font-mono">
-                Etkilenen URL: {sorun.etkilenenSayfa}
-              </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-xs font-semibold text-ink mb-0.5">Teşhis</div>
+                      <p className="text-muted">{issue.diagnosis}</p>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-evidence mb-0.5">Önerilen çözüm</div>
+                      <p className="text-muted">{issue.fix}</p>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-[#656971] dark:text-[#8c8d89] pt-1">
-                <div>
-                  <span className="font-semibold text-[#121316] dark:text-slate-200 block mb-0.5">Problem Teşhisi:</span>
-                  {sorun.aciklama}
-                </div>
-                <div>
-                  <span className="font-semibold text-[#0f927c] dark:text-emerald-400 block mb-0.5">Önerilen Otomatik Çözüm:</span>
-                  {sorun.oneri}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between border-t border-[#e2e4e8] dark:border-[#343633]">
-                <span className="text-[11px] text-[#8a8e96] dark:text-[#70726d] font-medium">
-                  Kategori: <strong className="text-[#121316] dark:text-slate-300">{sorun.kategori}</strong>
-                </span>
-
-                <div className="flex items-center gap-2">
-                  {zatenOlusturuldu && (
-                    <button
-                      onClick={() => router.push("/changes")}
-                      className="px-3 py-1.5 bg-[#0f927c]/10 hover:bg-[#0f927c]/20 text-[#0f927c] dark:text-emerald-400 border border-[#0f927c]/30 rounded text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Set Hazır (İncele)</span>
-                    </button>
+                  {density === "expert" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
+                      <pre className="whitespace-pre-wrap bg-critical-soft text-critical border-l-2 border-critical rounded-sm p-3 overflow-x-auto">{issue.before}</pre>
+                      <pre className="whitespace-pre-wrap bg-evidence-soft text-evidence border-l-2 border-evidence rounded-sm p-3 overflow-x-auto">{issue.after}</pre>
+                    </div>
                   )}
 
-                  <button
-                    onClick={() => handleOtonomSetOlustur(sorun)}
-                    disabled={yukleniyor}
-                    className="px-4 py-2 bg-[#3157e5] hover:bg-[#2546c7] disabled:bg-[#3157e5]/50 text-white rounded text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    {yukleniyor ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Otonom Düzeltme Seti Hazırlanıyor...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Otonom Düzeltme Seti Oluştur</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </>
-                    )}
-                  </button>
+                  <div className="pt-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="text-xs text-muted inline-flex items-center gap-3">
+                      {issue.docUrl ? (
+                        <a href={issue.docUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink hover:underline">
+                          Resmi belge <ExternalLink className="w-3 h-3" aria-hidden />
+                        </a>
+                      ) : (
+                        <span>Kaynak: kural motoru</span>
+                      )}
+                      {issue.affected !== undefined && <span>{issue.affected} URL</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {done && (
+                        <Button size="sm" variant="secondary" icon={<CheckCircle2 className="w-3.5 h-3.5 text-evidence" />} onClick={() => router.push("/changes")}>
+                          Set hazır · incele
+                        </Button>
+                      )}
+                      <Button size="sm" loading={busy} onClick={() => handleCreateSet(issue)} icon={busy ? undefined : <ChevronRight className="w-3.5 h-3.5" />}>
+                        {busy ? "Hazırlanıyor" : "Düzeltme seti oluştur"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

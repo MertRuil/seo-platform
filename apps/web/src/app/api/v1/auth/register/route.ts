@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authStore } from "@/lib/auth-users";
 import { createSignedToken } from "@/lib/jwt";
 import crypto from "crypto";
+import { backendRegister } from "@/lib/backend-auth";
 
 export async function POST(request: Request) {
   try {
@@ -38,6 +39,21 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+
+    // Önce arka uç (FastAPI) kaydı: başarılıysa gerçek kullanıcı ve JWT döner.
+    const bridged = await backendRegister(cleanEmail, password, String(fullName).trim());
+    if (bridged.ok) {
+      const res = NextResponse.json(
+        { success: true, message: "Hesabınız oluşturuldu.", access_token: bridged.session.access_token, token_type: "bearer", user: bridged.session.user, expires_in: 86400, source: "backend" },
+        { status: 201 }
+      );
+      res.cookies.set({ name: "seo_platform_token", value: bridged.session.access_token, httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 86400, path: "/", sameSite: "lax" });
+      return res;
+    }
+    if (bridged.status === 409 || bridged.status === 400) {
+      return NextResponse.json({ error: bridged.detail || "Bu e-posta adresiyle kayıtlı bir hesap zaten var." }, { status: bridged.status });
+    }
+
     const existing = authStore.findUserByEmail(cleanEmail);
 
     if (existing) {

@@ -1,111 +1,95 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
-import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
+import { api } from "@/lib/api";
+import { DEMO_HEALTH, type HealthData, type HealthRule } from "@/lib/demo";
+import { healthToView } from "@/lib/mappers";
+import { formatNumber } from "@/lib/format";
+import { useSiteData } from "@/hooks/useSiteData";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { LinkButton } from "@/components/ui/Button";
+import { Badge, type Tone } from "@/components/ui/Badge";
+import { DemoBanner } from "@/components/ui/DemoBanner";
+import { SkeletonRows } from "@/components/ui/States";
+import { cn } from "@/lib/cn";
 
-export default function SiteSagligiPage() {
-  const kurallar = [
-    { kural: "Canonical Doğruluğu", durum: "Uyarı", puan: "85/100", aciklama: "1 sayfada canonical döngüsü tespit edildi." },
-    { kural: "Robots.txt & Noindex Uyumu", durum: "Mükemmel", puan: "100/100", aciklama: "Robots tarafından engellenen noindex sayfası bulunmuyor." },
-    { kural: "Yönlendirme Zincirleri", durum: "Kritik", puan: "60/100", aciklama: "2 adet 3 veya daha fazla atlamalı yönlendirme zinciri mevcut." },
-    { kural: "Başlık Etiketi (Title)", durum: "Mükemmel", puan: "100/100", aciklama: "Tüm taranan sayfalarda benzersiz başlık etiketi mevcut." },
-    { kural: "Meta Açıklamaları (Description)", durum: "Mükemmel", puan: "95/100", aciklama: "Boş veya eksik meta açıklaması yok." },
-    { kural: "Yapılandırılmış Veri Sözdizimi", durum: "Mükemmel", puan: "100/100", aciklama: "JSON-LD şemalarında syntax hatası bulunmadı." },
-    { kural: "HTTP Yanıt Kodları", durum: "İyi", puan: "90/100", aciklama: "Kritik 5xx sunucu hatası yok, yalnızca 1 adet 404 bulundu." }
-  ];
+const statusTone: Record<HealthRule["status"], Tone> = { Mükemmel: "evidence", İyi: "accent", Uyarı: "warn", Kritik: "critical" };
+
+export default function TeknikSaglikPage() {
+  const res = useSiteData<HealthData>("health", async ({ org, site, crawl }) => healthToView(await api.getCrawlHealth(org.id, site.id, crawl!.id)), DEMO_HEALTH);
+  const d = res.data;
+  const verdict = d.score >= 90 ? "Arama motorları için ideal" : d.score >= 70 ? "İyi; birkaç düzeltme gerekli" : "Öncelikli teknik iş var";
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-[#0f927c] dark:text-emerald-400" />
-            <span>Teknik SEO Sağlığı & Kural Analizi</span>
-          </h1>
-          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
-            20+ deterministik SEO kuralı taranarak sıfır yapay zeka yanılsaması (zero-hallucination) ile hesaplanmıştır.
-          </p>
-        </div>
-        <Link
-          href="/crawls"
-          className="px-4 py-2 bg-[#3157e5] hover:bg-[#2546c7] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs shrink-0"
-        >
-          <span>Yeni Canlı Tarama Başlat</span>
-        </Link>
-      </div>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <DemoBanner source={res.source} reason={res.reason} error={res.error} />
+      <PageHeader
+        icon={<ShieldCheck className="w-5 h-5" />}
+        title="Teknik sağlık ve kural analizi"
+        description="13 deterministik kural; olgular HTTP yanıtından okunur, yapay zeka yorum eklemez. Puan, taranan sayfalar üzerinden hesaplanır."
+        actions={<LinkButton href="/crawls" variant="primary">Yeni tarama başlat</LinkButton>}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 flex flex-col items-center justify-center text-center shadow-xs">
-          <span className="text-xs font-semibold text-[#656971] dark:text-[#8c8d89] uppercase tracking-wider">Genel Sağlık Skoru</span>
-          <div className="text-5xl font-extrabold text-[#121316] dark:text-white mt-3">
-            94<span className="text-lg text-[#8a8e96] dark:text-[#6f6d66] font-normal">/100</span>
+        <Panel className="flex flex-col items-center justify-center text-center">
+          <div className="font-mono text-2xs uppercase tracking-wider text-muted">Genel sağlık skoru</div>
+          <div className="font-editorial text-5xl text-ink mt-2 tabular-nums">
+            {d.score}
+            <span className="font-mono text-xs text-muted ml-1">/ 100</span>
           </div>
-          <span className="mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-[#0f927c]/10 text-[#0f927c] dark:bg-emerald-500/10 dark:text-emerald-400 border border-[#0f927c]/20 dark:border-emerald-500/20">
-            Arama Motorları İçin İdeal
-          </span>
-        </div>
+          <Badge tone={d.score >= 90 ? "evidence" : d.score >= 70 ? "warn" : "critical"} className="mt-3">
+            {verdict}
+          </Badge>
+          <p className="text-xs text-muted mt-3">
+            {formatNumber(d.pages)} sayfa değerlendirildi · {d.issues} bulgu
+          </p>
+        </Panel>
 
-        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 col-span-2 space-y-4 shadow-xs">
-          <h3 className="font-semibold text-[#121316] dark:text-white text-sm">Puan Kırılma Detayı</h3>
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
-                <span>Dizinlenebilirlik & Taranabilirlik</span>
-                <span className="font-bold text-[#0f927c] dark:text-emerald-400">%96</span>
-              </div>
-              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
-                <div className="bg-[#0f927c] dark:bg-emerald-500 h-full rounded-full w-[96%]"></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
-                <span>Meta Veri & İçerik Uyumu</span>
-                <span className="font-bold text-[#0f927c] dark:text-emerald-400">%98</span>
-              </div>
-              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
-                <div className="bg-[#0f927c] dark:bg-emerald-500 h-full rounded-full w-[98%]"></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
-                <span>Teknik Yönlendirmeler & HTTP Durumu</span>
-                <span className="font-bold text-amber-600 dark:text-amber-400">%78</span>
-              </div>
-              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full w-[78%]"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Panel className="md:col-span-2" title="Puan kırılımı">
+          {res.loading ? (
+            <SkeletonRows rows={3} />
+          ) : (
+            <ul className="space-y-3">
+              {d.breakdown.map((b) => (
+                <li key={b.label}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-muted">{b.label}</span>
+                    <span className={cn("font-semibold tabular-nums", b.pct >= 90 ? "text-evidence" : b.pct >= 70 ? "text-warn" : "text-critical")}>%{b.pct}</span>
+                  </div>
+                  <div className="w-full h-2 bg-surface-2 rounded-full overflow-hidden" role="progressbar" aria-valuenow={b.pct} aria-valuemin={0} aria-valuemax={100} aria-label={b.label}>
+                    <div className={cn("h-full rounded-full", b.pct >= 90 ? "bg-evidence" : b.pct >= 70 ? "bg-warn" : "bg-critical")} style={{ width: `${b.pct}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
-          <h3 className="font-semibold text-[#121316] dark:text-white text-base">Deterministik Kural Değerlendirme Listesi</h3>
-        </div>
-        <div className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
-          {kurallar.map((item, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-[#f8f9fa] dark:hover:bg-[#252624] transition-colors">
-              <div className="space-y-0.5">
-                <div className="font-medium text-sm text-[#121316] dark:text-white">{item.kural}</div>
-                <p className="text-xs text-[#656971] dark:text-[#8c8d89]">{item.aciklama}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-[#656971] dark:text-[#8c8d89] font-medium">{item.puan}</span>
-                <span className={`px-2.5 py-1 rounded text-xs font-semibold ${
-                  item.durum === "Mükemmel" ? "bg-[#0f927c]/10 text-[#0f927c] dark:bg-emerald-500/10 dark:text-emerald-400 border border-[#0f927c]/20 dark:border-emerald-500/20" :
-                  item.durum === "İyi" ? "bg-[#3157e5]/10 text-[#3157e5] dark:bg-blue-500/10 dark:text-blue-400 border border-[#3157e5]/20 dark:border-blue-500/20" :
-                  item.durum === "Uyarı" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20" :
-                  "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                }`}>
-                  {item.durum}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Panel flush title="Deterministik kural değerlendirmesi" sub="Her kural için durum, puan ve etkilenen sayfa notu">
+        {res.loading ? (
+          <div className="p-5">
+            <SkeletonRows rows={6} />
+          </div>
+        ) : (
+          <ul className="divide-y divide-line">
+            {d.rules.map((item) => (
+              <li key={item.rule} className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-surface-2 transition-colors">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-ink">{item.rule}</div>
+                  <p className="text-xs text-muted">{item.note}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-mono text-xs text-muted tabular-nums">{item.score}</span>
+                  <Badge tone={statusTone[item.status]}>{item.status}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
 }

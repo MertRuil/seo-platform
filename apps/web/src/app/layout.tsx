@@ -1,31 +1,30 @@
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
-import { DensityProvider } from "@/context/DensityContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { Providers } from "@/components/Providers";
 import { AppLayoutShell } from "@/components/AppLayoutShell";
+import { THEME_INIT_SCRIPT } from "@/context/ThemeContext";
 
 export const metadata = {
   title: "CALPEO | Arama Görünürlüğü ve Kanıt İşletim Sistemi",
   description: "Aramada görün. Yanıtlarda seçil. Sonucu kanıtla. SEO, GEO ve AEO için birleşik karar ve kanıt platformu.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" className="dark">
-      <body className="bg-[#f5f6f8] dark:bg-calpeo-night text-[#121316] dark:text-[#f4f3ee] min-h-screen antialiased selection:bg-calpeo-blue selection:text-white font-sans transition-colors duration-150">
-        <ThemeProvider>
-          <AuthProvider>
-            <DensityProvider>
-              <AppLayoutShell>{children}</AppLayoutShell>
-            </DensityProvider>
-          </AuthProvider>
-        </ThemeProvider>
+    <html lang="tr" suppressHydrationWarning>
+      <head>
+        {/* Boyamadan önce temayı uygular; açık modda koyu flaşı önler */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="bg-bg text-ink min-h-screen antialiased selection:bg-accent-soft selection:text-ink">
+        <Providers>
+          <AppLayoutShell>{children}</AppLayoutShell>
+        </Providers>
       </body>
     </html>
   );
 }
-

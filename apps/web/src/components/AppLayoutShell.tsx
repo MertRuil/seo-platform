@@ -1,136 +1,221 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useDensity } from "@/context/DensityContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useSite, type Period } from "@/context/SiteContext";
 import { Navigation } from "@/components/Navigation";
-import { 
-  Loader2, 
-  SlidersHorizontal, 
-  CheckCircle2, 
-  ChevronDown,
-  Sun,
-  Moon
-} from "lucide-react";
+import { Segmented } from "@/components/ui/Input";
+import { cn } from "@/lib/cn";
+import { formatRelative } from "@/lib/format";
+import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical } from "lucide-react";
+
+const STORAGE_KEY_NAV = "calpeo_nav";
+
+function SiteSwitcher() {
+  const { site, sites, selectSite, source, status } = useSite();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const label = site ? site.normalized_domain || site.domain : status === "loading" ? "Yükleniyor…" : "Örnek site";
+  const sub = site ? site.name : source === "demo" ? "flagship-store.com" : "";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 h-8 px-2.5 rounded-sm bg-surface-2 border border-line text-sm hover:border-line-strong transition-colors cursor-pointer max-w-[60vw]"
+      >
+        <span className={cn("w-2 h-2 rounded-full shrink-0", site ? "bg-evidence" : "bg-warn")} aria-hidden />
+        <span className="font-semibold text-ink truncate">{label}</span>
+        {sub && <span className="text-muted truncate hidden sm:inline">/ {sub}</span>}
+        <ChevronDown className="w-3.5 h-3.5 text-muted shrink-0" aria-hidden />
+      </button>
+      {open && (
+        <div role="menu" className="absolute left-0 mt-1 w-72 bg-surface border border-line rounded-md shadow-pop p-1 z-50 animate-fade-in">
+          {sites.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted flex items-center gap-2">
+              <FlaskConical className="w-3.5 h-3.5" aria-hidden />
+              Kayıtlı site yok; örnek veri gösteriliyor.
+            </div>
+          ) : (
+            sites.map((s) => (
+              <button
+                key={s.id}
+                role="menuitemradio"
+                aria-checked={s.id === site?.id}
+                type="button"
+                onClick={() => {
+                  selectSite(s.id);
+                  setOpen(false);
+                }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-sm text-sm text-ink hover:bg-surface-2 cursor-pointer"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium truncate">{s.normalized_domain || s.domain}</span>
+                  <span className="block text-2xs text-muted truncate">{s.name}</span>
+                </span>
+                {s.id === site?.id && <Check className="w-4 h-4 text-accent shrink-0" aria-hidden />}
+              </button>
+            ))
+          )}
+          <div className="border-t border-line mt-1 pt-1">
+            <Link href="/crawls" role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-accent-ink hover:bg-surface-2 font-medium">
+              <Plus className="w-4 h-4" aria-hidden />
+              Site ekle ve tara
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
-  const { density, toggleDensity } = useDensity();
+  const { density, setDensity } = useDensity();
   const { theme, setTheme } = useTheme();
+  const { crawl, period, setPeriod, source } = useSite();
+  const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const isLoginPage = pathname === "/login";
 
-  // Giriş sayfasında navigasyonu ve üst çubuğu göstermeden tam ekran sun
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(STORAGE_KEY_NAV) === "collapsed");
+    } catch {
+      /* yok say */
+    }
+  }, []);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  const toggleCollapse = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(STORAGE_KEY_NAV, next ? "collapsed" : "expanded");
+      } catch {
+        /* yok say */
+      }
+      return next;
+    });
+  };
+
   if (isLoginPage) {
     return <main className="min-h-screen w-full">{children}</main>;
   }
 
-  // Oturum durumu yüklenirken CALPEO Signal Loop bekleme ekranı
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-[#f5f6f8] dark:bg-[#171817] flex flex-col items-center justify-center gap-4 transition-colors">
-        <div className="relative w-14 h-14 flex items-center justify-center animate-pulse">
-          <Image 
-            src="/brand/calpeo-logo-signal-loop-v1.png" 
-            alt="CALPEO Logo" 
-            width={56} 
-            height={56} 
-            className="object-contain"
-            priority
-          />
-        </div>
-        <div className="flex items-center gap-2 text-[#656971] dark:text-[#8c8d89] text-xs font-medium">
-          <Loader2 className="w-4 h-4 animate-spin text-[#3157e5]" />
-          <span>Güvenli Oturum Doğrulanıyor...</span>
+      <div className="min-h-screen w-full flex flex-col items-center justify-center gap-3 bg-bg">
+        <Image src="/brand/calpeo-logo-signal-loop-v1.png" alt="CALPEO" width={48} height={48} className="object-contain" priority />
+        <div className="flex items-center gap-2 text-muted text-sm">
+          <Loader2 className="w-4 h-4 animate-spin text-accent" aria-hidden />
+          <span>Yükleniyor…</span>
         </div>
       </div>
     );
   }
 
-  // Oturum yoksa bekle (AuthContext login'e yönlendirir)
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+
+  const railWidth = collapsed ? "lg:w-rail-sm" : "lg:w-rail";
+  const contentPad = collapsed ? "lg:pl-rail-sm" : "lg:pl-rail";
 
   return (
-    <div className="flex min-h-screen w-full bg-[#f5f6f8] dark:bg-[#171817] text-[#121316] dark:text-[#f4f3ee] transition-colors duration-150">
-      <Navigation currentPath={pathname} />
+    <div className="min-h-screen w-full bg-bg text-ink">
+      {/* Masaüstü rail */}
+      <aside className={cn("hidden lg:block fixed inset-y-0 left-0 z-40 border-r border-line transition-[width] duration-150", railWidth)}>
+        <Navigation currentPath={pathname} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+      </aside>
 
-      <div className="flex-1 ml-64 flex flex-col min-h-screen">
-        {/* Üst Yönetici Çubuğu (Top Bar) */}
-        <header className="h-14 border-b border-[#e2e4e8] dark:border-[#343633] bg-white dark:bg-[#1a1b1a] px-8 flex items-center justify-between sticky top-0 z-40 transition-colors duration-150">
-          <div className="flex items-center gap-4">
-            {/* Proje / Alan Adı Seçici */}
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#f5f6f8] dark:bg-[#202120] border border-[#d7dae0] dark:border-[#343633] text-xs text-[#4e5259] dark:text-[#ddd] cursor-pointer hover:border-[#3157e5] transition-colors">
-              <span className="w-2 h-2 rounded-full bg-[#0f927c] dark:bg-[#148b79]"></span>
-              <span className="font-semibold text-[#121316] dark:text-white">calpeo.io</span>
-              <span className="text-[#9a9da4] dark:text-[#6f6d66]">/</span>
-              <span className="text-[#656971] dark:text-[#aaa]">Acme Türkiye</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#858991] dark:text-[#77736c] ml-1" />
-            </div>
+      {/* Mobil çekmece */}
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <button type="button" aria-label="Menüyü kapat" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-line shadow-pop animate-slide-in">
+            <Navigation currentPath={pathname} onNavigate={() => setDrawerOpen(false)} />
+          </aside>
+        </div>
+      )}
 
-            {/* Doğrulama Durumu */}
-            <div className="hidden md:flex items-center gap-1.5 text-[11px] text-[#656971] dark:text-[#8c8d89]">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#0f927c] dark:text-[#148b79]" />
-              <span>Sıfır Halüsinasyon & Kanıt Doğrulaması</span>
+      <div className={cn("flex flex-col min-h-screen transition-[padding] duration-150", contentPad)}>
+        {/* Üst çubuk */}
+        <header className="h-14 sticky top-0 z-30 bg-surface border-b border-line px-4 sm:px-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menüyü aç" className="lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+              <Menu className="w-5 h-5" aria-hidden />
+            </button>
+            <SiteSwitcher />
+            <div className="hidden md:block">
+              <Segmented<Period>
+                label="Dönem"
+                value={period}
+                onChange={setPeriod}
+                options={[
+                  { value: 7, label: "7 g" },
+                  { value: 28, label: "28 g" },
+                  { value: 90, label: "90 g" },
+                ]}
+              />
             </div>
+            <span className="hidden xl:inline text-xs text-muted truncate">
+              {source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Tema Değiştirici: Açık Mod vs Koyu Mod */}
-            <div className="flex items-center p-0.5 rounded-md bg-[#eef0f3] dark:bg-[#202120] border border-[#d9dce1] dark:border-[#343633] text-xs">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                title="Açık Mod (Modern Editoryal)"
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-all ${
-                  theme === "light"
-                    ? "bg-white text-[#121316] font-semibold shadow-xs"
-                    : "text-[#656971] dark:text-[#8c8d89] hover:text-[#121316] dark:hover:text-white"
-                }`}
-              >
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                <span>Açık</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                title="Koyu Mod (Gece Operasyonu)"
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded transition-all ${
-                  theme === "dark"
-                    ? "bg-[#292a28] text-white font-semibold shadow-xs"
-                    : "text-[#656971] dark:text-[#8c8d89] hover:text-[#121316] dark:hover:text-white"
-                }`}
-              >
-                <Moon className="w-3.5 h-3.5 text-[#3157e5]" />
-                <span>Koyu</span>
-              </button>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Segmented<"light" | "dark">
+              label="Tema"
+              value={theme}
+              onChange={setTheme}
+              options={[
+                { value: "light", label: <Sun className="w-3.5 h-3.5" aria-hidden />, title: "Açık mod" },
+                { value: "dark", label: <Moon className="w-3.5 h-3.5" aria-hidden />, title: "Koyu mod" },
+              ]}
+            />
+            <div className="hidden sm:block">
+              <Segmented<"summary" | "expert">
+                label="Bilgi yoğunluğu"
+                value={density}
+                onChange={setDensity}
+                options={[
+                  { value: "summary", label: "Özet", title: "Yönetici özeti" },
+                  { value: "expert", label: "Uzman", title: "Ajans / SEO ayrıntı görünümü" },
+                ]}
+              />
             </div>
-
-            {/* Yoğunluk Değiştirici (Özet Modu vs Uzman Modu) */}
-            <button
-              onClick={toggleDensity}
-              title="Bilgi yoğunluğunu değiştir (Yönetici Özeti vs Ayrıntılı Uzman Görünümü)"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white dark:bg-[#202120] hover:bg-[#f5f6f8] dark:hover:bg-[#292a28] border border-[#d9dce1] dark:border-[#343633] text-xs font-medium text-[#121316] dark:text-[#f4f3ee] transition-all shadow-xs"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#3157e5]" />
-              <span className="text-[#656971] dark:text-[#999994]">Görünüm:</span>
-              <span className={`font-semibold ${
-                density === "summary" 
-                  ? "text-[#121316] dark:text-white" 
-                  : "text-[#0f927c] dark:text-[#2dd4bf]"
-              }`}>
-                {density === "summary" ? "Özet (Yönetici)" : "Uzman (Ajans/SEO)"}
-              </span>
-            </button>
           </div>
         </header>
 
-        {/* Ana İçerik */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main id="icerik" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
           {children}
         </main>
       </div>
