@@ -12,8 +12,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`812654d`** | `güvenlik(frontend): çalışmayan butonların onarımı ve yetkisiz erişim açıklarının kapatılması` | Frontend buton onarımları, SPA navigasyon ve RBAC kalkanları |
 | **`b8a16fd`** | `güvenlik(frontend): ssrf koruma modülü, api kota sınırlaması ve bildirim iyileştirmeleri` | Next.js SSRF koruması, API rate limiting, bildirim ve harici link güvenliği |
 | **`d8d722e`** | `security(remediation): fix 6 specific vulnerabilities across oauth, ssrf, and crawler` | OAuth token doğrulama, GitHub email fallback, Google aud denetimi, redirect SSRF & IP pinning, prod env izolasyonu ve non-blocking async crawler DNS |
-| **`cdafe19`** | `feat(ui): implement CALPEO Kanit Editoryali brand identity and dual-density architecture` | CALPEO Signal Loop marka kimliği, Gece Operasyonu teması, 5 kategorili bilgi mimarisi, Özet ve Uzman çift bilgi yoğunluğu modu ve interaktif canlı hızlı denetim |
-| **`dadbc9d`** | `fix(auth): configure deterministic admin credentials in dev store` | Standart yönetici (`admin@calpeo.io` / `CalpeoAdmin2026!`) ve yerel geliştirme kimlik doğrulaması |
+| **`f9bb3ab`** | `feat(ui): add modern light mode with live theme toggle and calpeo editorial aesthetics` | ThemeContext, live toggle switch, layout/dashboard dual-mode refactor |
+| **`pending`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
 
 
 ---
@@ -318,9 +318,32 @@ Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_R
 5. **Giriş ve Güvenli Oturum:**
    - Giriş ekranı CALPEO kimliğine uyarlandı; hazır Süper Yönetici hesabı (`admin@calpeo.io` / `CalpeoAdmin2026!`) ve anında kullanıcı kayıt desteği sağlandı.
 
+
 6. **Açık Mod (Modern Editoryal) & Canlı Tema Değiştirici (Theme Switcher):**
    - Araştırma notlarındaki `light-mode-modern-v2.html` prototipi referans alınarak; yumuşak gri arka plan (`#f5f6f8`), beyaz kart yüzeyleri (`#ffffff`), keskin mürekkep tipografisi (`#121316`) ve sakin gri kenarlıklar (`#dde0e5`) ile modern Açık Mod hayata geçirildi.
    - `ThemeContext.tsx` oluşturuldu ve üst çubuğa tek tıkla geçiş sağlayan **`[ ☀️ Açık | 🌙 Koyu ]`** tema anahtarı yerleştirildi. Tercih `localStorage` üzerinde saklanır.
    - Sol navigasyon, üst çubuk, metrik kartları, sinyal grafiği ve öncelikli işler paneli her iki temada da kusursuz kontrast ve editoryal şıklıkla çalışmaktadır.
+
+7. **Tüm Sekmelerin (14 Alt Sayfa) Tam Çift Mod (Açık & Koyu) Uyumu:**
+   - Eski koyu hardcoded stiller (`bg-slate-900`, `border-slate-800`, `text-white`, `text-slate-400`) platformun tüm 14 alt rotasından kaldırılarak CALPEO Kanıt Editoryali tasarım belirteçleri ile modernize edildi:
+     - **Site & Teknik Sağlık Grubu:**
+       - `/health` (Teknik Sağlık & Kural Analizi): Açık modda temiz beyaz zemin, `#0f927c` zümrüt başarı ve kehribar uyarı barları, yumuşak gri kural tablosu.
+       - `/issues` (Tespit Edilen SEO Sorunları): Öncelik filtre butonları, dinamik önem rozetleri, kontrastı optimize edilmiş teşhis/çözüm blokları.
+       - `/pages` (Taranan Sayfalar & İndeks): Açık/Koyu arama kutusu, durum kodları ve indeksleme ikonu kontrastı.
+       - `/cwv` (Core Web Vitals): CrUX 75. yüzdelik dilim LCP, INP, CLS metrik kartları ve eşik değerlendirmeleri.
+     - **Görünürlük (SEO & GEO) Grubu:**
+       - `/performance` (Arama Performansı): 4'lü KPI şeridi, en çok trafik getiren sorgular tablosu, editoryal tipografi.
+       - `/opportunities` (Büyüme Fırsatları): Kazanç hesaplama kartları, bağlamsal link önerileri, aksiyon butonları.
+       - `/knowledge` (SEO Bilgi Beyni & RAG): Seviye-1 resmi standart kaynaklar, interaktif RAG semantik arama konsolu, anti-mit kürasyon kapısı.
+     - **Graf ve Yapılandırılmış Veri Grubu:**
+       - `/links` (İç Link PageRank Analizi): 3'lü graf istatistik kartı, PageRank otorite sıralaması tablosu.
+       - `/schema` (Schema.org JSON-LD): Aktif JSON-LD şema varlıkları tablosu, zengin sonuç görünümü.
+     - **Çalışma & Doğrulama Grubu:**
+       - `/changes` (Güvenli Değişiklik Setleri & Diff): Kırmızı/Yeşil çift modlu yan yana kod diff inceleyicisi, simülasyon/sandbox bilgi paneli, tek tıkla kopyalama ve geri alma.
+       - `/experiments` (SEO Deneyleri & Diff-in-Diff): 56 günlük kohort test kartları, nedensellik oranları.
+       - `/crawls` (Canlı Site Taramaları): Canlı URL tarama formu, anlık kural ihlalleri, AI uzman ajan önerileri ve geçmiş taramalar tablosu.
+     - **Yönetim & Güvenlik Grubu:**
+       - `/integrations` (Site Bağlayıcıları): Google Search Console, WordPress, Git PR ve Webhook bağlayıcı kartları, güvenli anahtar düzenleme modalı.
+       - `/audit` (Sistem & Güvenlik Denetim Günlüğü): IP maskeleme, kategori filtreleri, işlem defteri zaman çizelgesi.
 
 

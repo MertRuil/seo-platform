@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, ArrowLeft } from "lucide-react";
+import { ShieldCheck, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function SiteSagligiPage() {
@@ -16,61 +16,63 @@ export default function SiteSagligiPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-emerald-400" />
+          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
+            <ShieldCheck className="w-6 h-6 text-[#0f927c] dark:text-emerald-400" />
             <span>Teknik SEO Sağlığı & Kural Analizi</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
             20+ deterministik SEO kuralı taranarak sıfır yapay zeka yanılsaması (zero-hallucination) ile hesaplanmıştır.
           </p>
         </div>
         <Link
           href="/crawls"
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+          className="px-4 py-2 bg-[#3157e5] hover:bg-[#2546c7] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs shrink-0"
         >
           <span>Yeni Canlı Tarama Başlat</span>
         </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Genel Sağlık Skoru</span>
-          <div className="text-5xl font-extrabold text-white mt-3">94<span className="text-lg text-slate-500 font-normal">/100</span></div>
-          <span className="mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 flex flex-col items-center justify-center text-center shadow-xs">
+          <span className="text-xs font-semibold text-[#656971] dark:text-[#8c8d89] uppercase tracking-wider">Genel Sağlık Skoru</span>
+          <div className="text-5xl font-extrabold text-[#121316] dark:text-white mt-3">
+            94<span className="text-lg text-[#8a8e96] dark:text-[#6f6d66] font-normal">/100</span>
+          </div>
+          <span className="mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-[#0f927c]/10 text-[#0f927c] dark:bg-emerald-500/10 dark:text-emerald-400 border border-[#0f927c]/20 dark:border-emerald-500/20">
             Arama Motorları İçin İdeal
           </span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 col-span-2 space-y-4">
-          <h3 className="font-semibold text-slate-200 text-sm">Puan Kırılma Detayı</h3>
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 col-span-2 space-y-4 shadow-xs">
+          <h3 className="font-semibold text-[#121316] dark:text-white text-sm">Puan Kırılma Detayı</h3>
           <div className="space-y-3">
             <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
+              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
                 <span>Dizinlenebilirlik & Taranabilirlik</span>
-                <span className="font-bold text-emerald-400">%96</span>
+                <span className="font-bold text-[#0f927c] dark:text-emerald-400">%96</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full w-[96%]"></div>
+              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
+                <div className="bg-[#0f927c] dark:bg-emerald-500 h-full rounded-full w-[96%]"></div>
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
+              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
                 <span>Meta Veri & İçerik Uyumu</span>
-                <span className="font-bold text-emerald-400">%98</span>
+                <span className="font-bold text-[#0f927c] dark:text-emerald-400">%98</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full w-[98%]"></div>
+              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
+                <div className="bg-[#0f927c] dark:bg-emerald-500 h-full rounded-full w-[98%]"></div>
               </div>
             </div>
             <div>
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
+              <div className="flex justify-between text-xs text-[#656971] dark:text-[#8c8d89] mb-1">
                 <span>Teknik Yönlendirmeler & HTTP Durumu</span>
-                <span className="font-bold text-amber-400">%78</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">%78</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-[#e2e4e8] dark:bg-[#2c2d2b] rounded-full overflow-hidden">
                 <div className="bg-amber-500 h-full rounded-full w-[78%]"></div>
               </div>
             </div>
@@ -78,24 +80,24 @@ export default function SiteSagligiPage() {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-slate-800">
-          <h3 className="font-semibold text-white text-base">Deterministik Kural Değerlendirme Listesi</h3>
+      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
+        <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
+          <h3 className="font-semibold text-[#121316] dark:text-white text-base">Deterministik Kural Değerlendirme Listesi</h3>
         </div>
-        <div className="divide-y divide-slate-800/80">
+        <div className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
           {kurallar.map((item, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-all">
+            <div key={idx} className="p-4 flex items-center justify-between hover:bg-[#f8f9fa] dark:hover:bg-[#252624] transition-colors">
               <div className="space-y-0.5">
-                <div className="font-medium text-sm text-slate-100">{item.kural}</div>
-                <p className="text-xs text-slate-400">{item.aciklama}</p>
+                <div className="font-medium text-sm text-[#121316] dark:text-white">{item.kural}</div>
+                <p className="text-xs text-[#656971] dark:text-[#8c8d89]">{item.aciklama}</p>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-slate-300">{item.puan}</span>
+                <span className="text-xs font-mono text-[#656971] dark:text-[#8c8d89] font-medium">{item.puan}</span>
                 <span className={`px-2.5 py-1 rounded text-xs font-semibold ${
-                  item.durum === "Mükemmel" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                  item.durum === "İyi" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                  item.durum === "Uyarı" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
-                  "bg-red-500/10 text-red-400 border border-red-500/20"
+                  item.durum === "Mükemmel" ? "bg-[#0f927c]/10 text-[#0f927c] dark:bg-emerald-500/10 dark:text-emerald-400 border border-[#0f927c]/20 dark:border-emerald-500/20" :
+                  item.durum === "İyi" ? "bg-[#3157e5]/10 text-[#3157e5] dark:bg-blue-500/10 dark:text-blue-400 border border-[#3157e5]/20 dark:border-blue-500/20" :
+                  item.durum === "Uyarı" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20" :
+                  "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                 }`}>
                   {item.durum}
                 </span>

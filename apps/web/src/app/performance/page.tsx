@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TrendingUp, MousePointerClick, Eye, Hash, ArrowUpRight } from "lucide-react";
+import { TrendingUp, ArrowUpRight } from "lucide-react";
 
 export default function AramaPerformansiPage() {
   const sorgular = [
@@ -13,58 +13,61 @@ export default function AramaPerformansiPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
+            <TrendingUp className="w-6 h-6 text-[#3157e5] dark:text-indigo-400" />
             <span>Google Search Console Arama Performansı</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
             Organik arama sonuçlarındaki tıklama, gösterim, tıklama oranı (TO) ve ortalama sıra pozisyonu.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <div className="text-xs text-slate-400 font-medium">Toplam Organik Tıklama</div>
-          <div className="text-3xl font-extrabold text-white mt-2">142.8B</div>
-          <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
+          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Toplam Organik Tıklama</div>
+          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">142.8B</div>
+          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>Son 28 günde +%8.1 artış</span>
           </div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <div className="text-xs text-slate-400 font-medium">Toplam Gösterim</div>
-          <div className="text-3xl font-extrabold text-white mt-2">2.41M</div>
-          <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
+          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Toplam Gösterim</div>
+          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">2.41M</div>
+          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>+%14.2 artış</span>
           </div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <div className="text-xs text-slate-400 font-medium">Ortalama Tıklama Oranı (TO)</div>
-          <div className="text-3xl font-extrabold text-indigo-400 mt-2">%5.95</div>
-          <div className="text-xs text-slate-400 mt-1">Sektör ortalamasının üzerinde</div>
+
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
+          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Ortalama Tıklama Oranı (TO)</div>
+          <div className="text-3xl font-extrabold text-[#3157e5] dark:text-indigo-400 mt-2">%5.95</div>
+          <div className="text-xs text-[#656971] dark:text-[#8c8d89] mt-1">Sektör ortalamasının üzerinde</div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <div className="text-xs text-slate-400 font-medium">Ortalama Sıra Pozisyonu</div>
-          <div className="text-3xl font-extrabold text-white mt-2">6.8</div>
-          <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+
+        <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-5 shadow-xs">
+          <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-medium">Ortalama Sıra Pozisyonu</div>
+          <div className="text-3xl font-extrabold text-[#121316] dark:text-white mt-2">6.8</div>
+          <div className="text-xs text-[#0f927c] dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>+1.4 sıra yükselme</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-slate-800">
-          <h3 className="font-semibold text-white text-base">En Çok Trafik Getiren Arama Sorguları</h3>
+      <div className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl overflow-hidden shadow-xs">
+        <div className="p-5 border-b border-[#e2e4e8] dark:border-[#343633] bg-[#fafbfc] dark:bg-[#171817]">
+          <h3 className="font-semibold text-[#121316] dark:text-white text-base">En Çok Trafik Getiren Arama Sorguları</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-semibold">
+          <table className="w-full text-left text-xs text-[#4b4f58] dark:text-[#c4c6cd]">
+            <thead className="bg-[#f5f6f8] dark:bg-[#171817] text-[#656971] dark:text-[#8c8d89] border-b border-[#e2e4e8] dark:border-[#343633] uppercase font-semibold">
               <tr>
                 <th className="p-4">Hedef Arama Sorgusu</th>
                 <th className="p-4 text-right">Tıklama</th>
@@ -73,14 +76,14 @@ export default function AramaPerformansiPage() {
                 <th className="p-4 text-right">Ort. Sıra</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80">
+            <tbody className="divide-y divide-[#e2e4e8] dark:divide-[#343633]">
               {sorgular.map((item, idx) => (
-                <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="p-4 font-semibold text-white">{item.sorgu}</td>
-                  <td className="p-4 text-right font-mono text-emerald-400 font-bold">{item.tiklama.toLocaleString("tr-TR")}</td>
-                  <td className="p-4 text-right font-mono text-slate-300">{item.gosterim.toLocaleString("tr-TR")}</td>
-                  <td className="p-4 text-right font-mono text-indigo-400 font-bold">{item.to}</td>
-                  <td className="p-4 text-right font-mono text-white font-bold">{item.pozisyon}</td>
+                <tr key={idx} className="hover:bg-[#f9fafb] dark:hover:bg-[#262725] transition-colors">
+                  <td className="p-4 font-semibold text-[#121316] dark:text-white">{item.sorgu}</td>
+                  <td className="p-4 text-right font-mono text-[#0f927c] dark:text-emerald-400 font-bold">{item.tiklama.toLocaleString("tr-TR")}</td>
+                  <td className="p-4 text-right font-mono text-[#656971] dark:text-slate-300">{item.gosterim.toLocaleString("tr-TR")}</td>
+                  <td className="p-4 text-right font-mono text-[#3157e5] dark:text-indigo-400 font-bold">{item.to}</td>
+                  <td className="p-4 text-right font-mono text-[#121316] dark:text-white font-bold">{item.pozisyon}</td>
                 </tr>
               ))}
             </tbody>

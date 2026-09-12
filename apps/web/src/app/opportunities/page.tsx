@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lightbulb, Sparkles, ArrowRight, Zap, Target, Loader2, CheckCircle2 } from "lucide-react";
+import { Lightbulb, Sparkles, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function FirsatlarPage() {
   const router = useRouter();
@@ -90,28 +90,28 @@ export default function FirsatlarPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e2e4e8] dark:border-[#343633] pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Lightbulb className="w-6 h-6 text-amber-400" />
+          <h1 className="text-2xl font-bold text-[#121316] dark:text-white flex items-center gap-2">
+            <Lightbulb className="w-6 h-6 text-amber-500" />
             <span>Search Console Büyüme Fırsatları (Opportunity Engine)</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1">
             Yüksek gösterim aldığı halde düşük tıklama alan sorgular ve kanibalizasyon tespitiyle hızlı organik trafik kazançları.
           </p>
         </div>
       </div>
 
       {bildirim && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+        <div className="p-4 rounded-xl bg-[#0f927c]/10 border border-[#0f927c]/30 text-[#0f927c] dark:text-emerald-300 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#0f927c] dark:text-emerald-400 shrink-0" />
             <span className="font-medium">{bildirim}</span>
           </div>
           <button
             onClick={() => router.push("/changes")}
-            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
+            className="px-3 py-1 bg-[#0f927c] hover:bg-[#0c7866] text-white font-semibold rounded text-xs transition-all shrink-0 ml-4 cursor-pointer"
           >
             Hemen İncele
           </button>
@@ -123,51 +123,51 @@ export default function FirsatlarPage() {
           const yukleniyor = islemdeIdx === idx;
 
           return (
-            <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-all space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div key={idx} className="bg-white dark:bg-[#202120] border border-[#dde0e5] dark:border-[#343633] rounded-xl p-6 hover:border-[#cfd3da] dark:hover:border-[#484a46] transition-all space-y-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#e2e4e8] dark:border-[#343633] pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                     {f.kategori}
                   </span>
-                  <span className="font-bold text-white text-base">"{f.sorgu}"</span>
+                  <span className="font-bold text-[#121316] dark:text-white text-base">"{f.sorgu}"</span>
                 </div>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                <span className="text-xs font-bold text-[#0f927c] dark:text-emerald-400 bg-[#0f927c]/10 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-[#0f927c]/20 dark:border-emerald-500/20">
                   Tahmini Kazanç: {f.potansiyelTrafik}
                 </span>
               </div>
 
-              <div className="text-xs text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                Hedef URL: <span className="text-indigo-300">{f.sayfa}</span>
+              <div className="text-xs text-[#656971] dark:text-[#8c8d89] font-mono bg-[#f5f6f8] dark:bg-[#171817] p-2.5 rounded border border-[#e2e4e8] dark:border-[#343633]">
+                Hedef URL: <span className="text-[#3157e5] dark:text-indigo-300 font-medium">{f.sayfa}</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/40 p-3 rounded-lg border border-slate-800/60 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#f5f6f8] dark:bg-[#171817] p-3 rounded-lg border border-[#e2e4e8] dark:border-[#343633] text-xs">
                 <div>
-                  <span className="text-slate-500 block">Aylık Gösterim</span>
-                  <span className="font-bold text-white font-mono">{f.gosterim.toLocaleString("tr-TR")}</span>
+                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Aylık Gösterim</span>
+                  <span className="font-bold text-[#121316] dark:text-white font-mono">{f.gosterim.toLocaleString("tr-TR")}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Mevcut Tıklama</span>
-                  <span className="font-bold text-white font-mono">{f.tiklama.toLocaleString("tr-TR")}</span>
+                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Mevcut Tıklama</span>
+                  <span className="font-bold text-[#121316] dark:text-white font-mono">{f.tiklama.toLocaleString("tr-TR")}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Mevcut TO</span>
-                  <span className="font-bold text-amber-400 font-mono">{f.mevcutTO}</span>
+                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Mevcut TO</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 font-mono">{f.mevcutTO}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Hedeflenen TO</span>
-                  <span className="font-bold text-emerald-400 font-mono">{f.hedefTO}</span>
+                  <span className="text-[#8a8e96] dark:text-[#70726d] block">Hedeflenen TO</span>
+                  <span className="font-bold text-[#0f927c] dark:text-emerald-400 font-mono">{f.hedefTO}</span>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                <p className="text-xs text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                <p className="text-xs text-[#656971] dark:text-slate-300 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#3157e5] dark:text-indigo-400 shrink-0" />
                   <span>{f.aksiyon}</span>
                 </p>
                 <button
                   onClick={() => handleOptimizasyonOlustur(f, idx)}
                   disabled={yukleniyor}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded text-xs font-semibold transition-all shadow shrink-0 flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#3157e5] hover:bg-[#2546c7] disabled:bg-[#3157e5]/50 text-white rounded text-xs font-semibold transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
                 >
                   {yukleniyor ? (
                     <>
