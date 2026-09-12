@@ -215,5 +215,69 @@ Sistemin web sitesi bağlandığı andan itibaren hiçbir insan dokunuşuna ihti
    - **Toplam Test:** **119 / 119 Test Başarılı** (%100 Başarı Oranı).
    - **Frontend TypeScript Derlemesi:** **0 Hata**.
 
+---
 
+## 11. 🛡️ Kapsamlı Güvenlik Sertleştirmesi (Baştan Aşağı Güvenlik Taraması Onarımları)
 
+Baştan aşağı gerçekleştirilen güvenlik taramasında tespit edilen 5 kritik, yüksek ve orta seviye güvenlik açığı derinlemesine onarılmış ve testlerle doğrulanmıştır:
+
+1. **OAuth Token Doğrulama & Hesap Ele Geçirme Kalkanı (`oauth_verifier.py`, `auth.py`):**
+   - **Açık (KRİTİK):** `oauth_login` endpoint'inde token kriptografik olarak doğrulanmıyordu; saldırgan `token: "x"` göndererek herhangi bir admin hesabının e-postasıyla geçerli backend JWT alabiliyordu.
+   - **Onarım:** [services/security/oauth_verifier.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/security/oauth_verifier.py) servisi yazıldı. Google `tokeninfo` ve `userinfo` API'leri üzerinden kriptografik imza ve `email_verified` doğrulaması zorunlu kılındı. Sahte/rastgele string'ler (`"x"`) anında `HTTP 401 Unauthorized` ile reddedilir. Admin hesapları için her ortamda doğrulanmış token zorunlu kılındı.
+
+2. **SSRF IPv4-Mapped IPv6 ve Unspecified IP Kalkanı (`ssrf.py`, `ssrf.ts`):**
+   - **Açık (YÜKSEK):** `::ffff:169.254.169.254`, `::ffff:127.0.0.1` ve `::` (unspecified) adresleri saf IPv4/IPv6 filtrelerini atlayabiliyordu.
+   - **Onarım:**
+     - Python tarafında [services/security/ssrf.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/security/ssrf.py): `is_ip_blocked` fonksiyonunda `ip.ipv4_mapped` açılıp altındaki IPv4 tüm yasaklı ağlara karşı denetlendi. `::/128`, `::ffff:0:0/96`, `64:ff9b::/96` ağları listeye eklendi.
+     - Node.js tarafında [apps/web/src/lib/ssrf.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/lib/ssrf.ts): Köşeli parantezler ayıklandı, `::ffff:` ve hex mapped IPv6 kalıpları çözümlenip katı IPv4 kalkanına bağlandı; `::` engellendi.
+
+3. **Hardcoded Süper-Admin Hesaplarının Temizlenmesi (`auth-users.ts`):**
+   - **Açık (YÜKSEK):** `apps/web/src/lib/auth-users.ts` dosyasında 4 adet süper-admin hesabı ve sabit PBKDF2 hash'leri koda gömülüydü. Düz metin parolalar eski commit geçmişinde yer alıyordu.
+   - **Onarım:** Statik süper admin hesapları koddan tamamen temizlendi. İlk kurulum `INITIAL_ADMIN_EMAIL` ve `INITIAL_ADMIN_PASSWORD` ortam değişkenlerine bağlandı. Geliştirme ortamında ise rastgele kriptografik 32 karakterlik tek kullanımlık şifre dinamik olarak üretilip terminale yazdırılacak şekilde güvenli hale getirildi.
+
+4. **Next.js JWT İmzalama Anahtarı Fallback'inin Kaldırılması (`jwt.ts`, `docker-compose.yml`):**
+   - **Açık (ORTA):** `const JWT_SECRET = process.env.APP_SECRET_KEY || "autonomous-seo-platform-secure-token-signing-key-2026";` hardcoded fallback'i mevcuttu ve `docker-compose.yml` web servisine bu değişkeni aktarmıyordu.
+   - **Onarım:** [apps/web/src/lib/jwt.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/lib/jwt.ts) merkezi modülü yazıldı. Üretim ortamında `APP_SECRET_KEY` yoksa sistem anında hata verip durur (fail-fast). [docker-compose.yml](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/docker-compose.yml) dosyasına `APP_SECRET_KEY` ortam değişkeni eklendi.
+
+5. **SafeHttpClient DNS Rebinding TOCTOU Socket Pinning Koruması (`safe_client.py`):**
+   - **Açık (ORTA):** URL doğrulandıktan sonra `httpx` HTTP bağlantısı kurarken DNS'i ikinci kez çözümlüyordu (Time-of-Check to Time-of-Use açığı).
+   - **Onarım:** [services/crawler/safe_client.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/crawler/safe_client.py) içerisine `SSRFSafeNetworkBackend(AnyIOBackend)` yazıldı. HTTP bağlantısı kurulduğu anda (`connect_tcp`) hedef adres denetlenir, doğrulanan güvenli IP'ye TCP soketi sabitlenir (`safe_ip`). TLS/SNI `server_hostname` korunarak SSL sertifika doğrulaması etkilenmeden DNS rebinding imkânsız hale getirildi.
+
+- **Nihai Test Sonucu:** **121 / 121 Test Başarılı** (%100 Başarı Oranı).
+- **Frontend TypeScript Derlemesi:** **0 Hata** (`npx tsc --noEmit` temiz).
+
+---
+
+## 12. 🛡️ İleri Seviye Güvenlik Sıkılaştırması: 6 Spesifik Açığın Kapatılması
+
+Güvenlik taraması sonrası derinlemesine incelemede tespit edilen 6 spesifik açık noktası kökten kapatılmış ve doğrulanmıştır:
+
+1. **Next.js `oauth/route.ts` Token Doğrulaması & Admin İzolasyonu:**
+   - **Sorun:** Token'sız `POST { provider: "google" }` gönderildiğinde Next.js tarafında `isAdmin: true` oturum açılıyordu.
+   - **Çözüm:** [apps/web/src/app/api/v1/auth/oauth/route.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/app/api/v1/auth/oauth/route.ts) dosyasında `token` parametresi zorunlu kılındı. Boş veya sahte token'lar anında `401 Unauthorized` ile reddedilir. Yeni oluşturulan SSO kullanıcılarının yetkisi `isAdmin: false`, `role: "Kullanıcı"` olarak sabitlendi.
+
+2. **GitHub Null E-posta ve `/user/emails` Doğrulaması:**
+   - **Sorun:** Kullanıcının GitHub profili gizliyse (`email: null`), eşleşme kontrolü baypas ediliyordu.
+   - **Çözüm:** Hem [services/security/oauth_verifier.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/security/oauth_verifier.py) hem de [apps/web/src/app/api/v1/auth/oauth/route.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/app/api/v1/auth/oauth/route.ts) içerisinde `/user/emails` uç noktası taranarak birincil ve doğrulanmış e-posta çekildi. E-posta bulunamazsa veya istekteki e-posta ile uyuşmazsa istisnasız `401 Unauthorized` fırlatılır.
+
+3. **Google Audience (`aud`) Denetimi (Token Substitution Saldırı Kalkanı):**
+   - **Sorun:** Farklı bir Google uygulaması için üretilmiş geçerli bir belirteç, hedef kitle kontrolü yapılmadığı için sisteme kabul edilebilirdi.
+   - **Çözüm:** Hem ID Token hem de Access Token için Google `tokeninfo` uç noktasındaki `aud` alanının `GOOGLE_OAUTH_CLIENT_ID` ile tam eşleştiği doğrulandı. Uyuşmazlık halinde `401 Unauthorized` verilir. Üretim ortamında client ID tanımlı değilse fail-fast (500) kuralı işletilir.
+
+4. **`quick/route.ts` Ara Hop SSRF Koruması & Node.js IP Pinning:**
+   - **Sorun:** Node yerel `fetch(url, { redirect: "follow" })` ara yönlendirme adımlarında AWS metadata (`169.254.169.254`) veya yerel ağ adreslerine geçişleri engellemiyordu.
+   - **Çözüm:** [apps/web/src/lib/ssrf.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/lib/ssrf.ts) içinde `safeAuditFetch` istemcisi yazıldı. `redirect: "manual"` mekanizmasıyla her yönlendirme adresi (`Location`) hedef soket açılmadan önce `validateSafeAuditUrl` ile denetlenir. Node katmanında özel `Agent` `lookup` kancası ile IP pinning yapılarak yerel/metadata IP'lere TCP bağlantısı engellendi. [apps/web/src/app/api/v1/audit/quick/route.ts](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/apps/web/src/app/api/v1/audit/quick/route.ts) bu istemciye geçirildi.
+
+5. **`ENVIRONMENT` Yapılandırması & Test Token Sızıntısı İzolasyonu:**
+   - **Sorun:** `docker-compose.yml` dosyalarında `ENVIRONMENT=development` sabitti; `test-oauth-token:*` üretim veya tanımsız ortamlarda kabul edilebilirdi.
+   - **Çözüm:** [docker-compose.yml](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/docker-compose.yml) ve [infra/docker/docker-compose.yml](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/infra/docker/docker-compose.yml) dosyalarında `ENVIRONMENT=${ENVIRONMENT:-production}` ve `NODE_ENV=${NODE_ENV:-production}` tanımlandı. [packages/config/settings.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/packages/config/settings.py) içerisine Pydantic validatörü eklenerek `ENVIRONMENT != "test"` olduğu tüm durumlarda `ALLOW_TEST_OAUTH_TOKENS` zorunlu olarak `False` yapıldı.
+
+6. **`_network_backend` Temiz Alt Sınıflandırma, Non-Blocking Async DNS & Bağlantı Kararlılığı:**
+   - **Sorun:** Özel `_pool._network_backend` monkey-patching yapısı kırılgandı. `is_ip_blocked("example.com")` domain adlarını IP sanarak hata veriyor ve bağlantıyı koparıyordu. `socket.getaddrinfo` senkrondu.
+   - **Çözüm:** [services/crawler/safe_client.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/crawler/safe_client.py) içinde `SSRFSafeAsyncHTTPTransport(httpx.AsyncHTTPTransport)` resmi alt sınıfı tanımlandı ve `network_backend` parametresi doğrudan havuz oluşturulurken verildi. [services/security/ssrf.py](file:///c:/Users/ayber/OneDrive/Belgeler/GitHub/seo-platform/services/security/ssrf.py) içine `is_ip_literal` ve `async_resolve_domain_ips` (`await loop.getaddrinfo()`) eklendi. Dual-stack IPv4-öncelikli sıralama ve güvenli IP'ler arasında fallback döngüsü kurularak sessiz bağlantı kopmaları tamamen ortadan kaldırıldı.
+
+- **Otomatik Testler:**
+  - `cd apps/web && npx tsx test-security-suite.ts` ➡️ **TÜM TESTLER BAŞARILI (PASS)**
+  - `.venv\Scripts\pytest.exe -v tests/unit/test_security_remediation.py` ➡️ **6 / 6 Test Başarılı (PASS)**
+  - `.venv\Scripts\pytest.exe -q tests/unit` ➡️ **105 / 105 Test Başarılı (PASS)**
+  - `cd apps/web && npx tsc --noEmit` ➡️ **0 Hata (Temiz derleme)**

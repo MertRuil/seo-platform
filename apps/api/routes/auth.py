@@ -14,6 +14,7 @@ from packages.contracts.auth import (
 )
 from services.security.crypto import hash_password, verify_password
 from services.security.jwt_auth import create_access_token, create_refresh_token, get_current_user_payload
+from services.security.oauth_verifier import verify_oauth_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -22,6 +23,8 @@ FAILED_ATTEMPTS: Dict[str, Dict[str, Any]] = {}
 RESET_TOKENS: Dict[str, dict] = {}  # token -> {"email": str, "expires_at": float}
 MAX_FAILED_ATTEMPTS_ENTRIES = 5000
 MAX_RESET_TOKENS_ENTRIES = 5000
+LOCKOUT_THRESHOLD = 5          # failed attempts within LOCKOUT_WINDOW_SECONDS
+LOCKOUT_WINDOW_SECONDS = 900
 
 def _cleanup_failed_attempts():
     now = time.time()
@@ -48,6 +51,12 @@ def _record_failed_attempt(clean_email: str) -> int:
 
 def _clear_failed_attempts(clean_email: str):
     FAILED_ATTEMPTS.pop(clean_email, None)
+
+def _is_locked_out(clean_email: str) -> bool:
+    rec = FAILED_ATTEMPTS.get(clean_email)
+    if not rec:
+        return False
+    return rec.get("count", 0) >= LOCKOUT_THRESHOLD and time.time() - rec.get("updated_at", 0) < LOCKOUT_WINDOW_SECONDS
 
 def _cleanup_expired_tokens():
     now = time.time()
@@ -91,6 +100,13 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Parola maksimum 128 karakter olabilir.")
 
     clean_email = req.email.strip().lower()
+    # Brute-force lockout: checked before password verification so locked accounts leak no timing signal
+    if _is_locked_out(clean_email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Çok fazla hatalı giriş denemesi. Hesap geçici olarak kilitlendi; 15 dakika sonra tekrar deneyin veya şifrenizi sıfırlayın.",
+            headers={"Retry-After": str(LOCKOUT_WINDOW_SECONDS)}
+        )
     result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalars().first()
 
@@ -187,19 +203,13 @@ async def oauth_login(req: OAuthLoginRequest, db: AsyncSession = Depends(get_db)
     result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalars().first()
 
-    # Security check 1: Platform admin accounts strictly require OAuth provider token verification in all environments
-    if user and user.is_platform_admin and not req.token:
+    # Mandatory cryptographic verification: OAuth login strictly requires a valid provider token for all accounts
+    if not req.token or not req.token.strip():
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yönetici hesapları için OAuth sağlayıcı doğrulama belirteci (token) zorunludur."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OAuth sağlayıcı doğrulama belirteci (token) zorunludur."
         )
-
-    # Security check 2: In production, existing regular user accounts cannot be taken over without verified token
-    if user and not req.token and settings.ENVIRONMENT.lower() == "production":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Mevcut kullanıcı hesapları için geçerli bir OAuth doğrulama belirteci (token) zorunludur."
-        )
+    await verify_oauth_token(provider=provider, token=req.token, expected_email=clean_email)
 
     if not user:
         random_pwd = secrets.token_urlsafe(32)

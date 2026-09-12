@@ -1,26 +1,6 @@
 import { NextResponse } from "next/server";
 import { authStore } from "@/lib/auth-users";
-import crypto from "crypto";
-
-const JWT_SECRET = process.env.APP_SECRET_KEY || "autonomous-seo-platform-secure-token-signing-key-2026";
-
-function createSignedToken(user: { id: string; email: string; role: string; isAdmin?: boolean }) {
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(JSON.stringify({
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-    type: "access",
-    is_admin: Boolean(user.isAdmin),
-    exp: Math.floor(Date.now() / 1000) + 86400,
-    iat: Math.floor(Date.now() / 1000),
-  })).toString("base64url");
-  const signature = crypto
-    .createHmac("sha256", JWT_SECRET)
-    .update(`${header}.${payload}`)
-    .digest("base64url");
-  return `${header}.${payload}.${signature}`;
-}
+import { createSignedToken } from "@/lib/jwt";
 
 export async function POST(request: Request) {
   try {
@@ -42,6 +22,15 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+
+    // Brute-force lockout (5 failures / 15 min), checked before password verification
+    if (authStore.isLockedOut(cleanEmail)) {
+      return NextResponse.json(
+        { error: "Çok fazla hatalı giriş denemesi. Hesap geçici olarak kilitlendi; 15 dakika sonra tekrar deneyin veya şifrenizi sıfırlayın." },
+        { status: 429, headers: { "Retry-After": "900" } }
+      );
+    }
+
     const user = authStore.findUserByEmail(cleanEmail);
 
     if (!user || !authStore.verifyUserPassword(cleanEmail, String(password))) {

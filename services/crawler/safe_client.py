@@ -2,10 +2,103 @@ import time
 import httpx
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
-from services.security.ssrf import validate_safe_url, SSRFSecurityException
+from httpcore._backends.anyio import AnyIOBackend
+from services.security.ssrf import (
+    validate_safe_url,
+    is_ip_blocked,
+    is_ip_literal,
+    async_resolve_domain_ips,
+    resolve_domain_ips,
+    SSRFSecurityException
+)
 
 GOOGLEBOT_USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 OWNER_AUDIT_USER_AGENT = "AutonomousAI-SEO-Auditor/1.0 (+https://platform.example.com/bot)"
+
+class SSRFSafeNetworkBackend(AnyIOBackend):
+    """
+    Prevents Time-of-Check to Time-of-Use (TOCTOU) DNS rebinding attacks.
+    Directly verifies target IP at the exact moment of socket creation and pins
+    the connection strictly to a verified safe IP address using non-blocking async DNS
+    and dual-stack (IPv4-first) fallback.
+    """
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: Optional[float] = None,
+        local_address: Optional[str] = None,
+        socket_options: Optional[Any] = None
+    ):
+        clean_host = host.strip("[]")
+
+        # 1. If host is already an IP literal, block immediately if dangerous
+        if is_ip_literal(clean_host):
+            if is_ip_blocked(clean_host):
+                raise SSRFSecurityException(
+                    f"SSRF / DNS Rebinding blocked: Direct connection to protected IP '{host}' is prohibited."
+                )
+            safe_ips = [clean_host]
+        else:
+            # 2. If host is a domain name, resolve asynchronously without blocking the event loop
+            try:
+                resolved_ips = await async_resolve_domain_ips(clean_host)
+            except SSRFSecurityException:
+                raise
+            except Exception as e:
+                raise SSRFSecurityException(f"DNS resolution failed during safe connect for '{host}': {e}")
+
+            if not resolved_ips:
+                raise SSRFSecurityException(f"No IP addresses resolved for '{host}'")
+
+            for ip in resolved_ips:
+                if is_ip_blocked(ip):
+                    raise SSRFSecurityException(
+                        f"SSRF / DNS Rebinding blocked: Domain '{clean_host}' resolved to protected IP '{ip}'."
+                    )
+
+            # Sort IPv4 first, then IPv6 to prevent IPv6 routing failures
+            safe_ips = sorted(resolved_ips, key=lambda x: 1 if ":" in x else 0)
+
+        # Connect with fallback across all verified safe IPs to avoid silent drops
+        last_exc = None
+        for safe_ip in safe_ips:
+            try:
+                return await super().connect_tcp(
+                    safe_ip,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options
+                )
+            except Exception as exc:
+                last_exc = exc
+                continue
+
+        if last_exc:
+            raise last_exc
+        raise SSRFSecurityException(f"Failed to establish safe TCP connection to '{host}'")
+
+class SSRFSafeAsyncHTTPTransport(httpx.AsyncHTTPTransport):
+    """
+    Subclasses httpx.AsyncHTTPTransport to explicitly initialize
+    httpcore.AsyncConnectionPool with our SSRFSafeNetworkBackend.
+    This avoids fragile private property monkey-patching and guarantees
+    that all sockets are routed through SSRFSafeNetworkBackend.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        import httpcore
+        self._pool = httpcore.AsyncConnectionPool(
+            ssl_context=self._pool._ssl_context,
+            max_connections=self._pool._max_connections,
+            max_keepalive_connections=self._pool._max_keepalive_connections,
+            keepalive_expiry=self._pool._keepalive_expiry,
+            http1=self._pool._http1,
+            http2=self._pool._http2,
+            network_backend=SSRFSafeNetworkBackend(),
+            retries=self._pool._retries,
+        )
 
 class RedirectHop:
     def __init__(self, from_url: str, to_url: str, status_code: int):
@@ -41,7 +134,18 @@ class SafeHttpClient:
         start_time = time.monotonic()
 
         limits = httpx.Limits(max_connections=20, max_keepalive_connections=10)
-        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False, trust_env=False, limits=limits) as client:
+        transport = SSRFSafeAsyncHTTPTransport(
+            limits=limits,
+            verify=True,
+            trust_env=False
+        )
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=self.timeout,
+            follow_redirects=False,
+            trust_env=False
+        ) as client:
             hops = 0
             while hops <= self.MAX_REDIRECTS:
                 # Validate SSRF on current hop URL

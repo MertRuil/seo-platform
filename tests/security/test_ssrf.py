@@ -55,3 +55,37 @@ def test_validate_safe_url_blocks_credentials():
         validate_safe_url("http://user:pass@example.com/")
     assert "credentials are not permitted" in str(exc.value)
 
+def test_validate_safe_url_blocks_ipv4_mapped_ipv6_and_unspecified():
+    # IPv4-mapped IPv6 loopback and metadata
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://[::ffff:169.254.169.254]/latest/meta-data/")
+    assert "Direct IP access to private/metadata IP" in str(exc.value)
+
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://[::ffff:127.0.0.1]/")
+    assert "Direct IP access to private/metadata IP" in str(exc.value)
+
+    # IPv6 unspecified (::)
+    with pytest.raises(SSRFSecurityException) as exc:
+        validate_safe_url("http://[::]:8080/")
+    assert "Direct IP access to private/metadata IP" in str(exc.value)
+
+    # Direct function checks
+    assert is_ip_blocked("::ffff:169.254.169.254") is True
+    assert is_ip_blocked("::ffff:127.0.0.1") is True
+    assert is_ip_blocked("::ffff:10.0.0.1") is True
+    assert is_ip_blocked("::ffff:192.168.1.1") is True
+    assert is_ip_blocked("::") is True
+
+@pytest.mark.anyio
+async def test_safe_http_client_blocks_rebinding_to_blocked_ip():
+    from services.crawler.safe_client import SafeHttpClient
+    client = SafeHttpClient()
+    with pytest.raises(SSRFSecurityException):
+        await client.fetch("http://127.0.0.1:8000")
+
+    with pytest.raises(SSRFSecurityException):
+        await client.fetch("http://[::ffff:169.254.169.254]/")
+
+
+

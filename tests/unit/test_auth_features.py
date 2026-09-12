@@ -90,13 +90,57 @@ async def test_failed_attempts_and_forgot_password_flow():
 
 @pytest.mark.anyio
 async def test_oauth_login_flow():
-    transport = ASGITransport(app=api_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        unique_oauth_email = f"oauth_{uuid.uuid4().hex[:8]}@example.com"
-        res = await client.post("/api/v1/auth/oauth", json={
-            "provider": "google",
-            "email": unique_oauth_email,
-            "full_name": "Google Tester"
-        })
-        assert res.status_code == 200
-        assert "access_token" in res.json()
+    from packages.config.settings import settings
+    prev_env = settings.ENVIRONMENT
+    prev_test_tokens = settings.ALLOW_TEST_OAUTH_TOKENS
+
+    try:
+        # Enable test tokens for the unit test
+        settings.ENVIRONMENT = "test"
+        settings.ALLOW_TEST_OAUTH_TOKENS = True
+
+        transport = ASGITransport(app=api_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            unique_oauth_email = f"oauth_{uuid.uuid4().hex[:8]}@example.com"
+            # 1. Valid test token flow when ALLOW_TEST_OAUTH_TOKENS=True in test environment
+            res = await client.post("/api/v1/auth/oauth", json={
+                "provider": "google",
+                "email": unique_oauth_email,
+                "full_name": "Google Tester",
+                "token": f"test-oauth-token:{unique_oauth_email}"
+            })
+            assert res.status_code == 200
+            assert "access_token" in res.json()
+
+            # 2. Security Exploit Test: Dummy token "x" MUST be rejected with 401
+            exploit_res = await client.post("/api/v1/auth/oauth", json={
+                "provider": "google",
+                "email": unique_oauth_email,
+                "token": "x"
+            })
+            assert exploit_res.status_code == 401
+            assert "Geçersiz veya sahte OAuth belirteci" in exploit_res.json()["detail"]
+
+            # 3. Security Exploit Test: Token with mismatched email MUST be rejected
+            mismatch_res = await client.post("/api/v1/auth/oauth", json={
+                "provider": "google",
+                "email": "victim@example.com",
+                "token": f"test-oauth-token:attacker@example.com"
+            })
+            assert mismatch_res.status_code == 401
+
+            # 4. Security Exploit Test: In production, test tokens MUST be strictly rejected!
+            settings.ENVIRONMENT = "production"
+            settings.ALLOW_TEST_OAUTH_TOKENS = False
+            prod_reject_res = await client.post("/api/v1/auth/oauth", json={
+                "provider": "google",
+                "email": unique_oauth_email,
+                "token": f"test-oauth-token:{unique_oauth_email}"
+            })
+            # In production, it cannot use test token and will attempt Google verification and fail with 401
+            assert prod_reject_res.status_code in (401, 502)
+    finally:
+        settings.ENVIRONMENT = prev_env
+        settings.ALLOW_TEST_OAUTH_TOKENS = prev_test_tokens
+
+

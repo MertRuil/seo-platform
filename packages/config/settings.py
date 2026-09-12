@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     )
 
     # General
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    ENVIRONMENT: str = "production"
+    DEBUG: bool = False
+    ALLOW_TEST_OAUTH_TOKENS: bool = False
     APP_SECRET_KEY: str = "default-insecure-secret-key-change-in-production-min-32-chars"
     ENCRYPTION_KEY: str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -49,6 +50,7 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_CLIENT_ID: Optional[str] = None
     GOOGLE_OAUTH_CLIENT_SECRET: Optional[str] = None
     GOOGLE_OAUTH_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
+    GITHUB_OAUTH_CLIENT_ID: Optional[str] = None
 
     # CrUX
     CRUX_API_KEY: Optional[str] = None
@@ -59,6 +61,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_insecure_production_secrets(self):
+        # Test OAuth tokens MUST NEVER be enabled outside 'test' environment
+        if self.ENVIRONMENT.lower() != "test":
+            self.ALLOW_TEST_OAUTH_TOKENS = False
+
         if self.ENVIRONMENT.lower() in {"production", "prod"}:
             if self.APP_SECRET_KEY.startswith("default-insecure-") or len(self.APP_SECRET_KEY) < 32:
                 raise ValueError("APP_SECRET_KEY must be a non-default value of at least 32 characters in production")

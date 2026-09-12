@@ -15,7 +15,17 @@ export interface UserRecord {
 export interface ResetRecord {
   code: string;
   expiresAt: number;
+  attempts: number;
 }
+
+export interface FailedAttemptRecord {
+  count: number;
+  updatedAt: number;
+}
+
+const MAX_RESET_CODE_ATTEMPTS = 5;
+export const LOCKOUT_THRESHOLD = 5;
+export const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -33,53 +43,54 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 // Global in-memory storage for serverless runtime
 const globalAuth = global as unknown as {
   __seoUsers?: UserRecord[];
-  __seoFailedAttempts?: Record<string, number>;
+  __seoFailedAttempts?: Record<string, FailedAttemptRecord>;
   __seoResetCodes?: Record<string, ResetRecord>;
 };
 
-if (!globalAuth.__seoUsers) {
-  globalAuth.__seoUsers = [
-    {
-      id: "usr_mert_01",
-      email: "mert@seo.com",
-      passwordHash: "44cd44e4d34ca19433e79f7ad6daf558$cd0de28852b33fe22b857570260df5b15a3222a421341ef9f2e2835c8ebcbe17",
-      fullName: "Mert Ruil",
-      role: "Süper Yönetici (Kurucu)",
-      isAdmin: true,
-      isSuperAdmin: true,
-      permissions: ["*"],
-    },
-    {
-      id: "usr_aybo_01",
-      email: "aybo@seo.com",
-      passwordHash: "76de7a8cd5a9ad5647c8412152a4b252$c7c3050663f9815b986d490e6dd5d5f37e9245f20baff07a1c6b7c5d8d6de7b4",
-      fullName: "Aybo",
-      role: "Süper Yönetici (Ortak)",
-      isAdmin: true,
-      isSuperAdmin: true,
-      permissions: ["*"],
-    },
-    {
-      id: "usr_admin_01",
-      email: "admin@seo-platform.local",
-      passwordHash: "55b041acb8acfcd64dda50ea6e4dc880$72004314720fe2ec7e447a5b230d240b32160f4709b45598613687c2d5e93d79",
-      fullName: "Platform Administrator",
+function getInitialUsers(): UserRecord[] {
+  const users: UserRecord[] = [];
+  const adminEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+
+  if (adminEmail && adminPassword) {
+    users.push({
+      id: "usr_admin_initial",
+      email: adminEmail,
+      passwordHash: hashPassword(adminPassword),
+      fullName: "Sistem Yöneticisi",
       role: "Süper Yönetici",
       isAdmin: true,
       isSuperAdmin: true,
       permissions: ["*"],
-    },
-    {
-      id: "usr_partner_01",
-      email: "ekip@seoplatform.com",
-      passwordHash: "a7de0ef94f58fb77882f0972d2722e91$67c4a135f2e92e81cd32288df98d942ba063f40611a57c0826a9ae99f98226ca",
-      fullName: "SEO Ekip Üyesi",
-      role: "SEO Uzmanı",
-      isAdmin: false,
-      isSuperAdmin: false,
-      permissions: ["read", "crawl", "audit"],
+      createdAt: new Date().toISOString(),
+    });
+  } else if (process.env.NODE_ENV !== "production") {
+    // Generate secure ephemeral credentials at boot time for development only
+    const ephemeralPassword = crypto.randomBytes(16).toString("hex");
+    const devEmail = "admin@seo-platform.local";
+    users.push({
+      id: "usr_dev_admin",
+      email: devEmail,
+      passwordHash: hashPassword(ephemeralPassword),
+      fullName: "Geliştirici Yönetici (Dinamik)",
+      role: "Süper Yönetici",
+      isAdmin: true,
+      isSuperAdmin: true,
+      permissions: ["*"],
+      createdAt: new Date().toISOString(),
+    });
+    if (typeof window === "undefined") {
+      console.log(`\x1b[33m[Güvenlik] Geliştirme ortamı için dinamik geçici yönetici oluşturuldu:\x1b[0m`);
+      console.log(`\x1b[36m  E-posta : ${devEmail}\x1b[0m`);
+      console.log(`\x1b[36m  Şifre   : ${ephemeralPassword}\x1b[0m`);
+      console.log(`\x1b[90m  (Üretim ortamında INITIAL_ADMIN_EMAIL ve INITIAL_ADMIN_PASSWORD ortam değişkenlerini ayarlayın)\x1b[0m`);
     }
-  ];
+  }
+  return users;
+}
+
+if (!globalAuth.__seoUsers) {
+  globalAuth.__seoUsers = getInitialUsers();
 }
 
 if (!globalAuth.__seoFailedAttempts) {
@@ -128,6 +139,7 @@ export const authStore = {
     globalAuth.__seoResetCodes[clean] = {
       code,
       expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes TTL
+      attempts: 0,
     };
     return code;
   },
@@ -145,7 +157,16 @@ export const authStore = {
       return { success: false, error: "Şifre sıfırlama kodunun süresi doldu (10 dakika). Lütfen yeni kod isteyin." };
     }
 
-    if (resetRecord.code !== code.trim()) {
+    // 6-digit OTP: cap guesses so the code cannot be brute-forced within its TTL
+    const codeBuf = Buffer.from(code.trim());
+    const expectedBuf = Buffer.from(resetRecord.code);
+    const codeMatches = codeBuf.length === expectedBuf.length && crypto.timingSafeEqual(codeBuf, expectedBuf);
+    if (!codeMatches) {
+      resetRecord.attempts += 1;
+      if (resetRecord.attempts >= MAX_RESET_CODE_ATTEMPTS) {
+        if (globalAuth.__seoResetCodes) delete globalAuth.__seoResetCodes[clean];
+        return { success: false, error: "Çok fazla hatalı kod denemesi. Kod iptal edildi; lütfen yeni kod talep edin." };
+      }
       return { success: false, error: "Girdiğiniz sıfırlama kodu hatalı." };
     }
 
@@ -162,14 +183,24 @@ export const authStore = {
 
   getFailedAttempts: (email: string) => {
     const clean = email.trim().toLowerCase();
-    return globalAuth.__seoFailedAttempts?.[clean] || 0;
+    return globalAuth.__seoFailedAttempts?.[clean]?.count || 0;
+  },
+
+  isLockedOut: (email: string): boolean => {
+    const clean = email.trim().toLowerCase();
+    const rec = globalAuth.__seoFailedAttempts?.[clean];
+    if (!rec) return false;
+    return rec.count >= LOCKOUT_THRESHOLD && Date.now() - rec.updatedAt < LOCKOUT_WINDOW_MS;
   },
 
   incrementFailedAttempts: (email: string) => {
     const clean = email.trim().toLowerCase();
     if (!globalAuth.__seoFailedAttempts) globalAuth.__seoFailedAttempts = {};
-    const count = (globalAuth.__seoFailedAttempts[clean] || 0) + 1;
-    globalAuth.__seoFailedAttempts[clean] = count;
+    const prev = globalAuth.__seoFailedAttempts[clean];
+    const now = Date.now();
+    // Window expired -> start counting again
+    const count = prev && now - prev.updatedAt < LOCKOUT_WINDOW_MS ? prev.count + 1 : 1;
+    globalAuth.__seoFailedAttempts[clean] = { count, updatedAt: now };
     return count;
   },
 

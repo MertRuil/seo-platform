@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateSafeAuditUrl, SSRFSecurityError } from "@/lib/ssrf";
+import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
 
@@ -91,40 +91,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Vercel & Sunucusuz (Serverless) Yerleşik Canlı Analiz Motoru
+    // 2. Vercel & Sunucusuz (Serverless) Yerleşik Canlı Analiz Motoru (SSRF ve DNS Rebinding Korumalı)
     const t0 = Date.now();
-    let fetchResponse: Response;
+    let fetchResult;
     try {
-      fetchResponse = await fetch(targetUrl, {
+      fetchResult = await safeAuditFetch(targetUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
-        redirect: "follow",
-        signal: AbortSignal.timeout(10000)
+        timeoutMs: 10000,
+        maxRedirects: 5,
       });
     } catch (err: any) {
+      const isSsrf =
+        err instanceof SSRFSecurityError ||
+        err.name === "SSRFSecurityError" ||
+        (err.message && err.message.includes("SSRF"));
       return NextResponse.json(
-        { detail: `Hedef web sitesine erişilemedi veya zaman aşımına uğradı: ${err.message}` },
+        {
+          detail: isSsrf
+            ? `Yönlendirme güvenliği ihlali (SSRF): ${err.message}`
+            : `Hedef web sitesine erişilemedi veya zaman aşımına uğradı: ${err.message}`,
+        },
         { status: 400 }
       );
     }
 
-    const finalUrl = fetchResponse.url;
-
-    // Yönlendirme sonrası hedef adres için de SSRF doğrulaması
-    try {
-      await validateSafeAuditUrl(finalUrl);
-    } catch (redirectSsrfErr: any) {
-      return NextResponse.json(
-        { detail: `Yönlendirme güvenliği ihlali (SSRF): Hedef yönlendirme adresi engellendi.` },
-        { status: 400 }
-      );
-    }
-
+    const finalUrl = fetchResult.finalUrl;
     const responseTimeMs = Date.now() - t0;
-    const statusCode = fetchResponse.status;
-    const html = await fetchResponse.text();
+    const statusCode = fetchResult.statusCode;
+    const html = fetchResult.text;
 
     // HTML Ayrıştırma (Tüm ECMAScript hedefleriyle tam uyumlu regex)
     const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -140,8 +137,9 @@ export async function POST(req: NextRequest) {
     const canonMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i);
     if (canonMatch) canonicalUrl = canonMatch[1].trim();
 
-    const hasNoindex = /<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html) ||
-      (fetchResponse.headers.get("x-robots-tag") || "").toLowerCase().includes("noindex");
+    const hasNoindex =
+      /<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html) ||
+      (fetchResult.headers["x-robots-tag"] || "").toLowerCase().includes("noindex");
 
     const h1Matches = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/gi) || [];
     const h1Count = h1Matches.length;
@@ -157,19 +155,19 @@ export async function POST(req: NextRequest) {
       .trim();
     const wordCount = cleanText ? cleanText.split(" ").length : 0;
 
-    // robots.txt ve sitemap.xml canlı kontrolü (Açık yönlendirme ve SSRF kalkanı için redirect: 'manual')
+    // robots.txt ve sitemap.xml kontrolü (SSRF ve DNS Rebinding korumalı)
     let robotsOk = false;
     let sitemapOk = false;
     try {
       const robotsUrl = new URL("/robots.txt", finalUrl).href;
-      const rResp = await fetch(robotsUrl, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
-      robotsOk = rResp.ok;
+      const rResp = await safeAuditFetch(robotsUrl, { timeoutMs: 3000, maxRedirects: 1 });
+      robotsOk = rResp.statusCode >= 200 && rResp.statusCode < 400;
     } catch {}
 
     try {
       const sitemapUrl = new URL("/sitemap.xml", finalUrl).href;
-      const sResp = await fetch(sitemapUrl, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(3000) });
-      sitemapOk = sResp.ok;
+      const sResp = await safeAuditFetch(sitemapUrl, { timeoutMs: 3000, maxRedirects: 1 });
+      sitemapOk = sResp.statusCode >= 200 && sResp.statusCode < 400;
     } catch {}
 
     // Deterministik Kural Değerlendirmesi
