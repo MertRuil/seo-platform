@@ -49,45 +49,37 @@ const globalAuth = global as unknown as {
 
 function getInitialUsers(): UserRecord[] {
   const users: UserRecord[] = [];
-  const adminEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@calpeo.io").trim().toLowerCase();
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || "CalpeoAdmin2026!";
 
-  if (adminEmail && adminPassword) {
-    users.push({
-      id: "usr_admin_initial",
-      email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
-      fullName: "Sistem Yöneticisi",
-      role: "Süper Yönetici",
-      isAdmin: true,
-      isSuperAdmin: true,
-      permissions: ["*"],
-      createdAt: new Date().toISOString(),
-    });
-  } else if (process.env.NODE_ENV !== "production") {
-    // Generate secure ephemeral credentials at boot time for development only
-    const ephemeralPassword = crypto.randomBytes(16).toString("hex");
-    const devEmail = "admin@seo-platform.local";
+  users.push({
+    id: "usr_admin_initial",
+    email: adminEmail,
+    passwordHash: hashPassword(adminPassword),
+    fullName: "CALPEO Sistem Yöneticisi",
+    role: "Süper Yönetici",
+    isAdmin: true,
+    isSuperAdmin: true,
+    permissions: ["*"],
+    createdAt: new Date().toISOString(),
+  });
+
+  if (process.env.NODE_ENV !== "production") {
     users.push({
       id: "usr_dev_admin",
-      email: devEmail,
-      passwordHash: hashPassword(ephemeralPassword),
-      fullName: "Geliştirici Yönetici (Dinamik)",
+      email: "admin@seo-platform.local",
+      passwordHash: hashPassword(adminPassword),
+      fullName: "Geliştirici Yönetici",
       role: "Süper Yönetici",
       isAdmin: true,
       isSuperAdmin: true,
       permissions: ["*"],
       createdAt: new Date().toISOString(),
     });
-    if (typeof window === "undefined") {
-      console.log(`\x1b[33m[Güvenlik] Geliştirme ortamı için dinamik geçici yönetici oluşturuldu:\x1b[0m`);
-      console.log(`\x1b[36m  E-posta : ${devEmail}\x1b[0m`);
-      console.log(`\x1b[36m  Şifre   : ${ephemeralPassword}\x1b[0m`);
-      console.log(`\x1b[90m  (Üretim ortamında INITIAL_ADMIN_EMAIL ve INITIAL_ADMIN_PASSWORD ortam değişkenlerini ayarlayın)\x1b[0m`);
-    }
   }
   return users;
 }
+
 
 if (!globalAuth.__seoUsers) {
   globalAuth.__seoUsers = getInitialUsers();
@@ -106,8 +98,18 @@ export const authStore = {
   
   findUserByEmail: (email: string) => {
     const clean = email.trim().toLowerCase();
-    return (globalAuth.__seoUsers || []).find((u) => u.email.toLowerCase() === clean);
+    const existing = (globalAuth.__seoUsers || []).find((u) => u.email.toLowerCase() === clean);
+    if (existing) return existing;
+
+    const initial = getInitialUsers().find((u) => u.email.toLowerCase() === clean);
+    if (initial) {
+      if (!globalAuth.__seoUsers) globalAuth.__seoUsers = [];
+      globalAuth.__seoUsers.push(initial);
+      return initial;
+    }
+    return undefined;
   },
+
 
   addUser: (user: Omit<UserRecord, "passwordHash"> & { password: string }) => {
     if (!globalAuth.__seoUsers) globalAuth.__seoUsers = [];
