@@ -199,7 +199,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#171817] relative overflow-hidden font-sans">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#f5f6f8] dark:bg-[#171817] relative overflow-hidden font-sans transition-colors duration-150">
       {/* Arka plan ışık efektleri */}
       <div className="absolute top-1/4 left-1/4 w-[26rem] h-[26rem] bg-[#3157e5]/10 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
       <div className="absolute bottom-1/4 right-1/4 w-[26rem] h-[26rem] bg-[#148b79]/10 rounded-full blur-3xl pointer-events-none translate-x-1/2 translate-y-1/2" />
@@ -217,22 +217,22 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#121316] dark:text-white flex items-center justify-center gap-2">
             CALPEO
-            <span className="text-xs px-2 py-0.5 rounded bg-[#3157e5]/20 text-[#3157e5] border border-[#3157e5]/30 font-mono font-bold tracking-normal">
+            <span className="text-xs px-2 py-0.5 rounded bg-[#3157e5]/15 text-[#3157e5] border border-[#3157e5]/30 font-mono font-bold tracking-normal">
               PRO v2.0
             </span>
           </h1>
-          <p className="text-sm text-[#8c8d89] mt-1 font-medium">
+          <p className="text-sm text-[#656971] dark:text-[#8c8d89] mt-1 font-medium">
             Kontrol sende. Kanıt ekranda.
           </p>
         </div>
 
         {/* Ana Kart */}
-        <div className="bg-[#202120] border border-[#343633] rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+        <div className="bg-white dark:bg-[#202120] border border-[#d9dce1] dark:border-[#343633] rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/5 dark:shadow-black/80 relative transition-colors">
           
           {/* Giriş Yap / Kayıt Ol Sekmeleri */}
-          <div className="flex p-1 bg-[#171817] rounded-lg border border-[#343633] mb-6">
+          <div className="flex p-1 bg-[#eff1f4] dark:bg-[#171817] rounded-lg border border-[#d9dce1] dark:border-[#343633] mb-6">
             <button
               type="button"
               onClick={() => {
@@ -242,7 +242,7 @@ export default function LoginPage() {
               className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                 authMode === "login"
                   ? "bg-[#3157e5] text-white shadow-md shadow-[#3157e5]/30"
-                  : "text-[#8c8d89] hover:text-white hover:bg-[#202120]"
+                  : "text-[#656971] dark:text-[#8c8d89] hover:text-[#121316] dark:hover:text-white hover:bg-white/60 dark:hover:bg-[#202120]"
               }`}
             >
               <span>Giriş Yap</span>
@@ -256,7 +256,7 @@ export default function LoginPage() {
               className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                 authMode === "register"
                   ? "bg-[#3157e5] text-white shadow-md shadow-[#3157e5]/30"
-                  : "text-[#8c8d89] hover:text-white hover:bg-[#202120]"
+                  : "text-[#656971] dark:text-[#8c8d89] hover:text-[#121316] dark:hover:text-white hover:bg-white/60 dark:hover:bg-[#202120]"
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />

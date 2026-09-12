@@ -80,9 +80,9 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="w-64 bg-[#171817] border-r border-[#343633] flex flex-col h-screen fixed left-0 top-0 select-none z-50 text-[#f4f3ee]">
+    <aside className="w-64 bg-white dark:bg-[#171817] border-r border-[#e0e2e6] dark:border-[#343633] flex flex-col h-screen fixed left-0 top-0 select-none z-50 text-[#121316] dark:text-[#f4f3ee] transition-colors duration-150">
       {/* CALPEO Marka Başlığı */}
-      <div className="p-4 border-b border-[#343633] flex items-center justify-between">
+      <div className="p-4 border-b border-[#e0e2e6] dark:border-[#343633] flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative w-7 h-7 flex items-center justify-center">
             <Image 
@@ -96,12 +96,12 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm tracking-wider text-white">CALPEO</span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#3157e5]/20 text-[#3157e5] border border-[#3157e5]/30">
+              <span className="font-bold text-sm tracking-wider text-[#121316] dark:text-white">CALPEO</span>
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#3157e5]/15 text-[#3157e5] border border-[#3157e5]/30">
                 PRO
               </span>
             </div>
-            <p className="text-[10px] text-[#6f6d66] font-medium leading-none mt-0.5">
+            <p className="text-[10px] text-[#696d76] dark:text-[#6f6d66] font-medium leading-none mt-0.5">
               Kanıt & Karar Sistemi
             </p>
           </div>
@@ -112,7 +112,7 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
       <nav className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
         {navGroups.map((group) => (
           <div key={group.label}>
-            <div className="text-[9px] font-bold uppercase tracking-wider text-[#656661] px-2.5 mb-1.5">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[#9a9da4] dark:text-[#656661] px-2.5 mb-1.5">
               {group.label}
             </div>
             <div className="space-y-0.5">
@@ -125,19 +125,19 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
                     href={item.href}
                     className={`flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-medium transition-all ${
                       isActive
-                        ? "bg-[#292a28] text-white font-semibold border-l-2 border-[#3157e5] pl-2 shadow-sm"
-                        : "text-[#999994] hover:text-[#f4f3ee] hover:bg-[#202120]"
+                        ? "bg-[#ebefff] dark:bg-[#292a28] text-[#2442ad] dark:text-white font-semibold border-l-2 border-[#3157e5] pl-2 shadow-xs"
+                        : "text-[#666a72] dark:text-[#999994] hover:text-[#121316] dark:hover:text-[#f4f3ee] hover:bg-[#f5f6f8] dark:hover:bg-[#202120]"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#3157e5]" : "text-[#77736c]"}`} />
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[#3157e5]" : "text-[#7b7f87] dark:text-[#77736c]"}`} />
                       <span className="truncate">{item.name}</span>
                     </div>
                     {item.badge && (
                       <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
                         isActive 
                           ? "bg-[#3157e5]/20 text-[#3157e5]" 
-                          : "bg-[#202120] text-[#77736c] border border-[#343633]"
+                          : "bg-[#eff1f4] dark:bg-[#202120] text-[#777b82] dark:text-[#77736c] border border-[#d9dce1] dark:border-[#343633]"
                       }`}>
                         {item.badge}
                       </span>
@@ -151,26 +151,26 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
       </nav>
 
       {/* Alt Profil ve Sistem Durumu */}
-      <div className="p-3 border-t border-[#343633] bg-[#141514] space-y-2.5">
-        <div className="flex items-center justify-between text-[10px] text-[#77736c] px-1">
+      <div className="p-3 border-t border-[#e0e2e6] dark:border-[#343633] bg-[#f8f9fa] dark:bg-[#141514] space-y-2.5 transition-colors">
+        <div className="flex items-center justify-between text-[10px] text-[#696d76] dark:text-[#77736c] px-1">
           <span className="font-medium">Ölçüm Durumu</span>
-          <span className="flex items-center gap-1.5 text-[#148b79] font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#148b79] animate-pulse"></span>
+          <span className="flex items-center gap-1.5 text-[#0f927c] dark:text-[#148b79] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0f927c] dark:bg-[#148b79] animate-pulse"></span>
             Canlı & Doğrulanmış
           </span>
         </div>
 
         {/* Kullanıcı Kartı */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#292a28] px-1">
+        <div className="flex items-center justify-between pt-2 border-t border-[#e5e7eb] dark:border-[#292a28] px-1">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#3157e5] to-[#148b79] flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
               {user?.fullName?.charAt(0) || "M"}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-medium text-[#f4f3ee] truncate">
+              <div className="text-xs font-medium text-[#121316] dark:text-[#f4f3ee] truncate">
                 {user?.fullName || "Mert Ruil"}
               </div>
-              <div className="text-[10px] text-[#6f6d66] truncate font-mono">
+              <div className="text-[10px] text-[#696d76] dark:text-[#6f6d66] truncate font-mono">
                 {user?.role || "Yönetici"}
               </div>
             </div>
@@ -179,7 +179,7 @@ export function Navigation({ currentPath = "/" }: { currentPath?: string }) {
           <button
             onClick={logout}
             title="Oturumu Kapat"
-            className="p-1.5 rounded-md text-[#77736c] hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0"
+            className="p-1.5 rounded-md text-[#696d76] dark:text-[#77736c] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-all shrink-0 cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
           </button>

@@ -318,3 +318,9 @@ Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_R
 5. **Giriş ve Güvenli Oturum:**
    - Giriş ekranı CALPEO kimliğine uyarlandı; hazır Süper Yönetici hesabı (`admin@calpeo.io` / `CalpeoAdmin2026!`) ve anında kullanıcı kayıt desteği sağlandı.
 
+6. **Açık Mod (Modern Editoryal) & Canlı Tema Değiştirici (Theme Switcher):**
+   - Araştırma notlarındaki `light-mode-modern-v2.html` prototipi referans alınarak; yumuşak gri arka plan (`#f5f6f8`), beyaz kart yüzeyleri (`#ffffff`), keskin mürekkep tipografisi (`#121316`) ve sakin gri kenarlıklar (`#dde0e5`) ile modern Açık Mod hayata geçirildi.
+   - `ThemeContext.tsx` oluşturuldu ve üst çubuğa tek tıkla geçiş sağlayan **`[ ☀️ Açık | 🌙 Koyu ]`** tema anahtarı yerleştirildi. Tercih `localStorage` üzerinde saklanır.
+   - Sol navigasyon, üst çubuk, metrik kartları, sinyal grafiği ve öncelikli işler paneli her iki temada da kusursuz kontrast ve editoryal şıklıkla çalışmaktadır.
+
+
