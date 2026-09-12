@@ -11,6 +11,10 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`cce231a`** | `güvenlik: tüm sistem ve kimlik doğrulama açıklarının kapatılması` | 14 kritik sistem ve backend güvenlik açığının kapatılması |
 | **`812654d`** | `güvenlik(frontend): çalışmayan butonların onarımı ve yetkisiz erişim açıklarının kapatılması` | Frontend buton onarımları, SPA navigasyon ve RBAC kalkanları |
 | **`b8a16fd`** | `güvenlik(frontend): ssrf koruma modülü, api kota sınırlaması ve bildirim iyileştirmeleri` | Next.js SSRF koruması, API rate limiting, bildirim ve harici link güvenliği |
+| **`d8d722e`** | `security(remediation): fix 6 specific vulnerabilities across oauth, ssrf, and crawler` | OAuth token doğrulama, GitHub email fallback, Google aud denetimi, redirect SSRF & IP pinning, prod env izolasyonu ve non-blocking async crawler DNS |
+| **`cdafe19`** | `feat(ui): implement CALPEO Kanit Editoryali brand identity and dual-density architecture` | CALPEO Signal Loop marka kimliği, Gece Operasyonu teması, 5 kategorili bilgi mimarisi, Özet ve Uzman çift bilgi yoğunluğu modu ve interaktif canlı hızlı denetim |
+| **`dadbc9d`** | `fix(auth): configure deterministic admin credentials in dev store` | Standart yönetici (`admin@calpeo.io` / `CalpeoAdmin2026!`) ve yerel geliştirme kimlik doğrulaması |
+
 
 ---
 
@@ -281,3 +285,36 @@ Güvenlik taraması sonrası derinlemesine incelemede tespit edilen 6 spesifik a
   - `.venv\Scripts\pytest.exe -v tests/unit/test_security_remediation.py` ➡️ **6 / 6 Test Başarılı (PASS)**
   - `.venv\Scripts\pytest.exe -q tests/unit` ➡️ **105 / 105 Test Başarılı (PASS)**
   - `cd apps/web && npx tsc --noEmit` ➡️ **0 Hata (Temiz derleme)**
+
+---
+
+## 13. 🎨 CALPEO "Kanıt Editoryali" Tasarım Sistemi & Çift Bilgi Yoğunluğu (Dual-Density)
+
+Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_RESEARCH.md` ve `evidence-editorial-v3.html`) doğrultusunda, ucuz ve yapay AI klişeleri (parıltılar, mor-mavi neon gradyanlar, anlamsız 3D küreler) reddedilerek **"Sakin, Ölçülebilir, İnsan Denetimli ve Kanıt Tabanlı"** bir işletim sistemi arayüzü kurulmuştur:
+
+1. **Marka ve Renk Kimliği (Kanıt Editoryali / Signal Loop):**
+   - Jenerik "Ω" ikonu yerine yüksek çözünürlüklü **CALPEO Signal Loop** (`calpeo-logo-signal-loop-v1.png`) logosu ve döngüsel sinyal markası yerleştirildi.
+   - Renk paleti Gece Operasyonu zeminleri (`#171817`, kartlar `#202120`, sınırlar `#343633`), Signal Blue (`#3157e5`), Kanıt Teali (`#148b79` / `#2dd4bf`) ve editoryal Kağıt tonları (`#f3f0e8`) ile yapılandırıldı. Başlıklar için editoryal serif (`Georgia`), operasyonel veriler için yüksek okunurluklu sans ve kanıt/kodlar için monospace yazı tipleri tanımlandı.
+
+2. **Çift Bilgi Yoğunluğu (Density Switch - Özet vs Uzman Modu):**
+   - `DensityContext` oluşturularak kullanıcının çalışma modu tercihi `localStorage` ile kalıcı hale getirildi.
+   - **Özet Modu (Yönetici):** Karar vericiler için kritik işler, beklenen etki, doğrudan ROI ve sinyal eğilimi gösterilir.
+   - **Uzman Modu (Ajans & SEO):** Google SGE, Perplexity AI, ChatGPT Search ve Gemini model atıf kırılımları, derin tarama telemetrisi (TTFB, indexlenebilirlik, schema kapsamı) ve teknik diff analizleri listelenir.
+
+3. **5 Görev Odaklı Mantıksal Bilgi Mimarisi (Navigasyon):**
+   - Menü yapısı kısaltmalar yerine kullanıcının yapacağı işe göre 5 gruba toplandı:
+     - **Genel:** Genel Görünüm (`/`), Öncelikli İşler (`/opportunities`)
+     - **Görünürlük (SEO & GEO):** Arama Performansı (`/performance`), Yanıt Motorları & Atıflar (`/knowledge`)
+     - **Site & Teknik Sağlık:** Teknik Sağlık (`/health`), Kritik Sorunlar (`/issues`), Taranan Sayfalar (`/pages`), Şema (`/schema`), İç Linkler (`/links`), Web Hayati Değerleri (`/cwv`)
+     - **Çalışma & Doğrulama:** Değişiklikler & Diff (`/changes`), SEO Deneyleri (`/experiments`), Site Taramaları (`/crawls`)
+     - **Yönetim:** Bağlayıcılar (`/integrations`), Denetim Günlüğü (`/audit`)
+
+4. **Genel Bakış (Dashboard) Yenilenmesi:**
+   - *"Aramada görün. Yanıtlarda seçil. Sonucu kanıtla."* editoryal manşeti.
+   - **Canlı İnteraktif Hızlı URL Denetimi:** Herhangi bir adresi doğrudan ana sayfadan anında tarayan ve güvenli SSRF korumalı `/api/v1/audit/quick` ile çalışan denetim çubuğu.
+   - **Birleşik Metrik Şeridi:** Genel Görünürlük (74/100), AI Atıf Payı (67/100), Teknik Sağlık (94/100), Öncelikli İşler (4 Aktif).
+   - **Öncelikli Karar Kuyruğu:** Resmi Google Search Central belgeleri ve NetworkX formülleriyle etki sırasına dizilmiş doğrudan aksiyon butonları.
+
+5. **Giriş ve Güvenli Oturum:**
+   - Giriş ekranı CALPEO kimliğine uyarlandı; hazır Süper Yönetici hesabı (`admin@calpeo.io` / `CalpeoAdmin2026!`) ve anında kullanıcı kayıt desteği sağlandı.
+
