@@ -33,15 +33,26 @@ export async function POST(request: Request) {
 
     const user = authStore.findUserByEmail(cleanEmail);
 
-    if (!user || !authStore.verifyUserPassword(cleanEmail, String(password))) {
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı. Lütfen 'Yeni Kayıt Ol' sekmesinden kaydolun veya e-postanızı kontrol edin.",
+          failed_attempts: 0,
+          show_forgot_password: false,
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!authStore.verifyUserPassword(cleanEmail, String(password))) {
       const attempts = authStore.incrementFailedAttempts(cleanEmail);
       const showForgotPassword = attempts >= 3;
 
       return NextResponse.json(
         {
           error: showForgotPassword
-            ? `Şifre ${attempts} kez hatalı girildi. Güvenliğiniz için lütfen şifrenizi sıfırlayın.`
-            : `Geçersiz e-posta veya şifre (${attempts}/3 deneme).`,
+            ? `Şifreniz ${attempts} kez hatalı girildi. Güvenliğiniz için lütfen şifrenizi sıfırlayın.`
+            : `Hatalı şifre girdiniz (${attempts}/3 deneme).`,
           failed_attempts: attempts,
           show_forgot_password: showForgotPassword,
         },

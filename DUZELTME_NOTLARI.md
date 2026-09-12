@@ -14,6 +14,7 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`d8d722e`** | `security(remediation): fix 6 specific vulnerabilities across oauth, ssrf, and crawler` | OAuth token doğrulama, GitHub email fallback, Google aud denetimi, redirect SSRF & IP pinning, prod env izolasyonu ve non-blocking async crawler DNS |
 | **`f9bb3ab`** | `feat(ui): add modern light mode with live theme toggle and calpeo editorial aesthetics` | ThemeContext, live toggle switch, layout/dashboard dual-mode refactor |
 | **`7f6faff`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
+| **`7adad18`** | `fix(auth): isolate failed attempts per email, handle unregistered users and add code preview` | E-posta bazlı bağımsız hatalı giriş sayacı, kayıtlı olmayan hesap ayrımı, SMTP e-posta servisi ve dev simülasyon kod önizlemesi |
 
 
 ---
@@ -345,5 +346,23 @@ Superpowers beyin fırtınası araştırma sonuçları (`CALPEO_SEO_GEO_DESIGN_R
      - **Yönetim & Güvenlik Grubu:**
        - `/integrations` (Site Bağlayıcıları): Google Search Console, WordPress, Git PR ve Webhook bağlayıcı kartları, güvenli anahtar düzenleme modalı.
        - `/audit` (Sistem & Güvenlik Denetim Günlüğü): IP maskeleme, kategori filtreleri, işlem defteri zaman çizelgesi.
+ 
+---
+ 
+## 14. 🔑 Giriş ve Şifre Sıfırlama Akışının Onarımı (Auth Isolation & Code Delivery)
+ 
+ 1. **Hesaplar Arası Hatalı Deneme İzolasyonu (Cross-Account Isolation):**
+    - **Sorun:** Frontend'de hatalı şifre sayacı tek bir global sayaç olarak tutuluyordu. Kullanıcı bir hesapta 3 kez yanlış girdiğinde, başka bir hesaba geçip tek bir yanlış girdiğinde sistem önceki sayacı devralıyor ve yeni girilen hesabı da "3 kez hatalı girildi, şifrenizi sıfırlayın" diyerek kilitliyordu.
+    - **Çözüm:** Hatalı deneme sayacı e-posta bazlı haritaya (`failedAttemptsMap[email]`) bağlandı. Kullanıcı e-posta alanını değiştirdiği anda sayaç sıfırlanır, önceki hesabın uyarı bandı ekrandan anında kaldırılır. Her hesap tamamen bağımsız olarak değerlendirilir.
+ 
+ 2. **Kayıtlı Olmayan Hesap Ayrımı (Unregistered Account Handling):**
+    - **Sorun:** Kayıtlı olmayan bir e-posta girildiğinde, sistem bunu şifre hatası gibi sayarak 3 denemede "Şifrenizi sıfırlayın" moduna sokuyor; kullanıcı sıfırlamaya çalıştığında ise "hesap bulunamadı" hatası alarak çıkmaza giriyordu.
+    - **Çözüm:** Kullanıcı veritabanında bulunamadığında açık ve net olarak `"Bu e-posta adresiyle kayıtlı bir hesap bulunamadı. Lütfen 'Yeni Kayıt Ol' sekmesinden kaydolun veya e-postanızı kontrol edin."` mesajı döndürülür; şifre sıfırlama kilitlenmesi tetiklenmez.
+ 
+ 3. **E-posta İletimi & Geliştirici Kod Önizlemesi (SMTP & Code Preview):**
+    - **Sorun:** Şifre sıfırlamada kod üretiliyor ancak yerel ortamda herhangi bir harici SMTP servisi bağlı olmadığı için e-posta kullanıcının gerçek posta kutusuna ulaşmıyor ve kullanıcı kodu bilemediği için şifresini yenileyemiyordu.
+    - **Çözüm:** `apps/web/src/lib/email-service.ts` servisi eklendi. Sistemde `SMTP_HOST` tanımlıysa doğrudan SMTP soketi üzerinden gerçek e-posta gönderilir. Yerel geliştirme/test ortamında ise kullanıcıyı çaresiz bırakmamak için 6 haneli kod modal ekranında **"Doğrulama Kodunuz: [ 123456 ]"** olarak sunulur ve tek tıkla **"Kodu Giriş Alanına Otomatik Aktar"** butonuyla tüm şifre sıfırlama süreci kesintisiz test edilebilir hale getirildi.
+ 4. **Şifre Sıfırlama Modalı Çift Mod Uyumu:**
+    - Modal pencereleri de CALPEO editoryal açık ve koyu tema belirteçlerine uyarlanarak her iki modda estetik ve erişilebilir kılındı.
 
 

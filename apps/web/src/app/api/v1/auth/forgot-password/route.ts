@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { authStore } from "@/lib/auth-users";
+import { sendEmail } from "@/lib/email-service";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, code, newPassword, action } = body;
+    const { email, code, newPassword } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Bu e-posta adresine ait bir kullanıcı hesabı bulunamadı." },
+        { error: "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı. Lütfen kontrol edin veya 'Yeni Kayıt Ol' sekmesinden kaydolun." },
         { status: 404 }
       );
     }
@@ -53,15 +54,28 @@ export async function POST(request: Request) {
       });
     }
 
-    // 2. Doğrulama Kodu Talebi (Kod üretilir, ASLA API yanıtında dışarı sızdırılmaz)
+    // 2. Doğrulama Kodu Talebi
     const resetCode = authStore.createResetCode(cleanEmail);
-    // Gerçek prodüksiyonda SMTP/SendGrid e-posta servisine iletilir:
-    // console.log(`[SECURE DISPATCH] Reset code for ${cleanEmail} sent via email.`);
+
+    const emailResult = await sendEmail(
+      {
+        to: cleanEmail,
+        subject: "CALPEO Güvenlik - Şifre Sıfırlama Doğrulama Kodu",
+        text: `CALPEO hesabınız için şifre sıfırlama talebinde bulunuldu.\n\nDoğrulama Kodunuz: ${resetCode}\n\nBu kod 10 dakika geçerlidir.`,
+      },
+      resetCode
+    );
+
+    const isSimulation = emailResult.method === "simulation" || process.env.NODE_ENV !== "production";
 
     return NextResponse.json({
       success: true,
       step: "code_sent",
-      message: `${cleanEmail} adresine 6 haneli tek kullanımlık güvenlik kodu gönderildi (10 dakika geçerlidir).`,
+      message: isSimulation
+        ? `${cleanEmail} adresi için 6 haneli güvenlik kodu hazırlandı.`
+        : `${cleanEmail} adresine 6 haneli doğrulama kodu e-posta ile gönderildi.`,
+      preview_code: isSimulation ? resetCode : undefined,
+      is_simulation: isSimulation,
     });
   } catch (err: any) {
     return NextResponse.json(
