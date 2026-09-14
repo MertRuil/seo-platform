@@ -53,6 +53,48 @@ class CrawlerService:
         self.queue.append((start_url, 0))
         self.visited_urls.add(start_url)
 
+        # 4. Discover and seed URLs from Sitemap(s)
+        sitemap_targets = list(self.robots_parser.sitemaps) if self.robots_parser else []
+        default_sitemap = f"{site.preferred_protocol}://{site.domain}/sitemap.xml"
+        if default_sitemap not in sitemap_targets:
+            sitemap_targets.append(default_sitemap)
+
+        for sm_url in sitemap_targets[:5]:
+            try:
+                sm_resp = await client.fetch(sm_url)
+                if sm_resp.status_code == 200:
+                    sm_result = SitemapParser.parse_xml(sm_resp.text)
+                    if sm_result.is_valid:
+                        # If index sitemap, parse up to 5 sub-sitemaps
+                        if sm_result.is_index:
+                            for sub_url in sm_result.sitemap_indices[:5]:
+                                try:
+                                    sub_resp = await client.fetch(sub_url)
+                                    if sub_resp.status_code == 200:
+                                        sub_res = SitemapParser.parse_xml(sub_resp.text)
+                                        if sub_res.is_valid and not sub_res.is_index:
+                                            for sm_item in sub_res.urls:
+                                                try:
+                                                    norm_sm = UrlNormalizer.normalize(sm_item.loc)
+                                                    if norm_sm not in self.visited_urls:
+                                                        self.visited_urls.add(norm_sm)
+                                                        self.queue.append((norm_sm, 1))
+                                                except Exception:
+                                                    pass
+                                except Exception:
+                                    pass
+                        else:
+                            for sm_item in sm_result.urls:
+                                try:
+                                    norm_sm = UrlNormalizer.normalize(sm_item.loc)
+                                    if norm_sm not in self.visited_urls:
+                                        self.visited_urls.add(norm_sm)
+                                        self.queue.append((norm_sm, 1))
+                                except Exception:
+                                    pass
+            except Exception:
+                pass
+
         pages_crawled = 0
         errors_count = 0
         lock = asyncio.Lock()
@@ -62,9 +104,9 @@ class CrawlerService:
             nonlocal pages_crawled, errors_count
             async with semaphore:
                 # Respect robots.txt in Googlebot simulation mode
-                if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION":
-                    if self.robots_parser and not self.robots_parser.is_allowed(current_url, "Googlebot"):
-                        return
+                is_google_allowed = self.robots_parser.is_allowed(current_url, "Googlebot") if self.robots_parser else True
+                if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and not is_google_allowed:
+                    return
 
                 try:
                     resp = await client.fetch(current_url)
@@ -72,6 +114,14 @@ class CrawlerService:
                     async with lock:
                         errors_count += 1
                     return
+
+                # If redirected to a new URL on the same site, record the final URL as visited to prevent duplicate crawling
+                if resp.final_url and resp.final_url != current_url:
+                    try:
+                        norm_final = UrlNormalizer.normalize(resp.final_url)
+                        self.visited_urls.add(norm_final)
+                    except Exception:
+                        pass
 
                 html_to_parse = resp.text
                 # Optional headless render for SPAs if dynamic content detected
@@ -102,7 +152,7 @@ class CrawlerService:
                     content_type=resp.headers.get("content-type"),
                     response_time_ms=resp.response_time_ms,
                     is_fetchable=(resp.status_code < 400),
-                    is_crawlable_by_google=True,
+                    is_crawlable_by_google=is_google_allowed,
                     has_noindex=extracted.has_noindex if extracted else False,
                     is_indexable_candidate=is_indexable,
                     canonical_target=extracted.canonical_url if extracted else None,
@@ -132,7 +182,7 @@ class CrawlerService:
                     if pages_crawled % 20 == 0:
                         await self.db.commit()
 
-        # 4. Concurrent BFS Crawl Loop
+        # 5. Concurrent BFS Crawl Loop
         while self.queue and pages_crawled < crawl_run.max_pages:
             batch = []
             while self.queue and len(batch) < self.concurrency and (pages_crawled + len(batch)) < crawl_run.max_pages:
@@ -145,6 +195,7 @@ class CrawlerService:
 
         # Finalize crawl run status
         crawl_run.status = "COMPLETED"
+        crawl_run.total_urls_discovered = len(self.visited_urls)
         crawl_run.total_urls_crawled = pages_crawled
         crawl_run.total_errors = errors_count
         await self.db.commit()

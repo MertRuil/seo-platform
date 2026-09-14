@@ -93,21 +93,31 @@ class HtmlExtractor:
                 if "nofollow" in directives:
                     result.has_nofollow = True
 
-        # 3. Canonical
+        # 3. Base href tag support (RFC HTML standard)
+        effective_base_url = base_url
+        base_node = tree.css_first("base")
+        if base_node and base_node.attributes.get("href"):
+            raw_base = base_node.attributes.get("href", "").strip()
+            if raw_base:
+                resolved_base = UrlNormalizer.resolve_relative_url(base_url, raw_base)
+                if resolved_base:
+                    effective_base_url = resolved_base
+
+        # 4. Canonical
         for link in tree.css("link"):
             rel = (link.attributes.get("rel") or "").lower()
             href = link.attributes.get("href")
             hreflang = link.attributes.get("hreflang")
 
             if "canonical" in rel and href:
-                resolved_canonical = UrlNormalizer.resolve_relative_url(base_url, href)
+                resolved_canonical = UrlNormalizer.resolve_relative_url(effective_base_url, href)
                 result.canonical_url = resolved_canonical or href
 
             if "alternate" in rel and hreflang and href:
-                resolved_alt = UrlNormalizer.resolve_relative_url(base_url, href)
+                resolved_alt = UrlNormalizer.resolve_relative_url(effective_base_url, href)
                 result.hreflangs.append({"lang": hreflang.strip(), "href": resolved_alt or href})
 
-        # 4. Headings (H1 - H6)
+        # 5. Headings (H1 - H6)
         for i in range(1, 7):
             tag = f"h{i}"
             for h in tree.css(tag):
@@ -115,20 +125,30 @@ class HtmlExtractor:
                 if text and text.strip():
                     result.headings[tag].append(text.strip())
 
-        # 5. Links
-        base_domain = UrlNormalizer.normalize(base_url).split("/")[2]
+        # 6. Links
+        def _get_clean_host(u: str) -> str:
+            try:
+                norm = UrlNormalizer.normalize(u)
+                host = norm.split("/")[2].split(":")[0].lower()
+                if host.startswith("www."):
+                    host = host[4:]
+                return host
+            except Exception:
+                return ""
+
+        base_host = _get_clean_host(base_url)
         for a in tree.css("a"):
             href = a.attributes.get("href")
             if not href:
                 continue
-            resolved = UrlNormalizer.resolve_relative_url(base_url, href)
+            resolved = UrlNormalizer.resolve_relative_url(effective_base_url, href)
             if not resolved:
                 continue
 
             anchor_text = a.text().strip() if a.text() else ""
             rel = a.attributes.get("rel") or ""
-            target_domain = UrlNormalizer.normalize(resolved).split("/")[2] if "://" in resolved else base_domain
-            is_internal = (target_domain == base_domain)
+            target_host = _get_clean_host(resolved) if "://" in resolved else base_host
+            is_internal = (target_host == base_host) and bool(base_host)
 
             result.links.append(ExtractedLink(
                 href=resolved,
@@ -137,7 +157,7 @@ class HtmlExtractor:
                 is_internal=is_internal
             ))
 
-        # 6. Images
+        # 7. Images
         for img in tree.css("img"):
             src = img.attributes.get("src") or ""
             alt = img.attributes.get("alt")
@@ -145,7 +165,7 @@ class HtmlExtractor:
             width = img.attributes.get("width")
             height = img.attributes.get("height")
             if src:
-                resolved_src = UrlNormalizer.resolve_relative_url(base_url, src) or src
+                resolved_src = UrlNormalizer.resolve_relative_url(effective_base_url, src) or src
                 result.images.append(ExtractedImage(
                     src=resolved_src,
                     alt=alt if alt is not None else "",
