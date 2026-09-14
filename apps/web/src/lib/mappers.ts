@@ -73,6 +73,11 @@ const RULE_LABELS: Record<string, string> = {
   RULE_H1_MISSING: "H1 eksik",
   RULE_THIN_CONTENT_PROBABLE: "Olası ince içerik",
   RULE_SCHEMA_SYNTAX_ERROR: "Şema sözdizimi hatası",
+  RULE_INTERNAL_LINK_ORPHAN: "Yetim sayfa (bağlantısız sayfa)",
+  RULE_INTERNAL_LINK_TO_404: "Kırık iç bağlantı (404/4xx)",
+  RULE_INTERNAL_LINK_TO_5XX: "Kırık iç bağlantı (5xx)",
+  RULE_INTERNAL_LINK_TO_REDIRECT: "Yönlendirmeye işaret eden iç bağlantı (3xx)",
+  RULE_INTERNAL_LINK_EMPTY_HREF: "Geçersiz/boş iç bağlantı",
 };
 
 export function healthToView(h: SiteHealthReportResponse): HealthData {

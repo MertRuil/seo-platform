@@ -1,29 +1,55 @@
 import networkx as nx
 from typing import List, Dict, Any, Set, Tuple
+from services.crawler.url_normalizer import UrlNormalizer
 
 class SiteGraphEngine:
     def __init__(self):
         self.graph = nx.DiGraph()
 
+    @staticmethod
+    def _is_same_url(u1: str, u2: str) -> bool:
+        if not u1 or not u2:
+            return False
+        if u1 == u2 or u1.rstrip("/") == u2.rstrip("/"):
+            return True
+        try:
+            return UrlNormalizer.normalize(u1) == UrlNormalizer.normalize(u2)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _is_root(url: str, root_url: str) -> bool:
+        return SiteGraphEngine._is_same_url(url, root_url)
+
     def build_graph(self, pages: List[Dict[str, Any]], links: List[Dict[str, Any]]):
         """Builds directed graph from crawled pages and hyperlinks."""
         self.graph.clear()
+        node_map: Dict[str, str] = {}
         for page in pages:
             url = page.get("url")
             if url:
                 self.graph.add_node(url, title=page.get("title", ""), status_code=page.get("status_code", 200))
+                node_map[url] = url
+                node_map[url.rstrip("/")] = url
+                try:
+                    node_map[UrlNormalizer.normalize(url)] = url
+                except Exception:
+                    pass
 
         for link in links:
             source = link.get("source_url")
             target = link.get("target_url")
             if source and target and link.get("is_internal", True):
-                if not self.graph.has_node(source):
-                    self.graph.add_node(source)
-                if not self.graph.has_node(target):
-                    self.graph.add_node(target)
+                resolved_source = node_map.get(source) or node_map.get(source.rstrip("/")) or source
+                resolved_target = node_map.get(target) or node_map.get(target.rstrip("/")) or target
+
+                if not self.graph.has_node(resolved_source):
+                    self.graph.add_node(resolved_source)
+                if not self.graph.has_node(resolved_target):
+                    self.graph.add_node(resolved_target)
                 self.graph.add_edge(
-                    source,
-                    target,
+                    resolved_source,
+                    resolved_target,
                     anchor_text=link.get("anchor_text", ""),
                     rel=link.get("rel", "")
                 )
@@ -35,8 +61,15 @@ class SiteGraphEngine:
         n = len(nodes)
         if n == 0:
             return {}
+
+        # Exclude self-loops from PageRank calculation to prevent self-absorbing loops
+        calc_graph = graph
+        if nx.number_of_selfloops(graph) > 0:
+            calc_graph = graph.copy()
+            calc_graph.remove_edges_from(nx.selfloop_edges(calc_graph))
+
         pr = {node: 1.0 / n for node in nodes}
-        out_degrees = dict(graph.out_degree())
+        out_degrees = dict(calc_graph.out_degree())
 
         for _ in range(max_iter):
             prev_pr = dict(pr)
@@ -48,7 +81,7 @@ class SiteGraphEngine:
             for node in nodes:
                 incoming_sum = sum(
                     prev_pr[pred] / out_degrees[pred]
-                    for pred in graph.predecessors(node)
+                    for pred in calc_graph.predecessors(node)
                     if out_degrees[pred] > 0
                 )
                 pr[node] = base_score + alpha * incoming_sum
@@ -76,20 +109,35 @@ class SiteGraphEngine:
 
         # 2. Shortest path (click depth) from root_url
         depths: Dict[str, int] = {}
+        actual_root = None
         if self.graph.has_node(root_url):
+            actual_root = root_url
+        else:
+            for node in self.graph.nodes:
+                if self._is_root(node, root_url):
+                    actual_root = node
+                    break
+
+        if actual_root:
             try:
-                paths = nx.single_source_shortest_path_length(self.graph, root_url)
+                paths = nx.single_source_shortest_path_length(self.graph, actual_root)
                 depths = paths
             except Exception:
-                depths = {root_url: 0}
+                depths = {actual_root: 0}
 
         # 3. Degrees and Orphan pages
         in_degrees = dict(self.graph.in_degree())
         out_degrees = dict(self.graph.out_degree())
 
+        # Calculate in-degree excluding self-loops so self-linking pages are not masked
+        in_degrees_no_self = {
+            node: sum(1 for pred in self.graph.predecessors(node) if not self._is_same_url(pred, node))
+            for node in self.graph.nodes
+        }
+
         orphan_pages = [
-            node for node, in_deg in in_degrees.items()
-            if in_deg == 0 and node != root_url
+            node for node, count in in_degrees_no_self.items()
+            if count == 0 and not self._is_root(node, root_url)
         ]
 
         dead_ends = [
@@ -116,8 +164,12 @@ class SiteGraphEngine:
             return []
 
         sorted_by_pr = sorted(pr.items(), key=lambda x: x[1], reverse=True)
-        hub_cutoff_idx = max(1, int(len(sorted_by_pr) * (1.0 - min_hub_pr_percentile)))
-        hubs = [url for url, _ in sorted_by_pr[:hub_cutoff_idx]]
+        orphan_set = set(metrics["orphan_pages"])
+        non_orphan_candidates = [url for url, _ in sorted_by_pr if url not in orphan_set]
+
+        hub_pool = non_orphan_candidates if non_orphan_candidates else [url for url, _ in sorted_by_pr]
+        hub_cutoff_idx = max(1, int(len(hub_pool) * (1.0 - min_hub_pr_percentile)))
+        hubs = hub_pool[:hub_cutoff_idx]
 
         opportunities: List[Dict[str, Any]] = []
         for orphan in metrics["orphan_pages"]:

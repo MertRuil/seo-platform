@@ -33,7 +33,8 @@ from services.seo_engine.rules.rules_impl import (
     InternalLinkTo404Rule,
     InternalLinkTo5xxRule,
     InternalLinkToRedirectRule,
-    InternalLinkEmptyHrefRule
+    InternalLinkEmptyHrefRule,
+    InternalLinkOrphanRule
 )
 
 class SeoRuleEngine:
@@ -71,6 +72,7 @@ class SeoRuleEngine:
             InternalLinkTo5xxRule(),
             InternalLinkToRedirectRule(),
             InternalLinkEmptyHrefRule(),
+            InternalLinkOrphanRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
@@ -143,13 +145,96 @@ class SeoRuleEngine:
                 norm_m = " ".join(str(m).split()).strip().lower()
                 meta_desc_index.setdefault(norm_m, []).append(url)
 
+        # Root URL detection
+        root_url = None
+        for p in pages:
+            if p.get("depth") == 0 and p.get("url"):
+                root_url = p["url"]
+                break
+        if not root_url:
+            from urllib.parse import urlparse
+            for p in pages:
+                u = p.get("url")
+                if u and urlparse(u).path in ("", "/"):
+                    root_url = u
+                    break
+        if not root_url and pages:
+            valid_urls = [p["url"] for p in pages if p.get("url")]
+            if valid_urls:
+                root_url = min(valid_urls, key=len)
+
+        # Check if site crawl provided internal links data
+        has_links_data = any(("internal_links" in p or "links" in p) for p in pages)
+
+        def _is_same(u1: str, u2: str) -> bool:
+            if not u1 or not u2:
+                return False
+            if u1 == u2 or u1.rstrip("/") == u2.rstrip("/"):
+                return True
+            try:
+                return UrlNormalizer.normalize(u1) == UrlNormalizer.normalize(u2)
+            except Exception:
+                return False
+
+        incoming_links_map: Dict[str, Set[str]] = {p["url"]: set() for p in pages if "url" in p}
+        incoming_links_by_norm: Dict[str, Set[str]] = {}
+
+        if has_links_data and len(pages) > 1:
+            for p in pages:
+                source_url = p.get("url")
+                if not source_url:
+                    continue
+                raw_links = p.get("internal_links") or p.get("links") or []
+                for l in raw_links:
+                    href = (l.get("href") if isinstance(l, dict) else getattr(l, "href", None)) if l else None
+                    if not href:
+                        continue
+                    is_internal = l.get("is_internal", True) if isinstance(l, dict) else getattr(l, "is_internal", True)
+                    if not is_internal:
+                        continue
+
+                    if _is_same(source_url, href):
+                        continue
+
+                    target_page = pages_by_url.get(href) or pages_by_norm.get(href.rstrip("/")) or pages_by_norm.get(href)
+                    target_canon_url = target_page.get("url") if target_page else href
+                    incoming_links_map.setdefault(target_canon_url, set()).add(source_url)
+                    incoming_links_by_norm.setdefault(target_canon_url.rstrip("/"), set()).add(source_url)
+
+        orphan_pages: Set[str] = set()
+        incoming_links_count: Dict[str, int] = {}
+
+        if has_links_data and len(pages) > 1:
+            for p in pages:
+                u = p.get("url")
+                if not u:
+                    continue
+                if root_url and _is_same(u, root_url):
+                    continue
+                if p.get("status_code", 200) != 200:
+                    continue
+                if p.get("has_noindex") or p.get("is_canonical") is False:
+                    continue
+
+                in_links = incoming_links_map.get(u) or incoming_links_by_norm.get(u.rstrip("/")) or set()
+                count = len(in_links)
+                incoming_links_count[u] = count
+                incoming_links_count[u.rstrip("/")] = count
+                if count == 0:
+                    orphan_pages.add(u)
+                    orphan_pages.add(u.rstrip("/"))
+
         site_context = {
             "pages_by_url": pages_by_url,
             "pages_by_norm": pages_by_norm,
             "has_sitemap": has_sitemap,
             "titles_index": titles_index,
             "h1_index": h1_index,
-            "meta_desc_index": meta_desc_index
+            "meta_desc_index": meta_desc_index,
+            "root_url": root_url,
+            "has_links_data": has_links_data,
+            "orphan_pages": orphan_pages,
+            "incoming_links_count": incoming_links_count
         }
 
         all_issues: List[RuleCheckResult] = []
@@ -262,6 +347,11 @@ class SeoRuleEngine:
             "redirecting_internal_links_count": redirect_links_count
         }
 
+        orphan_stats = {
+            "total_orphan_pages_count": len([p for p in pages if p.get("url") in orphan_pages]),
+            "orphan_urls": [p.get("url") for p in pages if p.get("url") in orphan_pages]
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
@@ -270,5 +360,6 @@ class SeoRuleEngine:
             "issues_by_page": issues_by_page,
             "sitemap_reconciliation": sitemap_reconciliation,
             "duplicate_stats": duplicate_stats,
-            "broken_links_stats": broken_links_stats
+            "broken_links_stats": broken_links_stats,
+            "orphan_stats": orphan_stats
         }

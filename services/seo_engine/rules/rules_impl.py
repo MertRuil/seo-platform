@@ -1221,3 +1221,97 @@ class InternalLinkEmptyHrefRule(SeoRule):
                 documentation_url=self.documentation_url
             )
         return None
+
+class InternalLinkOrphanRule(SeoRule):
+    rule_id = "RULE_INTERNAL_LINK_ORPHAN"
+    name = "Orphan Page (Zero Incoming Internal Links)"
+    category = RuleCategory.INTERNAL_LINKING
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if not site_context:
+            return None
+
+        # Orphan detection only applies when analyzing multiple pages with link data
+        pages_by_url = site_context.get("pages_by_url", {})
+        if len(pages_by_url) <= 1:
+            return None
+
+        if not site_context.get("has_links_data", False):
+            return None
+
+        current_url = page_context.get("url", "")
+        if not current_url:
+            return None
+
+        # Root URL / Homepage is never an orphan
+        root_url = site_context.get("root_url")
+        if root_url and self._is_root(current_url, root_url):
+            return None
+
+        # Only evaluate 200 OK indexable candidates
+        status_code = page_context.get("status_code", 200)
+        if status_code != 200:
+            return None
+        if page_context.get("has_noindex"):
+            return None
+        if page_context.get("is_canonical") is False:
+            return None
+
+        orphan_pages = site_context.get("orphan_pages", set())
+        incoming_links_count = site_context.get("incoming_links_count", {})
+
+        is_orphan = current_url in orphan_pages or incoming_links_count.get(current_url, 1) == 0
+        if not is_orphan:
+            norm_url = current_url.rstrip("/")
+            if norm_url in orphan_pages or incoming_links_count.get(norm_url, 1) == 0:
+                is_orphan = True
+
+        if is_orphan:
+            in_sitemap = page_context.get("in_sitemap", False)
+            topic = page_context.get("title") or "Sayfa İçeriği"
+            if in_sitemap:
+                desc = (
+                    f"Bu sayfa ({current_url}) site haritasında (XML sitemap) yer almasına rağmen, "
+                    "sitedeki diğer hiçbir sayfadan iç bağlantı (internal link) almıyor. "
+                    "Yetim sayfalar (orphan pages) arama motorları ve kullanıcılar tarafından bulunmakta zorlanır."
+                )
+            else:
+                desc = (
+                    f"Bu sayfa ({current_url}) sitedeki diğer hiçbir sayfadan iç bağlantı (internal link) almıyor. "
+                    "Yetim sayfalar (orphan pages) arama motorları ve kullanıcılar tarafından bulunmakta ve dizine eklenmekte zorlanır."
+                )
+
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Yetim Sayfa Tespit Edildi (Orphan Page)",
+                description=desc,
+                evidence={
+                    "url": current_url,
+                    "target_url": current_url,
+                    "target_topic": topic,
+                    "incoming_internal_links_count": 0,
+                    "is_orphan": True,
+                    "in_sitemap": in_sitemap
+                },
+                recommendation_template="Sitedeki ilgili ve otoriter sayfalardan bu yetim sayfaya açıklayıcı çapa metinleri (anchor text) ile iç bağlantı verin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+    @staticmethod
+    def _is_root(url: str, root: str) -> bool:
+        if not url or not root:
+            return False
+        if url == root or url.rstrip("/") == root.rstrip("/"):
+            return True
+        try:
+            return UrlNormalizer.normalize(url) == UrlNormalizer.normalize(root)
+        except Exception:
+            return False
+

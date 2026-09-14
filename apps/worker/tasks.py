@@ -238,9 +238,16 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                     "status_code": p.status_code,
                     "canonical_target": p.canonical_target,
                     "has_noindex": p.has_noindex,
+                    "in_sitemap": p.in_sitemap,
+                    "is_indexable_candidate": p.is_indexable_candidate,
+                    "is_canonical": p.is_canonical if p.is_canonical is not None else True,
+                    "is_crawlable_by_google": p.is_crawlable_by_google,
                     "title": p.title,
                     "meta_description": p.meta_description,
-                    "word_count": p.word_count
+                    "h1": getattr(p, "h1", None),
+                    "headings": {"h1": [p.h1]} if getattr(p, "h1", None) else {},
+                    "internal_links": json.loads(p.internal_links_json) if getattr(p, "internal_links_json", None) else [],
+                    "word_count": p.word_count,
                 }
                 for p in pages
             ]
