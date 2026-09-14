@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import Set, List, Dict, Any, Optional
 from collections import deque
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -159,10 +160,43 @@ class CrawlerService:
 
                 extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
 
+                # Detect X-Robots-Tag HTTP header and HTTP Link canonical header
+                page_has_noindex = (extracted.has_noindex if extracted else False)
+                page_has_nofollow = (extracted.has_nofollow if extracted else False)
+                if resp.headers:
+                    x_robots = (resp.headers.get("x-robots-tag") or "").lower()
+                    if x_robots:
+                        x_directives = [d.strip() for d in x_robots.split(",") if d.strip()]
+                        if "noindex" in x_directives or "none" in x_directives:
+                            page_has_noindex = True
+                        if "nofollow" in x_directives or "none" in x_directives:
+                            page_has_nofollow = True
+
+                    # Fallback to Link: <...>; rel="canonical" header if canonical not in HTML
+                    if extracted and not extracted.canonical_url:
+                        link_header = resp.headers.get("link", "")
+                        if "canonical" in link_header.lower():
+                            match = re.search(r'<([^>]+)>;\s*rel=["\']?canonical["\']?', link_header, re.IGNORECASE)
+                            if match:
+                                extracted.canonical_url = match.group(1).strip()
+
+                # Self-canonical comparison with trailing-slash and protocol tolerance
+                def _is_self_canonical(can_url: Optional[str], curr_url: str) -> bool:
+                    if not can_url:
+                        return True
+                    try:
+                        n_can = UrlNormalizer.normalize(can_url).rstrip("/")
+                        n_curr = UrlNormalizer.normalize(curr_url).rstrip("/")
+                        return n_can == n_curr
+                    except Exception:
+                        return can_url.rstrip("/") == curr_url.rstrip("/")
+
+                is_self_canonical = _is_self_canonical(extracted.canonical_url, current_url) if (extracted and extracted.canonical_url) else True
+
                 # Create CrawlPage record
                 is_indexable = (
                     resp.status_code == 200 and
-                    (extracted is not None and not extracted.has_noindex)
+                    (extracted is not None and not page_has_noindex)
                 )
 
                 page = CrawlPage(
@@ -176,10 +210,10 @@ class CrawlerService:
                     response_time_ms=resp.response_time_ms,
                     is_fetchable=(resp.status_code < 400),
                     is_crawlable_by_google=is_google_allowed,
-                    has_noindex=extracted.has_noindex if extracted else False,
+                    has_noindex=page_has_noindex,
                     is_indexable_candidate=is_indexable,
                     canonical_target=extracted.canonical_url if extracted else None,
-                    is_canonical=(extracted.canonical_url == current_url) if (extracted and extracted.canonical_url) else True,
+                    is_canonical=is_self_canonical,
                     title=extracted.title if extracted else None,
                     meta_description=extracted.meta_description if extracted else None,
                     word_count=extracted.word_count if extracted else 0,
@@ -192,14 +226,19 @@ class CrawlerService:
                     self.db.add(page)
                     pages_crawled += 1
 
-                    # Discover internal links if depth permits
+                    # Discover internal links if depth permits and page is not nofollow
                     if extracted and depth < crawl_run.max_depth:
-                        for link in extracted.links:
-                            if link.is_internal:
-                                norm_link = UrlNormalizer.normalize(link.href)
-                                if norm_link not in self.visited_urls:
-                                    self.visited_urls.add(norm_link)
-                                    self.queue.append((norm_link, depth + 1))
+                        if not (crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and page_has_nofollow):
+                            for link in extracted.links:
+                                if link.is_internal:
+                                    # In Googlebot simulation, respect rel="nofollow"
+                                    link_rels = [r.lower() for r in (link.rel or "").split()]
+                                    if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and "nofollow" in link_rels:
+                                        continue
+                                    norm_link = UrlNormalizer.normalize(link.href)
+                                    if norm_link not in self.visited_urls:
+                                        self.visited_urls.add(norm_link)
+                                        self.queue.append((norm_link, depth + 1))
 
                     # Commit batch periodically
                     if pages_crawled % 20 == 0:

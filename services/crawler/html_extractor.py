@@ -80,17 +80,17 @@ class HtmlExtractor:
 
         # 2. Meta description & Meta robots
         for meta in tree.css("meta"):
-            name = (meta.attributes.get("name") or "").lower()
+            name = (meta.attributes.get("name") or meta.attributes.get("property") or "").lower()
             content = meta.attributes.get("content") or ""
 
             if name == "description":
                 result.meta_description = content.strip()
-            elif name in ("robots", "googlebot"):
+            elif name in ("robots", "googlebot", "bingbot"):
                 directives = [d.strip().lower() for d in content.split(",") if d.strip()]
                 result.meta_robots.extend(directives)
-                if "noindex" in directives:
+                if "noindex" in directives or "none" in directives:
                     result.has_noindex = True
-                if "nofollow" in directives:
+                if "nofollow" in directives or "none" in directives:
                     result.has_nofollow = True
 
         # 3. Base href tag support (RFC HTML standard)

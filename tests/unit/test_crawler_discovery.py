@@ -291,3 +291,168 @@ async def test_crawler_service_respects_robots_txt_disallow():
         assert public_page is not None
         assert public_page.is_crawlable_by_google is True
         assert public_page.status_code == 200
+
+def test_html_extractor_none_directive_and_bingbot():
+    html = """
+    <html>
+    <head>
+        <meta name="googlebot" content="none">
+    </head>
+    <body><p>None content</p></body>
+    </html>
+    """
+    res = HtmlExtractor.extract(html, "https://example.com/test")
+    assert res.has_noindex is True
+    assert res.has_nofollow is True
+
+@pytest.mark.asyncio
+async def test_crawler_x_robots_tag_and_canonical_detection():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    run_id = f"run_{uuid.uuid4().hex[:8]}"
+    org_id = f"org_{uuid.uuid4().hex[:8]}"
+    site_id = f"site_{uuid.uuid4().hex[:8]}"
+
+    async with AsyncSessionLocal() as session:
+        org = Organization(id=org_id, name="SEO Tags Org", slug=f"seo-tags-org-{uuid.uuid4().hex[:6]}")
+        site = Site(
+            id=site_id,
+            organization_id=org_id,
+            name="SEO Tags Site",
+            domain="seotags.local",
+            normalized_domain="seotags.local",
+            primary_url="https://seotags.local",
+            preferred_protocol="https",
+            verification_status="VERIFIED"
+        )
+        crawl_run = CrawlRun(
+            id=run_id,
+            site_id=site_id,
+            crawl_mode="GOOGLEBOT_SIMULATION",
+            max_pages=10,
+            max_depth=3,
+            status="PENDING"
+        )
+        session.add_all([org, site, crawl_run])
+        await session.commit()
+
+        home_html = """
+        <html><body>
+            <a href="/self-canonical/">Self Canonical Page</a>
+            <a href="/alternate-canonical">Non-canonical Page</a>
+            <a href="/x-robots-noindex">X-Robots Page</a>
+            <a href="/unfollowed-target" rel="nofollow">Nofollow Link Target</a>
+        </body></html>
+        """
+
+        responses = {
+            "https://seotags.local/robots.txt": FetchResponse(
+                requested_url="https://seotags.local/robots.txt",
+                final_url="https://seotags.local/robots.txt",
+                status_code=200,
+                headers={},
+                text="User-agent: *\nDisallow:",
+                response_time_ms=5,
+                redirect_chain=[]
+            ),
+            "https://seotags.local/": FetchResponse(
+                requested_url="https://seotags.local/",
+                final_url="https://seotags.local/",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text=home_html,
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            # Page has canonical without trailing slash, while URL has trailing slash (Self-canonical match)
+            "https://seotags.local/self-canonical/": FetchResponse(
+                requested_url="https://seotags.local/self-canonical/",
+                final_url="https://seotags.local/self-canonical/",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text='<html><head><link rel="canonical" href="https://seotags.local/self-canonical"></head><body><h1>Self</h1></body></html>',
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            # Page points canonical to a different master page
+            "https://seotags.local/alternate-canonical": FetchResponse(
+                requested_url="https://seotags.local/alternate-canonical",
+                final_url="https://seotags.local/alternate-canonical",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text='<html><head><link rel="canonical" href="https://seotags.local/master-page"></head><body><h1>Alternate</h1></body></html>',
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            # Page has X-Robots-Tag: noindex, nofollow in HTTP headers
+            "https://seotags.local/x-robots-noindex": FetchResponse(
+                requested_url="https://seotags.local/x-robots-noindex",
+                final_url="https://seotags.local/x-robots-noindex",
+                status_code=200,
+                headers={"content-type": "text/html", "x-robots-tag": "noindex, nofollow"},
+                text='<html><body><h1>Header Noindex</h1><a href="/leaked-page">Leaked Page</a></body></html>',
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            "https://seotags.local/unfollowed-target": FetchResponse(
+                requested_url="https://seotags.local/unfollowed-target",
+                final_url="https://seotags.local/unfollowed-target",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text='<html><body><h1>Should not be visited in Googlebot mode</h1></body></html>',
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            "https://seotags.local/leaked-page": FetchResponse(
+                requested_url="https://seotags.local/leaked-page",
+                final_url="https://seotags.local/leaked-page",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text='<html><body><h1>Should not be followed from nofollow page</h1></body></html>',
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+        }
+
+        async def mock_fetch(url):
+            return responses.get(url, FetchResponse(
+                requested_url=url,
+                final_url=url,
+                status_code=404,
+                headers={},
+                text="Not found",
+                response_time_ms=5,
+                redirect_chain=[]
+            ))
+
+        with patch("services.crawler.safe_client.SafeHttpClient.fetch", new=AsyncMock(side_effect=mock_fetch)):
+            crawler = CrawlerService(session, run_id, concurrency=1)
+            await crawler.run()
+
+        from sqlalchemy.future import select
+        pages_res = await session.execute(select(CrawlPage).where(CrawlPage.crawl_run_id == run_id))
+        crawled = pages_res.scalars().all()
+        urls_crawled = [p.url for p in crawled]
+
+        # 1. Self canonical page (/self-canonical/ vs /self-canonical) correctly detected as is_canonical=True
+        self_page = next((p for p in crawled if "self-canonical" in p.url), None)
+        assert self_page is not None
+        assert self_page.is_canonical is True
+        assert self_page.canonical_target == "https://seotags.local/self-canonical"
+
+        # 2. Alternate canonical page correctly detected as is_canonical=False
+        alt_page = next((p for p in crawled if "alternate-canonical" in p.url), None)
+        assert alt_page is not None
+        assert alt_page.is_canonical is False
+        assert alt_page.canonical_target == "https://seotags.local/master-page"
+
+        # 3. X-Robots-Tag header correctly sets has_noindex=True and is_indexable_candidate=False
+        x_page = next((p for p in crawled if "x-robots-noindex" in p.url), None)
+        assert x_page is not None
+        assert x_page.has_noindex is True
+        assert x_page.is_indexable_candidate is False
+
+        # 4. In Googlebot mode, links with rel="nofollow" or on nofollow pages are NOT followed
+        assert "https://seotags.local/unfollowed-target" not in urls_crawled
+        assert "https://seotags.local/leaked-page" not in urls_crawled
