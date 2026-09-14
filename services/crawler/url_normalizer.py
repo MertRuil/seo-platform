@@ -47,6 +47,15 @@ class UrlNormalizer:
             return None
 
     @staticmethod
+    def get_domain(url: str) -> str:
+        """Extracts lowercase domain/hostname from a URL."""
+        if not url:
+            return ""
+        parsed = urlparse(url.strip() if "//" in url else f"https://{url.strip()}")
+        host = parsed.hostname or ""
+        return host.lower().rstrip(".")
+
+    @staticmethod
     def normalize(url: str) -> str:
         """
         Applies standard deterministic URL normalization:

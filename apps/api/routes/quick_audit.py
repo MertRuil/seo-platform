@@ -108,12 +108,14 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
 
     page_context = {
         "url": normalized_url,
-        "status_code": resp.status_code,
-        "canonical_target": extracted.canonical_url if extracted else None,
+        "status_code": (resp.redirect_chain[0].status_code if resp.redirect_chain else resp.status_code),
+        "canonical_target": extracted.canonical_url if extracted else (resp.redirect_chain[0].to_url if resp.redirect_chain else None),
         "has_noindex": extracted.has_noindex if extracted else False,
         "title": extracted.title if extracted else None,
         "meta_description": extracted.meta_description if extracted else None,
-        "word_count": extracted.word_count if extracted else 0
+        "word_count": extracted.word_count if extracted else 0,
+        "redirect_chain": resp.redirect_chain,
+        "is_redirect_loop": resp.is_redirect_loop,
     }
 
     # 1. Deterministik Kural Motoru

@@ -259,3 +259,190 @@ async def test_crawler_service_records_accurate_status_codes_for_all_http_types(
         assert p500.status_code == 500
         assert p500.is_fetchable is False
         assert p500.is_indexable_candidate is False
+
+def test_seo_rules_redirect_chain_direct():
+    engine = SeoRuleEngine()
+    page = {
+        "url": "https://example.com/chain-start",
+        "status_code": 301,
+        "redirect_chain": [
+            {"from_url": "https://example.com/chain-start", "to_url": "https://example.com/chain-hop", "status_code": 301},
+            {"from_url": "https://example.com/chain-hop", "to_url": "https://example.com/chain-end", "status_code": 301},
+        ],
+        "title": None,
+        "headings": {},
+        "word_count": 0
+    }
+    issues = engine.evaluate_page(page)
+    rule_ids = [i.rule_id for i in issues]
+    assert "RULE_REDIRECT_CHAIN" in rule_ids
+    issue = next(i for i in issues if i.rule_id == "RULE_REDIRECT_CHAIN")
+    assert "2 Atlama" in issue.title or "2 Adım" in issue.title
+
+def test_seo_rules_redirect_chain_graph_tracing():
+    engine = SeoRuleEngine()
+    pages = [
+        {"url": "https://example.com/hop-1", "canonical_target": "https://example.com/hop-2", "status_code": 301},
+        {"url": "https://example.com/hop-2", "canonical_target": "https://example.com/hop-3", "status_code": 301},
+        {"url": "https://example.com/hop-3", "canonical_target": None, "status_code": 200, "title": "Final Target", "meta_description": "Valid desc", "headings": {"h1": ["Heading"]}},
+    ]
+    report = engine.evaluate_site(pages)
+    rule_ids = [i.rule_id for i in report["issues"]]
+    assert "RULE_REDIRECT_CHAIN" in rule_ids
+    chain_issue = next(i for i in report["issues"] if i.rule_id == "RULE_REDIRECT_CHAIN")
+    assert "2 Atlama" in chain_issue.title or "2 Adım" in chain_issue.title
+    assert "https://example.com/hop-1 -> https://example.com/hop-2 -> https://example.com/hop-3" in chain_issue.description
+
+def test_seo_rules_redirect_loop_direct():
+    engine = SeoRuleEngine()
+    page = {
+        "url": "https://example.com/loop-page",
+        "status_code": 301,
+        "is_redirect_loop": True,
+        "redirect_chain": [
+            {"from_url": "https://example.com/loop-page", "to_url": "https://example.com/loop-target", "status_code": 301},
+            {"from_url": "https://example.com/loop-target", "to_url": "https://example.com/loop-page", "status_code": 301},
+        ],
+        "title": None,
+        "headings": {},
+        "word_count": 0
+    }
+    issues = engine.evaluate_page(page)
+    rule_ids = [i.rule_id for i in issues]
+    assert "RULE_REDIRECT_LOOP" in rule_ids
+
+def test_seo_rules_redirect_loop_graph_tracing():
+    engine = SeoRuleEngine()
+    pages = [
+        {"url": "https://example.com/loop-a", "canonical_target": "https://example.com/loop-b", "status_code": 301},
+        {"url": "https://example.com/loop-b", "canonical_target": "https://example.com/loop-a", "status_code": 301},
+    ]
+    report = engine.evaluate_site(pages)
+    rule_ids = [i.rule_id for i in report["issues"]]
+    assert "RULE_REDIRECT_LOOP" in rule_ids
+    loop_issues = [i for i in report["issues"] if i.rule_id == "RULE_REDIRECT_LOOP"]
+    assert len(loop_issues) == 2
+
+@pytest.mark.asyncio
+async def test_crawler_service_handles_redirect_chains_and_loops():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    AsyncSessionLocal = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+    
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
+    async with AsyncSessionLocal() as session:
+        site = Site(
+            id="s-redir",
+            organization_id="org-redir",
+            name="Redir Test",
+            domain="redirtest.com",
+            normalized_domain="redirtest.com",
+            primary_url="https://redirtest.com"
+        )
+        session.add(site)
+        run = CrawlRun(
+            id="r-redir",
+            site_id="s-redir",
+            status="PENDING",
+            crawl_mode="FAST_CONCURRENT",
+            max_pages=20,
+            max_depth=3
+        )
+        session.add(run)
+        await session.commit()
+        
+        home_html = """
+        <html>
+        <head><title>Home</title></head>
+        <body>
+            <a href="/chain-start">Chain</a>
+            <a href="/loop-1">Loop</a>
+        </body>
+        </html>
+        """
+        
+        responses = {
+            "https://redirtest.com": FetchResponse("https://redirtest.com", "https://redirtest.com", 200, {"content-type": "text/html"}, home_html, 20, []),
+            "https://redirtest.com/": FetchResponse("https://redirtest.com/", "https://redirtest.com/", 200, {"content-type": "text/html"}, home_html, 20, []),
+            "https://redirtest.com/chain-start": FetchResponse(
+                "https://redirtest.com/chain-start",
+                "https://redirtest.com/chain-dest",
+                200,
+                {"content-type": "text/html"},
+                "<html><head><title>Chain Dest</title></head><body>OK</body></html>",
+                30,
+                [
+                    RedirectHop("https://redirtest.com/chain-start", "https://redirtest.com/chain-hop", 301),
+                    RedirectHop("https://redirtest.com/chain-hop", "https://redirtest.com/chain-dest", 301),
+                ]
+            ),
+            "https://redirtest.com/chain-dest": FetchResponse(
+                "https://redirtest.com/chain-dest",
+                "https://redirtest.com/chain-dest",
+                200,
+                {"content-type": "text/html"},
+                "<html><head><title>Chain Dest</title></head><body>OK</body></html>",
+                20,
+                []
+            ),
+            "https://redirtest.com/loop-1": FetchResponse(
+                "https://redirtest.com/loop-1",
+                "https://redirtest.com/loop-1",
+                301,
+                {"location": "/loop-2"},
+                "",
+                15,
+                [
+                    RedirectHop("https://redirtest.com/loop-1", "https://redirtest.com/loop-2", 301),
+                    RedirectHop("https://redirtest.com/loop-2", "https://redirtest.com/loop-1", 301),
+                ],
+                is_redirect_loop=True
+            ),
+        }
+        
+        async def mock_fetch(url):
+            if "robots.txt" in url or "sitemap.xml" in url:
+                return FetchResponse(url, url, 404, {}, "", 10, [])
+            clean = url.rstrip("/") if url.endswith("/") and url.count("/") > 3 else url
+            return responses.get(clean, FetchResponse(url, url, 404, {}, "Not Found", 10, []))
+            
+        with patch("services.crawler.safe_client.SafeHttpClient.fetch", new=AsyncMock(side_effect=mock_fetch)):
+            crawler = CrawlerService(session, "r-redir", concurrency=1)
+            await crawler.run()
+            
+        from sqlalchemy.future import select
+        res = await session.execute(select(CrawlPage).where(CrawlPage.crawl_run_id == "r-redir"))
+        crawled_pages = {p.url: p for p in res.scalars().all()}
+        
+        # Verify chain-start and intermediate chain-hop were recorded
+        assert "https://redirtest.com/chain-start" in crawled_pages
+        assert "https://redirtest.com/chain-hop" in crawled_pages
+        assert "https://redirtest.com/chain-dest" in crawled_pages
+        assert crawled_pages["https://redirtest.com/chain-start"].canonical_target == "https://redirtest.com/chain-hop"
+        assert crawled_pages["https://redirtest.com/chain-hop"].canonical_target == "https://redirtest.com/chain-dest"
+        
+        # Verify loop was recorded and handled without crashing
+        assert "https://redirtest.com/loop-1" in crawled_pages
+        loop_p = crawled_pages["https://redirtest.com/loop-1"]
+        assert loop_p.status_code == 301
+        assert loop_p.canonical_target == "https://redirtest.com/loop-2"
+        
+        # Run SEO engine over crawled pages
+        pages_dict = [
+            {
+                "url": p.url,
+                "status_code": p.status_code,
+                "canonical_target": p.canonical_target,
+                "title": p.title,
+                "meta_description": p.meta_description,
+                "headings": {},
+                "word_count": p.word_count
+            }
+            for p in crawled_pages.values()
+        ]
+        seo_report = SeoRuleEngine().evaluate_site(pages_dict)
+        issue_ids = [i.rule_id for i in seo_report["issues"]]
+        assert "RULE_REDIRECT_CHAIN" in issue_ids
+        assert "RULE_REDIRECT_LOOP" in issue_ids
+

@@ -182,6 +182,8 @@ export interface SafeFetchResult {
   headers: Record<string, string>;
   text: string;
   finalUrl: string;
+  redirectChain?: Array<{ fromUrl: string; toUrl: string; statusCode: number }>;
+  isRedirectLoop?: boolean;
 }
 
 /**
@@ -201,6 +203,8 @@ export async function safeAuditFetch(
   const timeoutMs = options.timeoutMs ?? 10000;
   let currentUrl = targetUrl;
   let hops = 0;
+  const redirectChain: Array<{ fromUrl: string; toUrl: string; statusCode: number }> = [];
+  const visitedUrls = new Set<string>([targetUrl]);
 
   while (hops <= maxHops) {
     const urlObj = await validateSafeAuditUrl(currentUrl);
@@ -308,7 +312,26 @@ export async function safeAuditFetch(
 
     if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.location) {
       const nextUrl = new URL(res.location, currentUrl).toString();
-      // Validate redirect destination BEFORE making next request
+      redirectChain.push({
+        fromUrl: currentUrl,
+        toUrl: nextUrl,
+        statusCode: res.statusCode,
+      });
+
+      // Döngü tespiti (Ziyaret edilmiş bir URL'ye tekrar dönüldüyse)
+      if (visitedUrls.has(nextUrl)) {
+        return {
+          statusCode: res.statusCode,
+          headers: res.headers,
+          text: res.body,
+          finalUrl: nextUrl,
+          redirectChain,
+          isRedirectLoop: true,
+        };
+      }
+      visitedUrls.add(nextUrl);
+
+      // Yönlendirme hedefini sonraki istekten ÖNCE SSRF doğrulamasına tabi tut
       await validateSafeAuditUrl(nextUrl);
       currentUrl = nextUrl;
       hops++;
@@ -320,10 +343,18 @@ export async function safeAuditFetch(
       headers: res.headers,
       text: res.body,
       finalUrl: currentUrl,
+      redirectChain,
+      isRedirectLoop: false,
     };
   }
 
-  throw new SSRFSecurityError(
-    `Maksimum yönlendirme sınırı aşıldı (${maxHops} yönlendirme).`
-  );
+  // Maksimum yönlendirme sınırı aşıldıysa döngü olarak raporla
+  return {
+    statusCode: 310,
+    headers: {},
+    text: "",
+    finalUrl: currentUrl,
+    redirectChain,
+    isRedirectLoop: true,
+  };
 }

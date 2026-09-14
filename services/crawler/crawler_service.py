@@ -141,10 +141,10 @@ class CrawlerService:
 
                 norm_current = UrlNormalizer.normalize(current_url)
                 norm_final = UrlNormalizer.normalize(resp.final_url) if resp.final_url else norm_current
-                has_redirect = bool(resp.redirect_chain and norm_current != norm_final)
+                has_redirect = bool(resp.redirect_chain and (norm_current != norm_final or resp.is_redirect_loop))
 
                 if has_redirect:
-                    # current_url returned a 3xx redirect
+                    # current_url returned a 3xx redirect or redirect loop
                     initial_hop = resp.redirect_chain[0]
                     redirect_status = initial_hop.status_code
                     redirect_target = initial_hop.to_url
@@ -158,7 +158,7 @@ class CrawlerService:
                         status_code=redirect_status,
                         content_type=resp.headers.get("content-type"),
                         response_time_ms=resp.response_time_ms,
-                        is_fetchable=True,
+                        is_fetchable=(not resp.is_redirect_loop),
                         is_crawlable_by_google=is_google_allowed,
                         has_noindex=False,
                         is_indexable_candidate=False,
@@ -175,6 +175,80 @@ class CrawlerService:
                         self.db.add(redirect_page)
                         pages_crawled += 1
 
+                    # If circular redirect loop, record subsequent hops in the cycle and abort further crawling
+                    if resp.is_redirect_loop:
+                        if len(resp.redirect_chain) > 1:
+                            for loop_hop in resp.redirect_chain[1:]:
+                                try:
+                                    hop_domain = UrlNormalizer.get_domain(loop_hop.from_url)
+                                    is_hop_same_site = (hop_domain == site.normalized_domain or hop_domain.endswith("." + site.normalized_domain))
+                                except Exception:
+                                    is_hop_same_site = False
+
+                                if is_hop_same_site and pages_crawled < crawl_run.max_pages:
+                                    norm_hop_url = UrlNormalizer.normalize(loop_hop.from_url)
+                                    if norm_hop_url not in self.visited_urls:
+                                        self.visited_urls.add(norm_hop_url)
+                                        cycle_page = CrawlPage(
+                                            crawl_run_id=crawl_run.id,
+                                            site_id=site.id,
+                                            url=loop_hop.from_url,
+                                            normalized_url=norm_hop_url,
+                                            depth=depth + 1,
+                                            status_code=loop_hop.status_code,
+                                            content_type=None,
+                                            response_time_ms=0,
+                                            is_fetchable=False,
+                                            is_crawlable_by_google=is_google_allowed,
+                                            has_noindex=False,
+                                            is_indexable_candidate=False,
+                                            canonical_target=loop_hop.to_url,
+                                            is_canonical=False,
+                                            title=None,
+                                            meta_description=None,
+                                            word_count=0
+                                        )
+                                        async with lock:
+                                            self.db.add(cycle_page)
+                                            pages_crawled += 1
+                        return
+
+                    # Record any intermediate redirect hops in a redirect chain
+                    if len(resp.redirect_chain) > 1:
+                        for inter_hop in resp.redirect_chain[1:]:
+                            try:
+                                inter_domain = UrlNormalizer.get_domain(inter_hop.from_url)
+                                is_inter_same_site = (inter_domain == site.normalized_domain or inter_domain.endswith("." + site.normalized_domain))
+                            except Exception:
+                                is_inter_same_site = False
+
+                            if is_inter_same_site and pages_crawled < crawl_run.max_pages:
+                                norm_inter_url = UrlNormalizer.normalize(inter_hop.from_url)
+                                if norm_inter_url not in self.visited_urls:
+                                    self.visited_urls.add(norm_inter_url)
+                                    inter_page = CrawlPage(
+                                        crawl_run_id=crawl_run.id,
+                                        site_id=site.id,
+                                        url=inter_hop.from_url,
+                                        normalized_url=norm_inter_url,
+                                        depth=depth + 1,
+                                        status_code=inter_hop.status_code,
+                                        content_type=None,
+                                        response_time_ms=0,
+                                        is_fetchable=True,
+                                        is_crawlable_by_google=is_google_allowed,
+                                        has_noindex=False,
+                                        is_indexable_candidate=False,
+                                        canonical_target=inter_hop.to_url,
+                                        is_canonical=False,
+                                        title=None,
+                                        meta_description=None,
+                                        word_count=0
+                                    )
+                                    async with lock:
+                                        self.db.add(inter_page)
+                                        pages_crawled += 1
+
                     # If final destination is on the same site, process and record the destination page as well
                     try:
                         final_domain = UrlNormalizer.get_domain(resp.final_url)
@@ -182,7 +256,7 @@ class CrawlerService:
                     except Exception:
                         is_same_site = False
 
-                    if is_same_site and not resp.is_redirect_loop and norm_final not in self.visited_urls:
+                    if is_same_site and norm_final not in self.visited_urls and pages_crawled < crawl_run.max_pages:
                         self.visited_urls.add(norm_final)
                         final_google_allowed = self.robots_parser.is_allowed(resp.final_url, "Googlebot") if self.robots_parser else True
 

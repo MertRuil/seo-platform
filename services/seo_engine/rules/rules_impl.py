@@ -251,20 +251,62 @@ class RedirectChainRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        current_url = page_context.get("url", "")
+        # 1. Direct check if redirect_chain is explicitly provided in page_context
         chain = page_context.get("redirect_chain", [])
         if len(chain) > 1:
+            hop_count = len(chain)
+            chain_list = [getattr(h, 'to_url', str(h)) for h in chain]
             return RuleCheckResult(
                 passed=False,
                 rule_id=self.rule_id,
                 category=self.category,
                 severity=self.default_severity,
                 confidence=1.0,
-                title=f"Redirect chain detected ({len(chain)} hops)",
-                description="Redirect chains waste crawl budget and increase latency before destination page delivery.",
-                evidence={"url": page_context.get("url"), "hop_count": len(chain), "chain": chain},
-                recommendation_template="Point the initial redirect directly to the final canonical destination.",
+                title=f"Yönlendirme Zinciri Tespit Edildi ({hop_count} Atlama)",
+                description=f"Sayfa nihai hedefe ulaşmadan önce {hop_count} kez art arda yönlendiriliyor. Bu durum tarama bütçesini tüketir ve sayfa açılışını geciktirir.",
+                evidence={"url": current_url, "hop_count": hop_count, "chain": chain_list},
+                recommendation_template="İlk yönlendirmenin doğrudan nihai 200 HTTP hedefine yönlendirilmesini sağlayarak aradaki yönlendirmeleri kaldırın.",
                 documentation_url=self.documentation_url
             )
+
+        # 2. Cross-page graph tracing via site_context
+        status_code = page_context.get("status_code", 200)
+        if status_code in (301, 302, 303, 307, 308) and site_context:
+            pages_by_url = site_context.get("pages_by_url", {})
+            visited_chain = [current_url]
+            curr = page_context
+
+            while curr:
+                target = curr.get("canonical_target")
+                if not target or target in visited_chain:
+                    break
+                target_page = pages_by_url.get(target)
+                if not target_page:
+                    target_page = pages_by_url.get(target.rstrip("/")) or pages_by_url.get(target + "/")
+
+                if target_page and target_page.get("status_code") in (301, 302, 303, 307, 308):
+                    visited_chain.append(target)
+                    curr = target_page
+                else:
+                    if target_page:
+                        visited_chain.append(target)
+                    break
+
+            hop_count = len(visited_chain) - 1
+            if hop_count > 1:
+                return RuleCheckResult(
+                    passed=False,
+                    rule_id=self.rule_id,
+                    category=self.category,
+                    severity=self.default_severity,
+                    confidence=1.0,
+                    title=f"Yönlendirme Zinciri Tespit Edildi ({hop_count} Atlama)",
+                    description=f"Sayfa nihai hedefe ulaşmadan önce {hop_count} kez art arda yönlendiriliyor ({' -> '.join(visited_chain)}). Bu durum tarama bütçesini tüketir ve sayfa açılışını geciktirir.",
+                    evidence={"url": current_url, "hop_count": hop_count, "chain": visited_chain},
+                    recommendation_template="İlk yönlendirmenin doğrudan nihai 200 HTTP hedefine yönlendirilmesini sağlayarak aradaki yönlendirmeleri kaldırın.",
+                    documentation_url=self.documentation_url
+                )
         return None
 
 class RedirectLoopRule(SeoRule):
@@ -275,19 +317,61 @@ class RedirectLoopRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        current_url = page_context.get("url", "")
+
+        # 1. Direct check if is_redirect_loop flag is present
         if page_context.get("is_redirect_loop", False):
+            chain = page_context.get("redirect_chain", [])
+            chain_list = [getattr(h, 'to_url', str(h)) for h in chain] if chain else [current_url]
             return RuleCheckResult(
                 passed=False,
                 rule_id=self.rule_id,
                 category=self.category,
                 severity=self.default_severity,
                 confidence=1.0,
-                title="Circular redirect loop prevents page load",
-                description="An infinite redirect loop was encountered, completely preventing bots and users from reaching the page.",
-                evidence={"url": page_context.get("url"), "chain": page_context.get("redirect_chain", [])},
-                recommendation_template="Break the infinite loop by updating redirect rules in your server or CMS configuration.",
+                title="Döngüsel Yönlendirme (Redirect Loop) Tespit Edildi",
+                description="Sayfa sonsuz bir yönlendirme döngüsüne giriyor. Tarayıcı botları ve kullanıcılar sayfaya hiçbir şekilde ulaşamaz.",
+                evidence={"url": current_url, "chain": chain_list},
+                recommendation_template="Yönlendirme kurallarını güncelleyerek döngüyü kırın ve sayfayı doğrudan tek bir nihai URL'ye yönlendirin.",
                 documentation_url=self.documentation_url
             )
+
+        # 2. Cross-page circular graph tracing via site_context
+        status_code = page_context.get("status_code", 200)
+        if status_code in (301, 302, 303, 307, 308, 310) and site_context:
+            pages_by_url = site_context.get("pages_by_url", {})
+            visited = [current_url]
+            curr = page_context
+
+            while curr:
+                target = curr.get("canonical_target")
+                if not target:
+                    break
+                if target == current_url or target in visited:
+                    visited.append(target)
+                    return RuleCheckResult(
+                        passed=False,
+                        rule_id=self.rule_id,
+                        category=self.category,
+                        severity=self.default_severity,
+                        confidence=1.0,
+                        title="Döngüsel Yönlendirme (Redirect Loop) Tespit Edildi",
+                        description=f"Sayfa sonsuz bir yönlendirme döngüsüne giriyor ({' -> '.join(visited)}). Tarayıcı botları ve kullanıcılar sayfaya hiçbir şekilde ulaşamaz.",
+                        evidence={"url": current_url, "chain": visited},
+                        recommendation_template="Yönlendirme kurallarını güncelleyerek döngüyü kırın ve sayfayı doğrudan tek bir nihai URL'ye yönlendirin.",
+                        documentation_url=self.documentation_url
+                    )
+
+                target_page = pages_by_url.get(target)
+                if not target_page:
+                    target_page = pages_by_url.get(target.rstrip("/")) or pages_by_url.get(target + "/")
+
+                if target_page and target_page.get("status_code") in (301, 302, 303, 307, 308):
+                    visited.append(target)
+                    curr = target_page
+                else:
+                    break
+
         return None
 
 # 4. Titles & Meta Descriptions

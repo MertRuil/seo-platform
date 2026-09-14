@@ -107,7 +107,7 @@ class RedirectHop:
         self.status_code = status_code
 
 class FetchResponse:
-    def __init__(self, requested_url: str, final_url: str, status_code: int, headers: Dict[str, str], text: str, response_time_ms: int, redirect_chain: List[RedirectHop]):
+    def __init__(self, requested_url: str, final_url: str, status_code: int, headers: Dict[str, str], text: str, response_time_ms: int, redirect_chain: List[RedirectHop], is_redirect_loop: bool = False):
         self.requested_url = requested_url
         self.final_url = final_url
         self.status_code = status_code
@@ -116,7 +116,7 @@ class FetchResponse:
         self.response_time_ms = response_time_ms
         self.redirect_chain = redirect_chain
         self.is_redirect_chain = len(redirect_chain) > 1
-        self.is_redirect_loop = False
+        self.is_redirect_loop = is_redirect_loop
 
 class SafeHttpClient:
     MAX_REDIRECTS = 5

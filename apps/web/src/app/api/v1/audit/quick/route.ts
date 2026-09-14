@@ -226,7 +226,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. İçerik ve Başlık Denetimleri (Yalnızca 200 OK yanıt veren sayfalarda değerlendirilir)
+    // 2. Yönlendirme Döngüsü (Loop) ve Yönlendirme Zinciri (Chain) Kontrolleri
+    if (fetchResult.isRedirectLoop) {
+      score -= 40;
+      issues.push({
+        rule_id: "RULE_REDIRECT_LOOP",
+        title: "Yönlendirme Döngüsü Tespit Edildi (Redirect Loop)",
+        severity: "CRITICAL",
+        description: `Sayfa sonsuz bir yönlendirme döngüsüne giriyor (${fetchResult.redirectChain?.length || 0} yönlendirme adımı). Arama motorları ve kullanıcılar sayfaya erişemez.`,
+        recommendation: "Yönlendirme kurallarını kontrol edin ve döngüyü kırarak son canlı sayfaya doğrudan 200 OK yanıtı verin."
+      });
+    } else if (fetchResult.redirectChain && fetchResult.redirectChain.length > 1) {
+      score -= 20;
+      issues.push({
+        rule_id: "RULE_REDIRECT_CHAIN",
+        title: `Yönlendirme Zinciri Tespit Edildi (${fetchResult.redirectChain.length} Adım)`,
+        severity: "HIGH",
+        description: `Sayfa hedefe ulaşmadan önce ${fetchResult.redirectChain.length} kez yönlendirildi (${fetchResult.redirectChain.map(h => `${h.fromUrl} -> ${h.toUrl}`).join(" -> ")}). Tarama bütçesini tüketir ve sayfa yükleme hızını düşürür.`,
+        recommendation: "İlk sayfayı doğrudan nihai hedef URL'ye 301 yönlendirmesi yaparak aradaki ara yönlendirme adımlarını kaldırın."
+      });
+    }
+
+    // 3. İçerik ve Başlık Denetimleri (Yalnızca 200 OK yanıt veren sayfalarda değerlendirilir)
     if (statusCode === 200) {
       if (!title) {
         score -= 20;
