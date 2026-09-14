@@ -9,11 +9,11 @@ from packages.shared.database import get_db
 from packages.shared.models import User
 from packages.config.settings import settings
 from packages.contracts.auth import (
-    UserRegisterRequest, UserLoginRequest, TokenResponse, UserResponse,
+    UserRegisterRequest, UserLoginRequest, TokenResponse, RefreshTokenRequest, UserResponse,
     ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, OAuthLoginRequest
 )
 from services.security.crypto import hash_password, verify_password
-from services.security.jwt_auth import create_access_token, create_refresh_token, get_current_user_payload
+from services.security.jwt_auth import create_access_token, create_refresh_token, decode_token, get_current_user_payload
 from services.security.oauth_verifier import verify_oauth_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -247,4 +247,43 @@ async def get_current_user(
         full_name=user.full_name,
         is_active=user.is_active,
         is_platform_admin=user.is_platform_admin
+    )
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_access_token(
+    req: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Süresi dolmak üzere olan veya dolan oturumlar için refresh token kullanarak
+    yeni bir access_token ve refresh_token çifti üretir.
+    """
+    payload = decode_token(req.refresh_token)
+    if payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Geçersiz belirteç tipi: Yenileme işlemi için refresh token gereklidir.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Belirteç kullanıcı kimliği (sub) eksik.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Kullanıcı hesabı bulunamadı veya pasif durumda.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token_data = {"sub": user.id, "email": user.email, "is_admin": user.is_platform_admin}
+    return TokenResponse(
+        access_token=create_access_token(token_data),
+        refresh_token=create_refresh_token(token_data)
     )

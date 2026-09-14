@@ -27,16 +27,32 @@ const MAX_RESET_CODE_ATTEMPTS = 5;
 export const LOCKOUT_THRESHOLD = 5;
 export const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
 
+const ITERATIONS_MODERN = 100000;
+const ITERATIONS_LEGACY = 10000;
+
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.pbkdf2Sync(password, salt, 10000, 32, "sha256").toString("hex");
-  return `${salt}$${hash}`;
+  const hash = crypto.pbkdf2Sync(password, salt, ITERATIONS_MODERN, 32, "sha256").toString("hex");
+  return `pbkdf2_sha256$${ITERATIONS_MODERN}$${salt}$${hash}`;
 }
 
 export function verifyPassword(password: string, storedHash: string): boolean {
   if (!storedHash || !storedHash.includes("$")) return false;
+
+  if (storedHash.startsWith("pbkdf2_sha256$")) {
+    const parts = storedHash.split("$");
+    if (parts.length !== 4) return false;
+    const iters = parseInt(parts[1], 10);
+    const salt = parts[2];
+    const expectedHash = parts[3];
+    const computedHash = crypto.pbkdf2Sync(password, salt, iters, 32, "sha256").toString("hex");
+    return crypto.timingSafeEqual(Buffer.from(expectedHash, "hex"), Buffer.from(computedHash, "hex"));
+  }
+
+  // Legacy fallback (<salt>$<hash> with 10,000 iterations)
   const [salt, hash] = storedHash.split("$");
-  const computedHash = crypto.pbkdf2Sync(password, salt, 10000, 32, "sha256").toString("hex");
+  if (!salt || !hash) return false;
+  const computedHash = crypto.pbkdf2Sync(password, salt, ITERATIONS_LEGACY, 32, "sha256").toString("hex");
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(computedHash, "hex"));
 }
 

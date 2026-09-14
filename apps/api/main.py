@@ -16,15 +16,20 @@ from apps.api.routes import (
     graph,
     experiments,
     quick_audit,
-    knowledge
+    knowledge,
+    connectors
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup tables on startup if in dev/test
+    # Setup tables on startup if in dev/test; in production/staging rely on Alembic migrations
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        if settings.ENVIRONMENT not in ("production", "staging"):
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        else:
+            import logging
+            logging.getLogger("uvicorn").info("Production environment: Database schema managed strictly via Alembic migrations.")
     except Exception as e:
         import logging
         logging.getLogger("uvicorn").warning(f"Database connection warning at startup: {e}")
@@ -154,9 +159,11 @@ app.include_router(recommendations.router, prefix="/api/v1")
 app.include_router(graph.router, prefix="/api/v1")
 app.include_router(executions.router, prefix="/api/v1")
 app.include_router(integrations.router, prefix="/api/v1")
+app.include_router(integrations.global_router, prefix="/api/v1")
 app.include_router(experiments.router, prefix="/api/v1")
 app.include_router(quick_audit.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
+app.include_router(connectors.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

@@ -156,6 +156,25 @@ async def test_complete_autonomous_seo_lifecycle():
         assert cs_res.status_code == 201
         change_set_id = cs_res.json()["id"]
 
+        # Step 7.5: Verify rejection when no connector is configured
+        unconfigured_exec = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/change-sets/{change_set_id}/execute",
+            headers=auth_headers
+        )
+        assert unconfigured_exec.status_code == 400
+
+        # Register a verified connector
+        conn_res = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/connectors",
+            json={
+                "connector_type": "WEBHOOK",
+                "base_url": "mock://endpoint",
+                "credentials": {"secret": "secret123"}
+            },
+            headers=auth_headers
+        )
+        assert conn_res.status_code == 201
+
         # Step 8: Safe Execution with Connector
         exec_res = await client.post(
             f"/api/v1/organizations/{org_id}/sites/{site_id}/change-sets/{change_set_id}/execute",
@@ -215,6 +234,18 @@ async def test_zero_touch_autonomous_lifecycle():
         }, headers=auth_headers)
         site_id = site_res.json()["id"]
 
+        # Configure verified connector for autonomous auto-pilot execution
+        conn_res = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/connectors",
+            json={
+                "connector_type": "WEBHOOK",
+                "base_url": "mock://endpoint",
+                "credentials": {"secret": "secret123"}
+            },
+            headers=auth_headers
+        )
+        assert conn_res.status_code == 201
+
         # Create CrawlRun record
         crawl_trigger = await client.post(
             f"/api/v1/organizations/{org_id}/sites/{site_id}/crawls",
@@ -248,9 +279,10 @@ async def test_zero_touch_autonomous_lifecycle():
                         "in_sitemap": True,
                         "title": None,
                         "meta_description": None,
-                        "word_count": 450,
+                        "word_count": 500,
                         "raw_html_hash": "dummy-hash",
-                        "main_content_hash": "dummy-hash"
+                        "canonical_seo_hash": "dummy-hash",
+                        "main_content_hash": "main-auto-1"
                     },
                     {
                         "id": "auto-page-2",
@@ -273,6 +305,7 @@ async def test_zero_touch_autonomous_lifecycle():
                         "meta_description": None,
                         "word_count": 0,
                         "raw_html_hash": "hash-broken",
+                        "canonical_seo_hash": "hash-broken",
                         "main_content_hash": "hash-broken"
                     }
                 ])

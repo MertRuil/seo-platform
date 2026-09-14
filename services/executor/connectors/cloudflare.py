@@ -99,6 +99,7 @@ class CloudflareWorkerConnector(SiteConnector):
             return {
                 "url": url,
                 "current_hash": "edge-mock-hash-valid",
+                "canonical_seo_hash": "edge-mock-hash-valid",
                 "edge_active": False,
                 "is_valid": True
             }
@@ -107,9 +108,17 @@ class CloudflareWorkerConnector(SiteConnector):
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             resp = await client.get(url)
             content_hash = hashlib.sha256(resp.content).hexdigest()
+            canonical_hash = content_hash
+            try:
+                from services.crawler.html_extractor import HtmlExtractor
+                extracted = HtmlExtractor.extract(resp.text, url)
+                canonical_hash = extracted.canonical_seo_hash
+            except Exception:
+                pass
             return {
                 "url": url,
                 "current_hash": content_hash,
+                "canonical_seo_hash": canonical_hash,
                 "status_code": resp.status_code,
                 "edge_active": False,
                 "is_valid": resp.status_code < 500

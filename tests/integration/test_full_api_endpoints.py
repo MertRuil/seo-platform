@@ -69,6 +69,18 @@ async def test_full_platform_api_flow():
         assert roadmap_res.status_code == 200
         assert roadmap_res.json()["site_id"] == site_id
 
+        # 6.5 Register Verified Connector
+        conn_res = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/connectors",
+            json={
+                "connector_type": "WEBHOOK",
+                "base_url": "mock://endpoint",
+                "credentials": {"secret": "test-secret-123"}
+            },
+            headers=headers
+        )
+        assert conn_res.status_code == 201
+
         # 7. Create & Execute ChangeSet
         cs_res = await client.post(f"/api/v1/organizations/{org_id}/sites/{site_id}/change-sets", json={
             "risk_level": "LOW",

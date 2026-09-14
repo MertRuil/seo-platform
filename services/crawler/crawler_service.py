@@ -9,11 +9,13 @@ from services.crawler.robots_parser import RobotsParser
 from services.crawler.sitemap_parser import SitemapParser
 from services.crawler.safe_client import SafeHttpClient
 from services.crawler.html_extractor import HtmlExtractor
+from services.crawler.headless_renderer import HeadlessRenderEngine
 
 class CrawlerService:
-    def __init__(self, db: AsyncSession, crawl_run_id: str):
+    def __init__(self, db: AsyncSession, crawl_run_id: str, concurrency: int = 5):
         self.db = db
         self.crawl_run_id = crawl_run_id
+        self.concurrency = concurrency
         self.visited_urls: Set[str] = set()
         self.queue: deque = deque()  # stores (normalized_url, depth)
         self.robots_parser: Optional[RobotsParser] = None
@@ -46,73 +48,100 @@ class CrawlerService:
         except Exception:
             self.robots_parser = RobotsParser("")
 
-        # 3. Initialize seed URLs (homepage + sitemaps if any)
+        # 3. Initialize seed URLs (homepage)
         start_url = UrlNormalizer.normalize(site.primary_url)
         self.queue.append((start_url, 0))
         self.visited_urls.add(start_url)
 
         pages_crawled = 0
         errors_count = 0
+        lock = asyncio.Lock()
+        semaphore = asyncio.Semaphore(self.concurrency)
 
-        # 4. BFS Crawl Loop
+        async def process_url(current_url: str, depth: int):
+            nonlocal pages_crawled, errors_count
+            async with semaphore:
+                # Respect robots.txt in Googlebot simulation mode
+                if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION":
+                    if self.robots_parser and not self.robots_parser.is_allowed(current_url, "Googlebot"):
+                        return
+
+                try:
+                    resp = await client.fetch(current_url)
+                except Exception:
+                    async with lock:
+                        errors_count += 1
+                    return
+
+                html_to_parse = resp.text
+                # Optional headless render for SPAs if dynamic content detected
+                if resp.status_code == 200 and crawl_run.crawl_mode in ("GOOGLEBOT_SIMULATION", "RENDER_JS"):
+                    try:
+                        spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
+                        if spa_profile.is_spa:
+                            rendered_html, _, _ = await HeadlessRenderEngine.render_and_reconcile(current_url, resp.text)
+                            html_to_parse = rendered_html
+                    except Exception:
+                        pass
+
+                extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
+
+                # Create CrawlPage record
+                is_indexable = (
+                    resp.status_code == 200 and
+                    (extracted is not None and not extracted.has_noindex)
+                )
+
+                page = CrawlPage(
+                    crawl_run_id=crawl_run.id,
+                    site_id=site.id,
+                    url=current_url,
+                    normalized_url=UrlNormalizer.normalize(current_url),
+                    depth=depth,
+                    status_code=resp.status_code,
+                    content_type=resp.headers.get("content-type"),
+                    response_time_ms=resp.response_time_ms,
+                    is_fetchable=(resp.status_code < 400),
+                    is_crawlable_by_google=True,
+                    has_noindex=extracted.has_noindex if extracted else False,
+                    is_indexable_candidate=is_indexable,
+                    canonical_target=extracted.canonical_url if extracted else None,
+                    is_canonical=(extracted.canonical_url == current_url) if (extracted and extracted.canonical_url) else True,
+                    title=extracted.title if extracted else None,
+                    meta_description=extracted.meta_description if extracted else None,
+                    word_count=extracted.word_count if extracted else 0,
+                    raw_html_hash=extracted.raw_html_hash if extracted else None,
+                    main_content_hash=extracted.main_content_hash if extracted else None,
+                    canonical_seo_hash=extracted.canonical_seo_hash if extracted else None
+                )
+
+                async with lock:
+                    self.db.add(page)
+                    pages_crawled += 1
+
+                    # Discover internal links if depth permits
+                    if extracted and depth < crawl_run.max_depth:
+                        for link in extracted.links:
+                            if link.is_internal:
+                                norm_link = UrlNormalizer.normalize(link.href)
+                                if norm_link not in self.visited_urls:
+                                    self.visited_urls.add(norm_link)
+                                    self.queue.append((norm_link, depth + 1))
+
+                    # Commit batch periodically
+                    if pages_crawled % 20 == 0:
+                        await self.db.commit()
+
+        # 4. Concurrent BFS Crawl Loop
         while self.queue and pages_crawled < crawl_run.max_pages:
-            current_url, depth = self.queue.popleft()
+            batch = []
+            while self.queue and len(batch) < self.concurrency and (pages_crawled + len(batch)) < crawl_run.max_pages:
+                batch.append(self.queue.popleft())
 
-            # Respect robots.txt in Googlebot simulation mode
-            if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION":
-                if self.robots_parser and not self.robots_parser.is_allowed(current_url, "Googlebot"):
-                    continue
+            if not batch:
+                break
 
-            try:
-                resp = await client.fetch(current_url)
-            except Exception as e:
-                errors_count += 1
-                continue
-
-            extracted = HtmlExtractor.extract(resp.text, resp.final_url) if resp.status_code == 200 else None
-
-            # Create CrawlPage record
-            is_indexable = (
-                resp.status_code == 200 and
-                (extracted is not None and not extracted.has_noindex)
-            )
-
-            page = CrawlPage(
-                crawl_run_id=crawl_run.id,
-                site_id=site.id,
-                url=current_url,
-                normalized_url=UrlNormalizer.normalize(current_url),
-                depth=depth,
-                status_code=resp.status_code,
-                content_type=resp.headers.get("content-type"),
-                response_time_ms=resp.response_time_ms,
-                is_fetchable=(resp.status_code < 400),
-                is_crawlable_by_google=True,
-                has_noindex=extracted.has_noindex if extracted else False,
-                is_indexable_candidate=is_indexable,
-                canonical_target=extracted.canonical_url if extracted else None,
-                is_canonical=(extracted.canonical_url == current_url) if (extracted and extracted.canonical_url) else True,
-                title=extracted.title if extracted else None,
-                meta_description=extracted.meta_description if extracted else None,
-                word_count=extracted.word_count if extracted else 0,
-                raw_html_hash=extracted.raw_html_hash if extracted else None,
-                main_content_hash=extracted.main_content_hash if extracted else None
-            )
-            self.db.add(page)
-            pages_crawled += 1
-
-            # Discover internal links if depth permits
-            if extracted and depth < crawl_run.max_depth:
-                for link in extracted.links:
-                    if link.is_internal:
-                        norm_link = UrlNormalizer.normalize(link.href)
-                        if norm_link not in self.visited_urls:
-                            self.visited_urls.add(norm_link)
-                            self.queue.append((norm_link, depth + 1))
-
-            # Commit batch periodically
-            if pages_crawled % 20 == 0:
-                await self.db.commit()
+            await asyncio.gather(*[process_url(u, d) for u, d in batch])
 
         # Finalize crawl run status
         crawl_run.status = "COMPLETED"

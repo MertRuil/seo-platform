@@ -198,7 +198,7 @@ class HybridKnowledgeStore:
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return [item[0] for item in ranked[:top_k]]
 
-    def search_dense(self, query_vector: List[float], top_k: int = 20) -> List[str]:
+    def search_dense(self, query_vector: List[float], top_k: int = 20, min_similarity: float = 0.30) -> List[str]:
         if not query_vector:
             return []
 
@@ -209,7 +209,7 @@ class HybridKnowledgeStore:
             if data.get("verification_status") == "REJECTED":
                 continue
             sim = self._cosine_similarity(query_vector, data["vector"])
-            if sim > 0:
+            if sim >= min_similarity:
                 scored.append((chunk_id, sim))
 
         scored.sort(key=lambda item: item[1], reverse=True)
@@ -229,7 +229,12 @@ class HybridKnowledgeStore:
         Strictly filters out DEPRECATED and REJECTED knowledge.
         """
         lexical_ids = self.search_lexical(query, top_k=30)
-        dense_ids = self.search_dense(query_vector or [], top_k=30) if query_vector else []
+        if query_vector is not None:
+            dense_ids = self.search_dense(query_vector, top_k=30, min_similarity=0.30)
+        else:
+            from services.rag.embeddings import generate_deterministic_embedding
+            auto_vector = generate_deterministic_embedding(query, dimensions=128)
+            dense_ids = self.search_dense(auto_vector, top_k=30, min_similarity=0.35)
 
         rrf_scores = defaultdict(float)
 
@@ -251,7 +256,7 @@ class HybridKnowledgeStore:
         sorted_candidates = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
 
         results: List[ScoredChunk] = []
-        for cid, score in sorted_candidates[:top_k]:
+        for cid, score in sorted_candidates[:max(top_k * 3, 15)]:
             data = self.chunks[cid]
             results.append(ScoredChunk(
                 chunk_id=cid,
@@ -268,7 +273,9 @@ class HybridKnowledgeStore:
                 verified_at=data.get("verified_at", "")
             ))
 
-        return results
+        # Cross-Encoder Reranking pass
+        from services.rag.reranker import CrossEncoderReranker
+        return CrossEncoderReranker.rerank(query, results, top_k=top_k)
 
     def save_to_disk(self, filepath: str):
         """Serializes knowledge chunks and metadata to disk."""

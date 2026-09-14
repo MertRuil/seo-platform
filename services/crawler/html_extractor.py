@@ -20,6 +20,25 @@ class ExtractedImage:
         self.width = width
         self.height = height
 
+def compute_canonical_seo_hash(
+    title: Optional[str] = None,
+    canonical_url: Optional[str] = None,
+    meta_description: Optional[str] = None,
+    meta_robots: Optional[List[str]] = None
+) -> str:
+    """
+    Computes a deterministic, normalized hash representing the canonical SEO state of a page.
+    Unlike raw HTML SHA-256 hashes, this ignores nonces, timestamps, CSRF tokens, session IDs,
+    and dynamic script variations to provide robust optimistic concurrency control.
+    """
+    norm_title = (title or "").strip()
+    norm_canonical = (canonical_url or "").strip().rstrip("/")
+    norm_desc = (meta_description or "").strip()
+    clean_robots = sorted(set(d.strip().lower() for d in (meta_robots or []) if d.strip()))
+    robots_str = ",".join(clean_robots)
+    canonical_repr = f"title:{norm_title}|canonical:{norm_canonical}|desc:{norm_desc}|robots:{robots_str}"
+    return hashlib.sha256(canonical_repr.encode("utf-8")).hexdigest()
+
 class HtmlExtractionResult:
     def __init__(self):
         self.title: Optional[str] = None
@@ -39,6 +58,7 @@ class HtmlExtractionResult:
         self.word_count: int = 0
         self.raw_html_hash: str = ""
         self.main_content_hash: str = ""
+        self.canonical_seo_hash: str = ""
 
 class HtmlExtractor:
     @staticmethod
@@ -48,6 +68,7 @@ class HtmlExtractor:
         result.raw_html_hash = hashlib.sha256(clean_html.encode("utf-8")).hexdigest()
 
         if not clean_html:
+            result.canonical_seo_hash = compute_canonical_seo_hash()
             return result
 
         tree = HTMLParser(clean_html)
@@ -159,5 +180,13 @@ class HtmlExtractor:
             words = re.findall(r"\b\w+\b", visible_text, re.UNICODE)
             result.word_count = len(words)
             result.main_content_hash = hashlib.sha256(visible_text.encode("utf-8")).hexdigest()
+
+        # 9. Compute Canonical SEO Concurrency Hash
+        result.canonical_seo_hash = compute_canonical_seo_hash(
+            title=result.title,
+            canonical_url=result.canonical_url,
+            meta_description=result.meta_description,
+            meta_robots=result.meta_robots
+        )
 
         return result

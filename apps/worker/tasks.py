@@ -57,11 +57,15 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
         if connector_record:
             try:
                 connector = build_connector_from_record(connector_record)
+                if not await connector.verify_connection():
+                    logger.warning(f"Active connector verification failed for site {site.id}. Skipping auto-execution.")
+                    return 0
             except Exception as e:
                 logger.error(f"Failed to build connector for site {site.id}: {e}")
-                connector = GenericWebhookConnector("mock://endpoint", "secret")
+                return 0
         else:
-            connector = GenericWebhookConnector("mock://endpoint", "secret")
+            logger.info(f"No active connector configured for site {site.id}. Skipping auto-execution.")
+            return 0
 
         executor = SafeSiteExecutor(connector)
         auto_executed = 0
@@ -88,7 +92,7 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
                 continue
 
             page = pages_map.get(target_url)
-            expected_hash = (page.raw_html_hash if page and page.raw_html_hash else "dummy-hash")
+            expected_hash = (page.canonical_seo_hash or page.raw_html_hash or "") if page else ""
 
             issue_upper = (rec.issue_id or "").upper()
             if "CANONICAL" in issue_upper or rec.category == "CANONICALIZATION":
@@ -259,6 +263,14 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                         status=seed["status"]
                     )
 
+            from services.security.token_budget import TokenBudgetService
+            estimated = len(results.get("issues", [])) * 350 + 500
+            try:
+                await TokenBudgetService.check_budget_for_site(db, site_id, estimated_tokens=estimated)
+            except Exception as e:
+                logger.warning(f"Organizasyon AI jeton bütçesi tükendi, öneri üretimi atlandı ({site_id}): {e}")
+                return 0
+
             orchestrator = AiOrchestrator(
                 llm_provider=get_llm_provider(),
                 knowledge_store=knowledge_store
@@ -270,6 +282,9 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                 issues=results.get("issues", []),
                 pages_by_url=pages_by_url
             )
+
+            # Record token usage for organization
+            await TokenBudgetService.record_usage_for_site(db, site_id, tokens_used=max(500, len(recs_data) * 400))
 
             # 4. Save recommendations to database
             created_count = 0

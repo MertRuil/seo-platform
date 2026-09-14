@@ -143,4 +143,46 @@ async def test_oauth_login_flow():
         settings.ENVIRONMENT = prev_env
         settings.ALLOW_TEST_OAUTH_TOKENS = prev_test_tokens
 
+@pytest.mark.anyio
+async def test_refresh_token_endpoint():
+    transport = ASGITransport(app=api_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        email = f"refresh_{uuid.uuid4().hex[:8]}@example.com"
+        reg = await client.post("/api/v1/auth/register", json={
+            "email": email,
+            "password": "Password123!",
+            "full_name": "Refresh Tester"
+        })
+        assert reg.status_code == 201
+
+        login_res = await client.post("/api/v1/auth/login", json={
+            "email": email,
+            "password": "Password123!"
+        })
+        assert login_res.status_code == 200
+        tokens = login_res.json()
+        assert "access_token" in tokens
+        assert "refresh_token" in tokens
+
+        # Call refresh endpoint with valid refresh token
+        ref_res = await client.post("/api/v1/auth/refresh", json={
+            "refresh_token": tokens["refresh_token"]
+        })
+        assert ref_res.status_code == 200
+        new_tokens = ref_res.json()
+        assert "access_token" in new_tokens
+        assert "refresh_token" in new_tokens
+
+        # Verify new access token works on protected /me route
+        me_res = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {new_tokens['access_token']}"})
+        assert me_res.status_code == 200
+        assert me_res.json()["email"] == email
+
+        # Calling refresh with an access_token should be rejected (wrong type)
+        bad_type_res = await client.post("/api/v1/auth/refresh", json={
+            "refresh_token": tokens["access_token"]
+        })
+        assert bad_type_res.status_code == 401
+        assert "refresh token gereklidir" in bad_type_res.json()["detail"]
+
 

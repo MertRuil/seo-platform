@@ -1,20 +1,27 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
+from datetime import datetime, timezone, timedelta
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from packages.shared.database import get_db
-from packages.shared.models import GscSearchMetric, CruxMetric, Site
+from packages.shared.models import GscSearchMetric, CruxMetric, Site, OAuthCredential
 from packages.contracts.integration import (
     GscSearchMetricResponse,
     CruxMetricResponse,
-    OpportunityResponse
+    OpportunityResponse,
+    GscSyncResponse
 )
+from packages.config.settings import settings
 from apps.api.routes.sites import verify_site_access
 from services.security.jwt_auth import get_current_user_payload
+from services.security.crypto import encrypt_secret, decrypt_secret
 from services.integrations.opportunity_engine import GscOpportunityEngine
 from services.integrations.gsc_client import GscSearchRow
+from services.integrations.gsc_sync_service import sync_gsc_and_crux_for_site
 
 router = APIRouter(prefix="/organizations/{org_id}/sites/{site_id}/integrations", tags=["Integrations & Performance"])
+global_router = APIRouter(prefix="/integrations", tags=["Global Integrations"])
 
 @router.get("/gsc", response_model=List[GscSearchMetricResponse])
 async def get_gsc_metrics(
@@ -87,6 +94,116 @@ async def get_opportunities(
         )
         for o in opps
     ]
+
+@router.post("/sync", response_model=GscSyncResponse)
+async def sync_integrations(
+    org_id: str,
+    site_id: str,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Synchronizes Google Search Console performance data and CrUX field metrics.
+    Updates GscSearchMetric and CruxMetric tables and computes fresh opportunities.
+    """
+    user_id = payload.get("sub")
+    site = await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+    result = await sync_gsc_and_crux_for_site(site=site, db=db)
+    return GscSyncResponse(**result)
+
+@router.get("/google/authorize")
+async def google_oauth_authorize(
+    org_id: str,
+    site_id: str,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generates a Google OAuth authorization URL for the user to grant Google Search Console access.
+    """
+    user_id = payload.get("sub")
+    await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+    client_id = settings.GOOGLE_OAUTH_CLIENT_ID or "mock-google-client-id"
+    redirect_uri = settings.GOOGLE_OAUTH_REDIRECT_URI
+    scope = "https://www.googleapis.com/auth/webmasters.readonly"
+    state = f"{org_id}:{site_id}:{user_id}"
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&"
+        f"scope={scope}&access_type=offline&prompt=consent&state={state}"
+    )
+    return {"auth_url": auth_url, "state": state}
+
+@global_router.get("/google/callback")
+async def google_oauth_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Handles Google OAuth redirect, exchanges authorization code for tokens,
+    and stores encrypted credentials for the organization.
+    """
+    parts = state.split(":")
+    if len(parts) < 3:
+        raise HTTPException(status_code=400, detail="Geçersiz state parametresi.")
+    org_id, site_id, user_id = parts[0], parts[1], parts[2]
+
+    # Exchange code for token
+    token_url = "https://oauth2.googleapis.com/token"
+    if code.startswith("mock_") or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
+        access_token = f"mock-gsc-token-{code}"
+        refresh_token = f"mock-gsc-refresh-{code}"
+        expires_in = 3600
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(token_url, data={
+                    "code": code,
+                    "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                    "redirect_uri": settings.GOOGLE_OAUTH_REDIRECT_URI,
+                    "grant_type": "authorization_code"
+                })
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=400, detail=f"Google OAuth belirteç değişimi başarısız: {resp.text}")
+                data = resp.json()
+                access_token = data.get("access_token")
+                refresh_token = data.get("refresh_token", "")
+                expires_in = data.get("expires_in", 3600)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Google OAuth sunucusuna erişilemedi: {e}")
+
+    now = datetime.now(timezone.utc)
+    expiry = now + timedelta(seconds=expires_in)
+
+    existing_cred = (await db.execute(
+        select(OAuthCredential).where(
+            OAuthCredential.organization_id == org_id,
+            OAuthCredential.provider == "GOOGLE"
+        )
+    )).scalars().first()
+
+    enc_access = encrypt_secret(access_token)
+    enc_refresh = encrypt_secret(refresh_token)
+
+    if existing_cred:
+        existing_cred.encrypted_access_token = enc_access
+        existing_cred.encrypted_refresh_token = enc_refresh
+        existing_cred.token_expiry = expiry
+    else:
+        new_cred = OAuthCredential(
+            organization_id=org_id,
+            provider="GOOGLE",
+            encrypted_access_token=enc_access,
+            encrypted_refresh_token=enc_refresh,
+            token_expiry=expiry,
+            scopes="https://www.googleapis.com/auth/webmasters.readonly"
+        )
+        db.add(new_cred)
+
+    await db.commit()
+    return {"success": True, "message": "Google Search Console hesabı başarıyla bağlandı."}
 
 from urllib.parse import urlparse
 from packages.contracts.indexing import (

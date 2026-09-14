@@ -32,6 +32,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Runtime dynamic data & audit logs
+data/curation_audit_log.json
+data/knowledge_store.json
+
 # Vercel & Cloud
 .vercel
 

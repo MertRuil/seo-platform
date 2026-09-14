@@ -179,6 +179,7 @@ class CrawlPage(Base):
     word_count = Column(Integer, default=0, nullable=False)
     raw_html_hash = Column(String(64), nullable=True)
     main_content_hash = Column(String(64), nullable=True)
+    canonical_seo_hash = Column(String(64), nullable=True, default=None)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     crawl_run = relationship("CrawlRun", back_populates="pages")

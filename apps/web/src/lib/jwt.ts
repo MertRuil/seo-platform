@@ -52,12 +52,20 @@ export function getJwtSecret(): string {
     return cachedSecret;
   }
 
-  // 3. Güvenli stabil yedek anahtar (girişin 500 hatasıyla çökmesini önler)
+  // 3. Üretim ortamında sabit yedek anahtar KESİNLİKLE kabul edilemez
+  if ((process.env.NODE_ENV as string) === "production") {
+    throw new Error(
+      "KRİTİK GÜVENLİK HATASI: Üretim (production) ortamında APP_SECRET_KEY ortam değişkeni tanımlanmamış. " +
+      "Sabit varsayılan anahtar ile token imzalanması engellendi."
+    );
+  }
+
+  // Yalnızca geliştirme/test ortamında uyarı vererek geliştirici deneyimini kesintiye uğratmama amaçlı fallback
   const defaultFallback = "calpeo-seo-platform-autonomous-jwt-signing-secret-key-2026-production-min-32-chars";
   cachedSecret = defaultFallback;
   if (typeof window === "undefined") {
     console.warn(
-      "\x1b[33m[Uyarı - Güvenlik] APP_SECRET_KEY ortam değişkeni bulunamadı; varsayılan imzalama anahtarı kullanılıyor.\x1b[0m"
+      "\x1b[33m[Uyarı - Güvenlik] APP_SECRET_KEY ortam değişkeni bulunamadı; yerel geliştirme için geçici anahtar kullanılıyor. (Üretimde bu durum hata fırlatır).\x1b[0m"
     );
   }
   return cachedSecret;

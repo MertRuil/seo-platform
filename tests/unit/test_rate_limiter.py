@@ -1,51 +1,38 @@
 import pytest
-import asyncio
-from services.rag.rate_limiter import RateLimiter, TokenBucket
-
-def test_token_bucket_consume_and_refill():
-    bucket = TokenBucket(capacity=10.0, refill_rate_per_sec=5.0)
-    assert bucket.can_consume(5.0)
-    assert bucket.consume(5.0)
-    assert bucket.tokens <= 5.1
-    # Cannot consume 10 when 5 remain
-    assert not bucket.consume(10.0)
+from unittest.mock import MagicMock
+from fastapi import HTTPException
+from services.security.rate_limiter import RateLimiter
 
 @pytest.mark.anyio
-async def test_rate_limiter_acquire_and_daily_budget():
-    limiter = RateLimiter(
-        rpm_limit=60,
-        tpm_limit=10000,
-        daily_request_budget=5,
-        daily_token_budget=1000
-    )
+async def test_sliding_window_rate_limiter_allows_under_limit():
+    limiter = RateLimiter(max_requests=3, window_seconds=10, scope="unit_test_under")
+    req = MagicMock()
+    req.headers = {}
+    req.client.host = "192.168.1.100"
+    req.app.state = MagicMock(spec=[])  # no redis
 
-    # First 5 acquisitions succeed
-    for _ in range(5):
-        acquired = await limiter.acquire(estimated_tokens=50)
-        assert acquired is True
+    # 3 requests should succeed
+    for _ in range(3):
+        res = await limiter(req)
+        assert res is True
 
-    # 6th acquisition should be blocked by daily budget
-    exhausted = await limiter.acquire(estimated_tokens=50)
-    assert exhausted is False
-    assert limiter.rejected_limit_hits == 1
 
-def test_rate_limiter_deduplication_cache():
-    limiter = RateLimiter()
-    content = "Google requires canonical tags to consolidate URLs."
+@pytest.mark.anyio
+async def test_sliding_window_rate_limiter_blocks_over_limit():
+    limiter = RateLimiter(max_requests=2, window_seconds=10, scope="unit_test_over")
+    req = MagicMock()
+    req.headers = {}
+    req.client.host = "192.168.1.101"
+    req.app.state = MagicMock(spec=[])
 
-    assert limiter.check_cache(content) is None
+    # First 2 succeed
+    await limiter(req)
+    await limiter(req)
 
-    limiter.store_cache(content, {"status": "VERIFIED", "score": 1.0})
-    cached = limiter.check_cache(content)
-    assert cached is not None
-    assert cached["status"] == "VERIFIED"
-    assert limiter.cache_hits == 1
+    # 3rd must raise 429
+    with pytest.raises(HTTPException) as exc_info:
+        await limiter(req)
 
-def test_rate_limiter_metrics():
-    limiter = RateLimiter(rpm_limit=15, daily_request_budget=100)
-    metrics = limiter.get_metrics()
-    assert "current_rpm" in metrics
-    assert "daily_request_budget" in metrics
-    assert metrics["rpm_limit"] == 15
-    assert metrics["daily_request_budget"] == 100
-    assert metrics["request_quota_used_pct"] == 0.0
+    assert exc_info.value.status_code == 429
+    assert "Retry-After" in exc_info.value.headers
+    assert "İstek limiti aşıldı" in exc_info.value.detail

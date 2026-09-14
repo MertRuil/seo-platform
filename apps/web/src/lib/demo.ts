@@ -434,17 +434,17 @@ export interface ConnectorItem {
   id: string;
   ad: string;
   tur: string;
-  durum: "Bağlandı" | "Hazır" | "Doğrulama bekliyor";
+  durum: "Bağlandı" | "Test Edilmedi" | "Bağlantı Başarısız" | "Yapılandırılmadı";
   aciklama: string;
   endpoint: string;
   tokenMasked: string;
 }
 
 export const DEMO_CONNECTORS: ConnectorItem[] = [
-  { id: "gsc", ad: "Google Search Console", tur: "OAuth 2.0", durum: "Bağlandı", aciklama: "Arama analitiği ve dizin denetim verileri.", endpoint: "https://searchconsole.googleapis.com/v1", tokenMasked: "ya29.a0AfH6SM••••••••••••" },
-  { id: "wp", ad: "WordPress REST", tur: "Application Password", durum: "Hazır", aciklama: "Yazı başlıkları, meta etiketleri ve canonical güncellemeleri.", endpoint: "https://flagship-store.com/wp-json/wp/v2", tokenMasked: "app_pwd_••••••••••••" },
-  { id: "git", ad: "Git / GitHub PR", tur: "Kişisel erişim belirteci", durum: "Hazır", aciklama: "Headless siteler için pull request ve onay akışı.", endpoint: "https://api.github.com/repos/org/seo-store", tokenMasked: "ghp_••••••••••••••••" },
-  { id: "webhook", ad: "Kurumsal webhook", tur: "HMAC-SHA256 imzalı", durum: "Bağlandı", aciklama: "Özel CMS sistemlerine imzalı veri aktarımı.", endpoint: "https://cms.flagship-store.com/api/seo/webhook", tokenMasked: "whsec_••••••••••••••" },
+  { id: "gsc", ad: "Google Search Console", tur: "OAuth 2.0", durum: "Test Edilmedi", aciklama: "Arama analitiği ve dizin denetim verileri (Henüz test edilmedi).", endpoint: "https://searchconsole.googleapis.com/v1", tokenMasked: "ya29.a0AfH6SM••••••••••••" },
+  { id: "wp", ad: "WordPress REST", tur: "Application Password", durum: "Test Edilmedi", aciklama: "Yazı başlıkları, meta etiketleri ve canonical güncellemeleri (Henüz test edilmedi).", endpoint: "https://flagship-store.com/wp-json/wp/v2", tokenMasked: "app_pwd_••••••••••••" },
+  { id: "git", ad: "Git / GitHub PR", tur: "Kişisel erişim belirteci", durum: "Test Edilmedi", aciklama: "Headless siteler için pull request ve onay akışı (Henüz test edilmedi).", endpoint: "https://api.github.com/repos/org/seo-store", tokenMasked: "ghp_••••••••••••••••" },
+  { id: "webhook", ad: "Kurumsal webhook", tur: "HMAC-SHA256 imzalı", durum: "Test Edilmedi", aciklama: "Özel CMS sistemlerine imzalı veri aktarımı (Henüz test edilmedi).", endpoint: "https://cms.flagship-store.com/api/seo/webhook", tokenMasked: "whsec_••••••••••••••" },
 ];
 
 export interface AuditRow {

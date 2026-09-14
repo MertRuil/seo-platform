@@ -74,10 +74,13 @@ def _build_knowledge_store() -> HybridKnowledgeStore:
             store.add_chunk(chunk_id=f"{seed['id']}-{idx}", document_title=seed["title"], heading_path=c.heading_path, content=c.content, vector=[0.05] * 128, status=seed["status"])
     return store
 
+from services.security.rate_limiter import quick_audit_limiter
+from fastapi import Depends
+
 KNOWLEDGE_STORE = _build_knowledge_store()
 AUDIT_CAPACITY = asyncio.Semaphore(4)
 
-@router.post("/quick", response_model=QuickAuditResponse, status_code=status.HTTP_200_OK)
+@router.post("/quick", response_model=QuickAuditResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(quick_audit_limiter)])
 async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
     """
     Canlı bir web sitesinin URL'sini alarak anında tarar,

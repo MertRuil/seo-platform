@@ -19,21 +19,23 @@ def build_connector_from_record(record: SiteConnector) -> BaseSiteConnector:
         logger.error(f"Connector {record.id} credentials could not be decrypted: {exc}")
         raise ValueError("Connector credentials could not be decrypted") from exc
 
-    if record.connector_type == "GENERIC_WEBHOOK":
-        return GenericWebhookConnector(record.base_url or "", credentials.get("secret_key", ""))
-    if record.connector_type == "WORDPRESS_REST":
+    c_type = (record.connector_type or "").upper()
+    if c_type in ("GENERIC_WEBHOOK", "WEBHOOK"):
+        secret = credentials.get("secret_key") or credentials.get("secret", "")
+        return GenericWebhookConnector(record.base_url or "", secret)
+    if c_type in ("WORDPRESS_REST", "WORDPRESS"):
         return WordPressConnector(
             record.base_url or "",
             credentials.get("username", ""),
             credentials.get("app_password", "")
         )
-    if record.connector_type == "GIT_PR":
+    if c_type in ("GIT_PR", "GIT", "GITHUB"):
         return GitBasedConnector(
             credentials.get("repo_full_name", ""),
             credentials.get("access_token", ""),
             credentials.get("default_branch", "main")
         )
-    if record.connector_type == "CLOUDFLARE_WORKER":
+    if c_type in ("CLOUDFLARE_WORKER", "CLOUDFLARE"):
         return CloudflareWorkerConnector(
             zone_id=credentials.get("zone_id", ""),
             api_token=credentials.get("api_token", ""),

@@ -1,6 +1,6 @@
 import uuid
 from urllib.parse import urlparse
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -203,3 +203,64 @@ async def get_site(
         execution_mode=site.execution_mode,
         verification_status=site.verification_status
     )
+
+@router.get("/{site_id}/verification")
+async def get_site_verification_details(
+    org_id: str,
+    site_id: str,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = payload.get("sub")
+    site = await verify_site_access(org_id, site_id, user_id, db)
+
+    from services.security.domain_verification import DomainVerificationService
+    stmt = select(SiteVerification).where(SiteVerification.site_id == site.id).order_by(SiteVerification.last_checked_at.desc())
+    res = await db.execute(stmt)
+    verification = res.scalars().first()
+
+    if not verification:
+        token = f"seo-verify-{uuid.uuid4().hex[:24]}"
+        verification = SiteVerification(
+            site_id=site.id,
+            method="DNS_TXT",
+            token=token,
+            status="PENDING"
+        )
+        db.add(verification)
+        await db.commit()
+        await db.refresh(verification)
+
+    instructions = DomainVerificationService.get_instructions(site, verification)
+    return {
+        "site_id": site.id,
+        "domain": site.domain,
+        "verification_status": site.verification_status,
+        "active_method": verification.method,
+        "token": verification.token,
+        "last_checked_at": verification.last_checked_at.isoformat() if verification.last_checked_at else None,
+        "verified_at": verification.verified_at.isoformat() if verification.verified_at else None,
+        "instructions": instructions
+    }
+
+@router.post("/{site_id}/verify")
+async def trigger_site_verification(
+    org_id: str,
+    site_id: str,
+    req: Optional[SiteVerifyRequest] = None,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = payload.get("sub")
+    site = await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+
+    from services.security.domain_verification import DomainVerificationService
+    method = req.method if req else None
+    result = await DomainVerificationService.execute_verification(db, site, method=method)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.get("message")
+        )
+    return result
+

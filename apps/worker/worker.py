@@ -10,16 +10,54 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("worker")
 
 class AsyncWorkerQueue:
-    """In-memory async job queue for development and test execution."""
-    def __init__(self):
+    """In-memory async job queue with background processing for local development and resilient execution."""
+    def __init__(self, auto_start: bool = True):
         self.queue: asyncio.Queue = asyncio.Queue()
         self._running = False
-        self._worker_task: asyncio.Task = None
+        self._worker_task: Optional[asyncio.Task] = None
+        self.auto_start = auto_start
+
+    def _ensure_worker_running(self):
+        if not self._running or self._worker_task is None or self._worker_task.done():
+            self._running = True
+            try:
+                loop = asyncio.get_running_loop()
+                self._worker_task = loop.create_task(self._worker_loop())
+            except RuntimeError:
+                pass
+
+    async def _worker_loop(self):
+        logger.info("[AsyncWorkerQueue] Background worker loop started.")
+        while self._running:
+            try:
+                task_name, kwargs = await self.queue.get()
+                try:
+                    await self._execute_task(task_name, kwargs)
+                except Exception as e:
+                    logger.error(f"[AsyncWorkerQueue] Error executing task '{task_name}': {e}", exc_info=True)
+                finally:
+                    self.queue.task_done()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[AsyncWorkerQueue] Unexpected error in worker loop: {e}")
+
+    async def _execute_task(self, task_name: str, kwargs: Dict[str, Any]):
+        if task_name == "crawl":
+            await run_crawl_job(kwargs["crawl_run_id"])
+        elif task_name == "audit_and_ai":
+            await run_audit_and_ai_job(kwargs["site_id"], kwargs["crawl_run_id"])
+        elif task_name == "rag_curator":
+            await run_rag_curator_job(kwargs.get("days", 1))
+        else:
+            logger.warning(f"Unknown task: {task_name}")
 
     async def enqueue(self, task_name: str, **kwargs) -> str:
         job_id = f"job-{id(kwargs)}"
         await self.queue.put((task_name, kwargs))
         logger.info(f"Enqueued job '{task_name}' with args {kwargs}")
+        if self.auto_start:
+            self._ensure_worker_running()
         return job_id
 
     async def run_next_job(self) -> bool:
@@ -27,17 +65,19 @@ class AsyncWorkerQueue:
             return False
         task_name, kwargs = await self.queue.get()
         try:
-            if task_name == "crawl":
-                await run_crawl_job(kwargs["crawl_run_id"])
-            elif task_name == "audit_and_ai":
-                await run_audit_and_ai_job(kwargs["site_id"], kwargs["crawl_run_id"])
-            elif task_name == "rag_curator":
-                await run_rag_curator_job(kwargs.get("days", 1))
-            else:
-                logger.warning(f"Unknown task: {task_name}")
+            await self._execute_task(task_name, kwargs)
         finally:
             self.queue.task_done()
         return True
+
+    async def shutdown(self):
+        self._running = False
+        if self._worker_task and not self._worker_task.done():
+            self._worker_task.cancel()
+            try:
+                await self._worker_task
+            except asyncio.CancelledError:
+                pass
 
 class RedisWorkerQueue:
     """Durable queue shared by API and worker processes."""

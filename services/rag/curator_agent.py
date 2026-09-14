@@ -89,11 +89,12 @@ class KnowledgeCuratorAgent:
 
         # Zero false information rule: Only VERIFIED or explicitly DEPRECATED docs are indexed
         if verification.status in (VerificationStatus.VERIFIED, VerificationStatus.DEPRECATED):
+            from services.rag.embeddings import generate_deterministic_embedding
             chunks = SemanticChunker.chunk_markdown(content, title)
             for idx, c in enumerate(chunks):
                 chunk_id = f"{doc_id}-chunk-{idx}"
-                # Mock embedding vector (or real if provider attached)
-                vector = [0.05] * 128
+                # Generate true dense feature embedding
+                vector = generate_deterministic_embedding(c.content, dimensions=128)
                 self.store.add_chunk(
                     chunk_id=chunk_id,
                     document_title=title,

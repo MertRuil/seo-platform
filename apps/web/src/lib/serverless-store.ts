@@ -21,6 +21,7 @@ import {
   DEMO_PAGES,
   DEMO_DASHBOARD,
   DEMO_CHANGESETS,
+  DEMO_CONNECTORS,
   type QueueItem,
 } from "@/lib/demo";
 
@@ -36,6 +37,7 @@ interface GlobalStore {
   changeSets: Map<string, ChangeSetResponse[]>; // key: siteId
   gsc: Map<string, GscSearchMetricResponse[]>; // key: siteId
   crux: Map<string, CruxMetricResponse[]>; // key: siteId
+  connectors: Map<string, any[]>; // key: siteId
 }
 
 const globalStore = global as unknown as { __calpeoStore?: GlobalStore };
@@ -216,6 +218,10 @@ if (!globalStore.__calpeoStore) {
     { id: "crux_2", site_id: demoSiteId, url: "https://flagship-store.com/", form_factor: "MOBILE", p75_lcp_ms: 2400, p75_inp_ms: 180, p75_cls: 0.08, fetched_at: new Date().toISOString() },
   ]);
 
+  // Demo Connectors
+  const connectors = new Map<string, any[]>();
+  connectors.set(demoSiteId, [...DEMO_CONNECTORS]);
+
   globalStore.__calpeoStore = {
     organizations: orgs,
     sites,
@@ -227,6 +233,7 @@ if (!globalStore.__calpeoStore) {
     changeSets,
     gsc,
     crux,
+    connectors,
   };
 }
 
@@ -836,5 +843,49 @@ export const serverlessStore = {
     crawlRun.finished_at = new Date().toISOString();
 
     return crawlRun;
+  },
+
+  listConnectors(siteId: string) {
+    const list = store.connectors.get(siteId);
+    if (!list) {
+      store.connectors.set(siteId, [...DEMO_CONNECTORS]);
+      return [...DEMO_CONNECTORS];
+    }
+    return list;
+  },
+
+  saveConnector(siteId: string, connector: any) {
+    const list = this.listConnectors(siteId);
+    const existingIdx = list.findIndex((c) => c.id === connector.id || (connector.connector_type && c.tur === connector.connector_type));
+    let updated;
+    if (existingIdx >= 0) {
+      list[existingIdx] = {
+        ...list[existingIdx],
+        ...connector,
+        durum: connector.durum || list[existingIdx].durum || "Test Edilmedi",
+      };
+      updated = list[existingIdx];
+    } else {
+      const newConn = {
+        id: connector.id || `conn_${Date.now()}`,
+        ad: connector.ad || connector.connector_type || "Yeni Bağlayıcı",
+        tur: connector.tur || connector.connector_type || "Özel",
+        durum: connector.durum || "Test Edilmedi",
+        aciklama: connector.aciklama || "Bağlayıcı eklendi (Henüz test edilmedi).",
+        endpoint: connector.endpoint || connector.base_url || "",
+        tokenMasked: connector.tokenMasked || "••••••••••••",
+      };
+      list.push(newConn);
+      updated = newConn;
+    }
+    store.connectors.set(siteId, list);
+    return updated;
+  },
+
+  deleteConnector(siteId: string, connectorId: string) {
+    const list = this.listConnectors(siteId);
+    const next = list.filter((c) => c.id !== connectorId);
+    store.connectors.set(siteId, next);
+    return true;
   },
 };

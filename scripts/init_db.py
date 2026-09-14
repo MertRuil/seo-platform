@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import asyncio
+import json
 from datetime import datetime, timezone
 import uuid
 
@@ -19,10 +20,10 @@ from sqlalchemy import select
 from packages.config.settings import settings
 from packages.shared.database import Base, engine as default_engine
 from packages.shared.models import (
-    User, Organization, Membership, Site,
+    User, Organization, Membership, Site, SiteConnector,
     KnowledgeDocument, KnowledgeChunk
 )
-from services.security.crypto import hash_password
+from services.security.crypto import hash_password, encrypt_secret
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
 from services.rag.hybrid_store import HybridKnowledgeStore
@@ -52,6 +53,25 @@ async def seed_initial_data(session: AsyncSession):
     else:
         admin_user = existing_user
         print(f"   [INFO] Admin User already exists: {admin_email}")
+
+    # 1b. Calpeo Admin User
+    calpeo_email = "admin@calpeo.io"
+    calpeo_stmt = select(User).where(User.email == calpeo_email)
+    existing_calpeo = (await session.execute(calpeo_stmt)).scalars().first()
+    if not existing_calpeo:
+        calpeo_user = User(
+            id=str(uuid.uuid4()),
+            email=calpeo_email,
+            hashed_password=hash_password("CalpeoAdmin2026!"),
+            full_name="CALPEO Sistem Yöneticisi",
+            is_active=True,
+            is_platform_admin=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        session.add(calpeo_user)
+        await session.flush()
+        print(f"   [OK] Created Admin User: {calpeo_email} (Password: CalpeoAdmin2026!)")
 
     # 2. Organization
     org_slug = "acme-digital"
@@ -116,6 +136,65 @@ async def seed_initial_data(session: AsyncSession):
         )
         session.add(demo_site)
         print("   [OK] Created Demo Site: Acme Global Portal (https://example.com)")
+    else:
+        demo_site = existing_site
+        print(f"   [INFO] Demo Site already exists: {demo_site.name}")
+
+    # 4b. Ensure Calpeo User has membership
+    if 'calpeo_user' in locals():
+        calpeo_mem = (await session.execute(
+            select(Membership).where(Membership.user_id == calpeo_user.id, Membership.organization_id == org.id)
+        )).scalars().first()
+        if not calpeo_mem:
+            session.add(Membership(
+                id=str(uuid.uuid4()),
+                user_id=calpeo_user.id,
+                organization_id=org.id,
+                role="OWNER",
+                created_at=datetime.now(timezone.utc)
+            ))
+            print("   [OK] Linked Calpeo Admin as OWNER of Acme Digital Agency")
+
+    # 4c. Initial Demo Site Connectors
+    existing_conns = (await session.execute(
+        select(SiteConnector).where(SiteConnector.site_id == demo_site.id)
+    )).scalars().all()
+    if not existing_conns:
+        seed_conns = [
+            SiteConnector(
+                id=str(uuid.uuid4()),
+                site_id=demo_site.id,
+                connector_type="WORDPRESS_REST",
+                encrypted_credentials=encrypt_secret(json.dumps({"username": "admin", "app_password": "demo_app_password"})),
+                base_url="https://flagship-store.com/wp-json/wp/v2",
+                capabilities=json.dumps(["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CONTENT", "CAN_EDIT_CANONICAL"]),
+                is_active=True,
+                created_at=datetime.now(timezone.utc)
+            ),
+            SiteConnector(
+                id=str(uuid.uuid4()),
+                site_id=demo_site.id,
+                connector_type="GENERIC_WEBHOOK",
+                encrypted_credentials=encrypt_secret(json.dumps({"secret_key": "whsec_demo_secret_key_12345"})),
+                base_url="https://cms.flagship-store.com/api/seo/webhook",
+                capabilities=json.dumps(["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_SCHEMA", "CAN_EDIT_REDIRECT"]),
+                is_active=True,
+                created_at=datetime.now(timezone.utc)
+            ),
+            SiteConnector(
+                id=str(uuid.uuid4()),
+                site_id=demo_site.id,
+                connector_type="GIT_PR",
+                encrypted_credentials=encrypt_secret(json.dumps({"repo_full_name": "org/seo-store", "access_token": "ghp_demo_token_12345", "default_branch": "main"})),
+                base_url="https://api.github.com/repos/org/seo-store",
+                capabilities=json.dumps(["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CONTENT", "CAN_EDIT_SCHEMA", "CAN_EDIT_ROBOTS"]),
+                is_active=True,
+                created_at=datetime.now(timezone.utc)
+            )
+        ]
+        for c in seed_conns:
+            session.add(c)
+        print("   [OK] Seeded 3 active connectors for Demo Site (WordPress, Webhook, GitHub PR)")
 
     # 5. Populate Hybrid Store and DB with Seed SEO Knowledge
     print("[KNOWLEDGE] Ingesting Level-1 SEO Standards into Knowledge Base...")

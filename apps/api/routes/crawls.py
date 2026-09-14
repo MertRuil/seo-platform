@@ -8,11 +8,12 @@ from packages.shared.models import CrawlRun, CrawlPage, Site
 from packages.contracts.crawl import CrawlTriggerRequest, CrawlRunResponse, CrawlPageDetailResponse
 from apps.api.routes.sites import verify_site_access
 from services.security.jwt_auth import get_current_user_payload
+from services.security.rate_limiter import crawls_limiter
 from apps.worker.worker import worker_queue
 
 router = APIRouter(prefix="/organizations/{org_id}/sites/{site_id}/crawls", tags=["Crawls"])
 
-@router.post("", response_model=CrawlRunResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CrawlRunResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(crawls_limiter)])
 async def trigger_crawl(
     org_id: str,
     site_id: str,

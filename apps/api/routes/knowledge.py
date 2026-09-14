@@ -19,6 +19,7 @@ from services.rag.chunker import SemanticChunker
 from services.rag.curator_agent import KnowledgeCuratorAgent
 from services.rag.rate_limiter import RateLimiter
 from services.rag.verification_engine import VerificationEngine
+from services.security.rate_limiter import knowledge_ingest_limiter
 
 router = APIRouter(prefix="/knowledge", tags=["Knowledge & RAG"])
 
@@ -149,7 +150,7 @@ async def search_knowledge(request: KnowledgeSearchRequest):
         results=results
     )
 
-@router.post("/verify-and-ingest", response_model=DocumentIngestResponse)
+@router.post("/verify-and-ingest", response_model=DocumentIngestResponse, dependencies=[Depends(knowledge_ingest_limiter)])
 async def verify_and_ingest_document(
     request: DocumentIngestRequest,
     payload: dict = Depends(get_current_user_payload)

@@ -39,3 +39,12 @@ def test_llm_provider_factory_openai_selection(monkeypatch):
     provider = get_llm_provider()
     assert isinstance(provider, OpenAIProvider)
     assert provider.api_key == "test-fake-openai-key"
+
+def test_llm_provider_factory_anthropic_selection(monkeypatch):
+    from services.agents.base import AnthropicProvider
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "sk-ant-test-fake-key")
+    provider = get_llm_provider()
+    assert isinstance(provider, AnthropicProvider)
+    assert provider.api_key == "sk-ant-test-fake-key"
+    assert "claude" in provider.model

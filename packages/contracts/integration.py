@@ -36,3 +36,10 @@ class OpportunityResponse(BaseModel):
     ctr: float
     position: float
     recommended_action: str
+
+class GscSyncResponse(BaseModel):
+    success: bool
+    gsc_metrics_synced: int
+    crux_metrics_synced: int
+    opportunities_found: int
+    message: str

@@ -36,12 +36,30 @@ class GenericWebhookConnector(SiteConnector):
 
     async def read_page_state(self, url: str) -> Dict[str, Any]:
         if self.webhook_url.startswith("mock://"):
-            return {"url": url, "current_hash": "dummy-hash", "is_valid": True}
+            return {
+                "url": url,
+                "current_hash": "dummy-hash",
+                "canonical_seo_hash": "dummy-hash",
+                "is_valid": True
+            }
         validate_safe_url(url)
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             response = await client.get(url)
             content_hash = hashlib.sha256(response.content).hexdigest()
-            return {"url": url, "current_hash": content_hash, "status_code": response.status_code, "is_valid": response.status_code < 500}
+            canonical_hash = content_hash
+            try:
+                from services.crawler.html_extractor import HtmlExtractor
+                extracted = HtmlExtractor.extract(response.text, url)
+                canonical_hash = extracted.canonical_seo_hash
+            except Exception:
+                pass
+            return {
+                "url": url,
+                "current_hash": content_hash,
+                "canonical_seo_hash": canonical_hash,
+                "status_code": response.status_code,
+                "is_valid": response.status_code < 500
+            }
 
     async def apply_change(self, change_item: Dict[str, Any]) -> bool:
         timestamp = str(int(time.time()))

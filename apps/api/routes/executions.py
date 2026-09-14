@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from packages.shared.database import get_db
-from packages.shared.models import ChangeSet, ChangeItem, Site, SiteConnector
+from packages.shared.models import ChangeSet, ChangeItem, Site, SiteConnector, CrawlPage
+from packages.config.settings import settings
 from packages.contracts.execution import (
     ChangeSetCreateRequest,
     ChangeSetResponse,
@@ -65,13 +66,23 @@ async def create_change_set(
     await db.flush()
 
     for item in req.items:
+        expected_hash = item.expected_hash_before
+        if not expected_hash:
+            page_rec = (await db.execute(
+                select(CrawlPage).where(CrawlPage.site_id == site_id, CrawlPage.url == item.target_url)
+            )).scalars().first()
+            if page_rec:
+                expected_hash = page_rec.canonical_seo_hash or page_rec.raw_html_hash or ""
+            else:
+                expected_hash = ""
+
         ci = ChangeItem(
             change_set_id=cs.id,
             target_url=item.target_url,
             operation=item.operation,
             state_before=item.state_before,
             state_after=item.state_after,
-            expected_hash_before=item.expected_hash_before,
+            expected_hash_before=expected_hash,
             status="PENDING"
         )
         db.add(ci)
@@ -124,10 +135,9 @@ async def execute_change_set(
 
     res_cs = await db.execute(select(ChangeSet).where(ChangeSet.id == change_set_id, ChangeSet.site_id == site_id))
     cs = res_cs.scalars().first()
-    if not cs:
-        raise HTTPException(status_code=404, detail="ChangeSet not found")
     if cs.risk_level in ("HIGH", "CRITICAL") and cs.status != "APPROVED":
         raise HTTPException(status_code=409, detail="High-risk ChangeSet requires explicit approval")
+
     if cs.status not in ("DRAFT", "APPROVED"):
         raise HTTPException(status_code=409, detail="ChangeSet cannot be executed in its current state")
 
@@ -137,12 +147,23 @@ async def execute_change_set(
         raise HTTPException(status_code=400, detail="ChangeSet has no items to execute")
 
     connector_record = (await db.execute(select(SiteConnector).where(SiteConnector.site_id == site_id, SiteConnector.is_active.is_(True)))).scalars().first()
-    if connector_record:
-        connector = build_connector(connector_record)
-        if not await connector.verify_connection():
-            raise HTTPException(status_code=502, detail="Site connector verification failed")
-    else:
-        connector = GenericWebhookConnector("mock://endpoint", "secret")
+    if not connector_record:
+        raise HTTPException(
+            status_code=400,
+            detail="Bu site için aktif bir bağlayıcı bulunamadı. Değişikliklerin uygulanabilmesi için önce bir bağlayıcı (WordPress, Cloudflare, Git vb.) yapılandırılmalıdır."
+        )
+
+    # Mülkiyet doğrulaması kontrolü: Doğrulanmamış sitelere canlı ortamda değişiklik uygulanması engellenir
+    if settings.ENVIRONMENT == "production" and site.verification_status != "VERIFIED" and site.execution_mode not in ("SUGGEST_ONLY", "DRY_RUN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"'{site.domain}' alan adı mülkiyeti henüz doğrulanmamıştır (DURUM: {site.verification_status}). "
+                   f"Üretim ortamında canlı değişikliklerin web sitesine uygulanabilmesi için önce alan adı sahipliğinin (DNS TXT, HTML dosyası veya Meta etiketi) doğrulanması zorunludur."
+        )
+
+    connector = build_connector(connector_record)
+    if not await connector.verify_connection():
+        raise HTTPException(status_code=502, detail="Site bağlayıcısı bağlantı doğrulaması başarısız oldu. Lütfen bağlayıcı ayarlarını kontrol edin.")
     executor = SafeSiteExecutor(connector)
     cs.status = "EXECUTING"
     await db.commit()

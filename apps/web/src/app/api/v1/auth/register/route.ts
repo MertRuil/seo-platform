@@ -47,11 +47,18 @@ export async function POST(request: Request) {
         { success: true, message: "Hesabınız oluşturuldu.", access_token: bridged.session.access_token, token_type: "bearer", user: bridged.session.user, expires_in: 86400, source: "backend" },
         { status: 201 }
       );
-      res.cookies.set({ name: "seo_platform_token", value: bridged.session.access_token, httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 86400, path: "/", sameSite: "lax" });
+      res.cookies.set({ name: "seo_platform_token", value: bridged.session.access_token, httpOnly: true, secure: (process.env.NODE_ENV as string) === "production", maxAge: 86400, path: "/", sameSite: "lax" });
       return res;
     }
     if (bridged.status === 409 || bridged.status === 400) {
       return NextResponse.json({ error: bridged.detail || "Bu e-posta adresiyle kayıtlı bir hesap zaten var." }, { status: bridged.status });
+    }
+
+    if ((process.env.NODE_ENV as string) === "production") {
+      return NextResponse.json(
+        { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen daha sonra tekrar deneyin." },
+        { status: 502 }
+      );
     }
 
     const existing = authStore.findUserByEmail(cleanEmail);
@@ -104,7 +111,7 @@ export async function POST(request: Request) {
       name: "seo_platform_token",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: (process.env.NODE_ENV as string) === "production",
       maxAge: 86400,
       path: "/",
       sameSite: "lax",

@@ -10,7 +10,7 @@ function sessionResponse(token: string, user: Record<string, unknown>, source: "
     name: "seo_platform_token",
     value: token,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: (process.env.NODE_ENV as string) === "production",
     maxAge: 86400,
     path: "/",
     sameSite: "lax",
@@ -39,11 +39,25 @@ export async function POST(request: Request) {
 
     const cleanEmail = String(email).trim().toLowerCase();
 
-    // Önce arka uç (FastAPI): başarılıysa canlı veriye erişen gerçek JWT döner.
-    // Arka uç kapalıysa veya kullanıcı orada yoksa yerel depoya düşülür.
     const bridged = await backendLogin(cleanEmail, String(password));
     if (bridged.ok) {
       return sessionResponse(bridged.session.access_token, bridged.session.user, "backend");
+    }
+
+    // Arka uç canlıysa ve kimlik doğrulama reddedildiyse, arka uç sonucunu hemen döndür
+    if (bridged.status !== 0) {
+      return NextResponse.json(
+        { error: bridged.detail || "Geçersiz e-posta adresi veya şifre." },
+        { status: bridged.status }
+      );
+    }
+
+    // Üretim ortamında arka uç olmadan bellek içi sahte oturum açılmasına izin verilmez
+    if ((process.env.NODE_ENV as string) === "production") {
+      return NextResponse.json(
+        { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen sistem yöneticinizle iletişime geçin." },
+        { status: 502 }
+      );
     }
 
     // Brute-force lockout (5 failures / 15 min), checked before password verification

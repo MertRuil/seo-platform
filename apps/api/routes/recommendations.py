@@ -94,6 +94,9 @@ async def get_strategic_roadmap(
     critical_count = sum(1 for issue in evaluation["issues"] if issue.severity.value == "CRITICAL")
     opportunity_count = len((await db.execute(select(GscSearchMetric.id).where(GscSearchMetric.site_id == site_id))).all())
 
+    from services.security.token_budget import TokenBudgetService
+    await TokenBudgetService.check_budget_for_site(db, site_id, estimated_tokens=1500)
+
     orchestrator = AiOrchestrator(
         llm_provider=get_llm_provider(),
         knowledge_store=HybridKnowledgeStore()
@@ -105,4 +108,5 @@ async def get_strategic_roadmap(
         critical_issues_count=critical_count,
         opportunities_count=opportunity_count
     )
+    await TokenBudgetService.record_usage_for_site(db, site_id, tokens_used=1500)
     return StrategicRoadmapResponse(**roadmap)

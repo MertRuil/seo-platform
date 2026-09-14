@@ -42,11 +42,20 @@ class SafeSiteExecutor:
         # 2. Step 1: Optimistic Concurrency Check
         current_state = await self.connector.read_page_state(target_url)
         current_hash = current_state.get("current_hash", "")
-        if current_hash != expected_hash:
+        canonical_seo_hash = current_state.get("canonical_seo_hash", "")
+
+        # Concurrency verification matches either canonical SEO hash or raw hash.
+        # This prevents failure on dynamic pages with nonces/CSRF tokens while protecting SEO invariants.
+        is_match = (
+            expected_hash in (current_hash, canonical_seo_hash)
+            or (bool(canonical_seo_hash) and expected_hash == canonical_seo_hash)
+            or (bool(current_hash) and expected_hash == current_hash)
+        )
+        if not is_match:
             return SafeExecutionResult(
                 success=False,
                 status="STALE_CONCURRENCY_ABORT",
-                error_message=f"Page modified out-of-band: expected hash '{expected_hash}', but found '{current_hash}'."
+                error_message=f"Page modified out-of-band: expected hash '{expected_hash}', but found '{canonical_seo_hash or current_hash}'."
             )
 
         # 3. Step 2: Pre-write Backup

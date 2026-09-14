@@ -42,3 +42,33 @@ class ExecutionResultResponse(BaseModel):
     status: str
     error_message: Optional[str] = None
     rolled_back: bool = False
+
+class ConnectorCreateRequest(BaseModel):
+    connector_type: str = Field(description="Connector type: WORDPRESS_REST, GENERIC_WEBHOOK, GIT_PR, CLOUDFLARE_WORKER, GOOGLE_SEARCH_CONSOLE")
+    base_url: Optional[str] = None
+    credentials: Dict[str, Any] = Field(default_factory=dict)
+    is_active: bool = True
+
+class ConnectorResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    site_id: str
+    connector_type: str
+    base_url: Optional[str] = None
+    capabilities: List[str] = []
+    token_masked: str
+    is_active: bool
+    created_at: datetime
+
+class ConnectorTestRequest(BaseModel):
+    connector_type: str
+    base_url: Optional[str] = None
+    credentials: Optional[Dict[str, Any]] = None
+    connector_id: Optional[str] = None
+
+class ConnectorTestResponse(BaseModel):
+    success: bool
+    status_code: Optional[int] = None
+    message: str
+    capabilities: List[str] = []
