@@ -4,7 +4,10 @@
  * arka uç yoksa veya kullanıcı orada tanımlı değilse yerel depoya düşülür.
  */
 
-const BACKEND = (process.env.BACKEND_API_URL || "").replace(/\/$/, "");
+function getBackendUrl(): string {
+  return (process.env.BACKEND_API_URL || "http://localhost:8000/api/v1").replace(/\/$/, "");
+}
+
 const TIMEOUT_MS = 4000;
 
 export interface BridgedSession {
@@ -23,7 +26,8 @@ export interface BridgedSession {
 type BridgeResult = { ok: true; session: BridgedSession } | { ok: false; status: number; detail?: string };
 
 async function backendFetch(path: string, init: RequestInit): Promise<Response> {
-  return fetch(`${BACKEND}${path}`, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const backend = getBackendUrl();
+  return fetch(`${backend}${path}`, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 }
 
 async function sessionFromToken(accessToken: string, fallbackEmail: string): Promise<BridgedSession> {
@@ -51,7 +55,8 @@ async function sessionFromToken(accessToken: string, fallbackEmail: string): Pro
 
 /** status 0 = arka uca ulaşılamadı (yerel depoya düş). */
 export async function backendLogin(email: string, password: string): Promise<BridgeResult> {
-  if (!BACKEND) return { ok: false, status: 0 };
+  const backend = getBackendUrl();
+  if (!backend) return { ok: false, status: 0 };
   try {
     const r = await backendFetch("/auth/login", {
       method: "POST",
@@ -70,7 +75,8 @@ export async function backendLogin(email: string, password: string): Promise<Bri
 }
 
 export async function backendRegister(email: string, password: string, fullName: string): Promise<BridgeResult> {
-  if (!BACKEND) return { ok: false, status: 0 };
+  const backend = getBackendUrl();
+  if (!backend) return { ok: false, status: 0 };
   try {
     const r = await backendFetch("/auth/register", {
       method: "POST",

@@ -52,14 +52,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Üretim ortamında arka uç olmadan bellek içi sahte oturum açılmasına izin verilmez
-    if ((process.env.NODE_ENV as string) === "production") {
-      return NextResponse.json(
-        { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen sistem yöneticinizle iletişime geçin." },
-        { status: 502 }
-      );
-    }
-
     // Brute-force lockout (5 failures / 15 min), checked before password verification
     if (authStore.isLockedOut(cleanEmail)) {
       return NextResponse.json(
@@ -71,6 +63,14 @@ export async function POST(request: Request) {
     const user = authStore.findUserByEmail(cleanEmail);
 
     if (!user) {
+      // Arka uç kapalıysa ve yerel kullanıcı da bulunamadıysa
+      if (bridged.status === 0 && (process.env.NODE_ENV as string) === "production") {
+        return NextResponse.json(
+          { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen sistem yöneticinizle iletişime geçin." },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı. Lütfen 'Yeni Kayıt Ol' sekmesinden kaydolun veya e-postanızı kontrol edin.",
