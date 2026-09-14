@@ -1,7 +1,7 @@
 # Git ve İletişim Kuralları
 
 1. **GitHub Desktop ile Otomatik Push**:
-   - Yapılan her kod değişikliği ve iyileştirme tamamlandığında, değişiklikler Git'e commit edilecek ve doğrudan **GitHub Desktop** uygulaması üzerinden (Repository menüsündeki "Push" tetiklenerek) otomatik olarak uzak sunucuya (remote) gönderilecektir.
+   - Yapılan her kod değişikliği ve iyileştirme tamamlandığında, değişiklikler Git'e commit edilecek ve doğrudan **GitHub Desktop** uygulaması üzerinden (pencerenin minimize durumu kontrol edilip `Repository -> Push` menüsü tetiklenerek) otomatik olarak uzak sunucuya (remote) gönderilecektir.
    - Kullanıcının manuel olarak push işlemi yapmasına gerek kalmayacaktır.
 
 2. **Sade ve Anlaşılır Türkçe Özet**:
