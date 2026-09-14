@@ -34,6 +34,7 @@ class CrawlPageDetailResponse(BaseModel):
     content_type: Optional[str] = None
     response_time_ms: Optional[int] = None
     is_indexable_candidate: bool
+    in_sitemap: bool = False
     canonical_target: Optional[str] = None
     title: Optional[str] = None
     meta_description: Optional[str] = None

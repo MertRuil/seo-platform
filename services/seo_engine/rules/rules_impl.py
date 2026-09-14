@@ -603,3 +603,121 @@ class SitemapPageNoindexRule(SeoRule):
                 documentation_url=self.documentation_url
             )
         return None
+
+class IndexablePageNotInSitemapRule(SeoRule):
+    rule_id = "RULE_INDEXABLE_PAGE_NOT_IN_SITEMAP"
+    name = "Indexable Page Not Included in Sitemap"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        # Yalnızca sitede bir sitemap mevcutsa değerlendirilir
+        has_sitemap = (site_context or {}).get("has_sitemap", False)
+        if not has_sitemap:
+            return None
+
+        status_code = page_context.get("status_code", 200)
+        has_noindex = page_context.get("has_noindex", False)
+        is_canonical = page_context.get("is_canonical", True)
+        is_crawlable = page_context.get("is_crawlable_by_google", True)
+        in_sitemap = page_context.get("in_sitemap", False)
+
+        is_indexable = (
+            status_code == 200 and
+            not has_noindex and
+            is_canonical and
+            is_crawlable
+        )
+
+        if is_indexable and not in_sitemap:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="İndekslenebilir Canlı Sayfa Site Haritasında (Sitemap) Bulunmuyor",
+                description="Sayfa 200 OK yanıtı veren, 'noindex' içermeyen ve kanonik olan dizine eklenebilir bir sayfadır; ancak XML site haritasında listelenmemiştir. Arama motorlarının bu sayfayı geç keşfetmesine ve tarama bütçesinin verimsiz kullanılmasına neden olur.",
+                evidence={"url": page_context.get("url"), "status_code": 200, "in_sitemap": False, "is_indexable": True},
+                recommendation_template="Bu URL'yi XML site haritanıza ekleyin veya dinamik site haritası oluşturucunuzu güncelleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class SitemapPageBlockedByRobotsRule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_BLOCKED_BY_ROBOTS"
+    name = "Sitemap URL Blocked by robots.txt"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.CRITICAL
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("in_sitemap") and not page_context.get("is_crawlable_by_google", True):
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Site Haritasındaki Sayfa robots.txt İle Engellenmiş",
+                description="Sayfa XML site haritasında taranması ve dizine eklenmesi için sunulmuş, ancak robots.txt dosyasındaki 'Disallow' kuralı arama motoru botlarının bu sayfayı taramasını engelliyor.",
+                evidence={"url": page_context.get("url"), "in_sitemap": True, "is_crawlable_by_google": False},
+                recommendation_template="Sayfanın taranmasını ve dizine eklenmesini istiyorsanız robots.txt dosyasındaki kısıtlamayı kaldırın; taranmasını istemiyorsanız sayfayı site haritasından silin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class SitemapPageNonCanonicalRule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_NON_CANONICAL"
+    name = "Sitemap URL Has Non-Self Canonical Tag"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if (
+            page_context.get("in_sitemap") and
+            page_context.get("status_code", 200) == 200 and
+            page_context.get("is_canonical") is False and
+            page_context.get("canonical_target") and
+            page_context.get("canonical_target") != page_context.get("url")
+        ):
+            target = page_context.get("canonical_target")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Site Haritasındaki Sayfa Kanonik Değil (Non-Canonical)",
+                description=f"Sayfa XML site haritasında yer alıyor ancak rel=canonical etiketi ile başka bir URL'yi ('{target}') asıl kaynak olarak gösteriyor. Google yönergelerine göre site haritasında yalnızca asıl kanonik URL'ler yer almalıdır.",
+                evidence={"url": page_context.get("url"), "canonical_target": target, "in_sitemap": True},
+                recommendation_template="Site haritasından bu adresi çıkarın veya site haritasındaki kaydı doğrudan kanonik hedef olan asıl adresle değiştirin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class SitemapPage5xxRule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_5XX"
+    name = "Sitemap URL Returns 5xx Server Error"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.CRITICAL
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/http-network-errors"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        status_code = page_context.get("status_code", 200)
+        if page_context.get("in_sitemap") and 500 <= status_code <= 599:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Site Haritasındaki Sayfa Sunucu Hatası Veriyor (HTTP {status_code})",
+                description="XML site haritasında listelenen sayfa arama motorları tarafından taranırken sunucu hatasıyla karşılaşıldı. Googlebot bu hatayı Search Console'da 'Gönderilen URL sunucu hatası (5xx)' olarak raporlar.",
+                evidence={"url": page_context.get("url"), "status_code": status_code, "in_sitemap": True},
+                recommendation_template="Sunucu ve uygulama hata loglarını kontrol ederek arka uçtaki hatayı giderin veya sayfayı site haritasından kaldırın.",
+                documentation_url=self.documentation_url
+            )
+        return None

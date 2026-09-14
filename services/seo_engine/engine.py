@@ -18,7 +18,11 @@ from services.seo_engine.rules.rules_impl import (
     SchemaSyntaxErrorRule,
     SitemapPage404Rule,
     SitemapPageRedirectRule,
-    SitemapPageNoindexRule
+    SitemapPageNoindexRule,
+    IndexablePageNotInSitemapRule,
+    SitemapPageBlockedByRobotsRule,
+    SitemapPageNonCanonicalRule,
+    SitemapPage5xxRule
 )
 
 class SeoRuleEngine:
@@ -42,6 +46,10 @@ class SeoRuleEngine:
             SitemapPage404Rule(),
             SitemapPageRedirectRule(),
             SitemapPageNoindexRule(),
+            IndexablePageNotInSitemapRule(),
+            SitemapPageBlockedByRobotsRule(),
+            SitemapPageNonCanonicalRule(),
+            SitemapPage5xxRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
@@ -66,7 +74,11 @@ class SeoRuleEngine:
         to detect cross-page anomalies like canonical loops, duplicate titles, and 404 targets.
         """
         pages_by_url = {p["url"]: p for p in pages if "url" in p}
-        site_context = {"pages_by_url": pages_by_url}
+        has_sitemap = any(p.get("in_sitemap") for p in pages)
+        site_context = {
+            "pages_by_url": pages_by_url,
+            "has_sitemap": has_sitemap
+        }
 
         all_issues: List[RuleCheckResult] = []
         issues_by_page: Dict[str, List[RuleCheckResult]] = {}
@@ -93,10 +105,58 @@ class SeoRuleEngine:
 
         health_score = max(0, 100 - deductions)
 
+        # Sitemap vs Indexable Pages Reconciliation Stats
+        sitemap_urls_count = sum(1 for p in pages if p.get("in_sitemap"))
+        indexable_pages_count = sum(
+            1 for p in pages
+            if p.get("status_code", 200) == 200
+            and not p.get("has_noindex")
+            and p.get("is_canonical", True)
+            and p.get("is_crawlable_by_google", True)
+        )
+        indexable_in_sitemap = sum(
+            1 for p in pages
+            if p.get("in_sitemap")
+            and p.get("status_code", 200) == 200
+            and not p.get("has_noindex")
+            and p.get("is_canonical", True)
+            and p.get("is_crawlable_by_google", True)
+        )
+        non_indexable_in_sitemap = sum(
+            1 for p in pages
+            if p.get("in_sitemap")
+            and (
+                p.get("status_code", 200) != 200
+                or p.get("has_noindex")
+                or not p.get("is_canonical", True)
+                or not p.get("is_crawlable_by_google", True)
+            )
+        )
+        indexable_not_in_sitemap = sum(
+            1 for p in pages
+            if not p.get("in_sitemap")
+            and p.get("status_code", 200) == 200
+            and not p.get("has_noindex")
+            and p.get("is_canonical", True)
+            and p.get("is_crawlable_by_google", True)
+        )
+
+        sitemap_reconciliation = {
+            "has_sitemap": has_sitemap,
+            "total_sitemap_urls": sitemap_urls_count,
+            "total_indexable_pages": indexable_pages_count,
+            "indexable_in_sitemap": indexable_in_sitemap,
+            "non_indexable_in_sitemap": non_indexable_in_sitemap,
+            "indexable_not_in_sitemap": indexable_not_in_sitemap,
+            "sitemap_coverage_percent": round((indexable_in_sitemap / indexable_pages_count * 100), 1) if indexable_pages_count > 0 else (100.0 if not has_sitemap else 0.0),
+            "sitemap_cleanliness_percent": round((indexable_in_sitemap / sitemap_urls_count * 100), 1) if sitemap_urls_count > 0 else 100.0,
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
             "health_score": health_score,
             "issues": all_issues,
-            "issues_by_page": issues_by_page
+            "issues_by_page": issues_by_page,
+            "sitemap_reconciliation": sitemap_reconciliation
         }

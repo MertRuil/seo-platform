@@ -294,3 +294,200 @@ Sitemap: /relative-sitemap.xml
         report = SeoRuleEngine().evaluate_site(pages_dict)
         rule_ids = [i.rule_id for i in report["issues"]]
         assert "RULE_SITEMAP_PAGE_404" in rule_ids
+        assert report["sitemap_reconciliation"]["has_sitemap"] is True
+        assert report["sitemap_reconciliation"]["total_sitemap_urls"] == 2
+
+def test_sitemap_vs_indexable_reconciliation_and_all_rules():
+    engine = SeoRuleEngine()
+    pages = [
+        # 1. Healthy indexable page in sitemap
+        {
+            "url": "https://example.com/good",
+            "status_code": 200,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": True,
+            "is_crawlable_by_google": True,
+            "title": "Good Page",
+            "headings": {"h1": ["Good"]},
+            "word_count": 100
+        },
+        # 2. 404 broken in sitemap
+        {
+            "url": "https://example.com/broken-404",
+            "status_code": 404,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": True,
+            "is_crawlable_by_google": True,
+            "title": None,
+            "headings": {},
+            "word_count": 0
+        },
+        # 3. 301 redirect in sitemap
+        {
+            "url": "https://example.com/redirect-301",
+            "status_code": 301,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": False,
+            "is_crawlable_by_google": True,
+            "title": None,
+            "headings": {},
+            "word_count": 0
+        },
+        # 4. Noindex page in sitemap
+        {
+            "url": "https://example.com/secret-noindex",
+            "status_code": 200,
+            "in_sitemap": True,
+            "has_noindex": True,
+            "is_canonical": True,
+            "is_crawlable_by_google": True,
+            "title": "Noindex",
+            "headings": {"h1": ["Noindex"]},
+            "word_count": 100
+        },
+        # 5. Non-canonical page in sitemap pointing to another URL
+        {
+            "url": "https://example.com/duplicate",
+            "canonical_target": "https://example.com/good",
+            "status_code": 200,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": False,
+            "is_crawlable_by_google": True,
+            "title": "Duplicate",
+            "headings": {"h1": ["Duplicate"]},
+            "word_count": 100
+        },
+        # 6. Page in sitemap blocked by robots.txt
+        {
+            "url": "https://example.com/admin-blocked",
+            "status_code": 0,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": True,
+            "is_crawlable_by_google": False,
+            "title": None,
+            "headings": {},
+            "word_count": 0
+        },
+        # 7. Page in sitemap returning 500 error
+        {
+            "url": "https://example.com/error-500",
+            "status_code": 500,
+            "in_sitemap": True,
+            "has_noindex": False,
+            "is_canonical": True,
+            "is_crawlable_by_google": True,
+            "title": None,
+            "headings": {},
+            "word_count": 0
+        },
+        # 8. Real indexable page NOT in sitemap (discovered via links)
+        {
+            "url": "https://example.com/orphan-indexable",
+            "status_code": 200,
+            "in_sitemap": False,
+            "has_noindex": False,
+            "is_canonical": True,
+            "is_crawlable_by_google": True,
+            "title": "Orphan Indexable",
+            "headings": {"h1": ["Orphan"]},
+            "word_count": 120
+        }
+    ]
+
+    report = engine.evaluate_site(pages)
+    rule_ids = [i.rule_id for i in report["issues"]]
+
+    # Verify all reconciliation rules triggered
+    assert "RULE_INDEXABLE_PAGE_NOT_IN_SITEMAP" in rule_ids
+    assert "RULE_SITEMAP_PAGE_404" in rule_ids
+    assert "RULE_SITEMAP_PAGE_REDIRECT" in rule_ids
+    assert "RULE_SITEMAP_PAGE_NOINDEX" in rule_ids
+    assert "RULE_SITEMAP_PAGE_BLOCKED_BY_ROBOTS" in rule_ids
+    assert "RULE_SITEMAP_PAGE_NON_CANONICAL" in rule_ids
+    assert "RULE_SITEMAP_PAGE_5XX" in rule_ids
+
+    # Verify reconciliation statistics
+    recon = report["sitemap_reconciliation"]
+    assert recon["has_sitemap"] is True
+    assert recon["total_sitemap_urls"] == 7
+    assert recon["total_indexable_pages"] == 2  # good + orphan-indexable
+    assert recon["indexable_in_sitemap"] == 1  # good
+    assert recon["non_indexable_in_sitemap"] == 6  # 404, 301, noindex, non-canonical, blocked, 500
+    assert recon["indexable_not_in_sitemap"] == 1  # orphan-indexable
+    assert recon["sitemap_coverage_percent"] == 50.0
+    assert recon["sitemap_cleanliness_percent"] == 14.3
+
+@pytest.mark.asyncio
+async def test_pages_api_in_sitemap_filtering():
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    AsyncSessionLocal = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncSessionLocal() as session:
+        site = Site(
+            id="s-filter",
+            organization_id="org-filter",
+            name="Filter Site",
+            domain="filter.com",
+            normalized_domain="filter.com",
+            primary_url="https://filter.com"
+        )
+        session.add(site)
+        run = CrawlRun(
+            id="r-filter",
+            site_id="s-filter",
+            status="COMPLETED",
+            crawl_mode="FAST_CONCURRENT",
+            max_pages=20,
+            max_depth=3
+        )
+        session.add(run)
+
+        # Page in sitemap
+        p_in = CrawlPage(
+            crawl_run_id="r-filter",
+            site_id="s-filter",
+            url="https://filter.com/in-sm",
+            normalized_url="https://filter.com/in-sm",
+            depth=1,
+            status_code=200,
+            in_sitemap=True,
+            is_indexable_candidate=True
+        )
+        # Page NOT in sitemap
+        p_out = CrawlPage(
+            crawl_run_id="r-filter",
+            site_id="s-filter",
+            url="https://filter.com/out-sm",
+            normalized_url="https://filter.com/out-sm",
+            depth=1,
+            status_code=200,
+            in_sitemap=False,
+            is_indexable_candidate=True
+        )
+        session.add_all([p_in, p_out])
+        await session.commit()
+
+        # Query in_sitemap=True
+        res_in = await session.execute(
+            select(CrawlPage).where(CrawlPage.crawl_run_id == "r-filter", CrawlPage.in_sitemap == True)
+        )
+        pages_in = res_in.scalars().all()
+        assert len(pages_in) == 1
+        assert pages_in[0].url == "https://filter.com/in-sm"
+
+        # Query in_sitemap=False
+        res_out = await session.execute(
+            select(CrawlPage).where(CrawlPage.crawl_run_id == "r-filter", CrawlPage.in_sitemap == False)
+        )
+        pages_out = res_out.scalars().all()
+        assert len(pages_out) == 1
+        assert pages_out[0].url == "https://filter.com/out-sm"
+

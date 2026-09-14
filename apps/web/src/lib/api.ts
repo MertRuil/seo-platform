@@ -79,6 +79,7 @@ export interface PageExplorerItem {
   canonical_target?: string | null;
   has_noindex: boolean;
   is_indexable_candidate: boolean;
+  in_sitemap?: boolean;
   word_count: number;
   response_time_ms?: number | null;
 }

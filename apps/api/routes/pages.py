@@ -22,6 +22,7 @@ class PageExplorerItem(BaseModel):
     canonical_target: Optional[str] = None
     has_noindex: bool
     is_indexable_candidate: bool
+    in_sitemap: bool = False
     word_count: int
     response_time_ms: Optional[int] = None
 
@@ -40,6 +41,7 @@ async def list_crawl_pages(
     offset: int = Query(0, ge=0),
     status_code: Optional[int] = None,
     noindex: Optional[bool] = None,
+    in_sitemap: Optional[bool] = Query(None, description="Site haritasında yer alıp almadığına göre filtrele"),
     payload: dict = Depends(get_current_user_payload),
     db: AsyncSession = Depends(get_db)
 ):
@@ -54,6 +56,8 @@ async def list_crawl_pages(
         query = query.where(CrawlPage.status_code == status_code)
     if noindex is not None:
         query = query.where(CrawlPage.has_noindex == noindex)
+    if in_sitemap is not None:
+        query = query.where(CrawlPage.in_sitemap == in_sitemap)
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
     query = query.order_by(CrawlPage.depth.asc(), CrawlPage.url.asc()).limit(limit).offset(offset)
@@ -72,6 +76,7 @@ async def list_crawl_pages(
             canonical_target=p.canonical_target,
             has_noindex=p.has_noindex,
             is_indexable_candidate=p.is_indexable_candidate,
+            in_sitemap=p.in_sitemap,
             word_count=p.word_count,
             response_time_ms=p.response_time_ms
         )
