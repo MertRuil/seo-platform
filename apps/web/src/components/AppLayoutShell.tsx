@@ -16,7 +16,8 @@ import { Notice } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
-import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe } from "lucide-react";
+import { LevelSelectorModal } from "@/components/ui/LevelSelectorModal";
+import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, HelpCircle } from "lucide-react";
 
 const STORAGE_KEY_NAV = "calpeo_nav";
 
@@ -298,16 +299,35 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                 { value: "dark", label: <Moon className="w-3.5 h-3.5" aria-hidden />, title: "Koyu mod" },
               ]}
             />
-            <div className="hidden sm:block">
-              <Segmented<"summary" | "expert">
-                label="Bilgi yoğunluğu"
-                value={density}
-                onChange={setDensity}
-                options={[
-                  { value: "summary", label: "Özet", title: "Yönetici özeti" },
-                  { value: "expert", label: "Uzman", title: "Ajans / SEO ayrıntı görünümü" },
-                ]}
-              />
+            <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-md border border-line">
+              <button
+                type="button"
+                onClick={() => setDensity("summary")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
+                  density === "summary"
+                    ? "bg-surface text-ink shadow-sm border border-line/60"
+                    : "text-muted hover:text-ink"
+                )}
+                title="Yeni Başlayanlar ve İşletmeler için Sade Görünüm"
+              >
+                <span>🌱</span>
+                <span className="hidden sm:inline">Sade Mod</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDensity("expert")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
+                  density === "expert"
+                    ? "bg-surface text-ink shadow-sm border border-line/60"
+                    : "text-muted hover:text-ink"
+                )}
+                title="SEO Uzmanları ve Ajanslar için Detaylı Telemetri Görünümü"
+              >
+                <span>⚡</span>
+                <span className="hidden sm:inline">Uzman Modu</span>
+              </button>
             </div>
           </div>
         </header>
@@ -316,6 +336,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      <LevelSelectorModal />
     </div>
   );
 }
