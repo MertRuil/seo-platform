@@ -86,3 +86,24 @@ def test_golden_site_broken_canonical_to_404():
     rule_ids = [i.rule_id for i in report["issues"]]
     assert "RULE_CANONICAL_TO_404" in rule_ids
     assert "RULE_HTTP_4XX_CLIENT_ERROR" in rule_ids
+
+def test_golden_site_broken_internal_links():
+    engine = SeoRuleEngine()
+    pages = [
+        {
+            "url": "https://broken-links.com/home",
+            "status_code": 200,
+            "title": "Broken Links Home",
+            "internal_links": [
+                {"href": "https://broken-links.com/non-existent-page", "anchor_text": "Missing Link", "is_internal": True}
+            ]
+        },
+        {
+            "url": "https://broken-links.com/non-existent-page",
+            "status_code": 404
+        }
+    ]
+    report = engine.evaluate_site(pages)
+    rule_ids = [i.rule_id for i in report["issues"]]
+    assert "RULE_INTERNAL_LINK_TO_404" in rule_ids
+    assert "RULE_HTTP_4XX_CLIENT_ERROR" in rule_ids

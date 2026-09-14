@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -65,6 +66,7 @@ async def get_crawl_health_and_issues(
             "meta_description": p.meta_description,
             "h1": getattr(p, "h1", None),
             "headings": {"h1": [p.h1]} if getattr(p, "h1", None) else {},
+            "internal_links": json.loads(p.internal_links_json) if getattr(p, "internal_links_json", None) else [],
             "word_count": p.word_count,
         }
         for p in pages

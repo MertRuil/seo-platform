@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -30,6 +31,20 @@ async def get_site_graph_and_links(
 
     page_dicts = [{"url": p.url, "title": p.title, "status_code": p.status_code} for p in pages]
     links = []
+    for p in pages:
+        raw_links = getattr(p, "internal_links_json", None)
+        if raw_links:
+            try:
+                for l in json.loads(raw_links):
+                    links.append({
+                        "source_url": p.url,
+                        "target_url": l.get("href"),
+                        "anchor_text": l.get("anchor_text", ""),
+                        "rel": l.get("rel", ""),
+                        "is_internal": True
+                    })
+            except Exception:
+                pass
     # If no crawled links exist yet, provide root link
     if site.primary_url:
         page_dicts.append({"url": site.primary_url, "title": site.name, "status_code": 200})

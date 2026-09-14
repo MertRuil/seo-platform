@@ -118,6 +118,11 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         "all_meta_descriptions": extracted.all_meta_descriptions if extracted else [],
         "h1": h1_val,
         "headings": extracted.headings if extracted else {},
+        "internal_links": [
+            {"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel}
+            for l in (extracted.links if extracted else [])
+            if l.is_internal
+        ],
         "word_count": extracted.word_count if extracted else 0,
         "redirect_chain": resp.redirect_chain,
         "is_redirect_loop": resp.is_redirect_loop,

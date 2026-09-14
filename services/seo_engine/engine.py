@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 from services.seo_engine.base import SeoRule, RuleCheckResult
+from services.crawler.url_normalizer import UrlNormalizer
 from services.seo_engine.rules.rules_impl import (
     CanonicalTo404Rule,
     CanonicalToRedirectRule,
@@ -28,7 +29,11 @@ from services.seo_engine.rules.rules_impl import (
     IndexablePageNotInSitemapRule,
     SitemapPageBlockedByRobotsRule,
     SitemapPageNonCanonicalRule,
-    SitemapPage5xxRule
+    SitemapPage5xxRule,
+    InternalLinkTo404Rule,
+    InternalLinkTo5xxRule,
+    InternalLinkToRedirectRule,
+    InternalLinkEmptyHrefRule
 )
 
 class SeoRuleEngine:
@@ -62,6 +67,10 @@ class SeoRuleEngine:
             SitemapPageBlockedByRobotsRule(),
             SitemapPageNonCanonicalRule(),
             SitemapPage5xxRule(),
+            InternalLinkTo404Rule(),
+            InternalLinkTo5xxRule(),
+            InternalLinkToRedirectRule(),
+            InternalLinkEmptyHrefRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
@@ -87,6 +96,17 @@ class SeoRuleEngine:
         duplicate meta descriptions, and 404 targets.
         """
         pages_by_url = {p["url"]: p for p in pages if "url" in p}
+        pages_by_norm: Dict[str, Dict[str, Any]] = {}
+        for p in pages:
+            u = p.get("url")
+            if u:
+                pages_by_norm[u] = p
+                pages_by_norm[u.rstrip("/")] = p
+                try:
+                    pages_by_norm[UrlNormalizer.normalize(u)] = p
+                except Exception:
+                    pass
+
         has_sitemap = any(p.get("in_sitemap") for p in pages)
 
         # Build duplicate indexes for 200 OK indexable/canonical pages
@@ -125,6 +145,7 @@ class SeoRuleEngine:
 
         site_context = {
             "pages_by_url": pages_by_url,
+            "pages_by_norm": pages_by_norm,
             "has_sitemap": has_sitemap,
             "titles_index": titles_index,
             "h1_index": h1_index,
@@ -209,6 +230,38 @@ class SeoRuleEngine:
             "duplicate_meta_descs_count": sum(len(urls) for urls in meta_desc_index.values() if len(urls) > 1),
         }
 
+        total_internal_links = 0
+        broken_404_count = 0
+        broken_5xx_count = 0
+        redirect_links_count = 0
+
+        for p in pages:
+            raw_links = p.get("internal_links") or p.get("links") or []
+            for l in raw_links:
+                href = (l.get("href") if isinstance(l, dict) else getattr(l, "href", None)) if l else None
+                if not href:
+                    continue
+                is_internal = l.get("is_internal", True) if isinstance(l, dict) else getattr(l, "is_internal", True)
+                if not is_internal:
+                    continue
+                total_internal_links += 1
+                tp = pages_by_url.get(href) or pages_by_norm.get(href.rstrip("/")) or pages_by_norm.get(href)
+                if tp:
+                    sc = tp.get("status_code", 200)
+                    if sc in (404, 410) or (400 <= sc < 500):
+                        broken_404_count += 1
+                    elif sc >= 500:
+                        broken_5xx_count += 1
+                    elif sc in (301, 302, 303, 307, 308):
+                        redirect_links_count += 1
+
+        broken_links_stats = {
+            "total_internal_links": total_internal_links,
+            "broken_internal_links_404_count": broken_404_count,
+            "broken_internal_links_5xx_count": broken_5xx_count,
+            "redirecting_internal_links_count": redirect_links_count
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
@@ -216,5 +269,6 @@ class SeoRuleEngine:
             "issues": all_issues,
             "issues_by_page": issues_by_page,
             "sitemap_reconciliation": sitemap_reconciliation,
-            "duplicate_stats": duplicate_stats
+            "duplicate_stats": duplicate_stats,
+            "broken_links_stats": broken_links_stats
         }

@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional, List
 from services.seo_engine.base import SeoRule, RuleCategory, IssueSeverity, RuleCheckResult
+from services.crawler.url_normalizer import UrlNormalizer
 
 # 1. Canonical Rules
 class CanonicalTo404Rule(SeoRule):
@@ -968,6 +969,255 @@ class SitemapPage5xxRule(SeoRule):
                 description="XML site haritasında listelenen sayfa arama motorları tarafından taranırken sunucu hatasıyla karşılaşıldı. Googlebot bu hatayı Search Console'da 'Gönderilen URL sunucu hatası (5xx)' olarak raporlar.",
                 evidence={"url": page_context.get("url"), "status_code": status_code, "in_sitemap": True},
                 recommendation_template="Sunucu ve uygulama hata loglarını kontrol ederek arka uçtaki hatayı giderin veya sayfayı site haritasından kaldırın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+# 7. Internal Linking & Broken Links
+def _extract_page_links(page_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    raw_links = page_context.get("internal_links") or page_context.get("links") or []
+    extracted = []
+    for l in raw_links:
+        if isinstance(l, dict):
+            if l.get("is_internal", True):
+                extracted.append({
+                    "href": l.get("href") or l.get("target_url") or "",
+                    "anchor_text": l.get("anchor_text", ""),
+                    "rel": l.get("rel", ""),
+                    "status_code": l.get("status_code")
+                })
+        elif hasattr(l, "href"):
+            if getattr(l, "is_internal", True):
+                extracted.append({
+                    "href": getattr(l, "href", ""),
+                    "anchor_text": getattr(l, "anchor_text", ""),
+                    "rel": getattr(l, "rel", ""),
+                    "status_code": getattr(l, "status_code", None)
+                })
+    return extracted
+
+def _resolve_target_page(target_url: str, site_context: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not site_context or not target_url:
+        return None
+    pages_by_url = site_context.get("pages_by_url", {})
+    if target_url in pages_by_url:
+        return pages_by_url[target_url]
+    target_clean = target_url.rstrip("/")
+    if target_clean in pages_by_url:
+        return pages_by_url[target_clean]
+    pages_by_norm = site_context.get("pages_by_norm", {})
+    if target_url in pages_by_norm:
+        return pages_by_norm[target_url]
+    if target_clean in pages_by_norm:
+        return pages_by_norm[target_clean]
+    try:
+        norm = UrlNormalizer.normalize(target_url)
+        if norm in pages_by_norm:
+            return pages_by_norm[norm]
+        if norm in pages_by_url:
+            return pages_by_url[norm]
+    except Exception:
+        pass
+    return None
+
+class InternalLinkTo404Rule(SeoRule):
+    rule_id = "RULE_INTERNAL_LINK_TO_404"
+    name = "Broken Internal Link (HTTP 404 / 410)"
+    category = RuleCategory.INTERNAL_LINKING
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        links = _extract_page_links(page_context)
+        if not links:
+            return None
+
+        broken_links = []
+        for l in links:
+            target_href = l["href"]
+            if not target_href:
+                continue
+
+            target_status = l.get("status_code")
+            if target_status is None and site_context:
+                target_page = _resolve_target_page(target_href, site_context)
+                if target_page:
+                    target_status = target_page.get("status_code")
+
+            if target_status in (404, 410) or (target_status is not None and 400 <= target_status < 500):
+                broken_links.append({
+                    "target_url": target_href,
+                    "anchor_text": l.get("anchor_text", ""),
+                    "status_code": target_status
+                })
+
+        if broken_links:
+            count = len(broken_links)
+            first_target = broken_links[0]["target_url"]
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Kırık İç Bağlantı Tespit Edildi (HTTP 404 / 410)",
+                description=f"Bu sayfada {count} adet kırık iç bağlantı tespit edildi. Örneğin '{first_target}' adresi HTTP {broken_links[0]['status_code']} hatası veriyor.",
+                evidence={
+                    "url": page_context.get("url"),
+                    "broken_count": count,
+                    "broken_links": broken_links
+                },
+                recommendation_template="Kırık bağlantıları güncel ve çalışan bir hedef URL ile değiştirin veya sayfadan kaldırın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class InternalLinkTo5xxRule(SeoRule):
+    rule_id = "RULE_INTERNAL_LINK_TO_5XX"
+    name = "Broken Internal Link to 5xx Error Page"
+    category = RuleCategory.INTERNAL_LINKING
+    default_severity = IssueSeverity.CRITICAL
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        links = _extract_page_links(page_context)
+        if not links:
+            return None
+
+        server_error_links = []
+        for l in links:
+            target_href = l["href"]
+            if not target_href:
+                continue
+
+            target_status = l.get("status_code")
+            if target_status is None and site_context:
+                target_page = _resolve_target_page(target_href, site_context)
+                if target_page:
+                    target_status = target_page.get("status_code")
+
+            if target_status is not None and 500 <= target_status <= 599:
+                server_error_links.append({
+                    "target_url": target_href,
+                    "anchor_text": l.get("anchor_text", ""),
+                    "status_code": target_status
+                })
+
+        if server_error_links:
+            count = len(server_error_links)
+            first_target = server_error_links[0]["target_url"]
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Sunucu Hatası Veren Kırık İç Bağlantı (HTTP 5xx)",
+                description=f"Bu sayfada {count} adet iç bağlantı sunucu hatası (HTTP {server_error_links[0]['status_code']}) veren sayfalara ({first_target}) işaret ediyor.",
+                evidence={
+                    "url": page_context.get("url"),
+                    "server_error_count": count,
+                    "server_error_links": server_error_links
+                },
+                recommendation_template="Hedef sayfadaki sunucu hatalarını giderin veya bağlantıyı çalışan bir adrese yönlendirin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class InternalLinkToRedirectRule(SeoRule):
+    rule_id = "RULE_INTERNAL_LINK_TO_3XX"
+    name = "Internal Link to 3xx Redirect"
+    category = RuleCategory.INTERNAL_LINKING
+    default_severity = IssueSeverity.LOW
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        links = _extract_page_links(page_context)
+        if not links:
+            return None
+
+        redirect_links = []
+        for l in links:
+            target_href = l["href"]
+            if not target_href:
+                continue
+
+            target_status = l.get("status_code")
+            target_canonical = None
+            if site_context:
+                target_page = _resolve_target_page(target_href, site_context)
+                if target_page:
+                    if target_status is None:
+                        target_status = target_page.get("status_code")
+                    target_canonical = target_page.get("canonical_target")
+
+            if target_status in (301, 302, 303, 307, 308):
+                redirect_links.append({
+                    "target_url": target_href,
+                    "anchor_text": l.get("anchor_text", ""),
+                    "status_code": target_status,
+                    "redirect_target": target_canonical
+                })
+
+        if redirect_links:
+            count = len(redirect_links)
+            first_target = redirect_links[0]["target_url"]
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Yönlendirmeye İşaret Eden İç Bağlantı (HTTP 3xx)",
+                description=f"Bu sayfadaki {count} adet iç bağlantı doğrudan nihai adrese değil, bir HTTP 3xx yönlendirmesine ({first_target}) işaret ediyor.",
+                evidence={
+                    "url": page_context.get("url"),
+                    "redirect_count": count,
+                    "redirect_links": redirect_links
+                },
+                recommendation_template="İç bağlantıları doğrudan nihai hedef URL ile güncelleyerek gereksiz yönlendirme gecikmelerini önleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class InternalLinkEmptyHrefRule(SeoRule):
+    rule_id = "RULE_INTERNAL_LINK_EMPTY_HREF"
+    name = "Empty or Non-Crawlable Internal Link Href"
+    category = RuleCategory.INTERNAL_LINKING
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/links-crawlable"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        raw_links = page_context.get("internal_links") or page_context.get("links") or []
+        if not raw_links:
+            return None
+
+        empty_links = []
+        for l in raw_links:
+            href = (l.get("href") if isinstance(l, dict) else getattr(l, "href", "")) or ""
+            href_clean = href.strip()
+            anchor_text = (l.get("anchor_text") if isinstance(l, dict) else getattr(l, "anchor_text", "")) or ""
+            if not href_clean or href_clean == "#" or href_clean.lower().startswith("javascript:"):
+                empty_links.append({
+                    "href": href,
+                    "anchor_text": anchor_text
+                })
+
+        if empty_links:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Geçersiz veya Taranamayan İç Bağlantı (Empty/Invalid Href)",
+                description=f"Sayfada {len(empty_links)} adet boş, '#' veya 'javascript:' formatında taranamayan iç bağlantı bulundu.",
+                evidence={
+                    "url": page_context.get("url"),
+                    "empty_count": len(empty_links),
+                    "empty_links": empty_links
+                },
+                recommendation_template="Arama motorlarının sayfalarınızı tarayabilmesi için tüm <a> etiketlerinde geçerli bir href URL'si kullanın.",
                 documentation_url=self.documentation_url
             )
         return None
