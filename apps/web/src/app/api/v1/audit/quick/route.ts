@@ -174,75 +174,141 @@ export async function POST(req: NextRequest) {
     const issues: IssueDetail[] = [];
     let score = 100;
 
-    if (!title) {
-      score -= 20;
+    // 1. HTTP Yanıt Kodu Kontrolleri (200, 301, 302, 404, 410, 5xx)
+    if (statusCode >= 500) {
+      score -= 50;
       issues.push({
-        rule_id: "TITLE_MISSING",
-        title: "Sayfa Başlığı (<title>) Bulunamadı",
+        rule_id: "RULE_HTTP_5XX_ERROR",
+        title: statusCode === 503 
+          ? "Hizmet Kullanılamıyor (HTTP 503 Service Unavailable)" 
+          : statusCode === 502 
+          ? "Geçersiz Ağ Geçidi (HTTP 502 Bad Gateway)" 
+          : `Sunucu Hatası (HTTP ${statusCode})`,
         severity: "CRITICAL",
-        description: "Sayfada <title> etiketi bulunmuyor. Arama motorları dizinleme yaparken sayfa kimliğini tespit edemez.",
-        recommendation: "Sayfanın <head> bölümüne birincil anahtar kelimeyi ve marka adını içeren özgün bir <title> etiketi ekleyin."
+        description: `Sunucu HTTP ${statusCode} durum kodu döndürdü. Arama motoru botlarının taramasını tamamen durdurur.`,
+        recommendation: "Web sunucusu ve uygulama hata loglarını kontrol ederek arka uçtaki istisnayı giderin."
       });
-    } else if (title.length < 20 || title.length > 70) {
+    } else if (statusCode === 404) {
+      score -= 40;
+      issues.push({
+        rule_id: "RULE_HTTP_4XX_CLIENT_ERROR",
+        title: "Sayfa Bulunamadı (HTTP 404 Not Found)",
+        severity: "HIGH",
+        description: "İstenen URL sunucuda bulunamadı (404). Ziyaretçiler ve arama motorları kırık link ile karşılaşır.",
+        recommendation: "Sayfa yanlışlıkla silindiyse geri yükleyin; yeri değiştiyse en alakalı canlı sayfaya 301 kalıcı yönlendirme yapın."
+      });
+    } else if (statusCode === 410) {
+      score -= 40;
+      issues.push({
+        rule_id: "RULE_HTTP_4XX_CLIENT_ERROR",
+        title: "Sayfa Kalıcı Olarak Kaldırıldı (HTTP 410 Gone)",
+        severity: "HIGH",
+        description: "İstenen kaynak kalıcı ve kasıtlı olarak kaldırılmış (410 Gone). Googlebot bu sayfayı dizinden 404'e kıyasla çok daha hızlı düşürür.",
+        recommendation: "Kaldırma kasıtlı ise bu sayfaya verilen tüm iç bağlantıları siteden temizleyin. Yanlışlıkla ise sayfayı geri yükleyin."
+      });
+    } else if (statusCode >= 400) {
+      score -= 35;
+      issues.push({
+        rule_id: "RULE_HTTP_4XX_CLIENT_ERROR",
+        title: `İstemci Hatası (HTTP ${statusCode})`,
+        severity: "HIGH",
+        description: `Sunucu HTTP ${statusCode} istemci hatası yanıtı verdi.`,
+        recommendation: "URL yapısını ve istemci izinlerini kontrol edin."
+      });
+    } else if (statusCode === 302 || statusCode === 307) {
       score -= 10;
       issues.push({
-        rule_id: "TITLE_LENGTH",
-        title: "Sayfa Başlığı Uzunluğu Optimize Edilmemiş",
+        rule_id: "RULE_TEMPORARY_REDIRECT_302",
+        title: `Geçici Yönlendirme Tespit Edildi (HTTP ${statusCode})`,
         severity: "MEDIUM",
-        description: `Başlık şu an ${title.length} karakter. Arama motorlarında ideal başlık aralığı 40-60 karakterdir.`,
-        recommendation: "Başlığınızı arama niyetine uygun olacak şekilde 40-60 karakter arasında düzenleyin."
+        description: `Sayfa HTTP ${statusCode} geçici yönlendirme döndürüyor. Arama motorları bağlantı otoritesini (PageRank) aktarmayabilir.`,
+        recommendation: "Kalıcı taşımalar ve mimari URL yönlendirmeleri için 301 kalıcı yönlendirme kullanın."
       });
     }
 
-    if (!metaDesc) {
-      score -= 15;
-      issues.push({
-        rule_id: "META_DESC_MISSING",
-        title: "Meta Açıklaması (Description) Eksik",
-        severity: "HIGH",
-        description: "Sayfada <meta name=\"description\"> tanımlanmamış. Google arama sonuçlarında rastgele metin çekmektedir.",
-        recommendation: "120-160 karakter uzunluğunda, harekete geçirici mesaj içeren zengin bir meta açıklaması ekleyin."
-      });
-    } else if (metaDesc.length < 50 || metaDesc.length > 170) {
-      score -= 5;
-      issues.push({
-        rule_id: "META_DESC_LENGTH",
-        title: "Meta Açıklaması Karakter Sınırı Uyumsuzluğu",
-        severity: "LOW",
-        description: `Meta açıklaması ${metaDesc.length} karakter uzunluğundadır (Önerilen: 120-160 karakter).`,
-        recommendation: "Meta açıklamasını arama motorlarında kesintiye uğramayacak şekilde 120-160 karaktere optimize edin."
-      });
-    }
+    // 2. İçerik ve Başlık Denetimleri (Yalnızca 200 OK yanıt veren sayfalarda değerlendirilir)
+    if (statusCode === 200) {
+      if (!title) {
+        score -= 20;
+        issues.push({
+          rule_id: "TITLE_MISSING",
+          title: "Sayfa Başlığı (<title>) Bulunamadı",
+          severity: "CRITICAL",
+          description: "Sayfada <title> etiketi bulunmuyor. Arama motorları dizinleme yaparken sayfa kimliğini tespit edemez.",
+          recommendation: "Sayfanın <head> bölümüne birincil anahtar kelimeyi ve marka adını içeren özgün bir <title> etiketi ekleyin."
+        });
+      } else if (title.length < 20 || title.length > 70) {
+        score -= 10;
+        issues.push({
+          rule_id: "TITLE_LENGTH",
+          title: "Sayfa Başlığı Uzunluğu Optimize Edilmemiş",
+          severity: "MEDIUM",
+          description: `Başlık şu an ${title.length} karakter. Arama motorlarında ideal başlık aralığı 40-60 karakterdir.`,
+          recommendation: "Başlığınızı arama niyetine uygun olacak şekilde 40-60 karakter arasında düzenleyin."
+        });
+      }
 
-    if (!canonicalUrl) {
-      score -= 15;
-      issues.push({
-        rule_id: "CANONICAL_MISSING",
-        title: "rel=canonical Etiketi Eksik",
-        severity: "HIGH",
-        description: "Sayfada orijinal URL referansını belirten canonical etiketi bulunmamaktadır. Yinelenen içerik riski mevcuttur.",
-        recommendation: `<link rel="canonical" href="${finalUrl}" /> etiketini sayfanın <head> bölümüne ekleyin.`
-      });
-    }
+      if (!metaDesc) {
+        score -= 15;
+        issues.push({
+          rule_id: "META_DESC_MISSING",
+          title: "Meta Açıklaması (Description) Eksik",
+          severity: "HIGH",
+          description: "Sayfada <meta name=\"description\"> tanımlanmamış. Google arama sonuçlarında rastgele metin çekmektedir.",
+          recommendation: "120-160 karakter uzunluğunda, harekete geçirici mesaj içeren zengin bir meta açıklaması ekleyin."
+        });
+      } else if (metaDesc.length < 50 || metaDesc.length > 170) {
+        score -= 5;
+        issues.push({
+          rule_id: "META_DESC_LENGTH",
+          title: "Meta Açıklaması Karakter Sınırı Uyumsuzluğu",
+          severity: "LOW",
+          description: `Meta açıklaması ${metaDesc.length} karakter uzunluğundadır (Önerilen: 120-160 karakter).`,
+          recommendation: "Meta açıklamasını arama motorlarında kesintiye uğramayacak şekilde 120-160 karaktere optimize edin."
+        });
+      }
 
-    if (h1Count === 0) {
-      score -= 10;
-      issues.push({
-        rule_id: "H1_MISSING",
-        title: "H1 Başlık Etiketi Bulunamadı",
-        severity: "HIGH",
-        description: "Sayfada ana başlığı temsil eden bir <h1> etiketi bulunmuyor.",
-        recommendation: "Sayfanın ana konusunu ve hedef anahtar kelimelerini içeren tek bir <h1> etiketi yerleştirin."
-      });
-    } else if (h1Count > 1) {
-      score -= 5;
-      issues.push({
-        rule_id: "H1_MULTIPLE",
-        title: "Birden Fazla H1 Etiketi Mevcut",
-        severity: "LOW",
-        description: `Sayfada ${h1Count} adet <h1> etiketi tespit edildi. Sayfa başına tek <h1> önerilir.`,
-        recommendation: "Yalnızca en önemli başlığı <h1> bırakın, diğerlerini <h2> veya <h3> seviyesine indirin."
-      });
+      if (!canonicalUrl) {
+        score -= 15;
+        issues.push({
+          rule_id: "CANONICAL_MISSING",
+          title: "rel=canonical Etiketi Eksik",
+          severity: "HIGH",
+          description: "Sayfada orijinal URL referansını belirten canonical etiketi bulunmamaktadır. Yinelenen içerik riski mevcuttur.",
+          recommendation: `<link rel="canonical" href="${finalUrl}" /> etiketini sayfanın <head> bölümüne ekleyin.`
+        });
+      }
+
+      if (h1Count === 0) {
+        score -= 10;
+        issues.push({
+          rule_id: "H1_MISSING",
+          title: "H1 Başlık Etiketi Bulunamadı",
+          severity: "HIGH",
+          description: "Sayfada ana başlığı temsil eden bir <h1> etiketi bulunmuyor.",
+          recommendation: "Sayfanın ana konusunu ve hedef anahtar kelimelerini içeren tek bir <h1> etiketi yerleştirin."
+        });
+      } else if (h1Count > 1) {
+        score -= 5;
+        issues.push({
+          rule_id: "H1_MULTIPLE",
+          title: "Birden Fazla H1 Etiketi Mevcut",
+          severity: "LOW",
+          description: `Sayfada ${h1Count} adet <h1> etiketi tespit edildi. Sayfa başına tek <h1> önerilir.`,
+          recommendation: "Yalnızca en önemli başlığı <h1> bırakın, diğerlerini <h2> veya <h3> seviyesine indirin."
+        });
+      }
+
+      if (missingAltCount > 0) {
+        score -= 5;
+        issues.push({
+          rule_id: "IMG_ALT_MISSING",
+          title: `${missingAltCount} Adet Görselde Alt Etiketi Eksik`,
+          severity: "LOW",
+          description: "Bazı görsellerde arama motorlarının görseli anlamasını sağlayan alt=\"...\" açıklaması bulunmuyor.",
+          recommendation: "Görsellere içeriği betimleyen açıklayıcı alt etiketleri ekleyin."
+        });
+      }
     }
 
     if (!robotsOk) {
@@ -264,17 +330,6 @@ export async function POST(req: NextRequest) {
         severity: "MEDIUM",
         description: "Sitenin ana dizininde sitemap.xml dosyası tespit edilemedi.",
         recommendation: "Tüm sayfalarınızın hızlı taranabilmesi için dinamik bir XML site haritası oluşturun ve Google'a bildirin."
-      });
-    }
-
-    if (missingAltCount > 0) {
-      score -= 5;
-      issues.push({
-        rule_id: "IMG_ALT_MISSING",
-        title: `${missingAltCount} Adet Görselde Alt Etiketi Eksik`,
-        severity: "LOW",
-        description: "Bazı görsellerde arama motorlarının görseli anlamasını sağlayan alt=\"...\" açıklaması bulunmuyor.",
-        recommendation: "Görsellere içeriği betimleyen açıklayıcı alt etiketleri ekleyin."
       });
     }
 

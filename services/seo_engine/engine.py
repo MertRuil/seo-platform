@@ -2,10 +2,12 @@ from typing import List, Dict, Any, Optional
 from services.seo_engine.base import SeoRule, RuleCheckResult
 from services.seo_engine.rules.rules_impl import (
     CanonicalTo404Rule,
+    CanonicalToRedirectRule,
     CanonicalLoopRule,
     NoindexBlockedByRobotsRule,
     Server5xxErrorRule,
     Client4xxErrorRule,
+    TemporaryRedirect302Rule,
     RedirectChainRule,
     RedirectLoopRule,
     TitleMissingRule,
@@ -20,10 +22,12 @@ class SeoRuleEngine:
     def __init__(self):
         self.rules: List[SeoRule] = [
             CanonicalTo404Rule(),
+            CanonicalToRedirectRule(),
             CanonicalLoopRule(),
             NoindexBlockedByRobotsRule(),
             Server5xxErrorRule(),
             Client4xxErrorRule(),
+            TemporaryRedirect302Rule(),
             RedirectChainRule(),
             RedirectLoopRule(),
             TitleMissingRule(),

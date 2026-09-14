@@ -36,6 +36,41 @@ class CanonicalTo404Rule(SeoRule):
             )
         return None
 
+class CanonicalToRedirectRule(SeoRule):
+    rule_id = "RULE_CANONICAL_TO_REDIRECT"
+    name = "Canonical URL References a 3xx Redirect"
+    category = RuleCategory.CANONICALIZATION
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        canonical = page_context.get("canonical_target")
+        if not canonical:
+            return None
+
+        pages_by_url = (site_context or {}).get("pages_by_url", {})
+        target_page = pages_by_url.get(canonical)
+        if target_page and target_page.get("status_code", 200) in (301, 302, 303, 307, 308):
+            target_status = target_page.get("status_code")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Canonical tag references a redirecting ({target_status}) page",
+                description=f"The page specifies '{canonical}' as its canonical URL, but that destination redirects with HTTP status {target_status}. Search engines expect canonical tags to point directly to the final status 200 URL.",
+                evidence={
+                    "page_url": page_context.get("url"),
+                    "canonical_target": canonical,
+                    "target_status_code": target_status
+                },
+                recommendation_template="Update the canonical tag to point directly to the final 200 destination URL.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
 class CanonicalLoopRule(SeoRule):
     rule_id = "RULE_CANONICAL_LOOP"
     name = "Circular Canonical Loop Detected"
@@ -112,16 +147,37 @@ class Server5xxErrorRule(SeoRule):
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
         status_code = page_context.get("status_code", 200)
         if 500 <= status_code <= 599:
+            if status_code == 500:
+                title = "Sunucu Hatası (HTTP 500 Internal Server Error)"
+                desc = "Sunucu veya arka uç uygulaması beklenmeyen bir istisna (crash/exception) ile karşılaştı ve isteği tamamlayamadı."
+                rec = "Sunucu ve uygulama hata loglarını inceleyerek kod kaynaklı istisnaları (exception) çözün."
+            elif status_code == 502:
+                title = "Geçersiz Ağ Geçidi (HTTP 502 Bad Gateway)"
+                desc = "Ters proxy veya yük dengeleyici (Nginx, Cloudflare vb.), arkasındaki uygulama sunucusundan geçersiz yanıt aldı."
+                rec = "Uygulama servisinin (upstream) çalıştığını ve bağlantı soketlerinin/portlarının doğru yapılandırıldığını doğrulayın."
+            elif status_code == 503:
+                title = "Hizmet Kullanılamıyor (HTTP 503 Service Unavailable)"
+                desc = "Sunucu geçici aşırı yüklenme veya bakım modunda olduğu için isteği işleyemedi. Arama motorlarının taramasını durdurur."
+                rec = "Sunucu kaynaklarını (CPU/RAM) artırın veya bakım modunda Retry-After HTTP başlığı tanımlayın."
+            elif status_code == 504:
+                title = "Ağ Geçidi Zaman Aşımı (HTTP 504 Gateway Timeout)"
+                desc = "Ağ geçidi veya ters proxy, arka uç sunucusunun yanıt vermesini beklerken zaman aşımına uğradı."
+                rec = "Yavaş çalışan veritabanı sorgularını ve harici API çağrılarını optimize ederek yanıt süresini kısaltın."
+            else:
+                title = f"Sunucu Hatası (HTTP {status_code})"
+                desc = f"Sunucu {status_code} durum kodu döndürdü. Arama motoru botlarının taramasını engeller ve dizinden düşmeye yol açar."
+                rec = "Web sunucusu ve uygulama loglarını inceleyerek sunucu hatasını giderin."
+
             return RuleCheckResult(
                 passed=False,
                 rule_id=self.rule_id,
                 category=self.category,
                 severity=self.default_severity,
                 confidence=1.0,
-                title=f"Server returned HTTP status {status_code}",
-                description="Server errors block web crawling and result in temporary or permanent de-indexing.",
+                title=title,
+                description=desc,
                 evidence={"url": page_context.get("url"), "status_code": status_code},
-                recommendation_template="Investigate web server and application logs to resolve internal server errors.",
+                recommendation_template=rec,
                 documentation_url=self.documentation_url
             )
         return None
@@ -136,16 +192,53 @@ class Client4xxErrorRule(SeoRule):
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
         status_code = page_context.get("status_code", 200)
         if 400 <= status_code <= 499:
+            if status_code == 404:
+                title = "Sayfa Bulunamadı (HTTP 404 Not Found)"
+                desc = "İstenen sayfa sunucuda bulunamadı. İç veya dış bağlantılardan gelen ziyaretçiler ve arama motoru botları kırık linkle karşılaşır."
+                rec = "Sayfa yanlışlıkla silindiyse geri yükleyin; yeri değiştiyse en alakalı canlı sayfaya 301 kalıcı yönlendirme kurun."
+            elif status_code == 410:
+                title = "Sayfa Kalıcı Olarak Kaldırıldı (HTTP 410 Gone)"
+                desc = "İstenen sayfa kasıtlı ve kalıcı olarak kaldırılmış (410 Gone). Googlebot bu sayfayı 404'e kıyasla çok daha hızlı dizinden düşürür."
+                rec = "Kaldırma işlemi kasıtlıysa bu URL'ye işaret eden tüm iç bağlantıları siteden temizleyin. Kasıtsız ise sayfayı geri yükleyin veya yönlendirin."
+            else:
+                title = f"İstemci Hatası (HTTP {status_code})"
+                desc = f"İstenen sayfa {status_code} istemci hatası döndürdü."
+                rec = "Yetkilendirme, erişim izinleri ve URL yapısını kontrol ederek hatayı giderin."
+
             return RuleCheckResult(
                 passed=False,
                 rule_id=self.rule_id,
                 category=self.category,
                 severity=self.default_severity,
                 confidence=1.0,
-                title=f"Page returned HTTP client error {status_code}",
-                description="The requested page could not be found or was deleted.",
+                title=title,
+                description=desc,
                 evidence={"url": page_context.get("url"), "status_code": status_code},
-                recommendation_template="Restore the page or establish a permanent 301 redirect to an active relevant page.",
+                recommendation_template=rec,
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class TemporaryRedirect302Rule(SeoRule):
+    rule_id = "RULE_TEMPORARY_REDIRECT_302"
+    name = "Temporary Redirect (302/307) in Place of Permanent (301)"
+    category = RuleCategory.REDIRECTS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/301-redirects"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        status_code = page_context.get("status_code", 200)
+        if status_code in (302, 303, 307):
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Geçici Yönlendirme Tespit Edildi (HTTP {status_code})",
+                description=f"Sayfa HTTP {status_code} geçici yönlendirme döndürüyor. Arama motorları geçici yönlendirmelerde PageRank (bağlantı otoritesini) hedefe aktarmayabilir ve eski URL'yi arama dizininde tutmaya devam edebilir.",
+                evidence={"url": page_context.get("url"), "status_code": status_code},
+                recommendation_template="Kalıcı içerik taşımaları ve birincil site mimarisi için 301 kalıcı yönlendirme (Moved Permanently) kullanın.",
                 documentation_url=self.documentation_url
             )
         return None
@@ -206,6 +299,8 @@ class TitleMissingRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/appearance/title-link"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
         title = page_context.get("title")
         if title is None:
             return RuleCheckResult(
@@ -230,6 +325,8 @@ class TitleEmptyRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/appearance/title-link"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
         title = page_context.get("title")
         if title is not None and not title.strip():
             return RuleCheckResult(
@@ -254,6 +351,8 @@ class MetaDescriptionMissingRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/appearance/snippet"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
         meta_desc = page_context.get("meta_description")
         if not meta_desc or not meta_desc.strip():
             return RuleCheckResult(
@@ -279,6 +378,8 @@ class H1MissingRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
         headings = page_context.get("headings", {})
         h1_list = headings.get("h1", [])
         if not h1_list:
@@ -330,6 +431,8 @@ class SchemaSyntaxErrorRule(SeoRule):
     documentation_url = "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data"
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
         syntax_errors = page_context.get("schema_syntax_errors", [])
         if syntax_errors:
             return RuleCheckResult(

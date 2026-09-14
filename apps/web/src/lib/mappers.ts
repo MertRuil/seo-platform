@@ -59,10 +59,12 @@ export function recommendationsToQueue(recs: RecommendationResponse[]): QueueIte
 
 const RULE_LABELS: Record<string, string> = {
   RULE_CANONICAL_TO_404: "Canonical hedefi 404",
+  RULE_CANONICAL_TO_REDIRECT: "Canonical hedefi yönlendirme (3xx)",
   RULE_CANONICAL_LOOP: "Canonical döngüsü",
   RULE_NOINDEX_BLOCKED_BY_ROBOTS: "Robots ile engellenen noindex",
   RULE_HTTP_5XX_ERROR: "5xx sunucu hatası",
   RULE_HTTP_4XX_CLIENT_ERROR: "4xx istemci hatası",
+  RULE_TEMPORARY_REDIRECT_302: "Geçici yönlendirme (302/307)",
   RULE_REDIRECT_CHAIN: "Yönlendirme zinciri",
   RULE_REDIRECT_LOOP: "Yönlendirme döngüsü",
   RULE_TITLE_MISSING: "Başlık etiketi eksik",

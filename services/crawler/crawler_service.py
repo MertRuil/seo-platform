@@ -139,16 +139,140 @@ class CrawlerService:
                         errors_count += 1
                     return
 
-                # If redirected to a new URL on the same site, record the final URL as visited to prevent duplicate crawling
-                if resp.final_url and resp.final_url != current_url:
-                    try:
-                        norm_final = UrlNormalizer.normalize(resp.final_url)
-                        self.visited_urls.add(norm_final)
-                    except Exception:
-                        pass
+                norm_current = UrlNormalizer.normalize(current_url)
+                norm_final = UrlNormalizer.normalize(resp.final_url) if resp.final_url else norm_current
+                has_redirect = bool(resp.redirect_chain and norm_current != norm_final)
 
+                if has_redirect:
+                    # current_url returned a 3xx redirect
+                    initial_hop = resp.redirect_chain[0]
+                    redirect_status = initial_hop.status_code
+                    redirect_target = initial_hop.to_url
+
+                    redirect_page = CrawlPage(
+                        crawl_run_id=crawl_run.id,
+                        site_id=site.id,
+                        url=current_url,
+                        normalized_url=norm_current,
+                        depth=depth,
+                        status_code=redirect_status,
+                        content_type=resp.headers.get("content-type"),
+                        response_time_ms=resp.response_time_ms,
+                        is_fetchable=True,
+                        is_crawlable_by_google=is_google_allowed,
+                        has_noindex=False,
+                        is_indexable_candidate=False,
+                        canonical_target=redirect_target,
+                        is_canonical=False,
+                        title=None,
+                        meta_description=None,
+                        word_count=0,
+                        raw_html_hash=None,
+                        main_content_hash=None,
+                        canonical_seo_hash=None
+                    )
+                    async with lock:
+                        self.db.add(redirect_page)
+                        pages_crawled += 1
+
+                    # If final destination is on the same site, process and record the destination page as well
+                    try:
+                        final_domain = UrlNormalizer.get_domain(resp.final_url)
+                        is_same_site = (final_domain == site.normalized_domain or final_domain.endswith("." + site.normalized_domain))
+                    except Exception:
+                        is_same_site = False
+
+                    if is_same_site and not resp.is_redirect_loop and norm_final not in self.visited_urls:
+                        self.visited_urls.add(norm_final)
+                        final_google_allowed = self.robots_parser.is_allowed(resp.final_url, "Googlebot") if self.robots_parser else True
+
+                        html_to_parse = resp.text
+                        if resp.status_code == 200 and crawl_run.crawl_mode in ("GOOGLEBOT_SIMULATION", "RENDER_JS"):
+                            try:
+                                spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
+                                if spa_profile.is_spa:
+                                    rendered_html, _, _ = await HeadlessRenderEngine.render_and_reconcile(resp.final_url, resp.text)
+                                    html_to_parse = rendered_html
+                            except Exception:
+                                pass
+
+                        extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
+                        dest_has_noindex = (extracted.has_noindex if extracted else False)
+                        dest_has_nofollow = (extracted.has_nofollow if extracted else False)
+                        if resp.headers:
+                            x_robots = (resp.headers.get("x-robots-tag") or "").lower()
+                            if x_robots:
+                                x_directives = [d.strip() for d in x_robots.split(",") if d.strip()]
+                                if "noindex" in x_directives or "none" in x_directives:
+                                    dest_has_noindex = True
+                                if "nofollow" in x_directives or "none" in x_directives:
+                                    dest_has_nofollow = True
+
+                            if extracted and not extracted.canonical_url:
+                                link_header = resp.headers.get("link", "")
+                                if "canonical" in link_header.lower():
+                                    match = re.search(r'<([^>]+)>;\s*rel=["\']?canonical["\']?', link_header, re.IGNORECASE)
+                                    if match:
+                                        extracted.canonical_url = match.group(1).strip()
+
+                        def _is_self_canonical_dest(can_url: Optional[str], curr_url: str) -> bool:
+                            if not can_url:
+                                return True
+                            try:
+                                n_can = UrlNormalizer.normalize(can_url).rstrip("/")
+                                n_curr = UrlNormalizer.normalize(curr_url).rstrip("/")
+                                return n_can == n_curr
+                            except Exception:
+                                return can_url.rstrip("/") == curr_url.rstrip("/")
+
+                        dest_is_self_canonical = _is_self_canonical_dest(extracted.canonical_url, resp.final_url) if (extracted and extracted.canonical_url) else True
+                        dest_is_indexable = (
+                            resp.status_code == 200 and
+                            (extracted is not None and not dest_has_noindex)
+                        )
+
+                        dest_page = CrawlPage(
+                            crawl_run_id=crawl_run.id,
+                            site_id=site.id,
+                            url=resp.final_url,
+                            normalized_url=norm_final,
+                            depth=depth + 1,
+                            status_code=resp.status_code,
+                            content_type=resp.headers.get("content-type"),
+                            response_time_ms=resp.response_time_ms,
+                            is_fetchable=(resp.status_code < 400),
+                            is_crawlable_by_google=final_google_allowed,
+                            has_noindex=dest_has_noindex,
+                            is_indexable_candidate=dest_is_indexable,
+                            canonical_target=extracted.canonical_url if extracted else None,
+                            is_canonical=dest_is_self_canonical,
+                            title=extracted.title if extracted else None,
+                            meta_description=extracted.meta_description if extracted else None,
+                            word_count=extracted.word_count if extracted else 0,
+                            raw_html_hash=extracted.raw_html_hash if extracted else None,
+                            main_content_hash=extracted.main_content_hash if extracted else None,
+                            canonical_seo_hash=extracted.canonical_seo_hash if extracted else None
+                        )
+
+                        async with lock:
+                            self.db.add(dest_page)
+                            pages_crawled += 1
+
+                            if extracted and (depth + 1) < crawl_run.max_depth:
+                                if not (crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and dest_has_nofollow):
+                                    for link in extracted.links:
+                                        if link.is_internal:
+                                            link_rels = [r.lower() for r in (link.rel or "").split()]
+                                            if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and "nofollow" in link_rels:
+                                                continue
+                                            norm_link = UrlNormalizer.normalize(link.href)
+                                            if norm_link not in self.visited_urls:
+                                                self.visited_urls.add(norm_link)
+                                                self.queue.append((norm_link, depth + 2))
+                    return
+
+                # Standard non-redirect response (200, 404, 410, 500, etc.)
                 html_to_parse = resp.text
-                # Optional headless render for SPAs if dynamic content detected
                 if resp.status_code == 200 and crawl_run.crawl_mode in ("GOOGLEBOT_SIMULATION", "RENDER_JS"):
                     try:
                         spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
@@ -203,7 +327,7 @@ class CrawlerService:
                     crawl_run_id=crawl_run.id,
                     site_id=site.id,
                     url=current_url,
-                    normalized_url=UrlNormalizer.normalize(current_url),
+                    normalized_url=norm_current,
                     depth=depth,
                     status_code=resp.status_code,
                     content_type=resp.headers.get("content-type"),
