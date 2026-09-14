@@ -2,6 +2,7 @@ import asyncio
 import re
 from typing import Set, List, Dict, Any, Optional
 from collections import deque
+from urllib.parse import urljoin, urlparse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from packages.shared.models import CrawlRun, CrawlPage, Site
@@ -18,6 +19,7 @@ class CrawlerService:
         self.crawl_run_id = crawl_run_id
         self.concurrency = concurrency
         self.visited_urls: Set[str] = set()
+        self.sitemap_urls: Set[str] = set()
         self.queue: deque = deque()  # stores (normalized_url, depth)
         self.robots_parser: Optional[RobotsParser] = None
 
@@ -59,28 +61,45 @@ class CrawlerService:
         self.visited_urls.add(start_url)
 
         # 4. Discover and seed URLs from Sitemap(s)
-        sitemap_targets = list(self.robots_parser.sitemaps) if self.robots_parser else []
-        default_sitemap = f"{protocol}://{netloc}/sitemap.xml"
-        if default_sitemap not in sitemap_targets:
-            sitemap_targets.append(default_sitemap)
+        visited_sitemaps = set()
+        raw_sitemaps = list(self.robots_parser.sitemaps) if self.robots_parser else []
+        sitemap_targets = []
+        for sm in raw_sitemaps:
+            full_sm = urljoin(f"{protocol}://{netloc}", sm.strip())
+            if full_sm not in sitemap_targets:
+                sitemap_targets.append(full_sm)
 
-        for sm_url in sitemap_targets[:5]:
+        # Fallback common sitemaps if not declared in robots.txt
+        for default_sm in (f"{protocol}://{netloc}/sitemap.xml", f"{protocol}://{netloc}/sitemap_index.xml"):
+            if default_sm not in sitemap_targets:
+                sitemap_targets.append(default_sm)
+
+        for sm_url in sitemap_targets[:10]:
+            if sm_url in visited_sitemaps:
+                continue
+            visited_sitemaps.add(sm_url)
             try:
                 sm_resp = await client.fetch(sm_url)
                 if sm_resp.status_code == 200:
-                    sm_result = SitemapParser.parse_xml(sm_resp.text)
+                    sm_result = SitemapParser.parse_xml(sm_resp.text, base_url=sm_url)
                     if sm_result.is_valid:
-                        # If index sitemap, parse up to 5 sub-sitemaps
+                        # If index sitemap, parse up to 50 sub-sitemaps
                         if sm_result.is_index:
-                            for sub_url in sm_result.sitemap_indices[:5]:
+                            for sub_url in sm_result.sitemap_indices[:50]:
+                                full_sub = urljoin(sm_url, sub_url)
+                                if full_sub in visited_sitemaps:
+                                    continue
+                                visited_sitemaps.add(full_sub)
                                 try:
-                                    sub_resp = await client.fetch(sub_url)
+                                    sub_resp = await client.fetch(full_sub)
                                     if sub_resp.status_code == 200:
-                                        sub_res = SitemapParser.parse_xml(sub_resp.text)
+                                        sub_res = SitemapParser.parse_xml(sub_resp.text, base_url=full_sub)
                                         if sub_res.is_valid and not sub_res.is_index:
                                             for sm_item in sub_res.urls:
                                                 try:
                                                     norm_sm = UrlNormalizer.normalize(sm_item.loc)
+                                                    self.sitemap_urls.add(norm_sm)
+                                                    self.sitemap_urls.add(sm_item.loc)
                                                     if norm_sm not in self.visited_urls:
                                                         self.visited_urls.add(norm_sm)
                                                         self.queue.append((norm_sm, 1))
@@ -92,6 +111,8 @@ class CrawlerService:
                             for sm_item in sm_result.urls:
                                 try:
                                     norm_sm = UrlNormalizer.normalize(sm_item.loc)
+                                    self.sitemap_urls.add(norm_sm)
+                                    self.sitemap_urls.add(sm_item.loc)
                                     if norm_sm not in self.visited_urls:
                                         self.visited_urls.add(norm_sm)
                                         self.queue.append((norm_sm, 1))
@@ -108,15 +129,21 @@ class CrawlerService:
         async def process_url(current_url: str, depth: int):
             nonlocal pages_crawled, errors_count
             async with semaphore:
+                try:
+                    norm_current = UrlNormalizer.normalize(current_url)
+                except Exception:
+                    norm_current = current_url
+
                 # Respect robots.txt in Googlebot simulation mode
                 is_google_allowed = self.robots_parser.is_allowed(current_url, "Googlebot") if self.robots_parser else True
                 if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and not is_google_allowed:
                     # Record page as blocked by robots.txt without fetching content or parsing links
+                    is_in_sm = bool(norm_current in self.sitemap_urls or current_url in self.sitemap_urls)
                     page = CrawlPage(
                         crawl_run_id=crawl_run.id,
                         site_id=site.id,
                         url=current_url,
-                        normalized_url=UrlNormalizer.normalize(current_url),
+                        normalized_url=norm_current,
                         depth=depth,
                         status_code=0,
                         content_type=None,
@@ -125,6 +152,7 @@ class CrawlerService:
                         is_crawlable_by_google=False,
                         has_noindex=False,
                         is_indexable_candidate=False,
+                        in_sitemap=is_in_sm,
                         is_canonical=True
                     )
                     async with lock:
@@ -138,8 +166,6 @@ class CrawlerService:
                     async with lock:
                         errors_count += 1
                     return
-
-                norm_current = UrlNormalizer.normalize(current_url)
                 norm_final = UrlNormalizer.normalize(resp.final_url) if resp.final_url else norm_current
                 has_redirect = bool(resp.redirect_chain and (norm_current != norm_final or resp.is_redirect_loop))
 
@@ -226,19 +252,21 @@ class CrawlerService:
                                 norm_inter_url = UrlNormalizer.normalize(inter_hop.from_url)
                                 if norm_inter_url not in self.visited_urls:
                                     self.visited_urls.add(norm_inter_url)
+                                    is_in_sm = bool(norm_inter_url in self.sitemap_urls or inter_hop.from_url in self.sitemap_urls)
                                     inter_page = CrawlPage(
                                         crawl_run_id=crawl_run.id,
                                         site_id=site.id,
                                         url=inter_hop.from_url,
                                         normalized_url=norm_inter_url,
-                                        depth=depth + 1,
+                                        depth=depth,
                                         status_code=inter_hop.status_code,
                                         content_type=None,
                                         response_time_ms=0,
                                         is_fetchable=True,
-                                        is_crawlable_by_google=is_google_allowed,
+                                        is_crawlable_by_google=True,
                                         has_noindex=False,
                                         is_indexable_candidate=False,
+                                        in_sitemap=is_in_sm,
                                         canonical_target=inter_hop.to_url,
                                         is_canonical=False,
                                         title=None,
@@ -305,6 +333,7 @@ class CrawlerService:
                             (extracted is not None and not dest_has_noindex)
                         )
 
+                        is_in_sm = bool(norm_final in self.sitemap_urls or resp.final_url in self.sitemap_urls)
                         dest_page = CrawlPage(
                             crawl_run_id=crawl_run.id,
                             site_id=site.id,
@@ -318,6 +347,7 @@ class CrawlerService:
                             is_crawlable_by_google=final_google_allowed,
                             has_noindex=dest_has_noindex,
                             is_indexable_candidate=dest_is_indexable,
+                            in_sitemap=is_in_sm,
                             canonical_target=extracted.canonical_url if extracted else None,
                             is_canonical=dest_is_self_canonical,
                             title=extracted.title if extracted else None,
@@ -397,6 +427,7 @@ class CrawlerService:
                     (extracted is not None and not page_has_noindex)
                 )
 
+                is_in_sm = bool(norm_current in self.sitemap_urls or current_url in self.sitemap_urls)
                 page = CrawlPage(
                     crawl_run_id=crawl_run.id,
                     site_id=site.id,
@@ -410,6 +441,7 @@ class CrawlerService:
                     is_crawlable_by_google=is_google_allowed,
                     has_noindex=page_has_noindex,
                     is_indexable_candidate=is_indexable,
+                    in_sitemap=is_in_sm,
                     canonical_target=extracted.canonical_url if extracted else None,
                     is_canonical=is_self_canonical,
                     title=extracted.title if extracted else None,

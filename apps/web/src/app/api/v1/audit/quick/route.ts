@@ -168,6 +168,11 @@ export async function POST(req: NextRequest) {
       const sitemapUrl = new URL("/sitemap.xml", finalUrl).href;
       const sResp = await safeAuditFetch(sitemapUrl, { timeoutMs: 3000, maxRedirects: 1 });
       sitemapOk = sResp.statusCode >= 200 && sResp.statusCode < 400;
+      if (!sitemapOk) {
+        const sitemapIndexUrl = new URL("/sitemap_index.xml", finalUrl).href;
+        const siResp = await safeAuditFetch(sitemapIndexUrl, { timeoutMs: 3000, maxRedirects: 1 });
+        sitemapOk = siResp.statusCode >= 200 && siResp.statusCode < 400;
+      }
     } catch {}
 
     // Deterministik Kural Değerlendirmesi

@@ -1,4 +1,5 @@
 import time
+import gzip
 import httpx
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
@@ -212,8 +213,17 @@ class SafeHttpClient:
                     if len(body) > self.MAX_CONTENT_LENGTH:
                         await response.aclose()
                         raise IOError("Uncompressed body exceeded maximum permitted size")
+                raw_bytes = bytes(body)
+                if raw_bytes.startswith(b"\x1f\x8b") or response.headers.get("content-encoding") == "gzip" or current_url.endswith(".gz"):
+                    try:
+                        raw_bytes = gzip.decompress(raw_bytes)
+                    except Exception:
+                        pass
                 encoding = response.encoding or "utf-8"
-                body_text = bytes(body).decode(encoding, errors="replace")
+                try:
+                    body_text = raw_bytes.decode(encoding)
+                except Exception:
+                    body_text = raw_bytes.decode("utf-8", errors="replace")
                 await response.aclose()
 
                 total_time_ms = int((time.monotonic() - start_time) * 1000)

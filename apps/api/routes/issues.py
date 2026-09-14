@@ -57,6 +57,7 @@ async def get_crawl_health_and_issues(
             "status_code": p.status_code,
             "canonical_target": p.canonical_target,
             "has_noindex": p.has_noindex,
+            "in_sitemap": p.in_sitemap,
             "title": p.title,
             "meta_description": p.meta_description,
             "word_count": p.word_count,

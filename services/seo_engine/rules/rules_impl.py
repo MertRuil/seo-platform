@@ -532,3 +532,74 @@ class SchemaSyntaxErrorRule(SeoRule):
                 documentation_url=self.documentation_url
             )
         return None
+
+# 7. Sitemap Rules
+class SitemapPage404Rule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_404"
+    name = "Sitemap URL Returns 404 Not Found"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.CRITICAL
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("in_sitemap") and page_context.get("status_code", 200) == 404:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Site Haritasındaki Sayfa Bulunamadı (Sitemap 404)",
+                description="Sayfa XML site haritasında dizine eklenmesi için sunulmuş ancak sunucudan 404 Not Found yanıtı dönüyor. Googlebot kırık linklerle karşılaşır ve sitenin tarama kalitesi düşer.",
+                evidence={"url": page_context.get("url"), "status_code": 404, "in_sitemap": True},
+                recommendation_template="Sayfayı XML site haritasından kaldırın veya doğru ve çalışan bir sayfaya 301 yönlendirmesi yapın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class SitemapPageRedirectRule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_REDIRECT"
+    name = "Sitemap URL Returns 3xx Redirect"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("in_sitemap") and page_context.get("status_code", 200) in (301, 302, 303, 307, 308):
+            status = page_context.get("status_code")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Site Haritasındaki Sayfa Yönlendiriliyor (HTTP {status})",
+                description="Sayfa XML site haritasında yer alıyor ancak doğrudan 200 OK yanıtı vermek yerine yönlendirme yapıyor. Google kılavuzlarına göre site haritalarında yalnızca nihai ve kanonik 200 OK sayfalar yer almalıdır.",
+                evidence={"url": page_context.get("url"), "status_code": status, "in_sitemap": True},
+                recommendation_template="Site haritasındaki yönlendirilen URL'yi doğrudan nihai hedef URL ile değiştirin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class SitemapPageNoindexRule(SeoRule):
+    rule_id = "RULE_SITEMAP_PAGE_NOINDEX"
+    name = "Sitemap URL Marked with Noindex"
+    category = RuleCategory.SITEMAPS
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("in_sitemap") and page_context.get("has_noindex"):
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Site Haritasındaki Sayfa 'noindex' İle İşaretlenmiş",
+                description="Sayfa XML site haritasında arama motorlarının dizine eklemesi için bildirilmiş fakat sayfa içinde 'noindex' yönergesi tespit edildi. Bu çelişki tarama bütçesini israf eder.",
+                evidence={"url": page_context.get("url"), "has_noindex": True, "in_sitemap": True},
+                recommendation_template="Sayfa dizine eklensin istiyorsanız 'noindex' etiketini kaldırın; dizine eklenmesin istiyorsanız sayfayı XML site haritasından çıkarın.",
+                documentation_url=self.documentation_url
+            )
+        return None

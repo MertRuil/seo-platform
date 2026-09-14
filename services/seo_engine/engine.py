@@ -15,7 +15,10 @@ from services.seo_engine.rules.rules_impl import (
     MetaDescriptionMissingRule,
     H1MissingRule,
     ThinContentRule,
-    SchemaSyntaxErrorRule
+    SchemaSyntaxErrorRule,
+    SitemapPage404Rule,
+    SitemapPageRedirectRule,
+    SitemapPageNoindexRule
 )
 
 class SeoRuleEngine:
@@ -36,6 +39,9 @@ class SeoRuleEngine:
             H1MissingRule(),
             ThinContentRule(),
             SchemaSyntaxErrorRule(),
+            SitemapPage404Rule(),
+            SitemapPageRedirectRule(),
+            SitemapPageNoindexRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
