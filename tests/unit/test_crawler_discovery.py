@@ -172,3 +172,122 @@ async def test_crawler_service_auto_seeds_sitemap():
         assert run.status == "COMPLETED"
         assert run.total_urls_crawled == 3
         assert run.total_urls_discovered >= 3
+
+@pytest.mark.asyncio
+async def test_crawler_service_respects_robots_txt_disallow():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    run_id = f"run_{uuid.uuid4().hex[:8]}"
+    org_id = f"org_{uuid.uuid4().hex[:8]}"
+    site_id = f"site_{uuid.uuid4().hex[:8]}"
+
+    async with AsyncSessionLocal() as session:
+        org = Organization(id=org_id, name="Robots Test Org", slug=f"robots-test-org-{uuid.uuid4().hex[:6]}")
+        site = Site(
+            id=site_id,
+            organization_id=org_id,
+            name="Robots Test Site",
+            domain="robotstest.local",
+            normalized_domain="robotstest.local",
+            primary_url="https://robotstest.local",
+            preferred_protocol="https",
+            verification_status="VERIFIED"
+        )
+        crawl_run = CrawlRun(
+            id=run_id,
+            site_id=site_id,
+            crawl_mode="GOOGLEBOT_SIMULATION",
+            max_pages=10,
+            max_depth=3,
+            status="PENDING"
+        )
+        session.add_all([org, site, crawl_run])
+        await session.commit()
+
+        home_html = """
+        <html>
+        <head><title>Home</title></head>
+        <body>
+            <a href="/public-page">Public Page</a>
+            <a href="/admin/secret">Admin Secret (Blocked)</a>
+        </body>
+        </html>
+        """
+
+        fetched_urls = []
+
+        responses = {
+            "https://robotstest.local/robots.txt": FetchResponse(
+                requested_url="https://robotstest.local/robots.txt",
+                final_url="https://robotstest.local/robots.txt",
+                status_code=200,
+                headers={"content-type": "text/plain"},
+                text="User-agent: Googlebot\nDisallow: /admin/\n\nUser-agent: *\nDisallow: /all-blocked/",
+                response_time_ms=5,
+                redirect_chain=[]
+            ),
+            "https://robotstest.local/": FetchResponse(
+                requested_url="https://robotstest.local/",
+                final_url="https://robotstest.local/",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text=home_html,
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            "https://robotstest.local/public-page": FetchResponse(
+                requested_url="https://robotstest.local/public-page",
+                final_url="https://robotstest.local/public-page",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text="<html><body><h1>Public</h1></body></html>",
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+            "https://robotstest.local/admin/secret": FetchResponse(
+                requested_url="https://robotstest.local/admin/secret",
+                final_url="https://robotstest.local/admin/secret",
+                status_code=200,
+                headers={"content-type": "text/html"},
+                text="<html><body><h1>Secret Admin Page</h1></body></html>",
+                response_time_ms=10,
+                redirect_chain=[]
+            ),
+        }
+
+        async def mock_fetch(url):
+            fetched_urls.append(url)
+            return responses.get(url, FetchResponse(
+                requested_url=url,
+                final_url=url,
+                status_code=404,
+                headers={},
+                text="Not found",
+                response_time_ms=5,
+                redirect_chain=[]
+            ))
+
+        with patch("services.crawler.safe_client.SafeHttpClient.fetch", new=AsyncMock(side_effect=mock_fetch)):
+            crawler = CrawlerService(session, run_id, concurrency=1)
+            await crawler.run()
+
+        from sqlalchemy.future import select
+        pages_res = await session.execute(select(CrawlPage).where(CrawlPage.crawl_run_id == run_id))
+        crawled = pages_res.scalars().all()
+
+        # Admin secret page MUST NOT have been fetched over HTTP (respecting robots.txt)
+        assert "https://robotstest.local/admin/secret" not in fetched_urls
+
+        # But CrawlPage record for admin secret MUST exist in DB with is_crawlable_by_google=False
+        admin_page = next((p for p in crawled if "/admin/secret" in p.url), None)
+        assert admin_page is not None
+        assert admin_page.is_crawlable_by_google is False
+        assert admin_page.is_fetchable is False
+        assert admin_page.status_code == 0
+
+        # Public page was fetched and is crawlable by google
+        public_page = next((p for p in crawled if "/public-page" in p.url), None)
+        assert public_page is not None
+        assert public_page.is_crawlable_by_google is True
+        assert public_page.status_code == 200

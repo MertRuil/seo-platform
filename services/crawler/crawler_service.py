@@ -38,7 +38,11 @@ class CrawlerService:
         client = SafeHttpClient(mode=crawl_run.crawl_mode)
 
         # 2. Fetch robots.txt
-        robots_url = f"{site.preferred_protocol}://{site.domain}/robots.txt"
+        from urllib.parse import urlparse
+        parsed_primary = urlparse(site.primary_url)
+        netloc = parsed_primary.netloc or site.domain
+        protocol = parsed_primary.scheme or site.preferred_protocol
+        robots_url = f"{protocol}://{netloc}/robots.txt"
         try:
             robots_resp = await client.fetch(robots_url)
             if robots_resp.status_code == 200:
@@ -55,7 +59,7 @@ class CrawlerService:
 
         # 4. Discover and seed URLs from Sitemap(s)
         sitemap_targets = list(self.robots_parser.sitemaps) if self.robots_parser else []
-        default_sitemap = f"{site.preferred_protocol}://{site.domain}/sitemap.xml"
+        default_sitemap = f"{protocol}://{netloc}/sitemap.xml"
         if default_sitemap not in sitemap_targets:
             sitemap_targets.append(default_sitemap)
 
@@ -106,6 +110,25 @@ class CrawlerService:
                 # Respect robots.txt in Googlebot simulation mode
                 is_google_allowed = self.robots_parser.is_allowed(current_url, "Googlebot") if self.robots_parser else True
                 if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and not is_google_allowed:
+                    # Record page as blocked by robots.txt without fetching content or parsing links
+                    page = CrawlPage(
+                        crawl_run_id=crawl_run.id,
+                        site_id=site.id,
+                        url=current_url,
+                        normalized_url=UrlNormalizer.normalize(current_url),
+                        depth=depth,
+                        status_code=0,
+                        content_type=None,
+                        response_time_ms=0,
+                        is_fetchable=False,
+                        is_crawlable_by_google=False,
+                        has_noindex=False,
+                        is_indexable_candidate=False,
+                        is_canonical=True
+                    )
+                    async with lock:
+                        self.db.add(page)
+                        pages_crawled += 1
                     return
 
                 try:
