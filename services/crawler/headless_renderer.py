@@ -1,7 +1,7 @@
 import re
 import json
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 from selectolax.parser import HTMLParser
 from services.crawler.html_extractor import HtmlExtractor
 
@@ -194,7 +194,8 @@ class HeadlessRenderEngine:
         """
         Main execution point:
         1. Evaluates SPA profile.
-        2. Renders page via Playwright if available, or synthesizes de-hydrated DOM from state payload.
+        2. Renders page via Playwright if available (with routed raw_html and fresh page fallback),
+           or synthesizes de-hydrated DOM from state payload if headless browser unavailable.
         3. Generates reconciliation diff report.
         """
         spa_profile = cls.detect_spa_profile(raw_html)
@@ -212,46 +213,229 @@ class HeadlessRenderEngine:
             try:
                 from playwright.async_api import async_playwright
                 async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=True)
+                    browser = await p.chromium.launch(
+                        headless=True,
+                        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+                    )
                     page = await browser.new_page()
-                    await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
-                    rendered_html = await page.content()
+
+                    rendered_candidate = None
+                    # 1. Attempt intercepted navigation so raw_html is loaded under the correct origin
+                    if url and (url.startswith("http://") or url.startswith("https://")) and raw_html:
+                        try:
+                            await page.route(url, lambda route: route.fulfill(status=200, body=raw_html, content_type="text/html"))
+                            await page.goto(url, wait_until="domcontentloaded", timeout=min(timeout_ms, 8000))
+                            try:
+                                await page.wait_for_load_state("networkidle", timeout=2000)
+                            except Exception:
+                                pass
+                            await page.wait_for_timeout(400)
+                            rendered_candidate = await page.content()
+                        except Exception as nav_err:
+                            logger.debug(f"Intercepted page.goto failed ({nav_err}), falling back to fresh set_content")
+
+                    # 2. If goto failed or URL was unreachable/mock, use a fresh page with set_content
+                    if not rendered_candidate and raw_html:
+                        try:
+                            fresh_page = await browser.new_page()
+                            await fresh_page.set_content(raw_html, wait_until="domcontentloaded", timeout=5000)
+                            await fresh_page.wait_for_timeout(400)
+                            rendered_candidate = await fresh_page.content()
+                            await fresh_page.close()
+                        except Exception as set_err:
+                            logger.debug(f"set_content failed: {set_err}")
+
                     await browser.close()
+                    if rendered_candidate:
+                        rendered_html = rendered_candidate
             except Exception as e:
                 logger.warning(f"Playwright rendering failed, falling back to simulated hydration: {e}")
                 rendered_html = cls._synthesize_hydration(raw_html)
         elif spa_profile.is_spa:
             rendered_html = cls._synthesize_hydration(raw_html)
 
+        # 3. If rendered_html still looks like an empty shell (< 30 words) while hydration payload exists,
+        # supplement it with synthesized hydration so nothing is missed
+        if spa_profile.is_spa:
+            tree = HTMLParser(rendered_html)
+            body = tree.body
+            body_text = body.text().strip() if body else ""
+            if len(body_text.split()) < 30 and (spa_profile.hydration_data_found or "noscript" in rendered_html.lower()):
+                rendered_html = cls._synthesize_hydration(rendered_html)
+
         diff = cls.reconcile_dom(raw_html, rendered_html, url)
         return rendered_html, diff, spa_profile
 
     @classmethod
+    def _extract_state_data(
+        cls,
+        obj: Any,
+        titles: List[str],
+        descriptions: List[str],
+        canonicals: List[str],
+        headings: List[str],
+        texts: List[str],
+        links: Set[str],
+        depth: int = 0
+    ):
+        if depth > 12:
+            return
+        if isinstance(obj, str):
+            v_clean = obj.strip()
+            if v_clean.startswith("/") and not v_clean.startswith(("//", "/_next", "/_nuxt", "/static/")):
+                if not v_clean.endswith((".js", ".css", ".png", ".jpg", ".svg", ".woff", ".ico")):
+                    links.add(v_clean)
+        elif isinstance(obj, dict):
+            for k, v in obj.items():
+                k_lower = str(k).lower()
+                if isinstance(v, str):
+                    v_clean = v.strip()
+                    if not v_clean:
+                        continue
+                    if k_lower in ("h1", "heading", "header", "pageheading") and len(v_clean) < 200:
+                        headings.append(v_clean)
+                    elif k_lower in ("title", "pagetitle", "metatitle", "seotitle") and len(v_clean) < 200:
+                        titles.append(v_clean)
+                    elif k_lower in ("description", "metadescription", "summary", "excerpt") and len(v_clean) < 500:
+                        descriptions.append(v_clean)
+                    elif k_lower in ("canonical", "canonicalurl"):
+                        canonicals.append(v_clean)
+                    elif k_lower in ("href", "url", "link", "path", "slug", "route"):
+                        if not v_clean.endswith((".js", ".css", ".png", ".jpg", ".svg", ".woff", ".ico")):
+                            links.add(v_clean)
+                    elif v_clean.startswith("/") and not v_clean.startswith(("//", "/_next", "/_nuxt", "/static/")):
+                        if not v_clean.endswith((".js", ".css", ".png", ".jpg", ".svg", ".woff", ".ico")):
+                            links.add(v_clean)
+                    elif len(v_clean.split()) >= 3 and not v_clean.startswith(("http://", "https://", "data:", "{", "<", "webpack")):
+                        texts.append(v_clean)
+                elif isinstance(v, (dict, list)):
+                    cls._extract_state_data(v, titles, descriptions, canonicals, headings, texts, links, depth + 1)
+        elif isinstance(obj, list):
+            for item in obj:
+                cls._extract_state_data(item, titles, descriptions, canonicals, headings, texts, links, depth + 1)
+
+    @classmethod
     def _synthesize_hydration(cls, raw_html: str) -> str:
         """
-        Extracts hydration state JSON (__NEXT_DATA__ or similar) and expands DOM
-        when a full browser binary is not running.
+        Extracts hydration state JSON (__NEXT_DATA__, __NUXT_DATA__, __INITIAL_STATE__, etc.)
+        and expands DOM when a full browser binary is not running or client scripts failed to hydrate.
         """
         tree = HTMLParser(raw_html)
-        next_script = tree.css_first("script#__NEXT_DATA__")
-        if not next_script or not next_script.text():
-            return raw_html
+        titles: List[str] = []
+        descriptions: List[str] = []
+        canonicals: List[str] = []
+        headings: List[str] = []
+        texts: List[str] = []
+        links: Set[str] = set()
 
-        try:
-            data = json.loads(next_script.text().strip())
-            props = data.get("props", {}).get("pageProps", {})
+        # 1. Parse JSON state scripts
+        scripts = tree.css("script")
+        for s in scripts:
+            s_id = (s.attributes.get("id") or "").lower()
+            s_type = (s.attributes.get("type") or "").lower()
+            text = s.text().strip() if s.text() else ""
+            if not text:
+                continue
 
-            # If dynamic title or meta is in props, simulate hydrated DOM
-            title = props.get("title") or props.get("meta", {}).get("title")
-            canonical = props.get("canonical") or props.get("canonicalUrl")
-            rendered = raw_html
+            data = None
+            if s_id in ("__next_data__", "__nuxt_data__", "__initial_state__", "__preloaded_state__") or s_type == "application/json":
+                try:
+                    data = json.loads(text)
+                except Exception:
+                    pass
+            elif "__next_data__" in s_id or "__nuxt" in s_id:
+                try:
+                    data = json.loads(text)
+                except Exception:
+                    pass
+            elif "window.__INITIAL_STATE__" in text or "window.__NUXT__" in text:
+                m = re.search(r"window\.__[A-Z_]+__\s*=\s*(\{.+?\});", text, re.DOTALL)
+                if m:
+                    raw_dict_str = m.group(1)
+                    try:
+                        data = json.loads(raw_dict_str)
+                    except Exception:
+                        # Parse JS object literal using regex key-value extraction
+                        kv_pairs = re.findall(r"(\b[a-zA-Z0-9_$]+\b)\s*:\s*[\"']([^\"']+)[\"']", raw_dict_str)
+                        for k, v in kv_pairs:
+                            k_l = k.lower()
+                            if k_l in ("h1", "heading", "header"):
+                                headings.append(v)
+                            elif k_l in ("title", "pagetitle", "metatitle"):
+                                titles.append(v)
+                            elif k_l in ("description", "metadescription", "summary"):
+                                descriptions.append(v)
+                            elif k_l in ("canonical", "canonicalurl"):
+                                canonicals.append(v)
+                            elif k_l in ("href", "url", "link", "path", "slug", "route") or v.startswith("/"):
+                                links.add(v)
+                            elif len(v.split()) >= 3:
+                                texts.append(v)
 
-            if title and "<title>" in rendered:
-                rendered = re.sub(r"<title>.*?</title>", f"<title>{title}</title>", rendered, flags=re.IGNORECASE)
-            if canonical:
-                if "rel=\"canonical\"" not in rendered:
-                    rendered = rendered.replace("</head>", f'<link rel="canonical" href="{canonical}" />\n</head>')
+            if data:
+                cls._extract_state_data(data, titles, descriptions, canonicals, headings, texts, links)
 
-            return rendered
-        except Exception:
-            return raw_html
+        rendered = raw_html
+
+        # Update title if title is missing or generic
+        if titles:
+            best_title = titles[0]
+            existing_title = tree.css_first("title")
+            existing_text = existing_title.text().strip() if existing_title else ""
+            if not existing_text or any(g in existing_text.lower() for g in ["loading", "app shell", "react app", "next.js app", "create react app"]):
+                if "<title>" in rendered:
+                    rendered = re.sub(r"<title>.*?</title>", f"<title>{best_title}</title>", rendered, flags=re.IGNORECASE)
+                elif "</head>" in rendered:
+                    rendered = rendered.replace("</head>", f"<title>{best_title}</title>\n</head>")
+
+        # Update meta description if missing
+        if descriptions and 'name="description"' not in rendered and "name='description'" not in rendered:
+            best_desc = descriptions[0]
+            if "</head>" in rendered:
+                rendered = rendered.replace("</head>", f'<meta name="description" content="{best_desc}">\n</head>')
+
+        # Update canonical if missing
+        if canonicals and 'rel="canonical"' not in rendered and "rel='canonical'" not in rendered:
+            best_canon = canonicals[0]
+            if "</head>" in rendered:
+                rendered = rendered.replace("</head>", f'<link rel="canonical" href="{best_canon}">\n</head>')
+
+        # If noscript tag exists with content, unwrap it so it doesn't get decomposed
+        noscript = tree.css_first("noscript")
+        if noscript and noscript.text() and len(noscript.text().strip()) > 15:
+            rendered = re.sub(r"<noscript[^>]*>([\s\S]*?)</noscript>", r'<div id="noscript-hydrated">\1</div>', rendered, flags=re.IGNORECASE)
+
+        # Build injected HTML elements
+        injected_parts = []
+        if headings:
+            injected_parts.append(f"<h1>{headings[0]}</h1>")
+            for h in headings[1:4]:
+                injected_parts.append(f"<h2>{h}</h2>")
+
+        for t in texts[:30]:
+            injected_parts.append(f"<p>{t}</p>")
+
+        for lk in sorted(links)[:50]:
+            injected_parts.append(f'<a href="{lk}">{lk}</a>')
+
+        if injected_parts:
+            injected_html = "\n".join(injected_parts)
+            mounted = False
+            for container_id in ("__next", "root", "__nuxt", "app"):
+                match = re.search(
+                    rf'(<[a-z0-9\-]+[^>]*id=["\']{re.escape(container_id)}["\'][^>]*>)(\s*)(</[a-z0-9\-]+>)',
+                    rendered,
+                    re.IGNORECASE
+                )
+                if match:
+                    rendered = rendered[:match.start(2)] + f"\n{injected_html}\n" + rendered[match.start(3):]
+                    mounted = True
+                    break
+
+            if not mounted:
+                if "</body>" in rendered:
+                    rendered = rendered.replace("</body>", f'<div id="synthesized-hydration">\n{injected_html}\n</div>\n</body>')
+                else:
+                    rendered += f'\n<div id="synthesized-hydration">\n{injected_html}\n</div>'
+
+        return rendered

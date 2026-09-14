@@ -290,7 +290,7 @@ class CrawlerService:
                         final_google_allowed = self.robots_parser.is_allowed(resp.final_url, "Googlebot") if self.robots_parser else True
 
                         html_to_parse = resp.text
-                        if resp.status_code == 200 and crawl_run.crawl_mode in ("GOOGLEBOT_SIMULATION", "RENDER_JS"):
+                        if resp.status_code == 200:
                             try:
                                 spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
                                 if spa_profile.is_spa:
@@ -380,7 +380,7 @@ class CrawlerService:
 
                 # Standard non-redirect response (200, 404, 410, 500, etc.)
                 html_to_parse = resp.text
-                if resp.status_code == 200 and crawl_run.crawl_mode in ("GOOGLEBOT_SIMULATION", "RENDER_JS"):
+                if resp.status_code == 200:
                     try:
                         spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
                         if spa_profile.is_spa:

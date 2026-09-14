@@ -153,7 +153,34 @@ export async function POST(req: NextRequest) {
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    const wordCount = cleanText ? cleanText.split(" ").length : 0;
+    let wordCount = cleanText ? cleanText.split(" ").length : 0;
+
+    // SPA / Client-side Rendered (Next.js & Nuxt) Hydration State Extract
+    let spaTitle: string | null = null;
+    let spaDesc: string | null = null;
+    let spaH1: string | null = null;
+    let spaExtraWords = 0;
+
+    const nextDataMatch = html.match(/<script id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+    if (nextDataMatch) {
+      try {
+        const parsed = JSON.parse(nextDataMatch[1]);
+        const pProps = parsed?.props?.pageProps || {};
+        if (pProps.title || pProps.metaTitle) spaTitle = String(pProps.title || pProps.metaTitle);
+        if (pProps.description || pProps.metaDescription) spaDesc = String(pProps.description || pProps.metaDescription);
+        if (pProps.h1 || pProps.heading || pProps.header) spaH1 = String(pProps.h1 || pProps.heading || pProps.header);
+        const jsonStr = JSON.stringify(pProps);
+        const matchedWords = jsonStr.match(/\b[A-Za-z0-9ğüşıöçĞÜŞİÖÇ]{3,}\b/g);
+        if (matchedWords) spaExtraWords = matchedWords.length;
+      } catch {}
+    }
+
+    const effectiveTitle = title || spaTitle;
+    const effectiveMetaDesc = metaDesc || spaDesc;
+    const effectiveH1Count = h1Count > 0 ? h1Count : (spaH1 ? 1 : 0);
+    if (wordCount < 30 && spaExtraWords > 30) {
+      wordCount = spaExtraWords;
+    }
 
     // robots.txt ve sitemap.xml kontrolü (SSRF ve DNS Rebinding korumalı)
     let robotsOk = false;
@@ -254,7 +281,7 @@ export async function POST(req: NextRequest) {
 
     // 3. İçerik ve Başlık Denetimleri (Yalnızca 200 OK yanıt veren sayfalarda değerlendirilir)
     if (statusCode === 200) {
-      if (!title) {
+      if (!effectiveTitle) {
         score -= 20;
         issues.push({
           rule_id: "TITLE_MISSING",
@@ -263,18 +290,18 @@ export async function POST(req: NextRequest) {
           description: "Sayfada <title> etiketi bulunmuyor. Arama motorları dizinleme yaparken sayfa kimliğini tespit edemez.",
           recommendation: "Sayfanın <head> bölümüne birincil anahtar kelimeyi ve marka adını içeren özgün bir <title> etiketi ekleyin."
         });
-      } else if (title.length < 20 || title.length > 70) {
+      } else if (effectiveTitle.length < 20 || effectiveTitle.length > 70) {
         score -= 10;
         issues.push({
           rule_id: "TITLE_LENGTH",
           title: "Sayfa Başlığı Uzunluğu Optimize Edilmemiş",
           severity: "MEDIUM",
-          description: `Başlık şu an ${title.length} karakter. Arama motorlarında ideal başlık aralığı 40-60 karakterdir.`,
+          description: `Başlık şu an ${effectiveTitle.length} karakter. Arama motorlarında ideal başlık aralığı 40-60 karakterdir.`,
           recommendation: "Başlığınızı arama niyetine uygun olacak şekilde 40-60 karakter arasında düzenleyin."
         });
       }
 
-      if (!metaDesc) {
+      if (!effectiveMetaDesc) {
         score -= 15;
         issues.push({
           rule_id: "META_DESC_MISSING",
@@ -283,13 +310,13 @@ export async function POST(req: NextRequest) {
           description: "Sayfada <meta name=\"description\"> tanımlanmamış. Google arama sonuçlarında rastgele metin çekmektedir.",
           recommendation: "120-160 karakter uzunluğunda, harekete geçirici mesaj içeren zengin bir meta açıklaması ekleyin."
         });
-      } else if (metaDesc.length < 50 || metaDesc.length > 170) {
+      } else if (effectiveMetaDesc.length < 50 || effectiveMetaDesc.length > 170) {
         score -= 5;
         issues.push({
           rule_id: "META_DESC_LENGTH",
           title: "Meta Açıklaması Karakter Sınırı Uyumsuzluğu",
           severity: "LOW",
-          description: `Meta açıklaması ${metaDesc.length} karakter uzunluğundadır (Önerilen: 120-160 karakter).`,
+          description: `Meta açıklaması ${effectiveMetaDesc.length} karakter uzunluğundadır (Önerilen: 120-160 karakter).`,
           recommendation: "Meta açıklamasını arama motorlarında kesintiye uğramayacak şekilde 120-160 karaktere optimize edin."
         });
       }
@@ -305,7 +332,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      if (h1Count === 0) {
+      if (effectiveH1Count === 0) {
         score -= 10;
         issues.push({
           rule_id: "H1_MISSING",
@@ -314,14 +341,14 @@ export async function POST(req: NextRequest) {
           description: "Sayfada ana başlığı temsil eden bir <h1> etiketi bulunmuyor.",
           recommendation: "Sayfanın ana konusunu ve hedef anahtar kelimelerini içeren tek bir <h1> etiketi yerleştirin."
         });
-      } else if (h1Count > 1) {
+      } else if (effectiveH1Count > 1) {
         score -= 5;
         issues.push({
           rule_id: "H1_MULTIPLE",
-          title: "Birden Fazla H1 Etiketi Mevcut",
+          title: "Birden Fazla H1 Başlık Etiketi Tespit Edildi",
           severity: "LOW",
-          description: `Sayfada ${h1Count} adet <h1> etiketi tespit edildi. Sayfa başına tek <h1> önerilir.`,
-          recommendation: "Yalnızca en önemli başlığı <h1> bırakın, diğerlerini <h2> veya <h3> seviyesine indirin."
+          description: `Sayfada ${effectiveH1Count} adet <h1> etiketi bulundu. Sayfa başına tek bir hiyerarşik <h1> etiketi kullanılması önerilir.`,
+          recommendation: "Ana başlık için tek bir <h1> bırakın, alt başlıkları <h2> ve <h3> olarak düzenleyin."
         });
       }
 

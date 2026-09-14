@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from services.crawler.safe_client import SafeHttpClient
 from services.crawler.html_extractor import HtmlExtractor
+from services.crawler.headless_renderer import HeadlessRenderEngine
 from services.crawler.url_normalizer import UrlNormalizer
 from services.seo_engine.engine import SeoRuleEngine
 from services.agents.orchestrator import AiOrchestrator
@@ -104,7 +105,17 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
             detail=f"Siteye erişilemedi veya güvenlik kuralı (SSRF) engelledi: {str(e)}"
         )
 
-    extracted = HtmlExtractor.extract(resp.text, resp.final_url) if resp.status_code == 200 else None
+    html_to_parse = resp.text
+    if resp.status_code == 200:
+        try:
+            spa_profile = HeadlessRenderEngine.detect_spa_profile(resp.text)
+            if spa_profile.is_spa:
+                rendered_html, _, _ = await HeadlessRenderEngine.render_and_reconcile(resp.final_url, resp.text)
+                html_to_parse = rendered_html
+        except Exception:
+            pass
+
+    extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
     h1_val = (extracted.headings.get("h1", [None])[0] if (extracted and extracted.headings.get("h1")) else None)
 
     page_context = {
