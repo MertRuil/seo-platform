@@ -42,7 +42,9 @@ def compute_canonical_seo_hash(
 class HtmlExtractionResult:
     def __init__(self):
         self.title: Optional[str] = None
+        self.all_titles: List[str] = []
         self.meta_description: Optional[str] = None
+        self.all_meta_descriptions: List[str] = []
         self.meta_robots: List[str] = []
         self.has_noindex: bool = False
         self.has_nofollow: bool = False
@@ -73,10 +75,13 @@ class HtmlExtractor:
 
         tree = HTMLParser(clean_html)
 
-        # 1. Title
-        title_node = tree.css_first("title")
-        if title_node and title_node.text():
-            result.title = title_node.text().strip()
+        # 1. Title (Capture primary and all title elements)
+        for tn in tree.css("title"):
+            t_text = tn.text()
+            if t_text and t_text.strip():
+                result.all_titles.append(t_text.strip())
+        if result.all_titles:
+            result.title = result.all_titles[0]
 
         # 2. Meta description & Meta robots
         for meta in tree.css("meta"):
@@ -84,7 +89,11 @@ class HtmlExtractor:
             content = meta.attributes.get("content") or ""
 
             if name == "description":
-                result.meta_description = content.strip()
+                desc_val = content.strip()
+                if desc_val:
+                    result.all_meta_descriptions.append(desc_val)
+                    if not result.meta_description:
+                        result.meta_description = desc_val
             elif name in ("robots", "googlebot", "bingbot"):
                 directives = [d.strip().lower() for d in content.split(",") if d.strip()]
                 result.meta_robots.extend(directives)

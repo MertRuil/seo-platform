@@ -63,8 +63,9 @@ async def get_crawl_health_and_issues(
             "is_crawlable_by_google": p.is_crawlable_by_google,
             "title": p.title,
             "meta_description": p.meta_description,
+            "h1": getattr(p, "h1", None),
+            "headings": {"h1": [p.h1]} if getattr(p, "h1", None) else {},
             "word_count": p.word_count,
-            "headings": {}
         }
         for p in pages
     ]

@@ -38,4 +38,5 @@ class CrawlPageDetailResponse(BaseModel):
     canonical_target: Optional[str] = None
     title: Optional[str] = None
     meta_description: Optional[str] = None
+    h1: Optional[str] = None
     word_count: int

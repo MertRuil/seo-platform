@@ -176,6 +176,7 @@ class CrawlPage(Base):
     in_sitemap = Column(Boolean, default=False, nullable=False)
     title = Column(Text, nullable=True)
     meta_description = Column(Text, nullable=True)
+    h1 = Column(Text, nullable=True)
     word_count = Column(Integer, default=0, nullable=False)
     raw_html_hash = Column(String(64), nullable=True)
     main_content_hash = Column(String(64), nullable=True)

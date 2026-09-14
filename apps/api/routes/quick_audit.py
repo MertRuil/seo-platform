@@ -105,6 +105,7 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         )
 
     extracted = HtmlExtractor.extract(resp.text, resp.final_url) if resp.status_code == 200 else None
+    h1_val = (extracted.headings.get("h1", [None])[0] if (extracted and extracted.headings.get("h1")) else None)
 
     page_context = {
         "url": normalized_url,
@@ -112,7 +113,11 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         "canonical_target": extracted.canonical_url if extracted else (resp.redirect_chain[0].to_url if resp.redirect_chain else None),
         "has_noindex": extracted.has_noindex if extracted else False,
         "title": extracted.title if extracted else None,
+        "all_titles": extracted.all_titles if extracted else [],
         "meta_description": extracted.meta_description if extracted else None,
+        "all_meta_descriptions": extracted.all_meta_descriptions if extracted else [],
+        "h1": h1_val,
+        "headings": extracted.headings if extracted else {},
         "word_count": extracted.word_count if extracted else 0,
         "redirect_chain": resp.redirect_chain,
         "is_redirect_loop": resp.is_redirect_loop,
@@ -151,7 +156,10 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         health_score=audit_results["health_score"],
         page_info={
             "title": extracted.title if extracted else None,
+            "all_titles": extracted.all_titles if extracted else [],
             "meta_description": extracted.meta_description if extracted else None,
+            "all_meta_descriptions": extracted.all_meta_descriptions if extracted else [],
+            "h1": h1_val,
             "canonical_url": extracted.canonical_url if extracted else None,
             "word_count": extracted.word_count if extracted else 0,
             "has_noindex": extracted.has_noindex if extracted else False,

@@ -12,8 +12,14 @@ from services.seo_engine.rules.rules_impl import (
     RedirectLoopRule,
     TitleMissingRule,
     TitleEmptyRule,
+    MultipleTitlesOnPageRule,
+    DuplicateTitleRule,
     MetaDescriptionMissingRule,
+    MultipleMetaDescriptionsOnPageRule,
+    DuplicateMetaDescriptionRule,
     H1MissingRule,
+    MultipleH1Rule,
+    DuplicateH1Rule,
     ThinContentRule,
     SchemaSyntaxErrorRule,
     SitemapPage404Rule,
@@ -39,8 +45,14 @@ class SeoRuleEngine:
             RedirectLoopRule(),
             TitleMissingRule(),
             TitleEmptyRule(),
+            MultipleTitlesOnPageRule(),
+            DuplicateTitleRule(),
             MetaDescriptionMissingRule(),
+            MultipleMetaDescriptionsOnPageRule(),
+            DuplicateMetaDescriptionRule(),
             H1MissingRule(),
+            MultipleH1Rule(),
+            DuplicateH1Rule(),
             ThinContentRule(),
             SchemaSyntaxErrorRule(),
             SitemapPage404Rule(),
@@ -71,13 +83,52 @@ class SeoRuleEngine:
     def evaluate_site(self, pages: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Evaluates a complete crawl dataset. Builds global site index (pages by URL)
-        to detect cross-page anomalies like canonical loops, duplicate titles, and 404 targets.
+        to detect cross-page anomalies like canonical loops, duplicate titles, duplicate H1s,
+        duplicate meta descriptions, and 404 targets.
         """
         pages_by_url = {p["url"]: p for p in pages if "url" in p}
         has_sitemap = any(p.get("in_sitemap") for p in pages)
+
+        # Build duplicate indexes for 200 OK indexable/canonical pages
+        titles_index: Dict[str, List[str]] = {}
+        h1_index: Dict[str, List[str]] = {}
+        meta_desc_index: Dict[str, List[str]] = {}
+
+        for p in pages:
+            if p.get("status_code", 200) != 200 or p.get("has_noindex") or p.get("is_canonical") is False:
+                continue
+            url = p.get("url", "")
+            if not url:
+                continue
+
+            # Title
+            t = p.get("title")
+            if t and str(t).strip():
+                norm_t = " ".join(str(t).split()).strip().lower()
+                titles_index.setdefault(norm_t, []).append(url)
+
+            # H1
+            h_list = p.get("headings", {}).get("h1", []) if isinstance(p.get("headings"), dict) else []
+            if not h_list and p.get("h1"):
+                h_list = [p["h1"]]
+            for h_item in h_list:
+                if h_item and str(h_item).strip():
+                    norm_h = " ".join(str(h_item).split()).strip().lower()
+                    if url not in h1_index.setdefault(norm_h, []):
+                        h1_index[norm_h].append(url)
+
+            # Meta Description
+            m = p.get("meta_description")
+            if m and str(m).strip():
+                norm_m = " ".join(str(m).split()).strip().lower()
+                meta_desc_index.setdefault(norm_m, []).append(url)
+
         site_context = {
             "pages_by_url": pages_by_url,
-            "has_sitemap": has_sitemap
+            "has_sitemap": has_sitemap,
+            "titles_index": titles_index,
+            "h1_index": h1_index,
+            "meta_desc_index": meta_desc_index
         }
 
         all_issues: List[RuleCheckResult] = []
@@ -152,11 +203,18 @@ class SeoRuleEngine:
             "sitemap_cleanliness_percent": round((indexable_in_sitemap / sitemap_urls_count * 100), 1) if sitemap_urls_count > 0 else 100.0,
         }
 
+        duplicate_stats = {
+            "duplicate_titles_count": sum(len(urls) for urls in titles_index.values() if len(urls) > 1),
+            "duplicate_h1s_count": sum(len(urls) for urls in h1_index.values() if len(urls) > 1),
+            "duplicate_meta_descs_count": sum(len(urls) for urls in meta_desc_index.values() if len(urls) > 1),
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
             "health_score": health_score,
             "issues": all_issues,
             "issues_by_page": issues_by_page,
-            "sitemap_reconciliation": sitemap_reconciliation
+            "sitemap_reconciliation": sitemap_reconciliation,
+            "duplicate_stats": duplicate_stats
         }

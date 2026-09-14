@@ -76,6 +76,7 @@ export interface PageExplorerItem {
   depth: number;
   title?: string | null;
   meta_description?: string | null;
+  h1?: string | null;
   canonical_target?: string | null;
   has_noindex: boolean;
   is_indexable_candidate: boolean;

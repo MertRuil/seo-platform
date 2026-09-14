@@ -19,6 +19,7 @@ class PageExplorerItem(BaseModel):
     depth: int
     title: Optional[str] = None
     meta_description: Optional[str] = None
+    h1: Optional[str] = None
     canonical_target: Optional[str] = None
     has_noindex: bool
     is_indexable_candidate: bool

@@ -427,6 +427,84 @@ class TitleEmptyRule(SeoRule):
             )
         return None
 
+class MultipleTitlesOnPageRule(SeoRule):
+    rule_id = "RULE_MULTIPLE_TITLES_ON_PAGE"
+    name = "Multiple <title> Tags on Single Page"
+    category = RuleCategory.TITLES
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/appearance/title-link"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
+        all_titles = page_context.get("all_titles", [])
+        if len(all_titles) > 1:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Sayfada Birden Fazla <title> Etiketi Bulunuyor",
+                description=f"Sayfada {len(all_titles)} adet <title> etiketi tespit edildi. Arama motorları hangi başlığı seçeceğini belirleyemez.",
+                evidence={"url": page_context.get("url"), "title_count": len(all_titles), "titles": all_titles},
+                recommendation_template="HTML belgesinde <head> bölümü içinde yalnızca 1 adet <title> etiketi bırakın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class DuplicateTitleRule(SeoRule):
+    rule_id = "RULE_DUPLICATE_TITLE"
+    name = "Duplicate <title> Tag Across Multiple Pages"
+    category = RuleCategory.TITLES
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/appearance/title-link"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex") or page_context.get("is_canonical") is False:
+            return None
+        title = page_context.get("title")
+        if not title or not str(title).strip():
+            return None
+
+        current_url = page_context.get("url", "")
+        raw_title = str(title).strip()
+        norm_title = " ".join(raw_title.split()).strip().lower()
+
+        matching_urls = []
+        if site_context:
+            titles_index = site_context.get("titles_index")
+            if titles_index is not None:
+                matching_urls = titles_index.get(norm_title, [])
+            elif "pages_by_url" in site_context:
+                for u, p in site_context["pages_by_url"].items():
+                    if p.get("status_code", 200) != 200 or p.get("has_noindex") or p.get("is_canonical") is False:
+                        continue
+                    p_title = p.get("title")
+                    if p_title and " ".join(str(p_title).split()).strip().lower() == norm_title:
+                        matching_urls.append(u)
+
+        other_urls = [u for u in matching_urls if u != current_url]
+        if other_urls:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Yinelenen <title> Başlığı Tespit Edildi",
+                description=f"Bu sayfanın <title> başlığı ('{raw_title}') sitedeki diğer {len(other_urls)} sayfa ile birebir aynı.",
+                evidence={
+                    "url": current_url,
+                    "title": raw_title,
+                    "duplicate_urls": other_urls,
+                    "duplicate_count": len(other_urls) + 1
+                },
+                recommendation_template="Her sayfa için içeriğe özgü, benzersiz ve anahtar kelime odaklı bir <title> başlığı belirleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
 class MetaDescriptionMissingRule(SeoRule):
     rule_id = "RULE_META_DESC_MISSING"
     name = "Missing Meta Description"
@@ -453,6 +531,84 @@ class MetaDescriptionMissingRule(SeoRule):
             )
         return None
 
+class MultipleMetaDescriptionsOnPageRule(SeoRule):
+    rule_id = "RULE_MULTIPLE_META_DESCRIPTIONS"
+    name = "Multiple Meta Description Tags on Single Page"
+    category = RuleCategory.META_DESCRIPTIONS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/appearance/snippet"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
+        all_meta_descs = page_context.get("all_meta_descriptions", [])
+        if len(all_meta_descs) > 1:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Sayfada Birden Fazla Meta Açıklaması Bulunuyor",
+                description=f"Sayfada {len(all_meta_descs)} adet meta description etiketi tespit edildi.",
+                evidence={"url": page_context.get("url"), "meta_description_count": len(all_meta_descs), "meta_descriptions": all_meta_descs},
+                recommendation_template="Sayfa içerisinde yalnızca 1 adet özgün meta açıklama etiketi kullanın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class DuplicateMetaDescriptionRule(SeoRule):
+    rule_id = "RULE_DUPLICATE_META_DESCRIPTION"
+    name = "Duplicate Meta Description Across Multiple Pages"
+    category = RuleCategory.META_DESCRIPTIONS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/appearance/snippet"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex") or page_context.get("is_canonical") is False:
+            return None
+        meta_desc = page_context.get("meta_description")
+        if not meta_desc or not str(meta_desc).strip():
+            return None
+
+        current_url = page_context.get("url", "")
+        raw_desc = str(meta_desc).strip()
+        norm_desc = " ".join(raw_desc.split()).strip().lower()
+
+        matching_urls = []
+        if site_context:
+            meta_desc_index = site_context.get("meta_desc_index")
+            if meta_desc_index is not None:
+                matching_urls = meta_desc_index.get(norm_desc, [])
+            elif "pages_by_url" in site_context:
+                for u, p in site_context["pages_by_url"].items():
+                    if p.get("status_code", 200) != 200 or p.get("has_noindex") or p.get("is_canonical") is False:
+                        continue
+                    p_desc = p.get("meta_description")
+                    if p_desc and " ".join(str(p_desc).split()).strip().lower() == norm_desc:
+                        matching_urls.append(u)
+
+        other_urls = [u for u in matching_urls if u != current_url]
+        if other_urls:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Yinelenen Meta Açıklaması Tespit Edildi",
+                description=f"Bu sayfanın meta açıklaması sitedeki diğer {len(other_urls)} sayfa ile birebir aynı.",
+                evidence={
+                    "url": current_url,
+                    "meta_description": raw_desc,
+                    "duplicate_urls": other_urls,
+                    "duplicate_count": len(other_urls) + 1
+                },
+                recommendation_template="Her sayfa için kullanıcılara sayfa içeriğini özetleyen benzersiz bir meta açıklama yazın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
 # 5. Headings & Content
 class H1MissingRule(SeoRule):
     rule_id = "RULE_H1_MISSING"
@@ -465,7 +621,9 @@ class H1MissingRule(SeoRule):
         if page_context.get("status_code", 200) != 200:
             return None
         headings = page_context.get("headings", {})
-        h1_list = headings.get("h1", [])
+        h1_list = headings.get("h1", []) if isinstance(headings, dict) else []
+        if not h1_list and page_context.get("h1"):
+            h1_list = [page_context["h1"]]
         if not h1_list:
             return RuleCheckResult(
                 passed=False,
@@ -475,10 +633,102 @@ class H1MissingRule(SeoRule):
                 confidence=1.0,
                 title="Page contains no <h1> heading tag",
                 description="The H1 heading establishes primary document topic hierarchy for search engines and accessibility screen readers.",
-                evidence={"url": page_context.get("url"), "headings_found": list(headings.keys())},
+                evidence={"url": page_context.get("url"), "headings_found": list(headings.keys()) if isinstance(headings, dict) else []},
                 recommendation_template="Add a descriptive <h1> element representing the main topic of the page.",
                 documentation_url=self.documentation_url
             )
+        return None
+
+class MultipleH1Rule(SeoRule):
+    rule_id = "RULE_MULTIPLE_H1"
+    name = "Multiple <h1> Headings on Page"
+    category = RuleCategory.HEADINGS
+    default_severity = IssueSeverity.LOW
+    documentation_url = "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
+        headings = page_context.get("headings", {})
+        h1_list = headings.get("h1", []) if isinstance(headings, dict) else []
+        if len(h1_list) > 1:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Sayfada Birden Fazla <h1> Başlığı Bulunuyor",
+                description=f"Sayfada {len(h1_list)} adet <h1> etiketi tespit edildi: {', '.join(str(h) for h in h1_list[:3])}. Sayfa başlık hiyerarşisinin netliği için tek bir ana <h1> önerilir.",
+                evidence={"url": page_context.get("url"), "h1_count": len(h1_list), "h1_list": h1_list},
+                recommendation_template="Sayfa başına yalnızca 1 adet <h1> başlığı belirleyin, diğer alt başlıkları <h2> ve <h3> olarak yapılandırın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class DuplicateH1Rule(SeoRule):
+    rule_id = "RULE_DUPLICATE_H1"
+    name = "Duplicate <h1> Heading Across Multiple Pages"
+    category = RuleCategory.HEADINGS
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/fundamentals/seo-starter-guide"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex") or page_context.get("is_canonical") is False:
+            return None
+        headings = page_context.get("headings", {})
+        h1_list = headings.get("h1", []) if isinstance(headings, dict) else []
+        if not h1_list and page_context.get("h1"):
+            h1_list = [page_context["h1"]]
+        if not h1_list:
+            return None
+
+        current_url = page_context.get("url", "")
+
+        for h1_item in h1_list:
+            if not h1_item or not str(h1_item).strip():
+                continue
+            raw_h1 = str(h1_item).strip()
+            norm_h1 = " ".join(raw_h1.split()).strip().lower()
+
+            matching_urls = []
+            if site_context:
+                h1_index = site_context.get("h1_index")
+                if h1_index is not None:
+                    matching_urls = h1_index.get(norm_h1, [])
+                elif "pages_by_url" in site_context:
+                    for u, p in site_context["pages_by_url"].items():
+                        if p.get("status_code", 200) != 200 or p.get("has_noindex") or p.get("is_canonical") is False:
+                            continue
+                        p_headings = p.get("headings", {})
+                        p_h1s = p_headings.get("h1", []) if isinstance(p_headings, dict) else []
+                        if not p_h1s and p.get("h1"):
+                            p_h1s = [p["h1"]]
+                        for ph in p_h1s:
+                            if ph and " ".join(str(ph).split()).strip().lower() == norm_h1:
+                                if u not in matching_urls:
+                                    matching_urls.append(u)
+                                break
+
+            other_urls = [u for u in matching_urls if u != current_url]
+            if other_urls:
+                return RuleCheckResult(
+                    passed=False,
+                    rule_id=self.rule_id,
+                    category=self.category,
+                    severity=self.default_severity,
+                    confidence=1.0,
+                    title="Yinelenen <h1> Başlığı Tespit Edildi",
+                    description=f"Bu sayfanın <h1> başlığı ('{raw_h1}') sitedeki diğer {len(other_urls)} sayfa ile aynı.",
+                    evidence={
+                        "url": current_url,
+                        "h1": raw_h1,
+                        "duplicate_urls": other_urls,
+                        "duplicate_count": len(other_urls) + 1
+                    },
+                    recommendation_template="Her sayfa için o sayfanın konusunu benzersiz şekilde özetleyen tekil bir <h1> başlığı kullanın.",
+                    documentation_url=self.documentation_url
+                )
         return None
 
 class ThinContentRule(SeoRule):
