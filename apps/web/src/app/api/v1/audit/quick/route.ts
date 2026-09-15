@@ -274,17 +274,17 @@ export async function POST(req: NextRequest) {
     let sitemapOk = false;
     try {
       const robotsUrl = new URL("/robots.txt", finalUrl).href;
-      const rResp = await safeAuditFetch(robotsUrl, { timeoutMs: 3000, maxRedirects: 1 });
+      const rResp = await safeAuditFetch(robotsUrl, { timeoutMs: 5000, maxRedirects: 2 });
       robotsOk = rResp.statusCode >= 200 && rResp.statusCode < 400;
     } catch {}
 
     try {
       const sitemapUrl = new URL("/sitemap.xml", finalUrl).href;
-      const sResp = await safeAuditFetch(sitemapUrl, { timeoutMs: 3000, maxRedirects: 1 });
+      const sResp = await safeAuditFetch(sitemapUrl, { timeoutMs: 5000, maxRedirects: 2 });
       sitemapOk = sResp.statusCode >= 200 && sResp.statusCode < 400;
       if (!sitemapOk) {
         const sitemapIndexUrl = new URL("/sitemap_index.xml", finalUrl).href;
-        const siResp = await safeAuditFetch(sitemapIndexUrl, { timeoutMs: 3000, maxRedirects: 1 });
+        const siResp = await safeAuditFetch(sitemapIndexUrl, { timeoutMs: 5000, maxRedirects: 2 });
         sitemapOk = siResp.statusCode >= 200 && siResp.statusCode < 400;
       }
     } catch {}

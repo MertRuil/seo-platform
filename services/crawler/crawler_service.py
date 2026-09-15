@@ -370,7 +370,8 @@ class CrawlerService:
 
                             if extracted and (depth + 1) < crawl_run.max_depth:
                                 if not (crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and dest_has_nofollow):
-                                    for link in extracted.links:
+                                    sorted_links = sorted(extracted.links, key=lambda l: str(l.href or ""))
+                                    for link in sorted_links:
                                         if link.is_internal:
                                             link_rels = [r.lower() for r in (link.rel or "").split()]
                                             if crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and "nofollow" in link_rels:
@@ -470,7 +471,8 @@ class CrawlerService:
                     # Discover internal links if depth permits and page is not nofollow
                     if extracted and depth < crawl_run.max_depth:
                         if not (crawl_run.crawl_mode == "GOOGLEBOT_SIMULATION" and page_has_nofollow):
-                            for link in extracted.links:
+                            sorted_links = sorted(extracted.links, key=lambda l: str(l.href or ""))
+                            for link in sorted_links:
                                 if link.is_internal:
                                     # In Googlebot simulation, respect rel="nofollow"
                                     link_rels = [r.lower() for r in (link.rel or "").split()]
@@ -485,8 +487,11 @@ class CrawlerService:
                     if pages_crawled % 20 == 0:
                         await self.db.commit()
 
-        # 5. Concurrent BFS Crawl Loop
+        # 5. Concurrent BFS Crawl Loop with Deterministic Queue Ordering
         while self.queue and pages_crawled < crawl_run.max_pages:
+            # Sort pending queue deterministically by (depth, normalized_url)
+            self.queue = deque(sorted(self.queue, key=lambda x: (x[1], str(x[0]))))
+
             batch = []
             while self.queue and len(batch) < self.concurrency and (pages_crawled + len(batch)) < crawl_run.max_pages:
                 batch.append(self.queue.popleft())

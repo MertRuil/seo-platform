@@ -88,7 +88,7 @@ async def get_strategic_roadmap(
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
 
-    pages = (await db.execute(select(CrawlPage).where(CrawlPage.site_id == site_id))).scalars().all()
+    pages = (await db.execute(select(CrawlPage).where(CrawlPage.site_id == site_id).order_by(CrawlPage.url))).scalars().all()
     page_contexts = [{"url": p.url, "status_code": p.status_code, "canonical_target": p.canonical_target, "has_noindex": p.has_noindex, "title": p.title, "meta_description": p.meta_description, "word_count": p.word_count} for p in pages]
     evaluation = SeoRuleEngine().evaluate_site(page_contexts) if page_contexts else {"health_score": 0, "issues": []}
     critical_count = sum(1 for issue in evaluation["issues"] if issue.severity.value == "CRITICAL")

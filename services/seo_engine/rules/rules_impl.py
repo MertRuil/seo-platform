@@ -230,16 +230,25 @@ class TemporaryRedirect302Rule(SeoRule):
 
     def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
         status_code = page_context.get("status_code", 200)
-        if status_code in (302, 303, 307):
+        chain = page_context.get("redirect_chain", [])
+        temp_status = status_code if status_code in (302, 303, 307) else None
+        if not temp_status and chain:
+            for h in chain:
+                h_code = getattr(h, "status_code", None) if hasattr(h, "status_code") else (h.get("status_code") if isinstance(h, dict) else None)
+                if h_code in (302, 303, 307):
+                    temp_status = h_code
+                    break
+
+        if temp_status:
             return RuleCheckResult(
                 passed=False,
                 rule_id=self.rule_id,
                 category=self.category,
                 severity=self.default_severity,
                 confidence=1.0,
-                title=f"Geçici Yönlendirme Tespit Edildi (HTTP {status_code})",
-                description=f"Sayfa HTTP {status_code} geçici yönlendirme döndürüyor. Arama motorları geçici yönlendirmelerde PageRank (bağlantı otoritesini) hedefe aktarmayabilir ve eski URL'yi arama dizininde tutmaya devam edebilir.",
-                evidence={"url": page_context.get("url"), "status_code": status_code},
+                title=f"Geçici Yönlendirme Tespit Edildi (HTTP {temp_status})",
+                description=f"Sayfa HTTP {temp_status} geçici yönlendirme döndürüyor. Arama motorları geçici yönlendirmelerde PageRank (bağlantı otoritesini) hedefe aktarmayabilir ve eski URL'yi arama dizininde tutmaya devam edebilir.",
+                evidence={"url": page_context.get("url"), "status_code": temp_status},
                 recommendation_template="Kalıcı içerik taşımaları ve birincil site mimarisi için 301 kalıcı yönlendirme (Moved Permanently) kullanın.",
                 documentation_url=self.documentation_url
             )

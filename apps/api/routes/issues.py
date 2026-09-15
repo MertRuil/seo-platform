@@ -46,7 +46,7 @@ async def get_crawl_health_and_issues(
         select(CrawlPage).where(
             CrawlPage.site_id == site_id,
             CrawlPage.crawl_run_id == crawl_id
-        )
+        ).order_by(CrawlPage.url)
     )
     pages = result.scalars().all()
     if not pages:

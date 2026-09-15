@@ -125,6 +125,8 @@ class SeoRuleEngine:
         to detect cross-page anomalies like canonical loops, duplicate titles, duplicate H1s,
         duplicate meta descriptions, and 404 targets.
         """
+        # Ensure deterministic page order across runs
+        pages = sorted(pages, key=lambda p: str(p.get("url", "")))
         pages_by_url = {p["url"]: p for p in pages if "url" in p}
         pages_by_norm: Dict[str, Dict[str, Any]] = {}
         for p in pages:
@@ -272,23 +274,56 @@ class SeoRuleEngine:
             url = page.get("url", "unknown")
             page_issues = self.evaluate_page(page, site_context)
             if page_issues:
+                # Deterministic issue ordering per page
+                page_issues = sorted(
+                    page_issues,
+                    key=lambda i: (str(i.rule_id), str(getattr(i.severity, "value", i.severity)))
+                )
                 issues_by_page[url] = page_issues
                 all_issues.extend(page_issues)
 
-        # Calculate deterministic health score (0 - 100)
-        # Deductions: CRITICAL: -15, HIGH: -8, MEDIUM: -4, LOW: -1
-        deductions = 0
-        for issue in all_issues:
-            if issue.severity == "CRITICAL":
-                deductions += 15
-            elif issue.severity == "HIGH":
-                deductions += 8
-            elif issue.severity == "MEDIUM":
-                deductions += 4
-            elif issue.severity == "LOW":
-                deductions += 1
+        # Calculate deterministic, normalized health score (0 - 100)
+        # Deductions per page: CRITICAL: -15, HIGH: -8, MEDIUM: -4, LOW: -1
+        # Health score represents the site-wide average page health, normalized
+        # across all evaluated pages to prevent score collapse on large sites.
+        if not pages:
+            health_score = 100
+        else:
+            page_scores = []
+            for page in pages:
+                url = page.get("url", "unknown")
+                p_issues = issues_by_page.get(url, [])
+                p_deduction = 0
+                for issue in p_issues:
+                    sev = issue.severity.value if hasattr(issue.severity, "value") else str(issue.severity)
+                    if sev == "CRITICAL":
+                        p_deduction += 15
+                    elif sev == "HIGH":
+                        p_deduction += 8
+                    elif sev == "MEDIUM":
+                        p_deduction += 4
+                    elif sev == "LOW":
+                        p_deduction += 1
+                page_scores.append(max(0, 100 - p_deduction))
 
-        health_score = max(0, 100 - deductions)
+            avg_page_score = sum(page_scores) / len(page_scores)
+
+            # Check for any unattached global issues
+            page_issue_ids = {id(issue) for issues in issues_by_page.values() for issue in issues}
+            global_deduction = 0
+            for issue in all_issues:
+                if id(issue) not in page_issue_ids:
+                    sev = issue.severity.value if hasattr(issue.severity, "value") else str(issue.severity)
+                    if sev == "CRITICAL":
+                        global_deduction += 15
+                    elif sev == "HIGH":
+                        global_deduction += 8
+                    elif sev == "MEDIUM":
+                        global_deduction += 4
+                    elif sev == "LOW":
+                        global_deduction += 1
+
+            health_score = max(0, min(100, round(avg_page_score - global_deduction)))
 
         # Sitemap vs Indexable Pages Reconciliation Stats
         sitemap_urls_count = sum(1 for p in pages if p.get("in_sitemap"))
