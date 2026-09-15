@@ -785,6 +785,69 @@ class SchemaSyntaxErrorRule(SeoRule):
             )
         return None
 
+
+class SchemaMissingRequiredFieldsRule(SeoRule):
+    rule_id = "RULE_SCHEMA_MISSING_REQUIRED"
+    name = "Structured Data Missing Required Properties"
+    category = RuleCategory.STRUCTURED_DATA
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200:
+            return None
+
+        structured_data = page_context.get("structured_data", [])
+        if not structured_data:
+            return None
+
+        # Flatten entities including @graph elements
+        entities = []
+        for item in structured_data:
+            if isinstance(item, dict):
+                entities.append(item)
+                graph = item.get("@graph")
+                if isinstance(graph, list):
+                    for g in graph:
+                        if isinstance(g, dict):
+                            entities.append(g)
+
+        missing_issues = []
+        for entity in entities:
+            stype = entity.get("@type")
+            if not stype:
+                continue
+            types = stype if isinstance(stype, list) else [stype]
+            for t in types:
+                t_str = str(t).split("/")[-1]
+                if t_str == "Product":
+                    if not entity.get("name"):
+                        missing_issues.append("Product şemasında 'name' alanı eksik")
+                elif t_str in ("Article", "NewsArticle", "BlogPosting"):
+                    if not entity.get("headline") and not entity.get("name"):
+                        missing_issues.append(f"{t_str} şemasında 'headline' veya 'name' alanı eksik")
+                elif t_str in ("Organization", "LocalBusiness"):
+                    if not entity.get("name"):
+                        missing_issues.append(f"{t_str} şemasında 'name' alanı eksik")
+                elif t_str == "FAQPage":
+                    if not entity.get("mainEntity"):
+                        missing_issues.append("FAQPage şemasında 'mainEntity' (sorular) alanı eksik")
+
+        if missing_issues:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Yapılandırılmış Veride Zorunlu Alanlar Eksik (Rich Results)",
+                description=f"Sayfadaki yapılandırılmış veri işaretlemelerinde Google Zengin Sonuçlar (Rich Results) için zorunlu alanlar tespit edilemedi: {', '.join(missing_issues)}",
+                evidence={"url": page_context.get("url"), "missing_properties": missing_issues},
+                recommendation_template="Eksik zorunlu Schema.org alanlarını ekleyerek arama motorlarının zengin sonuç önizlemelerini etkinleştirmesini sağlayın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
 # 7. Sitemap Rules
 class SitemapPage404Rule(SeoRule):
     rule_id = "RULE_SITEMAP_PAGE_404"

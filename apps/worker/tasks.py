@@ -247,6 +247,13 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                     "h1": getattr(p, "h1", None),
                     "headings": {"h1": [p.h1]} if getattr(p, "h1", None) else {},
                     "internal_links": json.loads(p.internal_links_json) if getattr(p, "internal_links_json", None) else [],
+                    "structured_data": json.loads(p.structured_data_json) if getattr(p, "structured_data_json", None) else [],
+                    "schema_types": [
+                        item.get("@type")
+                        for item in (json.loads(p.structured_data_json) if getattr(p, "structured_data_json", None) else [])
+                        if isinstance(item, dict) and item.get("@type")
+                    ],
+                    "schema_syntax_errors": [],
                     "word_count": p.word_count,
                 }
                 for p in pages

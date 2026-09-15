@@ -182,6 +182,7 @@ class CrawlPage(Base):
     main_content_hash = Column(String(64), nullable=True)
     canonical_seo_hash = Column(String(64), nullable=True, default=None)
     internal_links_json = Column(Text, nullable=True)
+    structured_data_json = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     crawl_run = relationship("CrawlRun", back_populates="pages")

@@ -136,6 +136,9 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         "mobile_alternate_url": extracted.mobile_alternate_url if extracted else None,
         "has_vary_user_agent": extracted.has_vary_user_agent if extracted else False,
         "headers": dict(resp.headers) if resp.headers else {},
+        "structured_data": extracted.structured_data if extracted else [],
+        "schema_types": extracted.schema_types if extracted else [],
+        "schema_syntax_errors": extracted.schema_syntax_errors if extracted else [],
         "internal_links": [
             {"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel}
             for l in (extracted.links if extracted else [])
@@ -190,7 +193,10 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
             "has_noindex": extracted.has_noindex if extracted else False,
             "response_time_ms": resp.response_time_ms,
             "viewport": extracted.viewport if extracted else None,
-            "is_mobile_friendly": is_mobile_ok
+            "is_mobile_friendly": is_mobile_ok,
+            "structured_data": extracted.structured_data if extracted else [],
+            "schema_types": extracted.schema_types if extracted else [],
+            "has_structured_data": bool(extracted and (extracted.structured_data or extracted.schema_types))
         },
         issues=formatted_issues,
         ai_recommendations=recs

@@ -194,6 +194,53 @@ export async function POST(req: NextRequest) {
       wordCount = spaExtraWords;
     }
 
+    // Schema / Structured Data Extraction (JSON-LD & Microdata)
+    const schemaTypes: string[] = [];
+    let hasStructuredData = false;
+    let schemaSyntaxError = false;
+
+    // JSON-LD scripts (handling case variants, CDATA, trailing commas, and @graph)
+    const ldJsonMatches = html.match(/<script[^>]*type=["']application\/ld\+json[^"']*["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+    for (const s of ldJsonMatches) {
+      const contentMatch = s.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+      if (contentMatch && contentMatch[1].trim()) {
+        const rawLd = contentMatch[1]
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/\/\/.*/g, "")
+          .replace(/<!--[\s\S]*?-->/g, "")
+          .replace(/,\s*([\]}])/g, "$1")
+          .trim();
+        try {
+          const parsed = JSON.parse(rawLd);
+          hasStructuredData = true;
+          const items = Array.isArray(parsed) ? parsed : (parsed?.["@graph"] ? parsed["@graph"] : [parsed]);
+          for (const item of items) {
+            if (item && item["@type"]) {
+              const types = Array.isArray(item["@type"]) ? item["@type"] : [item["@type"]];
+              for (const t of types) {
+                if (t && !schemaTypes.includes(String(t))) {
+                  schemaTypes.push(String(t));
+                }
+              }
+            }
+          }
+        } catch {
+          schemaSyntaxError = true;
+        }
+      }
+    }
+
+    // HTML5 Microdata (itemscope & itemtype)
+    const microdataMatches = html.match(/itemtype=["'](https?:\/\/[^"']+)["']/gi) || [];
+    for (const m of microdataMatches) {
+      const typeUrl = m.replace(/itemtype=["']/i, "").replace(/["']$/, "");
+      const typeName = typeUrl.split("/").pop() || "";
+      if (typeName && !schemaTypes.includes(typeName)) {
+        schemaTypes.push(typeName);
+        hasStructuredData = true;
+      }
+    }
+
     // robots.txt ve sitemap.xml kontrolü (SSRF ve DNS Rebinding korumalı)
     let robotsOk = false;
     let sitemapOk = false;
@@ -408,6 +455,16 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+      if (schemaSyntaxError) {
+        score -= 10;
+        issues.push({
+          rule_id: "RULE_SCHEMA_SYNTAX_ERROR",
+          title: "Yapılandırılmış Veri Sözdizimi Hatası (Schema Syntax Error)",
+          severity: "HIGH",
+          description: "Sayfadaki JSON-LD yapılandırılmış veri bloğunda JSON sözdizimi hatası tespit edildi. Arama motorları bu şemayı parse edemez.",
+          recommendation: "JSON-LD kodundaki sözdizimi, eksik veya fazladan virgül/tırnak hatalarını Google Zengin Sonuçlar Testi ile kontrol ederek düzeltin."
+        });
+      }
     }
 
     if (!robotsOk) {
@@ -478,7 +535,9 @@ export async function POST(req: NextRequest) {
         word_count: wordCount,
         response_time_ms: responseTimeMs,
         viewport: viewport || null,
-        is_mobile_friendly: isMobileFriendly
+        is_mobile_friendly: isMobileFriendly,
+        has_structured_data: hasStructuredData,
+        schema_types: schemaTypes
       },
       issues,
       ai_recommendations: aiRecommendations

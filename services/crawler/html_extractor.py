@@ -39,6 +39,22 @@ def compute_canonical_seo_hash(
     canonical_repr = f"title:{norm_title}|canonical:{norm_canonical}|desc:{norm_desc}|robots:{robots_str}"
     return hashlib.sha256(canonical_repr.encode("utf-8")).hexdigest()
 
+def _clean_json_ld(raw_text: str) -> str:
+    """
+    Strips CDATA wrappers, HTML comments, and trailing commas from CMS JSON-LD payloads.
+    """
+    cleaned = raw_text.strip()
+    if cleaned.startswith("<!--"):
+        cleaned = re.sub(r"^<!--", "", cleaned)
+    if cleaned.endswith("-->"):
+        cleaned = re.sub(r"-->$", "", cleaned)
+    cleaned = re.sub(r"/\*\s*<!\[CDATA\[\s*\*/", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"/\*\s*\]\]>\s*\*/", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"//\s*<!\[CDATA\[", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"//\s*\]\]>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
+    return cleaned.strip()
+
 class HtmlExtractionResult:
     def __init__(self):
         self.title: Optional[str] = None
@@ -56,6 +72,8 @@ class HtmlExtractionResult:
         self.structured_data: List[Dict[str, Any]] = []
         self.raw_json_ld: List[str] = []
         self.schema_syntax_errors: List[str] = []
+        self.schema_types: List[str] = []
+        self.microdata: List[Dict[str, Any]] = []
         self.main_content_text: str = ""
         self.word_count: int = 0
         self.raw_html_hash: str = ""
@@ -219,20 +237,86 @@ class HtmlExtractor:
                     height=height
                 ))
 
-        # 7. Structured Data (JSON-LD)
-        for script in tree.css('script[type="application/ld+json"]'):
-            raw_json = script.text()
-            if not raw_json:
+        # 7. Structured Data (JSON-LD, HTML5 Microdata, and RDFa)
+        # 7a. JSON-LD scripts (case-insensitive, charset-tolerant, CDATA/comment-cleaned, and @graph unpacked)
+        for script in tree.css("script"):
+            s_type = (script.attributes.get("type") or "").strip().lower()
+            if "application/ld+json" not in s_type:
                 continue
-            result.raw_json_ld.append(raw_json.strip())
+
+            raw_text = script.text()
+            if not raw_text or not raw_text.strip():
+                continue
+
+            raw_clean = raw_text.strip()
+            result.raw_json_ld.append(raw_clean)
+
+            parsed_json = None
             try:
-                parsed_json = json.loads(raw_json)
+                parsed_json = json.loads(raw_clean)
+            except Exception:
+                try:
+                    cleaned_str = _clean_json_ld(raw_clean)
+                    parsed_json = json.loads(cleaned_str)
+                except Exception as e:
+                    result.schema_syntax_errors.append(f"Invalid JSON-LD syntax: {str(e)}")
+
+            if parsed_json is not None:
+                items_to_process = []
                 if isinstance(parsed_json, dict):
                     result.structured_data.append(parsed_json)
+                    items_to_process.append(parsed_json)
+                    graph = parsed_json.get("@graph")
+                    if isinstance(graph, list):
+                        items_to_process.extend(graph)
                 elif isinstance(parsed_json, list):
                     result.structured_data.extend(parsed_json)
-            except Exception as e:
-                result.schema_syntax_errors.append(f"Invalid JSON-LD syntax: {str(e)}")
+                    items_to_process.extend(parsed_json)
+
+                for item in items_to_process:
+                    if isinstance(item, dict):
+                        stype = item.get("@type")
+                        if stype:
+                            if isinstance(stype, list):
+                                for st in stype:
+                                    if st and str(st) not in result.schema_types:
+                                        result.schema_types.append(str(st))
+                            elif str(stype) not in result.schema_types:
+                                result.schema_types.append(str(stype))
+
+        # 7b. HTML5 Microdata (itemscope, itemtype, itemprop)
+        for item_node in tree.css("[itemscope]"):
+            item_type_raw = item_node.attributes.get("itemtype") or ""
+            type_name = item_type_raw.rstrip("/").split("/")[-1] if item_type_raw else "Item"
+            props: Dict[str, Any] = {"@type": type_name, "@context": "https://schema.org"}
+            if item_type_raw:
+                props["itemtype"] = item_type_raw
+
+            for prop_node in item_node.css("[itemprop]"):
+                prop_name = prop_node.attributes.get("itemprop")
+                if not prop_name:
+                    continue
+                val = (
+                    prop_node.attributes.get("content")
+                    or prop_node.attributes.get("href")
+                    or prop_node.attributes.get("src")
+                    or (prop_node.text().strip() if prop_node.text() else "")
+                )
+                if val:
+                    props[prop_name] = val
+
+            if type_name and type_name != "Item" and type_name not in result.schema_types:
+                result.schema_types.append(type_name)
+
+            result.microdata.append(props)
+            result.structured_data.append(props)
+
+        # 7c. RDFa (vocab and typeof)
+        for rdfa_node in tree.css("[typeof]"):
+            typeof_val = rdfa_node.attributes.get("typeof") or ""
+            type_name = typeof_val.rstrip("/").split("/")[-1] if typeof_val else ""
+            if type_name and type_name not in result.schema_types:
+                result.schema_types.append(type_name)
 
         # 8. Main Body Text & Word Count (stripping scripts, styles, nav, footer)
         body = tree.css_first("body")

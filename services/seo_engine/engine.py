@@ -23,6 +23,7 @@ from services.seo_engine.rules.rules_impl import (
     DuplicateH1Rule,
     ThinContentRule,
     SchemaSyntaxErrorRule,
+    SchemaMissingRequiredFieldsRule,
     SitemapPage404Rule,
     SitemapPageRedirectRule,
     SitemapPageNoindexRule,
@@ -67,6 +68,7 @@ class SeoRuleEngine:
             DuplicateH1Rule(),
             ThinContentRule(),
             SchemaSyntaxErrorRule(),
+            SchemaMissingRequiredFieldsRule(),
             SitemapPage404Rule(),
             SitemapPageRedirectRule(),
             SitemapPageNoindexRule(),
@@ -390,6 +392,35 @@ class SeoRuleEngine:
             "mobile_friendly_percent": mobile_friendly_percent
         }
 
+        # Structured Data & Schema Statistics
+        pages_with_schema = 0
+        total_schema_entities = 0
+        schema_types_count: Dict[str, int] = {}
+        pages_with_schema_errors = 0
+
+        for p in pages:
+            sdata = p.get("structured_data") or []
+            stypes = p.get("schema_types") or []
+            errors = p.get("schema_syntax_errors") or []
+            if errors:
+                pages_with_schema_errors += 1
+            if sdata or stypes:
+                pages_with_schema += 1
+                total_schema_entities += len(sdata)
+                for st in stypes:
+                    schema_types_count[st] = schema_types_count.get(st, 0) + 1
+
+        schema_coverage_percent = round((pages_with_schema / len(pages) * 100), 1) if pages else 0.0
+
+        schema_stats = {
+            "total_pages_evaluated": len(pages),
+            "pages_with_schema": pages_with_schema,
+            "total_schema_entities": total_schema_entities,
+            "pages_with_schema_errors": pages_with_schema_errors,
+            "schema_coverage_percent": schema_coverage_percent,
+            "schema_types_found": schema_types_count
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
@@ -400,5 +431,6 @@ class SeoRuleEngine:
             "duplicate_stats": duplicate_stats,
             "broken_links_stats": broken_links_stats,
             "orphan_stats": orphan_stats,
-            "mobile_stats": mobile_stats
+            "mobile_stats": mobile_stats,
+            "schema_stats": schema_stats
         }

@@ -358,7 +358,8 @@ class CrawlerService:
                             raw_html_hash=extracted.raw_html_hash if extracted else None,
                             main_content_hash=extracted.main_content_hash if extracted else None,
                             canonical_seo_hash=extracted.canonical_seo_hash if extracted else None,
-                            internal_links_json=(json.dumps([{"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel} for l in extracted.links if l.is_internal]) if extracted else None)
+                            internal_links_json=(json.dumps([{"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel} for l in extracted.links if l.is_internal]) if extracted else None),
+                            structured_data_json=(json.dumps(extracted.structured_data) if (extracted and extracted.structured_data) else None)
                         )
 
                         async with lock:
@@ -454,7 +455,8 @@ class CrawlerService:
                     raw_html_hash=extracted.raw_html_hash if extracted else None,
                     main_content_hash=extracted.main_content_hash if extracted else None,
                     canonical_seo_hash=extracted.canonical_seo_hash if extracted else None,
-                    internal_links_json=(json.dumps([{"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel} for l in extracted.links if l.is_internal]) if extracted else None)
+                    internal_links_json=(json.dumps([{"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel} for l in extracted.links if l.is_internal]) if extracted else None),
+                    structured_data_json=(json.dumps(extracted.structured_data) if (extracted and extracted.structured_data) else None)
                 )
 
                 async with lock:
