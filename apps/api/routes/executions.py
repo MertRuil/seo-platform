@@ -146,6 +146,13 @@ async def execute_change_set(
     if not items:
         raise HTTPException(status_code=400, detail="ChangeSet has no items to execute")
 
+    from services.billing.entitlements import EntitlementGuard
+    from services.billing.usage import UsageService
+
+    # Entitlement & Quota Guard: Auto-fix yetkisi ve aylık kalan kota kontrolü
+    await EntitlementGuard.ensure_feature(db, org_id, "auto_fixes")
+    await EntitlementGuard.ensure_limit(db, org_id, "auto_fixes", requested_qty=len(items))
+
     connector_record = (await db.execute(select(SiteConnector).where(SiteConnector.site_id == site_id, SiteConnector.is_active.is_(True)))).scalars().first()
     if not connector_record:
         raise HTTPException(
@@ -211,6 +218,20 @@ async def execute_change_set(
     cs.status = "SUCCESS" if all_success else "FAILED"
     cs.executed_at = datetime.now(timezone.utc)
     await db.commit()
+
+    # Track usage: Başarıyla uygulanan adımları organizasyon kotasından düş
+    if all_success and completed_items:
+        try:
+            await UsageService.consume(
+                db,
+                org_id,
+                "auto_fixes",
+                quantity=len(completed_items),
+                ref_type="change_set",
+                ref_id=cs.id
+            )
+        except Exception:
+            pass
 
     # Otonom Anlık İndeksleme: Başarıyla uygulanan sayfaları IndexNow protokolüne bildir
     if all_success:

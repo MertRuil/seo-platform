@@ -97,6 +97,12 @@ async def test_full_platform_api_flow():
         assert cs_res.status_code == 201
         cs_id = cs_res.json()["id"]
 
+        # 6.9 Upgrade org to Pro plan (auto_fixes requires Pro)
+        upgrade_res = await client.post(f"/api/v1/organizations/{org_id}/billing/plan", json={
+            "plan_code": "pro"
+        }, headers=headers)
+        assert upgrade_res.status_code == 200
+
         exec_res = await client.post(f"/api/v1/organizations/{org_id}/sites/{site_id}/change-sets/{cs_id}/execute", headers=headers)
         assert exec_res.status_code == 200
         assert exec_res.json()["success"] is True

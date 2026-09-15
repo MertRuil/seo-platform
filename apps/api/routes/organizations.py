@@ -8,6 +8,7 @@ from packages.contracts.organization import (
     OrganizationCreateRequest, OrganizationResponse, AddMemberRequest, MemberResponse
 )
 from services.security.jwt_auth import get_current_user_payload
+from services.billing.entitlements import EntitlementGuard
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
@@ -45,6 +46,9 @@ async def create_organization(
     db.add(membership)
     await db.commit()
     await db.refresh(org)
+
+    # Free plan aboneliği ve AI kredilerini hazırla
+    await EntitlementGuard.get_or_create_subscription(db, org.id)
 
     return OrganizationResponse(
         id=org.id,

@@ -156,6 +156,12 @@ async def test_complete_autonomous_seo_lifecycle():
         assert cs_res.status_code == 201
         change_set_id = cs_res.json()["id"]
 
+        # Step 7.4: Upgrade org to Pro plan (auto_fixes requires Pro)
+        upgrade_res = await client.post(f"/api/v1/organizations/{org_id}/billing/plan", json={
+            "plan_code": "pro"
+        }, headers=auth_headers)
+        assert upgrade_res.status_code == 200
+
         # Step 7.5: Verify rejection when no connector is configured
         unconfigured_exec = await client.post(
             f"/api/v1/organizations/{org_id}/sites/{site_id}/change-sets/{change_set_id}/execute",

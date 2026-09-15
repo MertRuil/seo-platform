@@ -17,7 +17,8 @@ from apps.api.routes import (
     experiments,
     quick_audit,
     knowledge,
-    connectors
+    connectors,
+    billing
 )
 
 @asynccontextmanager
@@ -164,6 +165,7 @@ app.include_router(experiments.router, prefix="/api/v1")
 app.include_router(quick_audit.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(connectors.router, prefix="/api/v1")
+app.include_router(billing.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

@@ -36,6 +36,15 @@ class CrawlerService:
         if not site:
             raise ValueError(f"Site {crawl_run.site_id} not found")
 
+        # Entitlement & Quota Guard: Check crawl page quota if site belongs to an organization
+        if getattr(site, "organization_id", None):
+            try:
+                from services.billing.entitlements import EntitlementGuard
+                max_allowed = await EntitlementGuard.reserve_crawl_budget(self.db, site.organization_id, crawl_run.max_pages)
+                crawl_run.max_pages = max_allowed
+            except Exception:
+                pass
+
         crawl_run.status = "RUNNING"
         await self.db.commit()
 
@@ -507,3 +516,18 @@ class CrawlerService:
         crawl_run.total_urls_crawled = pages_crawled
         crawl_run.total_errors = errors_count
         await self.db.commit()
+
+        # Track usage: consume crawled pages count in organization quota
+        if getattr(site, "organization_id", None) and pages_crawled > 0:
+            try:
+                from services.billing.usage import UsageService
+                await UsageService.consume(
+                    self.db,
+                    site.organization_id,
+                    "pages_crawled",
+                    pages_crawled,
+                    ref_type="crawl_run",
+                    ref_id=crawl_run.id
+                )
+            except Exception:
+                pass

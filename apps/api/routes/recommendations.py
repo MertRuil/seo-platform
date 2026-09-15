@@ -95,6 +95,11 @@ async def get_strategic_roadmap(
     opportunity_count = len((await db.execute(select(GscSearchMetric.id).where(GscSearchMetric.site_id == site_id))).all())
 
     from services.security.token_budget import TokenBudgetService
+    from services.billing.entitlements import EntitlementGuard
+    from services.billing.usage import UsageService
+
+    # 1. Check organization AI credit entitlement (3 credits for strategic roadmap)
+    await EntitlementGuard.ensure_limit(db, org_id, "ai_credits", requested_qty=3)
     await TokenBudgetService.check_budget_for_site(db, site_id, estimated_tokens=1500)
 
     orchestrator = AiOrchestrator(
@@ -109,4 +114,5 @@ async def get_strategic_roadmap(
         opportunities_count=opportunity_count
     )
     await TokenBudgetService.record_usage_for_site(db, site_id, tokens_used=1500)
+    await UsageService.consume(db, org_id, "ai_credits", quantity=3, ref_type="strategic_roadmap", ref_id=site_id)
     return StrategicRoadmapResponse(**roadmap)

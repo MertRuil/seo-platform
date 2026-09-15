@@ -59,6 +59,7 @@ class Organization(Base):
 
     memberships = relationship("Membership", back_populates="organization", cascade="all, delete-orphan")
     sites = relationship("Site", back_populates="organization", cascade="all, delete-orphan")
+    subscription = relationship("Subscription", back_populates="organization", uselist=False, cascade="all, delete-orphan")
 
 class Membership(Base):
     __tablename__ = 'memberships'
@@ -372,4 +373,222 @@ class AuditLog(Base):
     state_before = Column(Text, nullable=True)
     state_after = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+# ==========================================
+# ABONELİK VE FATURALAMA MODELLERİ (BILLING)
+# ==========================================
+
+class Plan(Base):
+    """
+    Ürün plan kataloğu (Free, Starter, Pro, Agency, Enterprise).
+    """
+    __tablename__ = 'plans'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    is_public = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    prices = relationship("PlanPrice", back_populates="plan", cascade="all, delete-orphan")
+    limits = relationship("PlanLimit", back_populates="plan", cascade="all, delete-orphan")
+    features = relationship("PlanFeature", back_populates="plan", cascade="all, delete-orphan")
+    subscriptions = relationship("Subscription", back_populates="plan")
+
+
+class PlanPrice(Base):
+    """
+    Planın dönem ve para birimi bazlı fiyatları (Aylık/Yıllık, USD/TRY).
+    """
+    __tablename__ = 'plan_prices'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    plan_id = Column(String(36), ForeignKey('plans.id', ondelete='CASCADE'), nullable=False, index=True)
+    interval = Column(String(20), default='month', nullable=False)  # 'month', 'year'
+    currency = Column(String(10), default='USD', nullable=False)
+    amount_minor = Column(Integer, default=0, nullable=False)  # Sent / kuruş cinsinden (örn: $39 = 3900)
+    external_price_id = Column(String(100), nullable=True)    # Paddle / Stripe / iyzico fiyat referansı
+    region = Column(String(50), nullable=True)                 # Bölgesel fiyatlandırma (örn: 'TR', 'GLOBAL')
+    active = Column(Boolean, default=True, nullable=False)
+
+    plan = relationship("Plan", back_populates="prices")
+
+
+class PlanLimit(Base):
+    """
+    Planın kota sınırları (taranan sayfa, AI kredisi, auto-fix, siteler, koltuk).
+    """
+    __tablename__ = 'plan_limits'
+    __table_args__ = (
+        UniqueConstraint('plan_id', 'metric', name='uq_plan_limit_metric'),
+        {'extend_existing': True}
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    plan_id = Column(String(36), ForeignKey('plans.id', ondelete='CASCADE'), nullable=False, index=True)
+    metric = Column(String(50), nullable=False)  # 'sites', 'pages_crawled', 'ai_credits', 'auto_fixes', 'seats', 'retention_days'
+    hard_limit = Column(Integer, nullable=False)  # Katı sınır (ulaşılınca bloklanır)
+    soft_limit = Column(Integer, nullable=True)   # Uyarı sınırı (örn: %80'de banner)
+    overage_unit = Column(Integer, nullable=True) # Aşım paket adedi (+50.000 sayfa)
+    overage_price_minor = Column(Integer, nullable=True) # Aşım paket fiyatı ($20)
+
+    plan = relationship("Plan", back_populates="limits")
+
+
+class PlanFeature(Base):
+    """
+    Plan bazlı özellik yetkileri (js_render, experiments, white_label, api_access).
+    """
+    __tablename__ = 'plan_features'
+    __table_args__ = (
+        UniqueConstraint('plan_id', 'feature_key', name='uq_plan_feature_key'),
+        {'extend_existing': True}
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    plan_id = Column(String(36), ForeignKey('plans.id', ondelete='CASCADE'), nullable=False, index=True)
+    feature_key = Column(String(100), nullable=False)  # 'js_render', 'experiments', 'white_label', 'api_access', 'gsc_integration', 'auto_fixes'
+    enabled = Column(Boolean, default=True, nullable=False)
+
+    plan = relationship("Plan", back_populates="features")
+
+
+class Subscription(Base):
+    """
+    Organizasyonun mevcut abonelik durumu.
+    """
+    __tablename__ = 'subscriptions'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), unique=True, nullable=False, index=True)
+    plan_id = Column(String(36), ForeignKey('plans.id', ondelete='RESTRICT'), nullable=False, index=True)
+    status = Column(String(50), default='ACTIVE', nullable=False)  # 'TRIALING', 'ACTIVE', 'PAST_DUE', 'PAUSED', 'CANCELED', 'INCOMPLETE'
+    provider = Column(String(50), default='MANUAL', nullable=False)  # 'PADDLE', 'IYZICO', 'STRIPE', 'MANUAL'
+    external_subscription_id = Column(String(255), nullable=True, index=True)
+    external_customer_id = Column(String(255), nullable=True, index=True)
+    current_period_start = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    trial_ends_at = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
+    canceled_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    organization = relationship("Organization", back_populates="subscription")
+    plan = relationship("Plan", back_populates="subscriptions")
+    addons = relationship("SubscriptionAddon", back_populates="subscription", cascade="all, delete-orphan")
+
+
+class SubscriptionAddon(Base):
+    """
+    Satın alınan ek paketler (+sayfa, +AI kredisi).
+    """
+    __tablename__ = 'subscription_addons'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    subscription_id = Column(String(36), ForeignKey('subscriptions.id', ondelete='CASCADE'), nullable=False, index=True)
+    metric = Column(String(50), nullable=False)
+    quantity = Column(Integer, default=0, nullable=False)
+    external_item_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    subscription = relationship("Subscription", back_populates="addons")
+
+
+class UsageCounter(Base):
+    """
+    Dönemsel kullanım sayaçları (taranan sayfa, harcanan AI kredisi, vb.).
+    """
+    __tablename__ = 'usage_counters'
+    __table_args__ = (
+        UniqueConstraint('organization_id', 'metric', 'period_start', name='uq_org_metric_period'),
+        {'extend_existing': True}
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    metric = Column(String(50), nullable=False)  # 'pages_crawled', 'ai_credits', 'auto_fixes'
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+
+class UsageEvent(Base):
+    """
+    Kullanım denetim izi (audit log) - hangi işlem ne kadar sayaç harcadı.
+    """
+    __tablename__ = 'usage_events'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    metric = Column(String(50), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    ref_type = Column(String(50), nullable=True)  # 'crawl_run', 'recommendation', 'execution'
+    ref_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class CreditLedger(Base):
+    """
+    AI Kredi bakiye hareketleri (Plan tanımlaması, tüketim, ek paket, iade).
+    """
+    __tablename__ = 'credit_ledger'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    delta = Column(Integer, nullable=False)  # +100 veya -1
+    reason = Column(String(50), nullable=False)  # 'PLAN_GRANT', 'ADDON', 'REFUND', 'CONSUME', 'EXPIRE', 'MANUAL'
+    balance_after = Column(Integer, nullable=False)
+    ref_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class Invoice(Base):
+    """
+    Faturalar (Paddle / iyzico senkronizasyonu).
+    """
+    __tablename__ = 'invoices'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    external_invoice_id = Column(String(255), nullable=True, index=True)
+    number = Column(String(100), nullable=True)
+    status = Column(String(50), default='PAID', nullable=False)  # 'PAID', 'PENDING', 'VOID'
+    currency = Column(String(10), default='USD', nullable=False)
+    subtotal_minor = Column(Integer, default=0, nullable=False)
+    tax_minor = Column(Integer, default=0, nullable=False)
+    total_minor = Column(Integer, default=0, nullable=False)
+    pdf_url = Column(Text, nullable=True)
+    issued_at = Column(DateTime(timezone=True), nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class BillingEvent(Base):
+    """
+    Gelen webhook olayları (idempotency garantisi).
+    """
+    __tablename__ = 'billing_events'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    provider = Column(String(50), nullable=False)  # 'PADDLE', 'IYZICO'
+    external_event_id = Column(String(255), unique=True, nullable=False, index=True)
+    event_type = Column(String(100), nullable=False)
+    payload_json = Column(Text, nullable=False)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
