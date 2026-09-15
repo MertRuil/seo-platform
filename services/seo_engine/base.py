@@ -21,6 +21,7 @@ class RuleCategory(str, Enum):
     HREFLANG = "HREFLANG"
     JAVASCRIPT = "JAVASCRIPT"
     PERFORMANCE = "PERFORMANCE"
+    MOBILE = "MOBILE"
 
 class IssueSeverity(str, Enum):
     INFO = "INFO"

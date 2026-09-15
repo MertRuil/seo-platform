@@ -13,7 +13,9 @@ from services.security.ssrf import (
     SSRFSecurityException
 )
 
-GOOGLEBOT_USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+GOOGLEBOT_MOBILE_USER_AGENT = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+GOOGLEBOT_DESKTOP_USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+GOOGLEBOT_USER_AGENT = GOOGLEBOT_MOBILE_USER_AGENT  # Google's primary indexing crawler since Mobile-First Indexing
 OWNER_AUDIT_USER_AGENT = "AutonomousAI-SEO-Auditor/1.0 (+https://platform.example.com/bot)"
 
 class SSRFSafeNetworkBackend(AnyIOBackend):
@@ -123,10 +125,22 @@ class SafeHttpClient:
     MAX_REDIRECTS = 5
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
-    def __init__(self, mode: str = "GOOGLEBOT_SIMULATION", timeout_seconds: float = 15.0):
+    def __init__(
+        self,
+        mode: str = "GOOGLEBOT_SIMULATION",
+        timeout_seconds: float = 15.0,
+        user_agent: Optional[str] = None,
+        device: str = "mobile"
+    ):
         self.mode = mode
         self.timeout = timeout_seconds
-        self.user_agent = GOOGLEBOT_USER_AGENT if mode == "GOOGLEBOT_SIMULATION" else OWNER_AUDIT_USER_AGENT
+        self.device = device
+        if user_agent:
+            self.user_agent = user_agent
+        elif mode == "GOOGLEBOT_SIMULATION":
+            self.user_agent = GOOGLEBOT_DESKTOP_USER_AGENT if device == "desktop" else GOOGLEBOT_MOBILE_USER_AGENT
+        else:
+            self.user_agent = OWNER_AUDIT_USER_AGENT
 
     async def fetch(self, url: str) -> FetchResponse:
         redirect_chain: List[RedirectHop] = []

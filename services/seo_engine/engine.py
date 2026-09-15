@@ -34,7 +34,13 @@ from services.seo_engine.rules.rules_impl import (
     InternalLinkTo5xxRule,
     InternalLinkToRedirectRule,
     InternalLinkEmptyHrefRule,
-    InternalLinkOrphanRule
+    InternalLinkOrphanRule,
+    MobileViewportMissingRule,
+    MobileViewportInvalidRule,
+    MobileViewportZoomRestrictedRule,
+    MobileDesktopParityMismatchRule,
+    MobileDynamicServingMissingVaryRule,
+    MobileSeparateUrlMissingCanonicalRule
 )
 
 class SeoRuleEngine:
@@ -73,6 +79,12 @@ class SeoRuleEngine:
             InternalLinkToRedirectRule(),
             InternalLinkEmptyHrefRule(),
             InternalLinkOrphanRule(),
+            MobileViewportMissingRule(),
+            MobileViewportInvalidRule(),
+            MobileViewportZoomRestrictedRule(),
+            MobileDesktopParityMismatchRule(),
+            MobileDynamicServingMissingVaryRule(),
+            MobileSeparateUrlMissingCanonicalRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
@@ -352,6 +364,32 @@ class SeoRuleEngine:
             "orphan_urls": [p.get("url") for p in pages if p.get("url") in orphan_pages]
         }
 
+        # Mobile-First Indexing & Viewport Statistics
+        pages_with_mobile_context = [p for p in pages if p.get("status_code", 200) == 200 and not p.get("has_noindex")]
+        pages_with_valid_viewport = sum(
+            1 for p in pages_with_mobile_context
+            if p.get("viewport") and ("device-width" in str(p.get("viewport")).lower() or "initial-scale" in str(p.get("viewport")).lower())
+            and not p.get("has_fixed_viewport_width")
+        )
+        pages_missing_viewport = sum(
+            1 for p in pages_with_mobile_context
+            if ("viewport" in p and not p.get("viewport"))
+        )
+        pages_zoom_restricted = sum(
+            1 for p in pages_with_mobile_context
+            if p.get("prevents_user_scalable") or any(r in str(p.get("viewport", "")).lower() for r in ["user-scalable=no", "user-scalable=0", "maximum-scale=1"])
+        )
+        total_checked = len(pages_with_mobile_context)
+        mobile_friendly_percent = round((pages_with_valid_viewport / total_checked * 100), 1) if total_checked > 0 else 100.0
+
+        mobile_stats = {
+            "total_pages_checked": total_checked,
+            "pages_with_valid_viewport": pages_with_valid_viewport,
+            "pages_missing_viewport": pages_missing_viewport,
+            "pages_zoom_restricted": pages_zoom_restricted,
+            "mobile_friendly_percent": mobile_friendly_percent
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
@@ -361,5 +399,6 @@ class SeoRuleEngine:
             "sitemap_reconciliation": sitemap_reconciliation,
             "duplicate_stats": duplicate_stats,
             "broken_links_stats": broken_links_stats,
-            "orphan_stats": orphan_stats
+            "orphan_stats": orphan_stats,
+            "mobile_stats": mobile_stats
         }

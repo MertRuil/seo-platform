@@ -115,7 +115,7 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         except Exception:
             pass
 
-    extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
+    extracted = HtmlExtractor.extract(html_to_parse, resp.final_url, response_headers=dict(resp.headers) if resp.headers else None) if resp.status_code == 200 else None
     h1_val = (extracted.headings.get("h1", [None])[0] if (extracted and extracted.headings.get("h1")) else None)
 
     page_context = {
@@ -129,6 +129,13 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         "all_meta_descriptions": extracted.all_meta_descriptions if extracted else [],
         "h1": h1_val,
         "headings": extracted.headings if extracted else {},
+        "viewport": extracted.viewport if extracted else None,
+        "is_responsive_viewport": extracted.is_responsive_viewport if extracted else False,
+        "has_fixed_viewport_width": extracted.has_fixed_viewport_width if extracted else False,
+        "prevents_user_scalable": extracted.prevents_user_scalable if extracted else False,
+        "mobile_alternate_url": extracted.mobile_alternate_url if extracted else None,
+        "has_vary_user_agent": extracted.has_vary_user_agent if extracted else False,
+        "headers": dict(resp.headers) if resp.headers else {},
         "internal_links": [
             {"href": l.href, "anchor_text": l.anchor_text, "rel": l.rel}
             for l in (extracted.links if extracted else [])
@@ -166,6 +173,8 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
         for i in audit_results["issues"]
     ]
 
+    is_mobile_ok = bool(extracted and extracted.viewport and extracted.is_responsive_viewport and not extracted.has_fixed_viewport_width)
+
     return QuickAuditResponse(
         url=normalized_url,
         status_code=resp.status_code,
@@ -179,7 +188,9 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
             "canonical_url": extracted.canonical_url if extracted else None,
             "word_count": extracted.word_count if extracted else 0,
             "has_noindex": extracted.has_noindex if extracted else False,
-            "response_time_ms": resp.response_time_ms
+            "response_time_ms": resp.response_time_ms,
+            "viewport": extracted.viewport if extracted else None,
+            "is_mobile_friendly": is_mobile_ok
         },
         issues=formatted_issues,
         ai_recommendations=recs

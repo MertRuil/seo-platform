@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, Optional, List
 from services.seo_engine.base import SeoRule, RuleCategory, IssueSeverity, RuleCheckResult
 from services.crawler.url_normalizer import UrlNormalizer
@@ -1314,4 +1315,247 @@ class InternalLinkOrphanRule(SeoRule):
             return UrlNormalizer.normalize(url) == UrlNormalizer.normalize(root)
         except Exception:
             return False
+
+# ==========================================
+# Phase 10: Mobile-First Indexing & Viewport Rules
+# ==========================================
+
+class MobileViewportMissingRule(SeoRule):
+    rule_id = "RULE_MOBILE_VIEWPORT_MISSING"
+    name = "Missing Mobile Viewport Tag"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex"):
+            return None
+
+        # Only evaluate if viewport is explicitly tracked or HTML content is provided
+        if "viewport" not in page_context and "html" not in page_context:
+            return None
+
+        viewport = page_context.get("viewport")
+        if not viewport:
+            url = page_context.get("url", "")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Mobil Viewport Meta Etiketi Eksik",
+                description=(
+                    f"Sayfada ({url}) <meta name=\"viewport\"> etiketi bulunmuyor. "
+                    "Mobil tarayıcılarda sayfa masaüstü genişliğinde render edilir, metinler okunamaz şekilde küçülür "
+                    "ve Google Mobile-First Indexing standartlarına göre mobil arama sıralamalarında ciddi sıralama kaybı yaşanır."
+                ),
+                evidence={"url": url, "viewport": None},
+                recommendation_template='Sayfanın <head> bölümüne <meta name="viewport" content="width=device-width, initial-scale=1"> etiketini ekleyin.',
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class MobileViewportInvalidRule(SeoRule):
+    rule_id = "RULE_MOBILE_VIEWPORT_INVALID"
+    name = "Fixed or Invalid Mobile Viewport"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex"):
+            return None
+
+        viewport = str(page_context.get("viewport") or "").strip()
+        if not viewport:
+            return None
+
+        vp_lower = viewport.lower()
+        has_fixed = page_context.get("has_fixed_viewport_width", False)
+        if not has_fixed:
+            width_match = re.search(r"width\s*=\s*(\d+)", vp_lower)
+            if width_match and "device-width" not in vp_lower:
+                has_fixed = True
+
+        if has_fixed or ("device-width" not in vp_lower and "initial-scale" not in vp_lower):
+            url = page_context.get("url", "")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Sabit veya Geçersiz Viewport Genişliği",
+                description=(
+                    f"Sayfanın viewport etiketinde sabit genişlik tanımlanmış ({viewport}). "
+                    "Sayfa farklı mobil ekran boyutlarına uyum sağlayamaz ve yatay kaydırma (horizontal scroll) çubuğu oluşturur."
+                ),
+                evidence={"url": url, "viewport": viewport},
+                recommendation_template='Sabit piksel genişliği yerine "width=device-width, initial-scale=1" duyarlı (responsive) ayarını kullanın.',
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class MobileViewportZoomRestrictedRule(SeoRule):
+    rule_id = "RULE_MOBILE_VIEWPORT_ZOOM_RESTRICTED"
+    name = "Viewport Disables Zoom"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.LOW
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex"):
+            return None
+
+        viewport = str(page_context.get("viewport") or "").strip()
+        if not viewport:
+            return None
+
+        vp_lower = viewport.lower()
+        prevents_zoom = (
+            page_context.get("prevents_user_scalable", False)
+            or "user-scalable=no" in vp_lower
+            or "user-scalable=0" in vp_lower
+            or "maximum-scale=1.0" in vp_lower
+            or "maximum-scale=1" in vp_lower
+        )
+
+        if prevents_zoom:
+            url = page_context.get("url", "")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=0.95,
+                title="Mobil Yakınlaştırma (Zoom) Kısıtlanmış",
+                description=(
+                    f"Viewport içeriğinde ({viewport}) kullanıcının yakınlaştırma yapması engellenmiş. "
+                    "Bu durum WCAG erişilebilirlik standartlarını ihlal eder ve az gören kullanıcıların deneyimini olumsuz etkiler."
+                ),
+                evidence={"url": url, "viewport": viewport},
+                recommendation_template="'user-scalable=no' ve 'maximum-scale=1' yönergelerini kaldırarak kullanıcıların sayfayı yakınlaştırabilmesini sağlayın.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class MobileDesktopParityMismatchRule(SeoRule):
+    rule_id = "RULE_MOBILE_PARITY_MISMATCH"
+    name = "Mobile and Desktop Parity Mismatch"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        parity_data = page_context.get("mobile_parity") or {}
+        discrepancies = page_context.get("parity_discrepancies") or parity_data.get("discrepancies", [])
+
+        if discrepancies:
+            url = page_context.get("url", "")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Mobil ve Masaüstü Sürüm Arasında İçerik/Etiket Uyumsuzluğu",
+                description=(
+                    f"Google Mobile-First Indexing gereği mobil ve masaüstü sürümler aynı içeriğe sahip olmalıdır. "
+                    f"Tespit edilen uyumsuzluklar: {'; '.join(discrepancies)}"
+                ),
+                evidence={"url": url, "discrepancies": discrepancies, "parity_data": parity_data},
+                recommendation_template="Mobil versiyonda eksik olan başlıkları, metin içeriğini veya noindex çelişkilerini masaüstü sürümle eşitleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class MobileDynamicServingMissingVaryRule(SeoRule):
+    rule_id = "RULE_MOBILE_DYNAMIC_SERVING_MISSING_VARY"
+    name = "Dynamic Serving Missing Vary Header"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        is_dynamic = page_context.get("is_dynamic_serving") or bool(page_context.get("mobile_alternate_url"))
+        if not is_dynamic:
+            return None
+
+        has_vary = page_context.get("has_vary_user_agent", False)
+        if not has_vary:
+            headers = page_context.get("headers") or {}
+            vary = (headers.get("vary") or headers.get("Vary") or "").lower()
+            if "user-agent" in vary:
+                has_vary = True
+
+        if not has_vary:
+            url = page_context.get("url", "")
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=0.95,
+                title="Dinamik Sunumda 'Vary: User-Agent' Başlığı Eksik",
+                description=(
+                    f"Sayfada ({url}) mobil cihazlara özel içerik sunulmasına rağmen HTTP yanıtında 'Vary: User-Agent' başlığı bulunmuyor. "
+                    "Önbellek (CDN) sistemleri masaüstü içeriği mobil kullanıcılara sunabilir ve Googlebot mobil içeriği kaçırabilir."
+                ),
+                evidence={"url": url},
+                recommendation_template="Sunucu HTTP yanıt başlıklarına 'Vary: User-Agent' yönergesini ekleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+class MobileSeparateUrlMissingCanonicalRule(SeoRule):
+    rule_id = "RULE_MOBILE_SEPARATE_URL_MISSING_CANONICAL"
+    name = "Separate Mobile URL Missing Desktop Canonical"
+    category = RuleCategory.MOBILE
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/crawling-indexing/mobile/mobile-sites-mobile-first-indexing"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        url = page_context.get("url", "")
+        if not url:
+            return None
+
+        is_mobile = page_context.get("is_mobile_url", False)
+        if not is_mobile:
+            try:
+                host = UrlNormalizer.get_domain(url).lower()
+                is_mobile = host.startswith("m.") or "/m/" in url.lower()
+            except Exception:
+                is_mobile = False
+
+        if not is_mobile:
+            return None
+
+        # Separate mobile URL must canonicalize back to desktop URL
+        canonical = page_context.get("canonical_target")
+        is_missing_or_self = not canonical
+        if canonical:
+            try:
+                can_host = UrlNormalizer.get_domain(canonical).lower()
+                is_missing_or_self = can_host.startswith("m.") or (UrlNormalizer.normalize(canonical).rstrip("/") == UrlNormalizer.normalize(url).rstrip("/"))
+            except Exception:
+                is_missing_or_self = False
+
+        if is_missing_or_self:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Ayrı Mobil Sayfada (m-dot) Masaüstü Canonical Eksik",
+                description=(
+                    f"Ayrı mobil URL ({url}) ana masaüstü sayfasına işaret eden rel='canonical' etiketi içermiyor. "
+                    "Ayrı mobil sayfaların indeksleme parçalanmasını ve yinelenen içerik cezasını önlemek için mutlaka masaüstü sürümünü canonical olarak belirtmesi gerekir."
+                ),
+                evidence={"url": url, "canonical_target": canonical},
+                recommendation_template="Mobil sayfaya ana masaüstü sürümünü işaret eden bir <link rel='canonical' href='https://example.com/...'> etiketi ekleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
 

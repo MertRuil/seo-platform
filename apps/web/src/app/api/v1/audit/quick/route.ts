@@ -137,6 +137,18 @@ export async function POST(req: NextRequest) {
     const canonMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i);
     if (canonMatch) canonicalUrl = canonMatch[1].trim();
 
+    let viewport: string | null = null;
+    const vpMatch1 = html.match(/<meta[^>]*name=["']viewport["'][^>]*content=["']([^"']*)["']/i);
+    const vpMatch2 = html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']viewport["']/i);
+    if (vpMatch1) viewport = vpMatch1[1].trim();
+    else if (vpMatch2) viewport = vpMatch2[1].trim();
+
+    const isMobileFriendly = Boolean(
+      viewport &&
+      (viewport.includes("width=device-width") || viewport.includes("initial-scale")) &&
+      !/width\s*=\s*\d+/i.test(viewport.replace(/width\s*=\s*device-width/gi, ""))
+    );
+
     const hasNoindex =
       /<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html) ||
       (fetchResult.headers["x-robots-tag"] || "").toLowerCase().includes("noindex");
@@ -362,6 +374,40 @@ export async function POST(req: NextRequest) {
           recommendation: "Görsellere içeriği betimleyen açıklayıcı alt etiketleri ekleyin."
         });
       }
+
+      // Mobil Uyumluluk ve Viewport Kontrolleri (Google Mobile-First Indexing)
+      if (!viewport) {
+        score -= 15;
+        issues.push({
+          rule_id: "RULE_MOBILE_VIEWPORT_MISSING",
+          title: "Mobil Viewport Meta Etiketi Eksik",
+          severity: "HIGH",
+          description: "Sayfada <meta name=\"viewport\"> etiketi bulunmuyor. Mobil cihazlarda sayfa masaüstü genişliğinde render edilir ve arama motorları mobil uyumsuzluk nedeniyle sıralama cezası uygular.",
+          recommendation: '<meta name="viewport" content="width=device-width, initial-scale=1"> etiketini sayfanın <head> bölümüne ekleyin.'
+        });
+      } else {
+        const vpLower = viewport.toLowerCase();
+        if (!vpLower.includes("width=device-width") && /width\s*=\s*\d+/.test(vpLower)) {
+          score -= 10;
+          issues.push({
+            rule_id: "RULE_MOBILE_VIEWPORT_INVALID",
+            title: "Sabit veya Geçersiz Viewport Genişliği",
+            severity: "MEDIUM",
+            description: `Viewport etiketinde sabit piksel genişliği tanımlanmış (${viewport}). Sayfa farklı mobil ekran boyutlarına uyum sağlayamaz.`,
+            recommendation: 'Sabit piksel genişliği yerine "width=device-width, initial-scale=1" duyarlı (responsive) ayarını kullanın.'
+          });
+        }
+        if (vpLower.includes("user-scalable=no") || vpLower.includes("user-scalable=0") || vpLower.includes("maximum-scale=1")) {
+          score -= 5;
+          issues.push({
+            rule_id: "RULE_MOBILE_VIEWPORT_ZOOM_RESTRICTED",
+            title: "Mobil Yakınlaştırma (Zoom) Kısıtlanmış",
+            severity: "LOW",
+            description: "Viewport içeriğinde 'user-scalable=no' veya 'maximum-scale=1' tanımlanarak kullanıcının sayfayı yakınlaştırması engellenmiş. Bu durum WCAG erişilebilirlik standartlarına aykırıdır.",
+            recommendation: "'user-scalable=no' direktifini kaldırarak kullanıcıların sayfayı yakınlaştırabilmesini sağlayın."
+          });
+        }
+      }
     }
 
     if (!robotsOk) {
@@ -430,7 +476,9 @@ export async function POST(req: NextRequest) {
         canonical_url: canonicalUrl || null,
         has_noindex: hasNoindex,
         word_count: wordCount,
-        response_time_ms: responseTimeMs
+        response_time_ms: responseTimeMs,
+        viewport: viewport || null,
+        is_mobile_friendly: isMobileFriendly
       },
       issues,
       ai_recommendations: aiRecommendations

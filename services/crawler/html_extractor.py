@@ -61,13 +61,24 @@ class HtmlExtractionResult:
         self.raw_html_hash: str = ""
         self.main_content_hash: str = ""
         self.canonical_seo_hash: str = ""
+        self.viewport: Optional[str] = None
+        self.is_responsive_viewport: bool = False
+        self.has_fixed_viewport_width: bool = False
+        self.prevents_user_scalable: bool = False
+        self.mobile_alternate_url: Optional[str] = None
+        self.has_vary_user_agent: bool = False
 
 class HtmlExtractor:
     @staticmethod
-    def extract(html_content: str, base_url: str) -> HtmlExtractionResult:
+    def extract(html_content: str, base_url: str, response_headers: Optional[Dict[str, str]] = None) -> HtmlExtractionResult:
         result = HtmlExtractionResult()
         clean_html = html_content.strip()
         result.raw_html_hash = hashlib.sha256(clean_html.encode("utf-8")).hexdigest()
+
+        if response_headers:
+            vary_header = response_headers.get("vary") or response_headers.get("Vary") or ""
+            if "user-agent" in vary_header.lower():
+                result.has_vary_user_agent = True
 
         if not clean_html:
             result.canonical_seo_hash = compute_canonical_seo_hash()
@@ -83,9 +94,9 @@ class HtmlExtractor:
         if result.all_titles:
             result.title = result.all_titles[0]
 
-        # 2. Meta description & Meta robots
+        # 2. Meta description, Meta robots, Viewport & Vary
         for meta in tree.css("meta"):
-            name = (meta.attributes.get("name") or meta.attributes.get("property") or "").lower()
+            name = (meta.attributes.get("name") or meta.attributes.get("property") or meta.attributes.get("http-equiv") or "").lower()
             content = meta.attributes.get("content") or ""
 
             if name == "description":
@@ -101,6 +112,26 @@ class HtmlExtractor:
                     result.has_noindex = True
                 if "nofollow" in directives or "none" in directives:
                     result.has_nofollow = True
+            elif name == "viewport":
+                vp_val = content.strip()
+                if vp_val:
+                    result.viewport = vp_val
+                    vp_lower = vp_val.lower()
+                    if "width=device-width" in vp_lower or "initial-scale" in vp_lower:
+                        result.is_responsive_viewport = True
+                    width_match = re.search(r"width\s*=\s*(\d+)", vp_lower)
+                    if width_match and "device-width" not in vp_lower:
+                        result.has_fixed_viewport_width = True
+                    if (
+                        "user-scalable=no" in vp_lower
+                        or "user-scalable=0" in vp_lower
+                        or "maximum-scale=1.0" in vp_lower
+                        or "maximum-scale=1" in vp_lower
+                    ):
+                        result.prevents_user_scalable = True
+            elif name == "vary":
+                if "user-agent" in content.lower():
+                    result.has_vary_user_agent = True
 
         # 3. Base href tag support (RFC HTML standard)
         effective_base_url = base_url
@@ -112,19 +143,24 @@ class HtmlExtractor:
                 if resolved_base:
                     effective_base_url = resolved_base
 
-        # 4. Canonical
+        # 4. Canonical & Alternate links (including mobile m-dot alternates)
         for link in tree.css("link"):
             rel = (link.attributes.get("rel") or "").lower()
             href = link.attributes.get("href")
             hreflang = link.attributes.get("hreflang")
+            media = (link.attributes.get("media") or "").lower()
 
             if "canonical" in rel and href:
                 resolved_canonical = UrlNormalizer.resolve_relative_url(effective_base_url, href)
                 result.canonical_url = resolved_canonical or href
 
-            if "alternate" in rel and hreflang and href:
-                resolved_alt = UrlNormalizer.resolve_relative_url(effective_base_url, href)
-                result.hreflangs.append({"lang": hreflang.strip(), "href": resolved_alt or href})
+            if "alternate" in rel and href:
+                if hreflang:
+                    resolved_alt = UrlNormalizer.resolve_relative_url(effective_base_url, href)
+                    result.hreflangs.append({"lang": hreflang.strip(), "href": resolved_alt or href})
+                if "max-width" in media or "handheld" in media or "mobile" in media:
+                    resolved_mob = UrlNormalizer.resolve_relative_url(effective_base_url, href)
+                    result.mobile_alternate_url = resolved_mob or href
 
         # 5. Headings (H1 - H6)
         for i in range(1, 7):

@@ -79,6 +79,45 @@ class DomDiffResult:
             "hydration_discrepancy_score": self.hydration_discrepancy_score
         }
 
+class MobileParityResult:
+    def __init__(
+        self,
+        has_parity: bool,
+        desktop_h1: Optional[str],
+        mobile_h1: Optional[str],
+        desktop_word_count: int,
+        mobile_word_count: int,
+        desktop_noindex: bool,
+        mobile_noindex: bool,
+        desktop_schema_count: int,
+        mobile_schema_count: int,
+        discrepancies: List[str]
+    ):
+        self.has_parity = has_parity
+        self.desktop_h1 = desktop_h1
+        self.mobile_h1 = mobile_h1
+        self.desktop_word_count = desktop_word_count
+        self.mobile_word_count = mobile_word_count
+        self.desktop_noindex = desktop_noindex
+        self.mobile_noindex = mobile_noindex
+        self.desktop_schema_count = desktop_schema_count
+        self.mobile_schema_count = mobile_schema_count
+        self.discrepancies = discrepancies
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "has_parity": self.has_parity,
+            "desktop_h1": self.desktop_h1,
+            "mobile_h1": self.mobile_h1,
+            "desktop_word_count": self.desktop_word_count,
+            "mobile_word_count": self.mobile_word_count,
+            "desktop_noindex": self.desktop_noindex,
+            "mobile_noindex": self.mobile_noindex,
+            "desktop_schema_count": self.desktop_schema_count,
+            "mobile_schema_count": self.mobile_schema_count,
+            "discrepancies": self.discrepancies
+        }
+
 class HeadlessRenderEngine:
     """
     Autonomous Headless Browser & Client-Side JavaScript Hydration Engine.
@@ -189,12 +228,14 @@ class HeadlessRenderEngine:
         cls,
         url: str,
         raw_html: str,
-        timeout_ms: int = 15000
+        timeout_ms: int = 15000,
+        device: str = "mobile"
     ) -> Tuple[str, DomDiffResult, SPAProfile]:
         """
         Main execution point:
         1. Evaluates SPA profile.
-        2. Renders page via Playwright if available (with routed raw_html and fresh page fallback),
+        2. Renders page via Playwright if available (with routed raw_html and fresh page fallback,
+           emulating mobile viewport/touch/User-Agent when device=='mobile'),
            or synthesizes de-hydrated DOM from state payload if headless browser unavailable.
         3. Generates reconciliation diff report.
         """
@@ -217,7 +258,18 @@ class HeadlessRenderEngine:
                         headless=True,
                         args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
                     )
-                    page = await browser.new_page()
+                    context_options = {
+                        "viewport": {"width": 390, "height": 844} if device == "mobile" else {"width": 1280, "height": 720},
+                        "user_agent": (
+                            "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+                            if device == "mobile"
+                            else "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+                        ),
+                        "is_mobile": (device == "mobile"),
+                        "has_touch": (device == "mobile"),
+                    }
+                    context = await browser.new_context(**context_options)
+                    page = await context.new_page()
 
                     rendered_candidate = None
                     # 1. Attempt intercepted navigation so raw_html is loaded under the correct origin
@@ -237,7 +289,7 @@ class HeadlessRenderEngine:
                     # 2. If goto failed or URL was unreachable/mock, use a fresh page with set_content
                     if not rendered_candidate and raw_html:
                         try:
-                            fresh_page = await browser.new_page()
+                            fresh_page = await context.new_page()
                             await fresh_page.set_content(raw_html, wait_until="domcontentloaded", timeout=5000)
                             await fresh_page.wait_for_timeout(400)
                             rendered_candidate = await fresh_page.content()
@@ -265,6 +317,51 @@ class HeadlessRenderEngine:
 
         diff = cls.reconcile_dom(raw_html, rendered_html, url)
         return rendered_html, diff, spa_profile
+
+    @classmethod
+    def compare_mobile_desktop_parity(cls, desktop_html: str, mobile_html: str, base_url: str) -> MobileParityResult:
+        """
+        Compares desktop vs mobile HTML extractions to enforce Google Mobile-First Indexing DOM Parity.
+        """
+        desk_ext = HtmlExtractor.extract(desktop_html, base_url)
+        mob_ext = HtmlExtractor.extract(mobile_html, base_url)
+
+        discrepancies: List[str] = []
+
+        desk_h1 = desk_ext.headings.get("h1", [None])[0] if desk_ext.headings.get("h1") else None
+        mob_h1 = mob_ext.headings.get("h1", [None])[0] if mob_ext.headings.get("h1") else None
+
+        if desk_h1 and not mob_h1:
+            discrepancies.append("Mobil sürümde masaüstünde bulunan H1 başlığı eksik")
+        elif desk_h1 and mob_h1 and desk_h1.strip().lower() != mob_h1.strip().lower():
+            discrepancies.append(f"H1 başlık uyumsuzluğu (Masaüstü: '{desk_h1}', Mobil: '{mob_h1}')")
+
+        if not desk_ext.has_noindex and mob_ext.has_noindex:
+            discrepancies.append("Mobil sürüm noindex içerirken masaüstü sürüm dizine eklenebilir durumda")
+
+        desk_words = desk_ext.word_count
+        mob_words = mob_ext.word_count
+        if desk_words > 100 and mob_words < (desk_words * 0.5):
+            discrepancies.append(f"Mobil sürümde içerik kaybı (%50'den az metin: {mob_words} vs {desk_words} kelime)")
+
+        desk_schemas = len(desk_ext.structured_data)
+        mob_schemas = len(mob_ext.structured_data)
+        if desk_schemas > 0 and mob_schemas == 0:
+            discrepancies.append("Mobil sürümde masaüstünde bulunan yapılandırılmış veri (JSON-LD Schema) eksik")
+
+        has_parity = (len(discrepancies) == 0)
+        return MobileParityResult(
+            has_parity=has_parity,
+            desktop_h1=desk_h1,
+            mobile_h1=mob_h1,
+            desktop_word_count=desk_words,
+            mobile_word_count=mob_words,
+            desktop_noindex=desk_ext.has_noindex,
+            mobile_noindex=mob_ext.has_noindex,
+            desktop_schema_count=desk_schemas,
+            mobile_schema_count=mob_schemas,
+            discrepancies=discrepancies
+        )
 
     @classmethod
     def _extract_state_data(

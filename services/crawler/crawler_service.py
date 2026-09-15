@@ -299,7 +299,7 @@ class CrawlerService:
                             except Exception:
                                 pass
 
-                        extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
+                        extracted = HtmlExtractor.extract(html_to_parse, resp.final_url, response_headers=dict(resp.headers) if resp.headers else None) if resp.status_code == 200 else None
                         dest_has_noindex = (extracted.has_noindex if extracted else False)
                         dest_has_nofollow = (extracted.has_nofollow if extracted else False)
                         if resp.headers:
@@ -389,7 +389,7 @@ class CrawlerService:
                     except Exception:
                         pass
 
-                extracted = HtmlExtractor.extract(html_to_parse, resp.final_url) if resp.status_code == 200 else None
+                extracted = HtmlExtractor.extract(html_to_parse, resp.final_url, response_headers=dict(resp.headers) if resp.headers else None) if resp.status_code == 200 else None
 
                 # Detect X-Robots-Tag HTTP header and HTTP Link canonical header
                 page_has_noindex = (extracted.has_noindex if extracted else False)
