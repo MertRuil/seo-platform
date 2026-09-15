@@ -41,7 +41,14 @@ from services.seo_engine.rules.rules_impl import (
     MobileViewportZoomRestrictedRule,
     MobileDesktopParityMismatchRule,
     MobileDynamicServingMissingVaryRule,
-    MobileSeparateUrlMissingCanonicalRule
+    MobileSeparateUrlMissingCanonicalRule,
+    HtmlLangMissingRule,
+    HtmlLangInvalidRule,
+    HreflangInvalidCodeRule,
+    HreflangMissingSelfReferenceRule,
+    HreflangToNon200Rule,
+    HreflangToNonCanonicalRule,
+    HreflangNoReturnLinkRule
 )
 
 class SeoRuleEngine:
@@ -87,6 +94,13 @@ class SeoRuleEngine:
             MobileDesktopParityMismatchRule(),
             MobileDynamicServingMissingVaryRule(),
             MobileSeparateUrlMissingCanonicalRule(),
+            HtmlLangMissingRule(),
+            HtmlLangInvalidRule(),
+            HreflangInvalidCodeRule(),
+            HreflangMissingSelfReferenceRule(),
+            HreflangToNon200Rule(),
+            HreflangToNonCanonicalRule(),
+            HreflangNoReturnLinkRule(),
         ]
 
     def register_rule(self, rule: SeoRule):
@@ -421,6 +435,46 @@ class SeoRuleEngine:
             "schema_types_found": schema_types_count
         }
 
+        # Multilingual & Hreflang Statistics
+        pages_with_hreflang = 0
+        languages_detected: set = set()
+        pages_missing_html_lang = 0
+        total_hreflang_tags = 0
+
+        for p in pages:
+            hl = p.get("html_lang")
+            if hl:
+                languages_detected.add(str(hl).strip())
+            elif p.get("status_code", 200) == 200 and not p.get("has_noindex"):
+                pages_missing_html_lang += 1
+
+            hreflangs = p.get("hreflangs") or []
+            if hreflangs:
+                pages_with_hreflang += 1
+                total_hreflang_tags += len(hreflangs)
+                for h in hreflangs:
+                    lang = h.get("lang")
+                    if lang:
+                        languages_detected.add(str(lang).strip())
+
+        missing_returns_count = sum(1 for i in all_issues if i.rule_id == "RULE_HREFLANG_NO_RETURN_LINK")
+        invalid_codes_count = sum(1 for i in all_issues if i.rule_id == "RULE_HREFLANG_INVALID_CODE")
+        missing_self_refs_count = sum(1 for i in all_issues if i.rule_id == "RULE_HREFLANG_MISSING_SELF_REFERENCE")
+
+        hreflang_coverage_percent = round((pages_with_hreflang / len(pages) * 100), 1) if pages else 0.0
+
+        hreflang_stats = {
+            "total_pages_evaluated": len(pages),
+            "pages_with_hreflang": pages_with_hreflang,
+            "total_hreflang_tags": total_hreflang_tags,
+            "hreflang_coverage_percent": hreflang_coverage_percent,
+            "languages_detected": sorted(list(languages_detected)),
+            "pages_missing_html_lang": pages_missing_html_lang,
+            "missing_return_links_count": missing_returns_count,
+            "invalid_hreflang_codes_count": invalid_codes_count,
+            "missing_self_reference_count": missing_self_refs_count
+        }
+
         return {
             "total_pages_evaluated": len(pages),
             "total_issues_found": len(all_issues),
@@ -432,5 +486,6 @@ class SeoRuleEngine:
             "broken_links_stats": broken_links_stats,
             "orphan_stats": orphan_stats,
             "mobile_stats": mobile_stats,
-            "schema_stats": schema_stats
+            "schema_stats": schema_stats,
+            "hreflang_stats": hreflang_stats
         }

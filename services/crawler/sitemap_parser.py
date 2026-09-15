@@ -4,11 +4,12 @@ from typing import List, Dict, Any, Optional, Union
 from urllib.parse import urljoin
 
 class SitemapUrl:
-    def __init__(self, loc: str, lastmod: Optional[str] = None, changefreq: Optional[str] = None, priority: Optional[float] = None):
+    def __init__(self, loc: str, lastmod: Optional[str] = None, changefreq: Optional[str] = None, priority: Optional[float] = None, hreflangs: Optional[List[Dict[str, str]]] = None):
         self.loc = loc
         self.lastmod = lastmod
         self.changefreq = changefreq
         self.priority = priority
+        self.hreflangs: List[Dict[str, str]] = hreflangs or []
 
 class SitemapParseResult:
     def __init__(self):
@@ -129,6 +130,7 @@ class SitemapParser:
                 child_tag = child.tag.split("}")[-1].lower() if "}" in child.tag else child.tag.lower()
                 if child_tag == "url":
                     loc, lastmod, changefreq, priority = None, None, None, None
+                    hreflangs = []
                     for prop in child:
                         prop_tag = prop.tag.split("}")[-1].lower() if "}" in prop.tag else prop.tag.lower()
                         text = prop.text.strip() if prop.text else None
@@ -143,10 +145,18 @@ class SitemapParser:
                                 priority = float(text) if text else None
                             except ValueError:
                                 pass
+                        elif prop_tag == "link":
+                            # Parse <xhtml:link rel="alternate" hreflang="xx" href="..."/>
+                            rel = (prop.attrib.get("rel") or "").lower()
+                            hreflang = prop.attrib.get("hreflang")
+                            href = prop.attrib.get("href")
+                            if "alternate" in rel and hreflang and href:
+                                full_alt = urljoin(base_url, href) if base_url else href
+                                hreflangs.append({"lang": hreflang.strip(), "href": full_alt})
 
                     if loc:
                         full_loc = urljoin(base_url, loc) if base_url else loc
-                        result.urls.append(SitemapUrl(full_loc, lastmod, changefreq, priority))
+                        result.urls.append(SitemapUrl(full_loc, lastmod, changefreq, priority, hreflangs=hreflangs))
                         count += 1
 
         elif tag in ("rss", "feed"):

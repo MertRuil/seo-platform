@@ -254,6 +254,8 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                         if isinstance(item, dict) and item.get("@type")
                     ],
                     "schema_syntax_errors": [],
+                    "html_lang": getattr(p, "html_lang", None),
+                    "hreflangs": json.loads(p.hreflangs_json) if getattr(p, "hreflangs_json", None) else [],
                     "word_count": p.word_count,
                 }
                 for p in pages

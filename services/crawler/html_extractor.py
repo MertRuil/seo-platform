@@ -65,6 +65,7 @@ class HtmlExtractionResult:
         self.has_noindex: bool = False
         self.has_nofollow: bool = False
         self.canonical_url: Optional[str] = None
+        self.html_lang: Optional[str] = None
         self.hreflangs: List[Dict[str, str]] = []
         self.headings: Dict[str, List[str]] = {f"h{i}": [] for i in range(1, 7)}
         self.links: List[ExtractedLink] = []
@@ -103,6 +104,24 @@ class HtmlExtractor:
             return result
 
         tree = HTMLParser(clean_html)
+
+        # 0. Document Language (HTML lang / xml:lang / Content-Language header)
+        html_node = tree.css_first("html")
+        if html_node:
+            result.html_lang = (
+                html_node.attributes.get("lang")
+                or html_node.attributes.get("xml:lang")
+                or ""
+            ).strip() or None
+
+        if not result.html_lang and response_headers:
+            content_lang = (
+                response_headers.get("content-language")
+                or response_headers.get("Content-Language")
+                or ""
+            ).strip()
+            if content_lang:
+                result.html_lang = content_lang.split(",")[0].strip() or None
 
         # 1. Title (Capture primary and all title elements)
         for tn in tree.css("title"):
@@ -161,7 +180,7 @@ class HtmlExtractor:
                 if resolved_base:
                     effective_base_url = resolved_base
 
-        # 4. Canonical & Alternate links (including mobile m-dot alternates)
+        # 4. Canonical & Alternate links (including mobile m-dot alternates and hreflang)
         for link in tree.css("link"):
             rel = (link.attributes.get("rel") or "").lower()
             href = link.attributes.get("href")
@@ -174,11 +193,27 @@ class HtmlExtractor:
 
             if "alternate" in rel and href:
                 if hreflang:
-                    resolved_alt = UrlNormalizer.resolve_relative_url(effective_base_url, href)
-                    result.hreflangs.append({"lang": hreflang.strip(), "href": resolved_alt or href})
+                    resolved_alt = UrlNormalizer.resolve_relative_url(effective_base_url, href) or href
+                    h_entry = {"lang": hreflang.strip(), "href": resolved_alt}
+                    if not any(e["lang"] == h_entry["lang"] and e["href"] == h_entry["href"] for e in result.hreflangs):
+                        result.hreflangs.append(h_entry)
                 if "max-width" in media or "handheld" in media or "mobile" in media:
                     resolved_mob = UrlNormalizer.resolve_relative_url(effective_base_url, href)
                     result.mobile_alternate_url = resolved_mob or href
+
+        # 4b. Parse HTTP Link header for hreflang alternates (e.g. for non-HTML or CDN headers)
+        if response_headers:
+            link_hdr = response_headers.get("link") or response_headers.get("Link") or ""
+            if link_hdr and "hreflang" in link_hdr.lower():
+                for part in link_hdr.split(","):
+                    if "hreflang" in part.lower() and "alternate" in part.lower():
+                        url_m = re.search(r'<([^>]+)>', part)
+                        lang_m = re.search(r'hreflang=["\']?([a-zA-Z0-9_-]+)["\']?', part, re.IGNORECASE)
+                        if url_m and lang_m:
+                            h_url = UrlNormalizer.resolve_relative_url(effective_base_url, url_m.group(1).strip()) or url_m.group(1).strip()
+                            h_entry = {"lang": lang_m.group(1).strip(), "href": h_url}
+                            if not any(e["lang"] == h_entry["lang"] and e["href"] == h_entry["href"] for e in result.hreflangs):
+                                result.hreflangs.append(h_entry)
 
         # 5. Headings (H1 - H6)
         for i in range(1, 7):

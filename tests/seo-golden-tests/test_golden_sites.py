@@ -28,7 +28,8 @@ def test_golden_site_healthy():
         "canonical_target": extracted.canonical_url,
         "has_noindex": extracted.has_noindex,
         "word_count": extracted.word_count,
-        "headings": extracted.headings
+        "headings": extracted.headings,
+        "html_lang": extracted.html_lang
     }
     engine = SeoRuleEngine()
     report = engine.evaluate_site([page])

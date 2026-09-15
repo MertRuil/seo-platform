@@ -1622,3 +1622,394 @@ class MobileSeparateUrlMissingCanonicalRule(SeoRule):
             )
         return None
 
+
+# 11. Hreflang & Multilingual / Internationalization Rules
+
+ISO_639_1_CODES = {
+    "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az",
+    "ba", "be", "bg", "bi", "bm", "bn", "bo", "br", "bs", "ca", "ce", "ch",
+    "co", "cr", "cs", "cu", "cv", "cy", "da", "de", "dv", "dz", "ee", "el",
+    "en", "eo", "es", "et", "eu", "fa", "ff", "fi", "fj", "fo", "fr", "fy",
+    "ga", "gd", "gl", "gn", "gu", "gv", "ha", "he", "hi", "ho", "hr", "ht",
+    "hu", "hy", "hz", "ia", "id", "ie", "ig", "ii", "ik", "io", "is", "it",
+    "iu", "ja", "jv", "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko",
+    "kr", "ks", "ku", "kv", "kw", "ky", "la", "lb", "lg", "li", "ln", "lo",
+    "lt", "lu", "lv", "mg", "mh", "mi", "mk", "ml", "mn", "mr", "ms", "mt",
+    "my", "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny",
+    "oc", "oj", "om", "or", "os", "pa", "pi", "pl", "ps", "pt", "qu", "rm",
+    "rn", "ro", "ru", "rw", "sa", "sc", "sd", "se", "sg", "si", "sk", "sl",
+    "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw", "ta", "te",
+    "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty",
+    "ug", "uk", "ur", "uz", "ve", "vi", "vo", "wa", "wo", "xh", "yi", "yo",
+    "za", "zh", "zu"
+}
+
+def is_valid_hreflang_code(code: str) -> bool:
+    if not code or not isinstance(code, str):
+        return False
+    clean = code.strip()
+    if clean.lower() == "x-default":
+        return True
+    if "_" in clean:
+        return False
+    parts = clean.split("-")
+    if len(parts) == 1:
+        return parts[0].lower() in ISO_639_1_CODES or (len(parts[0]) == 3 and parts[0].isalpha())
+    elif len(parts) == 2:
+        lang = parts[0].lower()
+        sub = parts[1]
+        is_lang_ok = lang in ISO_639_1_CODES or (len(lang) == 3 and lang.isalpha())
+        is_sub_ok = (len(sub) == 2 and sub.isalpha()) or (len(sub) == 4 and sub.isalpha()) or (len(sub) == 3 and sub.isdigit())
+        return is_lang_ok and is_sub_ok
+    elif len(parts) == 3:
+        lang = parts[0].lower()
+        script = parts[1]
+        region = parts[2]
+        is_lang_ok = lang in ISO_639_1_CODES or (len(lang) == 3 and lang.isalpha())
+        is_script_ok = len(script) == 4 and script.isalpha()
+        is_region_ok = (len(region) == 2 and region.isalpha()) or (len(region) == 3 and region.isdigit())
+        return is_lang_ok and is_script_ok and is_region_ok
+    return False
+
+def is_valid_html_lang(code: str) -> bool:
+    return is_valid_hreflang_code(code)
+
+
+class HtmlLangMissingRule(SeoRule):
+    rule_id = "RULE_HTML_LANG_MISSING"
+    name = "HTML lang Attribute Missing"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex"):
+            return None
+
+        # Only evaluate if html_lang is explicitly tracked in page_context or HTML content is provided
+        if "html_lang" not in page_context and "html" not in page_context:
+            return None
+
+        lang = page_context.get("html_lang")
+        if not lang or not str(lang).strip():
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="HTML Dil Tanımlaması Eksik (<html lang='...'>)",
+                description=(
+                    "Sayfanın <html> etiketinde 'lang' özniteliği tanımlanmamış. "
+                    "Arama motorları, ekran okuyucu yardımcı teknolojiler ve tarayıcı çeviri araçları sayfa dilini doğru tespit edemez."
+                ),
+                evidence={"url": page_context.get("url")},
+                recommendation_template="Sayfanın kök etiketine sayfa diline uygun <html lang=\"tr\"> veya ISO 639-1 kodunu ekleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HtmlLangInvalidRule(SeoRule):
+    rule_id = "RULE_HTML_LANG_INVALID"
+    name = "Invalid HTML lang Attribute"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.LOW
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        if page_context.get("status_code", 200) != 200 or page_context.get("has_noindex"):
+            return None
+        lang = page_context.get("html_lang")
+        if lang and not is_valid_html_lang(str(lang)):
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Geçersiz HTML Dil Tanımlaması: '{lang}'",
+                description=(
+                    f"Sayfanın <html> kök etiketindeki lang=\"{lang}\" değeri geçerli bir ISO 639-1 dil kodu formatına uymuyor. "
+                    "Alt çizgi (_) yerine kısa çizgi (-) kullanılmalı ve standart dil kodları belirtilmelidir."
+                ),
+                evidence={"url": page_context.get("url"), "html_lang": lang},
+                recommendation_template="Kök etiketteki dil özniteliğini standart ISO formatına (örn: lang=\"tr\" veya lang=\"en-US\") güncelleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HreflangInvalidCodeRule(SeoRule):
+    rule_id = "RULE_HREFLANG_INVALID_CODE"
+    name = "Invalid Language/Region Code in Hreflang"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        hreflangs = page_context.get("hreflangs", [])
+        if not hreflangs:
+            return None
+
+        invalid_entries = []
+        for h in hreflangs:
+            code = (h.get("lang") or "").strip()
+            if not is_valid_hreflang_code(code):
+                invalid_entries.append({"lang": code, "href": h.get("href")})
+
+        if invalid_entries:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Geçersiz Hreflang Dil/Bölge Kodları Tespit Edildi ({len(invalid_entries)} Adet)",
+                description=(
+                    "Hreflang alternatiflerinde ISO 639-1 (dil) veya ISO 3166-1 Alpha 2 (bölge) standartlarına aykırı kodlar bulundu. "
+                    "Google arama motoru standart dışı dil kodlarını geçersiz sayarak alternatifleri yok sayar."
+                ),
+                evidence={"url": page_context.get("url"), "invalid_entries": invalid_entries},
+                recommendation_template="Hreflang kodlarını resmi ISO 639-1 formatına uygun olarak kısa çizgi (-) ile düzenleyin (örn: 'en-US', 'tr').",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HreflangMissingSelfReferenceRule(SeoRule):
+    rule_id = "RULE_HREFLANG_MISSING_SELF_REFERENCE"
+    name = "Hreflang Missing Self-Referential Alternate"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.MEDIUM
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        hreflangs = page_context.get("hreflangs", [])
+        if not hreflangs:
+            return None
+
+        url = page_context.get("url", "")
+        if not url:
+            return None
+
+        try:
+            norm_url = UrlNormalizer.normalize(url).rstrip("/")
+        except Exception:
+            norm_url = url.rstrip("/")
+
+        has_self_ref = False
+        for h in hreflangs:
+            h_href = (h.get("href") or "").strip()
+            try:
+                norm_h = UrlNormalizer.normalize(h_href).rstrip("/")
+            except Exception:
+                norm_h = h_href.rstrip("/")
+            if norm_h == norm_url:
+                has_self_ref = True
+                break
+
+        if not has_self_ref:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Kendine Referans Veren (Self-Referential) Hreflang Etiketi Eksik",
+                description=(
+                    "Sayfada diğer diller için hreflang alternatifleri tanımlanmış ancak sayfanın kendi URL'si için self-referential alternate linki bulunmuyor. "
+                    "Google Search Central kurallarına göre hreflang kullanan her sayfa kendisini de diller kümesine dahil etmelidir."
+                ),
+                evidence={"url": url, "existing_hreflangs": hreflangs},
+                recommendation_template=f"Sayfaya kendi URL'sini belirten <link rel='alternate' hreflang='{page_context.get('html_lang') or 'tr'}' href='{url}' /> etiketini ekleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HreflangToNon200Rule(SeoRule):
+    rule_id = "RULE_HREFLANG_TO_NON_200"
+    name = "Hreflang Alternate Returns Non-200 Status Code"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        hreflangs = page_context.get("hreflangs", [])
+        if not hreflangs or not site_context:
+            return None
+
+        pages_by_norm = site_context.get("pages_by_norm", {})
+        broken_targets = []
+
+        for h in hreflangs:
+            h_href = (h.get("href") or "").strip()
+            if not h_href:
+                continue
+            try:
+                norm_h = UrlNormalizer.normalize(h_href).rstrip("/")
+            except Exception:
+                norm_h = h_href.rstrip("/")
+
+            target_p = pages_by_norm.get(norm_h)
+            if target_p:
+                sc = target_p.get("status_code", 200)
+                if sc != 200:
+                    broken_targets.append({"target_url": h_href, "status_code": sc, "lang": h.get("lang")})
+
+        if broken_targets:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Hreflang Alternatifi Hatalı Durum Kodu Döndürüyor ({len(broken_targets)} Sayfa)",
+                description=(
+                    "Hreflang alternatifleri olarak belirtilen URL'lerden bazıları HTTP 200 OK yanıtı vermiyor (404, 5xx veya yönlendirme 3xx). "
+                    "Google arama motoru 200 haricindeki dil sayfalarını indekslemez ve dil eşleştirmesini iptal eder."
+                ),
+                evidence={"url": page_context.get("url"), "broken_targets": broken_targets},
+                recommendation_template="Hreflang hedeflerini yalnızca doğrudan 200 OK yanıt veren nihai sayfalara işaret edecek şekilde güncelleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HreflangToNonCanonicalRule(SeoRule):
+    rule_id = "RULE_HREFLANG_TO_NON_CANONICAL"
+    name = "Hreflang Alternate Points to Non-Canonical URL"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        hreflangs = page_context.get("hreflangs", [])
+        if not hreflangs or not site_context:
+            return None
+
+        pages_by_norm = site_context.get("pages_by_norm", {})
+        non_canonical_targets = []
+
+        for h in hreflangs:
+            h_href = (h.get("href") or "").strip()
+            if not h_href:
+                continue
+            try:
+                norm_h = UrlNormalizer.normalize(h_href).rstrip("/")
+            except Exception:
+                norm_h = h_href.rstrip("/")
+
+            target_p = pages_by_norm.get(norm_h)
+            if target_p and target_p.get("status_code", 200) == 200:
+                is_can = target_p.get("is_canonical")
+                target_can = target_p.get("canonical_target")
+                if is_can is False:
+                    non_canonical_targets.append({"target_url": h_href, "canonical_target": target_can, "lang": h.get("lang")})
+                elif target_can:
+                    try:
+                        n_tgt = UrlNormalizer.normalize(target_can).rstrip("/")
+                        if n_tgt != norm_h:
+                            non_canonical_targets.append({"target_url": h_href, "canonical_target": target_can, "lang": h.get("lang")})
+                    except Exception:
+                        pass
+
+        if non_canonical_targets:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title="Hreflang Alternatifi Kanonik Olmayan (Non-Canonical) URL'ye İşaret Ediyor",
+                description=(
+                    "Sayfadaki hreflang alternatiflerinden bazıları başka bir sayfayı rel='canonical' gösteren non-canonical URL'lere bağlanmış. "
+                    "Google, hreflang etiketlerinin yalnızca ilgili dil sürümünün doğrudan kanonik (canonical) sayfasına işaret etmesini zorunlu kılar."
+                ),
+                evidence={"url": page_context.get("url"), "non_canonical_targets": non_canonical_targets},
+                recommendation_template="Hreflang bağlantılarını hedef dilin orijinal rel='canonical' URL'si ile güncelleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+
+class HreflangNoReturnLinkRule(SeoRule):
+    rule_id = "RULE_HREFLANG_NO_RETURN_LINK"
+    name = "Missing Reciprocal Return Hreflang Tag"
+    category = RuleCategory.HREFLANG
+    default_severity = IssueSeverity.HIGH
+    documentation_url = "https://developers.google.com/search/docs/specialty/international/localized-versions"
+
+    def check(self, page_context: Dict[str, Any], site_context: Optional[Dict[str, Any]] = None) -> Optional[RuleCheckResult]:
+        hreflangs = page_context.get("hreflangs", [])
+        if not hreflangs or not site_context:
+            return None
+
+        url = page_context.get("url", "")
+        if not url:
+            return None
+
+        try:
+            norm_url = UrlNormalizer.normalize(url).rstrip("/")
+        except Exception:
+            norm_url = url.rstrip("/")
+
+        pages_by_norm = site_context.get("pages_by_norm", {})
+        missing_returns = []
+
+        for h in hreflangs:
+            h_href = (h.get("href") or "").strip()
+            h_lang = (h.get("lang") or "").strip()
+            if not h_href:
+                continue
+
+            try:
+                norm_h = UrlNormalizer.normalize(h_href).rstrip("/")
+            except Exception:
+                norm_h = h_href.rstrip("/")
+
+            # Self-reference is checked by its own rule
+            if norm_h == norm_url:
+                continue
+
+            target_p = pages_by_norm.get(norm_h)
+            if target_p and target_p.get("status_code", 200) == 200:
+                target_hreflangs = target_p.get("hreflangs", [])
+                has_return = False
+                for th in target_hreflangs:
+                    th_href = (th.get("href") or "").strip()
+                    try:
+                        norm_th = UrlNormalizer.normalize(th_href).rstrip("/")
+                    except Exception:
+                        norm_th = th_href.rstrip("/")
+                    if norm_th == norm_url:
+                        has_return = True
+                        break
+
+                if not has_return:
+                    missing_returns.append({
+                        "target_url": h_href,
+                        "target_lang": h_lang,
+                        "target_has_hreflang": bool(target_hreflangs)
+                    })
+
+        if missing_returns:
+            return RuleCheckResult(
+                passed=False,
+                rule_id=self.rule_id,
+                category=self.category,
+                severity=self.default_severity,
+                confidence=1.0,
+                title=f"Karşılıklı Geri Dönüş (Return Tag) Hreflang Eksik ({len(missing_returns)} Hedef Sayfa)",
+                description=(
+                    f"Bu sayfa hedef dillerdeki sayfalara hreflang ile referans veriyor ancak hedef sayfalar bu sayfaya geri bağlantı (reciprocal return tag) vermiyor. "
+                    "Google Search Console'da 'Dönüş etiketi yok' (No return tags) hatası olarak bildirilir ve iki yönlü onaylama olmadığı sürece Google bu hreflang eşleştirmesini tamamen yok sayar."
+                ),
+                evidence={"url": url, "missing_returns": missing_returns},
+                recommendation_template="Hedef dil sayfalarına bu sayfayı gösteren karşılıklı rel='alternate' hreflang etiketini ekleyin.",
+                documentation_url=self.documentation_url
+            )
+        return None
+
+

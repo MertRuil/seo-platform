@@ -241,6 +241,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // HTML Dil Tanımlaması (<html lang="..."> veya xml:lang)
+    const langMatch = html.match(/<html[^>]*\blang=["']([^"']+)["']/i) || html.match(/<html[^>]*\bxml:lang=["']([^"']+)["']/i);
+    const htmlLang = langMatch ? langMatch[1].trim() : (fetchResult.headers["content-language"]?.split(",")[0]?.trim() || null);
+
+    // Hreflang Alternatif Bağlantıları (<link rel="alternate" hreflang="..." href="...">)
+    interface HreflangEntry {
+      lang: string;
+      href: string;
+    }
+    const hreflangs: HreflangEntry[] = [];
+    const linkTags = html.match(/<link[^>]+>/gi) || [];
+    for (const lt of linkTags) {
+      const relM = lt.match(/rel=["']?([^"'>\s]+)["']?/i);
+      const rel = relM ? relM[1].toLowerCase() : "";
+      if (rel.includes("alternate")) {
+        const langM = lt.match(/hreflang=["']?([^"'>\s]+)["']?/i);
+        const hrefM = lt.match(/href=["']?([^"'>\s]+)["']?/i);
+        if (langM && hrefM) {
+          try {
+            const fullHref = new URL(hrefM[1], finalUrl).href;
+            hreflangs.push({ lang: langM[1].trim(), href: fullHref });
+          } catch {
+            hreflangs.push({ lang: langM[1].trim(), href: hrefM[1].trim() });
+          }
+        }
+      }
+    }
+
     // robots.txt ve sitemap.xml kontrolü (SSRF ve DNS Rebinding korumalı)
     let robotsOk = false;
     let sitemapOk = false;
@@ -465,6 +493,59 @@ export async function POST(req: NextRequest) {
           recommendation: "JSON-LD kodundaki sözdizimi, eksik veya fazladan virgül/tırnak hatalarını Google Zengin Sonuçlar Testi ile kontrol ederek düzeltin."
         });
       }
+
+      // Dil ve Hreflang Kontrolleri
+      if (!htmlLang) {
+        score -= 5;
+        issues.push({
+          rule_id: "RULE_HTML_LANG_MISSING",
+          title: "HTML Dil Tanımlaması Eksik (<html lang='...'>)",
+          severity: "MEDIUM",
+          description: "Sayfanın <html> kök etiketinde 'lang' özniteliği tanımlanmamış. Arama motorları ve ekran okuyucu yardımcı teknolojiler sayfa dilini doğru tespit edemez.",
+          recommendation: "Sayfanın kök etiketine <html lang=\"tr\"> veya uygun ISO 639-1 dil kodunu ekleyin."
+        });
+      }
+
+      if (hreflangs.length > 0) {
+        let hasSelfRef = false;
+        const invalidCodes: string[] = [];
+        const normFinal = finalUrl.replace(/\/$/, "");
+
+        for (const h of hreflangs) {
+          const code = h.lang.trim();
+          const isXDefault = code.toLowerCase() === "x-default";
+          const isValidFormat = isXDefault || /^[a-zA-Z]{2,3}(-[a-zA-Z]{4})?(-([a-zA-Z]{2}|\d{3}))?$/.test(code);
+          if (!isValidFormat || code.includes("_")) {
+            invalidCodes.push(code);
+          }
+          const hNorm = h.href.replace(/\/$/, "");
+          if (hNorm === normFinal) {
+            hasSelfRef = true;
+          }
+        }
+
+        if (invalidCodes.length > 0) {
+          score -= 10;
+          issues.push({
+            rule_id: "RULE_HREFLANG_INVALID_CODE",
+            title: "Geçersiz Hreflang Dil/Bölge Kodu",
+            severity: "MEDIUM",
+            description: `Hreflang etiketlerinde geçersiz dil/bölge kodları bulundu (${invalidCodes.join(", ")}). ISO 639-1 dil kodu ve kısa çizgi (-) ile ISO 3166-1 ülke kodu kullanılmalıdır (örn. 'en-US', 'tr').`,
+            recommendation: "Hreflang kodlarındaki alt çizgileri (_) kısa çizgiye (-) çevirin ve resmi ISO kodlarını kullanın."
+          });
+        }
+
+        if (!hasSelfRef) {
+          score -= 10;
+          issues.push({
+            rule_id: "RULE_HREFLANG_MISSING_SELF_REFERENCE",
+            title: "Kendine Referans Veren (Self-Referential) Hreflang Eksik",
+            severity: "MEDIUM",
+            description: "Sayfa hreflang alternatifleri içeriyor fakat kendi URL'sine işaret eden bir hreflang etiketi bulundurmuyor. Google Search Central yönergelerine göre her dil varyantı kendisini de alternate olarak listelemelidir.",
+            recommendation: `<link rel="alternate" hreflang="${htmlLang || 'tr'}" href="${finalUrl}" /> etiketini sayfanın <head> bölümüne ekleyin.`
+          });
+        }
+      }
     }
 
     if (!robotsOk) {
@@ -537,7 +618,10 @@ export async function POST(req: NextRequest) {
         viewport: viewport || null,
         is_mobile_friendly: isMobileFriendly,
         has_structured_data: hasStructuredData,
-        schema_types: schemaTypes
+        schema_types: schemaTypes,
+        html_lang: htmlLang,
+        hreflangs: hreflangs,
+        has_hreflang: hreflangs.length > 0
       },
       issues,
       ai_recommendations: aiRecommendations
