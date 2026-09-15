@@ -72,16 +72,17 @@ pip install aiosqlite "pydantic[email]" email-validator
 
 ### 3.3. Initialize Database & Seed Knowledge Brain
 ```bash
-# Initialize database schema and pre-load official Level-1 SEO guidelines & demo admin
+# Initialize database schema and pre-load official Level-1 SEO guidelines
 python scripts/init_db.py
 
-# Or force local SQLite database for quick development:
+# Or force local SQLite database for quick development (not allowed in production/staging):
 python scripts/init_db.py --sqlite
 ```
-Default credentials created:
-- **Email:** `admin@seo-platform.local`
-- **Password:** `AdminPass123!`
-- **Organization:** `Acme Digital Agency`
+There is no built-in admin account. To create one, set both variables before running the script:
+- `INITIAL_ADMIN_EMAIL` — admin e-mail
+- `INITIAL_ADMIN_PASSWORD` — at least 12 characters
+
+In development a sample organization (`Acme Digital Agency`) and site are also seeded for that admin; in production/staging nothing but the knowledge base is seeded and `DATABASE_URL` must be PostgreSQL.
 
 ### 3.4. Run Tests
 ```bash

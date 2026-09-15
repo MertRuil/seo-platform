@@ -63,27 +63,26 @@ const globalAuth = global as unknown as {
   __seoResetCodes?: Record<string, ResetRecord>;
 };
 
+/**
+ * Yerel (bellek içi) kullanıcı deposu yalnızca geliştirme/test içindir.
+ * Üretimde tek kimlik kaynağı FastAPI + PostgreSQL'dir; bu depo hiç doldurulmaz.
+ */
+export function isLocalAuthEnabled(): boolean {
+  return (process.env.NODE_ENV as string) !== "production";
+}
+
 function getInitialUsers(): UserRecord[] {
-  const users: UserRecord[] = [];
-  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@calpeo.io").trim().toLowerCase();
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || "CalpeoAdmin2026!";
+  if (!isLocalAuthEnabled()) return [];
 
-  users.push({
-    id: "usr_admin_initial",
-    email: adminEmail,
-    passwordHash: hashPassword(adminPassword),
-    fullName: "CALPEO Sistem Yöneticisi",
-    role: "Süper Yönetici",
-    isAdmin: true,
-    isSuperAdmin: true,
-    permissions: ["*"],
-    createdAt: new Date().toISOString(),
-  });
+  // Sabit bir varsayılan şifre yok: yerel yönetici ancak ortam değişkeniyle açılır.
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  if (!adminPassword) return [];
 
-  if (process.env.NODE_ENV !== "production") {
-    users.push({
-      id: "usr_dev_admin",
-      email: "admin@seo-platform.local",
+  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@seo-platform.local").trim().toLowerCase();
+  return [
+    {
+      id: "usr_admin_initial",
+      email: adminEmail,
       passwordHash: hashPassword(adminPassword),
       fullName: "Geliştirici Yönetici",
       role: "Süper Yönetici",
@@ -91,9 +90,8 @@ function getInitialUsers(): UserRecord[] {
       isSuperAdmin: true,
       permissions: ["*"],
       createdAt: new Date().toISOString(),
-    });
-  }
-  return users;
+    },
+  ];
 }
 
 

@@ -28,51 +28,8 @@ from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
 from services.rag.hybrid_store import HybridKnowledgeStore
 
-async def seed_initial_data(session: AsyncSession):
-    print("[INIT] Checking initial platform seed data...")
-    
-    # 1. Admin User
-    admin_email = "admin@seo-platform.local"
-    user_stmt = select(User).where(User.email == admin_email)
-    existing_user = (await session.execute(user_stmt)).scalars().first()
-    
-    if not existing_user:
-        admin_user = User(
-            id=str(uuid.uuid4()),
-            email=admin_email,
-            hashed_password=hash_password("AdminPass123!"),
-            full_name="Platform Administrator",
-            is_active=True,
-            is_platform_admin=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
-        session.add(admin_user)
-        await session.flush()
-        print(f"   [OK] Created Admin User: {admin_email} (Password: AdminPass123!)")
-    else:
-        admin_user = existing_user
-        print(f"   [INFO] Admin User already exists: {admin_email}")
-
-    # 1b. Calpeo Admin User
-    calpeo_email = "admin@calpeo.io"
-    calpeo_stmt = select(User).where(User.email == calpeo_email)
-    existing_calpeo = (await session.execute(calpeo_stmt)).scalars().first()
-    if not existing_calpeo:
-        calpeo_user = User(
-            id=str(uuid.uuid4()),
-            email=calpeo_email,
-            hashed_password=hash_password("CalpeoAdmin2026!"),
-            full_name="CALPEO Sistem Yöneticisi",
-            is_active=True,
-            is_platform_admin=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
-        session.add(calpeo_user)
-        await session.flush()
-        print(f"   [OK] Created Admin User: {calpeo_email} (Password: CalpeoAdmin2026!)")
-
+async def seed_demo_workspace(session: AsyncSession, admin_user: User):
+    """Development-only sample workspace so a fresh local install has something to look at."""
     # 2. Organization
     org_slug = "acme-digital"
     org_stmt = select(Organization).where(Organization.slug == org_slug)
@@ -140,21 +97,6 @@ async def seed_initial_data(session: AsyncSession):
         demo_site = existing_site
         print(f"   [INFO] Demo Site already exists: {demo_site.name}")
 
-    # 4b. Ensure Calpeo User has membership
-    if 'calpeo_user' in locals():
-        calpeo_mem = (await session.execute(
-            select(Membership).where(Membership.user_id == calpeo_user.id, Membership.organization_id == org.id)
-        )).scalars().first()
-        if not calpeo_mem:
-            session.add(Membership(
-                id=str(uuid.uuid4()),
-                user_id=calpeo_user.id,
-                organization_id=org.id,
-                role="OWNER",
-                created_at=datetime.now(timezone.utc)
-            ))
-            print("   [OK] Linked Calpeo Admin as OWNER of Acme Digital Agency")
-
     # 4c. Initial Demo Site Connectors
     existing_conns = (await session.execute(
         select(SiteConnector).where(SiteConnector.site_id == demo_site.id)
@@ -195,6 +137,43 @@ async def seed_initial_data(session: AsyncSession):
         for c in seed_conns:
             session.add(c)
         print("   [OK] Seeded 3 active connectors for Demo Site (WordPress, Webhook, GitHub PR)")
+
+async def seed_initial_data(session: AsyncSession):
+    print("[INIT] Checking initial platform seed data...")
+    
+    # 1. Platform admin: no built-in password. Seeded only from INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD.
+    admin_user = None
+    admin_email = (settings.INITIAL_ADMIN_EMAIL or "").strip().lower()
+    admin_password = settings.INITIAL_ADMIN_PASSWORD
+    if admin_email and admin_password:
+        if len(admin_password) < 12:
+            raise ValueError("INITIAL_ADMIN_PASSWORD must be at least 12 characters")
+        existing_user = (await session.execute(select(User).where(User.email == admin_email))).scalars().first()
+        if not existing_user:
+            admin_user = User(
+                id=str(uuid.uuid4()),
+                email=admin_email,
+                hashed_password=hash_password(admin_password),
+                full_name="Platform Administrator",
+                is_active=True,
+                is_platform_admin=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            session.add(admin_user)
+            await session.flush()
+            print(f"   [OK] Created Admin User: {admin_email}")
+        else:
+            admin_user = existing_user
+            print(f"   [INFO] Admin User already exists: {admin_email}")
+    else:
+        print("   [SKIP] No admin seeded: set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD to create one.")
+
+    # Demo organization/site/connectors are development-only fixtures; production data comes from real users.
+    if settings.is_production_like:
+        print("   [SKIP] Demo organization/site not seeded in production/staging.")
+    elif admin_user is not None:
+        await seed_demo_workspace(session, admin_user)
 
     # 5. Populate Hybrid Store and DB with Seed SEO Knowledge
     print("[KNOWLEDGE] Ingesting Level-1 SEO Standards into Knowledge Base...")
@@ -262,6 +241,9 @@ async def main():
     parser.add_argument("--sqlite", action="store_true", help="Force initialize local SQLite database (dev.db)")
     args = parser.parse_args()
 
+    if args.sqlite and settings.is_production_like:
+        raise SystemExit("[ERROR] --sqlite is not allowed in production/staging; PostgreSQL is the only data source.")
+
     if args.sqlite or "sqlite" in settings.DATABASE_URL:
         db_url = "sqlite+aiosqlite:///./dev.db"
         print(f"[DB] Initializing SQLite database at: {db_url}")
@@ -276,7 +258,7 @@ async def main():
             await conn.run_sync(Base.metadata.create_all)
         print("[SUCCESS] Database schema and tables created successfully.")
     except Exception as e:
-        if not args.sqlite and ("ConnectionRefused" in str(e) or "WinError 1225" in str(e)):
+        if not args.sqlite and not settings.is_production_like and ("ConnectionRefused" in str(e) or "WinError 1225" in str(e)):
             print(f"[WARN] PostgreSQL connection refused ({e}). Falling back to local SQLite './dev.db'...")
             target_engine = create_async_engine("sqlite+aiosqlite:///./dev.db", echo=False)
             async with target_engine.begin() as conn:

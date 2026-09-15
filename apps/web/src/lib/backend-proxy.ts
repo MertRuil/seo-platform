@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = (process.env.BACKEND_API_URL || "http://localhost:8000/api/v1").replace(/\/$/, "");
+const IS_PRODUCTION = (process.env.NODE_ENV as string) === "production";
 
 // Read timeout default 15s; mutating operation timeout default 35s (configurable via env)
 const READ_TIMEOUT_MS = parseInt(process.env.BACKEND_TIMEOUT_MS || "15000", 10);
@@ -47,32 +48,35 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
     });
   } catch (err: any) {
     const isTimeout = err?.name === "TimeoutError" || String(err).includes("timeout") || String(err).includes("aborted");
-    
-    // Mutasyon isteklerinde (POST, PUT, DELETE, PATCH) sessizce sahte veriye düşülmemeli!
-    // Aksi halde tarama başlatma veya değişiklik uygulama gibi işlemler çift tetiklenebilir ya da kullanıcı yanıltılır.
-    if (isMutation) {
+
+    // Üretimde bellek içi (serverless) depoya veya örnek veriye asla düşülmez:
+    // arka uca ulaşılamıyorsa istek okuma/yazma fark etmeksizin hata olarak döner.
+    if (IS_PRODUCTION) {
       if (isTimeout) {
         return NextResponse.json(
-          {
-            error: "Arka uç servisi zaman aşımına uğradı (504 Gateway Timeout).",
-            detail: `İşlem ${timeout}ms süresince tamamlanamadı. Veri bütünlüğünü korumak ve mükerrer tetiklemeyi önlemek için sahte veriye düşülmedi.`
-          },
+          { error: "Arka uç servisi zaman aşımına uğradı (504 Gateway Timeout).", detail: `İşlem ${timeout}ms süresince tamamlanamadı.` },
           { status: 504 }
         );
       }
-      // Canlı backend tanımlıysa ve connection refused / network error alındıysa:
-      if ((process.env.NODE_ENV as string) === "production") {
-        return NextResponse.json(
-          {
-            error: "Arka uç servisine bağlanılamadı (502 Bad Gateway).",
-            detail: "Üretim ortamında arka uç kapalıyken mutasyon işlemleri kabul edilemez."
-          },
-          { status: 502 }
-        );
-      }
+      return NextResponse.json(
+        { error: "Arka uç servisine bağlanılamadı (502 Bad Gateway).", detail: "Üretim ortamında veri yalnızca arka uçtan (PostgreSQL) okunur; sahte veriye düşülmez." },
+        { status: 502 }
+      );
     }
 
-    // Yalnızca yerel geliştirme ortamında ve GET okuma isteklerinde demo fallback'e izin ver
+    // Geliştirme: mutasyon isteklerinde (POST, PUT, DELETE, PATCH) zaman aşımında sessizce sahte veriye düşülmemeli!
+    // Aksi halde tarama başlatma veya değişiklik uygulama gibi işlemler çift tetiklenebilir ya da kullanıcı yanıltılır.
+    if (isMutation && isTimeout) {
+      return NextResponse.json(
+        {
+          error: "Arka uç servisi zaman aşımına uğradı (504 Gateway Timeout).",
+          detail: `İşlem ${timeout}ms süresince tamamlanamadı. Veri bütünlüğünü korumak ve mükerrer tetiklemeyi önlemek için sahte veriye düşülmedi.`
+        },
+        { status: 504 }
+      );
+    }
+
+    // Yalnızca yerel geliştirme ortamında yerel depoya düşülür (null => çağıran rota serverlessStore kullanır)
     return null;
   }
 }

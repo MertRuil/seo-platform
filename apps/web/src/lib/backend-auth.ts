@@ -92,3 +92,24 @@ export async function backendRegister(email: string, password: string, fullName:
     return { ok: false, status: 0 };
   }
 }
+
+/** Sağlayıcı belirteci arka uçta yeniden doğrulanır; kullanıcı yoksa PostgreSQL'de oluşturulur. */
+export async function backendOAuth(provider: string, token: string, email: string, fullName: string): Promise<BridgeResult> {
+  const backend = getBackendUrl();
+  if (!backend) return { ok: false, status: 0 };
+  try {
+    const r = await backendFetch("/auth/oauth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, token, email, full_name: fullName }),
+    });
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      return { ok: false, status: r.status, detail: typeof data.detail === "string" ? data.detail : undefined };
+    }
+    const tok = (await r.json()) as { access_token: string };
+    return { ok: true, session: await sessionFromToken(tok.access_token, email) };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}

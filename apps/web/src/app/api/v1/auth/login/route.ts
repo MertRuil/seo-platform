@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authStore } from "@/lib/auth-users";
+import { authStore, isLocalAuthEnabled } from "@/lib/auth-users";
 import { createSignedToken } from "@/lib/jwt";
 import { backendLogin } from "@/lib/backend-auth";
 
@@ -52,6 +52,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Üretimde tek kimlik kaynağı arka uçtur (PostgreSQL); yerel depoya hiç bakılmaz.
+    if (!isLocalAuthEnabled()) {
+      return NextResponse.json(
+        { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen sistem yöneticinizle iletişime geçin." },
+        { status: 502 }
+      );
+    }
+
     // Brute-force lockout (5 failures / 15 min), checked before password verification
     if (authStore.isLockedOut(cleanEmail)) {
       return NextResponse.json(
@@ -63,14 +71,6 @@ export async function POST(request: Request) {
     const user = authStore.findUserByEmail(cleanEmail);
 
     if (!user) {
-      // Arka uç kapalıysa ve yerel kullanıcı da bulunamadıysa
-      if (bridged.status === 0 && (process.env.NODE_ENV as string) === "production") {
-        return NextResponse.json(
-          { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen sistem yöneticinizle iletişime geçin." },
-          { status: 502 }
-        );
-      }
-
       return NextResponse.json(
         {
           error: "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı. Lütfen 'Yeni Kayıt Ol' sekmesinden kaydolun veya e-postanızı kontrol edin.",

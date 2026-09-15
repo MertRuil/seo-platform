@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authStore } from "@/lib/auth-users";
+import { authStore, isLocalAuthEnabled } from "@/lib/auth-users";
 import { createSignedToken } from "@/lib/jwt";
 import crypto from "crypto";
 import { backendRegister } from "@/lib/backend-auth";
@@ -54,7 +54,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: bridged.detail || "Bu e-posta adresiyle kayıtlı bir hesap zaten var." }, { status: bridged.status });
     }
 
-    if ((process.env.NODE_ENV as string) === "production") {
+    // Üretimde kullanıcı kaydı yalnızca arka uçta (PostgreSQL) yapılır; yerel depo kullanılmaz.
+    if (!isLocalAuthEnabled()) {
       return NextResponse.json(
         { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen daha sonra tekrar deneyin." },
         { status: 502 }

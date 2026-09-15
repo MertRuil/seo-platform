@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"  # Fallback for local tests without postgres
     DATABASE_SYNC_URL: Optional[str] = None
 
+    # Initial platform admin (seeded by scripts/init_db.py only when both are set)
+    INITIAL_ADMIN_EMAIL: Optional[str] = None
+    INITIAL_ADMIN_PASSWORD: Optional[str] = None
+
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
@@ -75,6 +79,15 @@ class Settings(BaseSettings):
                     raise ValueError
             except ValueError as exc:
                 raise ValueError("ENCRYPTION_KEY must be a 64-character hexadecimal AES-256 key") from exc
+
+        # PostgreSQL is the only supported data source outside local development/test
+        if self.ENVIRONMENT.lower() in {"production", "prod", "staging"}:
+            if not self.DATABASE_URL.lower().startswith(("postgresql://", "postgresql+asyncpg://", "postgres://")):
+                raise ValueError("DATABASE_URL must point to PostgreSQL in production/staging (sqlite is not allowed)")
         return self
+
+    @property
+    def is_production_like(self) -> bool:
+        return self.ENVIRONMENT.lower() in {"production", "prod", "staging"}
 
 settings = Settings()

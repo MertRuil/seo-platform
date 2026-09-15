@@ -3,8 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
-import { api } from "@/lib/api";
-import { Lock, Mail, User as UserIcon, Eye, EyeOff, ArrowRight, KeyRound, CheckCircle2, Zap, Globe, Sparkles } from "lucide-react";
+import { Lock, Mail, User as UserIcon, Eye, EyeOff, ArrowRight, KeyRound, CheckCircle2, Globe } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, Label, Segmented } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -57,21 +56,10 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [devResetCode, setDevResetCode] = useState<string | null>(null);
 
-  // 1-Tıkla Demo ve Anında Canlı Analiz
-  const [demoLoading, setDemoLoading] = useState(false);
+  // Anında Canlı Analiz (giriş gerektirmez)
   const [quickAuditUrl, setQuickAuditUrl] = useState("");
   const [quickAuditLoading, setQuickAuditLoading] = useState(false);
   const [quickAuditResult, setQuickAuditResult] = useState<{ url: string; score: number; issues: number; critical: number } | null>(null);
-
-  const handleDemoLogin = async () => {
-    setError(null);
-    setDemoLoading(true);
-    const res = await login("admin@calpeo.io", "CalpeoAdmin2026!");
-    setDemoLoading(false);
-    if (!res.success) {
-      setError(res.error || "Demo girişi yapılamadı.");
-    }
-  };
 
   const handleInstantAudit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,27 +90,11 @@ export default function LoginPage() {
     }
   };
 
-  const enterWithAuditedSite = async () => {
+  // Panele aktarmak için gerçek bir hesap gerekir: kayıt sekmesine yönlendir.
+  const enterWithAuditedSite = () => {
     if (!quickAuditResult) return;
-    setQuickAuditLoading(true);
-    const loginRes = await login("admin@calpeo.io", "CalpeoAdmin2026!");
-    if (loginRes.success) {
-      try {
-        const orgs = await api.getOrganizations();
-        const orgId = orgs[0]?.id;
-        if (orgId) {
-          const site = await api.createSite(orgId, {
-            name: new URL(quickAuditResult.url).hostname,
-            primary_url: quickAuditResult.url,
-          });
-          await api.triggerCrawl(orgId, site.id);
-          localStorage.setItem("calpeo_site", site.id);
-        }
-      } catch {
-        // Devam et
-      }
-    }
-    setQuickAuditLoading(false);
+    setMode("register");
+    setError(null);
   };
 
   const strength = passwordStrength(password);
@@ -288,30 +260,8 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Hızlı Demo ve Canlı Denetim Kartı */}
+              {/* Canlı Denetim Kartı */}
               <div className="space-y-3 pb-1 border-b border-line">
-                <div className="p-3.5 rounded-md bg-accent-soft border border-accent/20 flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-accent-ink flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-accent" />
-                      Sistemi Hemen Test Edin
-                    </span>
-                    <span className="text-2xs font-mono px-2 py-0.5 rounded bg-surface border border-line text-muted">Hazır Demo</span>
-                  </div>
-                  <p className="text-xs text-muted leading-relaxed">
-                    Sistemi hazır e-ticaret verileri, otonom yapay zeka ajanları ve 14 teknik modülle keşfetmek için şifresiz giriş yapın.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    loading={demoLoading}
-                    onClick={handleDemoLogin}
-                    className="w-full justify-center text-xs py-2 shadow-sm font-semibold"
-                  >
-                    🚀 Tek Tıkla Canlı Demo Girişi
-                  </Button>
-                </div>
-
                 <div className="p-3 rounded-md bg-surface-2 border border-line flex flex-col gap-2">
                   <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-evidence" />
@@ -337,8 +287,8 @@ export default function LoginPage() {
                           {quickAuditResult.issues} bulgu tespit edildi ({quickAuditResult.critical} kritik)
                         </div>
                       </div>
-                      <Button size="sm" variant="primary" onClick={enterWithAuditedSite} loading={quickAuditLoading} className="text-xs">
-                        Panele Aktar →
+                      <Button size="sm" variant="primary" onClick={enterWithAuditedSite} className="text-xs">
+                        Kayıt olup panele aktar →
                       </Button>
                     </div>
                   )}
@@ -430,21 +380,6 @@ export default function LoginPage() {
                 <Button type="submit" loading={loading} className="w-full" icon={<ArrowRight className="w-4 h-4" />}>
                   {mode === "register" ? "Kayıt ol" : "Giriş yap"}
                 </Button>
-                {mode === "login" && (
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail("admin@calpeo.io");
-                        setPassword("CalpeoAdmin2026!");
-                      }}
-                      className="text-2xs text-muted hover:text-ink transition-colors cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3 text-accent" />
-                      Yönetici bilgilerini doldur: <span className="font-mono text-accent-ink font-semibold">admin@calpeo.io</span>
-                    </button>
-                  </div>
-                )}
               </form>
 
               <p className="text-center text-xs text-muted">

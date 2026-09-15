@@ -122,7 +122,8 @@ def test_settings_environment_and_test_token_guard():
         ENVIRONMENT="production",
         ALLOW_TEST_OAUTH_TOKENS=True,
         APP_SECRET_KEY="a" * 32,
-        ENCRYPTION_KEY="fedcba9876543210" * 4
+        ENCRYPTION_KEY="fedcba9876543210" * 4,
+        DATABASE_URL="postgresql+asyncpg://u:p@db:5432/seo",
     )
     assert cfg_prod.ALLOW_TEST_OAUTH_TOKENS is False
 
@@ -137,6 +138,17 @@ def test_settings_environment_and_test_token_guard():
         ALLOW_TEST_OAUTH_TOKENS=True,
     )
     assert cfg_test.ALLOW_TEST_OAUTH_TOKENS is True
+
+def test_settings_production_requires_postgresql():
+    """Production/staging must run on PostgreSQL; sqlite (the local test default) is rejected."""
+    secure = dict(APP_SECRET_KEY="a" * 32, ENCRYPTION_KEY="fedcba9876543210" * 4)
+    for env in ("production", "staging"):
+        with pytest.raises(ValueError, match="PostgreSQL"):
+            Settings(ENVIRONMENT=env, DATABASE_URL="sqlite+aiosqlite:///./test.db", **secure)
+        assert Settings(ENVIRONMENT=env, DATABASE_URL="postgresql+asyncpg://u:p@db/seo", **secure).is_production_like
+
+    cfg_dev = Settings(ENVIRONMENT="development", DATABASE_URL="sqlite+aiosqlite:///./test.db")
+    assert cfg_dev.is_production_like is False
 
 @pytest.mark.anyio
 async def test_safe_network_backend_non_blocking_dns_and_ip_literal():

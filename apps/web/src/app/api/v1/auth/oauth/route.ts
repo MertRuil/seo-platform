@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { authStore } from "@/lib/auth-users";
+import { authStore, isLocalAuthEnabled } from "@/lib/auth-users";
 import { createSignedToken } from "@/lib/jwt";
 import crypto from "crypto";
+import { backendOAuth } from "@/lib/backend-auth";
 
 export async function POST(request: Request) {
   try {
@@ -205,6 +206,28 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: `OAuth belirtecindeki e-posta (${verifiedEmail}) ile istekteki e-posta (${cleanExpectedEmail}) eşleşmiyor.` },
         { status: 401 }
+      );
+    }
+
+    // Önce arka uç (FastAPI + PostgreSQL): kullanıcı orada oluşturulur, JWT oradan döner.
+    const bridged = await backendOAuth(cleanProvider, cleanToken, verifiedEmail, verifiedName);
+    if (bridged.ok) {
+      const res = NextResponse.json(
+        { success: true, message: `${provider} ile güvenli giriş başarılı.`, access_token: bridged.session.access_token, token_type: "bearer", user: bridged.session.user, expires_in: 86400, source: "backend" },
+        { status: 200 }
+      );
+      res.cookies.set({ name: "seo_platform_token", value: bridged.session.access_token, httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 86400, path: "/", sameSite: "lax" });
+      return res;
+    }
+    if (bridged.status !== 0) {
+      return NextResponse.json({ error: bridged.detail || "OAuth girişi arka uç tarafından reddedildi." }, { status: bridged.status });
+    }
+
+    // Üretimde yerel depoya düşülmez: arka uç yoksa giriş yapılamaz.
+    if (!isLocalAuthEnabled()) {
+      return NextResponse.json(
+        { error: "Arka uç kimlik doğrulama servisine bağlanılamadı (502 Bad Gateway). Lütfen daha sonra tekrar deneyin." },
+        { status: 502 }
       );
     }
 

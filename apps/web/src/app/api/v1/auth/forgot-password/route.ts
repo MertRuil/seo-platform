@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authStore } from "@/lib/auth-users";
+import { authStore, isLocalAuthEnabled } from "@/lib/auth-users";
 import { sendEmail } from "@/lib/email-service";
 
 export async function POST(request: Request) {
@@ -15,6 +15,16 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+
+    // Bu kod tabanlı sıfırlama akışı yalnızca yerel (geliştirme) kullanıcı deposu için çalışır.
+    // Üretimde kullanıcılar PostgreSQL'dedir; arka uç e-posta ile sıfırlama akışına bağlanana kadar kapalı tutulur.
+    if (!isLocalAuthEnabled()) {
+      return NextResponse.json(
+        { error: "Şifre sıfırlama bu ortamda henüz aktif değil. Lütfen sistem yöneticinizle iletişime geçin." },
+        { status: 503 }
+      );
+    }
+
     const user = authStore.findUserByEmail(cleanEmail);
 
     if (!user) {
