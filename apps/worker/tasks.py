@@ -8,7 +8,7 @@ from sqlalchemy.future import select
 from packages.shared.database import AsyncSessionLocal
 from packages.shared.models import (
     CrawlRun, Site, CrawlPage, Recommendation,
-    ChangeSet, ChangeItem, SiteConnector, AuditLog
+    ChangeSet, ChangeItem, SiteConnector, AuditLog, utc_now
 )
 from services.crawler.crawler_service import CrawlerService
 from services.seo_engine.engine import SeoRuleEngine
@@ -214,6 +214,7 @@ async def run_crawl_job(crawl_run_id: str) -> bool:
             run = res.scalars().first()
             if run:
                 run.status = "FAILED"
+                run.finished_at = utc_now()
                 await db.commit()
             return False
 

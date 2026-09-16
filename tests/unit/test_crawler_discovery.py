@@ -172,6 +172,10 @@ async def test_crawler_service_auto_seeds_sitemap():
         assert run.status == "COMPLETED"
         assert run.total_urls_crawled == 3
         assert run.total_urls_discovered >= 3
+        # Tarama suresi raporlanabilsin diye zaman damgalari doldurulmali
+        assert run.started_at is not None
+        assert run.finished_at is not None
+        assert run.finished_at >= run.started_at
 
 @pytest.mark.asyncio
 async def test_crawler_service_respects_robots_txt_disallow():

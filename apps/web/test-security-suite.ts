@@ -1,11 +1,22 @@
 import assert from "node:assert";
 import http from "node:http";
 import { NextRequest } from "next/server";
-import { POST as oauthPost } from "./src/app/api/v1/auth/oauth/route";
-import { POST as sitesPost } from "./src/app/api/v1/organizations/[orgId]/sites/route";
 import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "./src/lib/ssrf";
 
+// Bu paket Next.js rotalarinin KENDI guvenlik mantigini test eder.
+// Python arka ucu ayaktaysa istekler vekil uzerinden oraya gider ve yerel
+// kontroller hic calismaz (Test 4 beklenen 400 yerine 401 alir). Bu yuzden
+// vekil, kapali oldugu garanti bir porta yonlendirilerek devre disi birakilir.
+// backend-proxy adresi modul yuklenirken okudugu icin rotalar dinamik import
+// edilmeli: env degiskeni import'tan ONCE atanmali.
+process.env.BACKEND_API_URL = "http://127.0.0.1:1/api/v1";
+
 async function runTests() {
+  // Rotalar env atamasindan SONRA yuklenmeli (statik import hoisting'e takilir)
+  const { POST: oauthPost } = await import("./src/app/api/v1/auth/oauth/route");
+  const { POST: sitesPost } = await import(
+    "./src/app/api/v1/organizations/[orgId]/sites/route"
+  );
   console.log("==================================================");
   console.log("NEXT.JS SECURITY AUDIT AUTOMATED TEST SUITE");
   console.log("==================================================\n");
@@ -91,7 +102,7 @@ async function runTests() {
   // TEST 3: Intermediate Redirect SSRF & Socket Pinning (Açık #4)
   console.log("Test 3: Intermediate Redirect SSRF Protection & Socket Pinning");
   let redirectServerHitCount = 0;
-  let metadataServerHitCount = 0;
+  const metadataServerHitCount = 0;
 
   // Set up mock redirect server on local port
   const server = http.createServer((req, res) => {

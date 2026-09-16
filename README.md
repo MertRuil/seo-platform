@@ -9,7 +9,7 @@ A production-grade autonomous SEO operating system that crawls websites, determi
 The platform strictly separates **deterministic technical verification** from **probabilistic AI reasoning**:
 
 1. **Facts:** HTTP status codes, headers, robots directives, canonical tags, and DOM structure are verified exclusively via deterministic Python code.
-2. **Deterministic SEO Rule Engine:** Evaluates 13 deterministic rules (canonical, robots/noindex, HTTP status, redirects, title/meta/H1, thin content, schema syntax) without AI involvement.
+2. **Deterministic SEO Rule Engine:** Evaluates 47 deterministic rules (canonical, robots/noindex, HTTP status, redirect chains and loops, sitemap coverage, duplicate title/H1/meta, broken internal links, orphan pages, mobile/viewport, structured data, hreflang, thin content) without AI involvement.
 3. **Performance Signals:** Google Search Console API, CrUX p75 field data, Lighthouse audits.
 4. **Trusted Knowledge:** Level-1 official documentation (Google Search Central, schema.org, W3C, RFCs).
 5. **Hybrid RAG:** Dense pgvector embeddings + lexical full-text matching + Reciprocal Rank Fusion (RRF) + cross-encoder reranking.
@@ -39,7 +39,7 @@ autonomous-ai-seo-platform/
 ├── packages/
 │   ├── config/       # Pydantic Settings
 │   ├── contracts/    # Pydantic shared request/response models
-│   └── shared/       # SQLAlchemy 2.0 database engine & 38 entity models
+│   └── shared/       # SQLAlchemy 2.0 database engine & 30 entity models
 ├── docs/             # 10 core specification documents & ADRs
 │   └── decisions/    # Architecture Decision Records (ADR-001 through ADR-005)
 ├── tests/            # Pytest test suites (Unit, Integration, Security, Golden SEO)
@@ -89,7 +89,7 @@ In development a sample organization (`Acme Digital Agency`) and site are also s
 
 ### 3.4. Run Tests
 ```bash
-# Execute full automated test suite (84 unit, security, RAG, integration, and golden tests)
+# Execute full automated test suite (259 unit, security, RAG, integration, and golden tests)
 pytest -v
 ```
 
@@ -101,10 +101,23 @@ API Documentation will be accessible at: `http://localhost:8000/docs`
 
 ### 3.6. Run Next.js Frontend
 ```bash
-cd apps/web
+npm install          # workspace root; installs apps/web too
 npm run dev
 ```
 Dashboard will be accessible at: `http://localhost:3000` (including Knowledge Brain at `/knowledge`)
+
+The web app reads `BACKEND_API_URL` from `apps/web/.env.local`. It **must** end
+with `/api/v1` (e.g. `http://127.0.0.1:8000/api/v1`) or every proxied call
+fails; `APP_SECRET_KEY` must match the value in the root `.env` so tokens
+issued by either side verify. See `.env.example`.
+
+### 3.6.1. Frontend Checks
+```bash
+npm run lint         # ESLint (flat config, next/core-web-vitals + typescript)
+npm run typecheck    # tsc --noEmit
+npm run build        # production build
+npm test             # UI logic, auth guard and Next.js security suites
+```
 
 ### 3.7. Run Autonomous RAG Curator
 ```bash

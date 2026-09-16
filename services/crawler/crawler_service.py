@@ -6,7 +6,7 @@ from collections import deque
 from urllib.parse import urljoin, urlparse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from packages.shared.models import CrawlRun, CrawlPage, Site
+from packages.shared.models import CrawlRun, CrawlPage, Site, utc_now
 from services.crawler.url_normalizer import UrlNormalizer
 from services.crawler.robots_parser import RobotsParser
 from services.crawler.sitemap_parser import SitemapParser
@@ -46,6 +46,7 @@ class CrawlerService:
                 pass
 
         crawl_run.status = "RUNNING"
+        crawl_run.started_at = utc_now()
         await self.db.commit()
 
         client = SafeHttpClient(mode=crawl_run.crawl_mode)
@@ -512,6 +513,7 @@ class CrawlerService:
 
         # Finalize crawl run status
         crawl_run.status = "COMPLETED"
+        crawl_run.finished_at = utc_now()
         crawl_run.total_urls_discovered = len(self.visited_urls)
         crawl_run.total_urls_crawled = pages_crawled
         crawl_run.total_errors = errors_count
