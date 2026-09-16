@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { orgId: string; siteId: string; changeSetId: string } }
+  ctx: { params: Promise<{ orgId: string; siteId: string; changeSetId: string }> }
 ) {
+  const params = await ctx.params;
   const proxied = await tryBackendProxy(
     req,
     `/organizations/${params.orgId}/sites/${params.siteId}/change-sets/${params.changeSetId}/approve`

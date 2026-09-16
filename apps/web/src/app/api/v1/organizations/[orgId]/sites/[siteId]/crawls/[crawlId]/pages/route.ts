@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { orgId: string; siteId: string; crawlId: string } }
+  ctx: { params: Promise<{ orgId: string; siteId: string; crawlId: string }> }
 ) {
+  const params = await ctx.params;
   const proxied = await tryBackendProxy(
     req,
     `/organizations/${params.orgId}/sites/${params.siteId}/crawls/${params.crawlId}/pages?${req.nextUrl.searchParams.toString()}`

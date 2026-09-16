@@ -28,7 +28,8 @@ const ALLOWED_EXECUTION_MODES = new Set([
   "MANUAL",
 ]);
 
-export async function GET(req: NextRequest, { params }: { params: { orgId: string } }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ orgId: string }> }) {
+  const params = await ctx.params;
   const orgId = params.orgId;
   if (!orgId || !/^[a-zA-Z0-9_-]{1,64}$/.test(orgId)) {
     return NextResponse.json({ detail: "Geçersiz organizasyon kimliği" }, { status: 400 });
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: { orgId: strin
   return NextResponse.json(sites);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { orgId: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ orgId: string }> }) {
+  const params = await ctx.params;
   const orgId = params.orgId;
   if (!orgId || !/^[a-zA-Z0-9_-]{1,64}$/.test(orgId)) {
     return NextResponse.json({ detail: "Geçersiz organizasyon kimliği" }, { status: 400 });

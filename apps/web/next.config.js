@@ -8,6 +8,8 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // Proje kurallari .agents/rules altinda; Next'in AGENTS.md/CLAUDE.md uretmesi kapali
+  agentRules: false,
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

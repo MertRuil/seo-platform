@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { orgId: string; siteId: string } }
+  ctx: { params: Promise<{ orgId: string; siteId: string }> }
 ) {
+  const params = await ctx.params;
   // First try backend proxy (FastAPI with native Python connectors)
   const proxied = await tryBackendProxy(
     req,

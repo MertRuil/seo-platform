@@ -33,8 +33,8 @@ function searchEnvFiles(): string | null {
     for (const file of envFiles) {
       const fullPath = path.resolve(dir, file);
       try {
-        if (fs.existsSync(fullPath)) {
-          const content = fs.readFileSync(fullPath, "utf8");
+        if (fs.existsSync(/*turbopackIgnore: true*/ fullPath)) {
+          const content = fs.readFileSync(/*turbopackIgnore: true*/ fullPath, "utf8");
           const match = content.match(/^\s*(?:APP_SECRET_KEY|JWT_SECRET|SECRET_KEY)\s*=\s*(.+)$/m);
           if (match && match[1]) {
             const val = match[1].trim().replace(/^["']|["']$/g, "");
@@ -67,8 +67,9 @@ export function getJwtSecret(): string {
     }
   }
 
-  // 2. .env dosyalarından yüklemeyi dene
-  const fileSecret = searchEnvFiles();
+  // 2. .env dosyalarından yüklemeyi dene (yalnızca geliştirmede;
+  //    üretimde anahtar ortam değişkeninden gelir, dosya sistemi taranmaz)
+  const fileSecret = process.env.NODE_ENV === "production" ? null : searchEnvFiles();
   if (fileSecret && fileSecret.trim().length >= 16) {
     cachedSecret = fileSecret.trim();
     process.env.APP_SECRET_KEY = cachedSecret;

@@ -152,7 +152,7 @@ async function runTests() {
       primary_url: "http://169.254.169.254/latest/meta-data",
     }),
   });
-  const resMetaSite = await sitesPost(reqMetaSite, { params: { orgId: testOrgId } });
+  const resMetaSite = await sitesPost(reqMetaSite, { params: Promise.resolve({ orgId: testOrgId }) });
   assert.strictEqual(resMetaSite.status, 400, "Cloud metadata target must be rejected with 400");
   const dataMeta = await resMetaSite.json();
   assert(dataMeta.detail.includes("Güvenlik engeli") || dataMeta.detail.includes("SSRF") || dataMeta.detail.includes("engellendi"));
@@ -167,7 +167,7 @@ async function runTests() {
       primary_url: "http://localhost:3000/admin",
     }),
   });
-  const resLocalSite = await sitesPost(reqLocalSite, { params: { orgId: testOrgId } });
+  const resLocalSite = await sitesPost(reqLocalSite, { params: Promise.resolve({ orgId: testOrgId }) });
   assert.strictEqual(resLocalSite.status, 400, "Localhost target must be rejected with 400");
   console.log("  [PASS] 4B: Site creation with localhost blocked with 400.");
 
@@ -180,7 +180,7 @@ async function runTests() {
       primary_url: "javascript:alert(document.cookie)",
     }),
   });
-  const resJsSite = await sitesPost(reqJsSite, { params: { orgId: testOrgId } });
+  const resJsSite = await sitesPost(reqJsSite, { params: Promise.resolve({ orgId: testOrgId }) });
   assert.strictEqual(resJsSite.status, 400, "javascript: protocol must be rejected with 400");
   console.log("  [PASS] 4C: Site creation with javascript: protocol blocked with 400.");
 
@@ -194,7 +194,7 @@ async function runTests() {
       primary_url: safeDomainUrl,
     }),
   });
-  const resXssSite = await sitesPost(reqXssSite, { params: { orgId: testOrgId } });
+  const resXssSite = await sitesPost(reqXssSite, { params: Promise.resolve({ orgId: testOrgId }) });
   const dataXss = await resXssSite.json();
   assert.strictEqual(resXssSite.status, 201, `Legitimate site should be created with 201: ${JSON.stringify(dataXss)}`);
   assert.strictEqual(dataXss.name, "Güvenli Mağaza", "Script tags must be stripped from site name");
@@ -209,7 +209,7 @@ async function runTests() {
       primary_url: "https://www.example.com/alt",
     }),
   });
-  const resDupSite = await sitesPost(reqDupSite, { params: { orgId: testOrgId } });
+  const resDupSite = await sitesPost(reqDupSite, { params: Promise.resolve({ orgId: testOrgId }) });
   assert.strictEqual(resDupSite.status, 400, "Duplicate domain must be rejected with 400");
   const dataDup = await resDupSite.json();
   assert(dataDup.detail.includes("zaten kayıtlı"));
