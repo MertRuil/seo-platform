@@ -68,6 +68,9 @@ source .venv/bin/activate  # On Linux/macOS
 # Install backend dependencies
 pip install -r requirements.txt
 pip install aiosqlite "pydantic[email]" email-validator
+
+# Install the headless browser used by the JavaScript rendering tests
+playwright install chromium
 ```
 
 ### 3.3. Initialize Database & Seed Knowledge Brain
