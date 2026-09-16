@@ -11,6 +11,8 @@ out/
 build/
 dist/
 apps/web/.next/
+# Next tarafindan uretilir; dev/build arasinda surekli degisir
+apps/web/next-env.d.ts
 apps/web/node_modules/
 *.tsbuildinfo
 
