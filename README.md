@@ -93,6 +93,17 @@ In development a sample organization (`Acme Digital Agency`) and site are also s
 pytest -v
 ```
 
+### 3.4.1. Windows Shortcut
+
+Two double-clickable helpers live in the repository root:
+
+- `baslat.bat` — creates the database if missing, then starts the API and the
+  web app in their own windows and opens the browser.
+- `durum.bat` — prints whether the engine (`:8000`) and the UI (`:3000`) are up.
+
+Everything is running when `http://localhost:3000` and `http://localhost:8000/docs`
+both open.
+
 ### 3.5. Run Local API Server
 ```bash
 uvicorn apps.api.main:app --reload --port 8000
