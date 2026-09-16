@@ -67,6 +67,14 @@ services:
       - S3_SECRET_KEY=minioadmin
       - APP_SECRET_KEY=${APP_SECRET_KEY:?APP_SECRET_KEY is required}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      # Ikisi birden verilirse ilk yonetici hesabi olusur; bos birakilirsa
+      # giris yapilamaz (varsayilan sifre bilincli olarak kaldirildi).
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-}
+    # Sema ve bilgi tabani her acilista kurulur (idempotent), sonra API baslar.
+    command: >-
+      sh -c "python scripts/init_db.py &&
+             uvicorn apps.api.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     depends_on:
@@ -101,14 +109,18 @@ services:
       context: .
       dockerfile: infra/docker/Dockerfile.web
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+        # Tarayici tarafi gorece yol kullanir; istek Next vekilinden gecer.
+        NEXT_PUBLIC_API_URL: /api/v1
     container_name: seo_platform_web
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_URL=/api/v1
+      # Sunucu tarafi vekil: konteyner aginda "localhost" web'in kendisidir,
+      # arka uca servis adiyla ulasilir. Sonundaki /api/v1 zorunlu.
+      - BACKEND_API_URL=http://api:8000/api/v1
       - APP_SECRET_KEY=${APP_SECRET_KEY:?APP_SECRET_KEY is required}
     depends_on:
       - api

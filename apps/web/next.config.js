@@ -8,6 +8,9 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // Docker imaji .next/standalone bekliyor. Vercel kendi ciktisini urettigi
+  // icin bu yalnizca Dockerfile.web'de (DOCKER_BUILD=1) acilir.
+  output: process.env.DOCKER_BUILD ? "standalone" : undefined,
   // Proje kurallari .agents/rules altinda; Next'in AGENTS.md/CLAUDE.md uretmesi kapali
   agentRules: false,
   async headers() {

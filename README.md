@@ -126,16 +126,52 @@ python scripts/run_rag_curator.py --days 3 --seed
 ```
 
 ### 3.8. Run with Docker Compose
+
+This is the quickest way to get the **whole** platform running on a machine
+that has nothing installed but Docker — no Python, no Node, no database setup.
+
+First create a `.env` in the repository root. Compose reads it automatically and
+**refuses to start** without the two secrets:
+
 ```bash
-# Single-command root execution:
+ENVIRONMENT=development
+APP_SECRET_KEY=<at least 32 characters>
+ENCRYPTION_KEY=<64 hexadecimal characters, i.e. a 32-byte AES-256 key>
+
+# Optional, but without both of these there is no account to log in with:
+INITIAL_ADMIN_EMAIL=you@example.com
+INITIAL_ADMIN_PASSWORD=<at least 12 characters>
+```
+
+Generate the two keys with:
+
+```bash
+python -c "import secrets; print('APP_SECRET_KEY=' + secrets.token_urlsafe(48)); print('ENCRYPTION_KEY=' + secrets.token_hex(32))"
+```
+
+Then:
+
+```bash
 docker compose up --build
 ```
+
 This boots:
 - PostgreSQL 16 with pgvector on port `5432`
 - Redis 7 on port `6379`
 - MinIO Object Storage on port `9000` (Console on `9001`)
-- FastAPI Backend on port `8000`
+- FastAPI Backend on port `8000` (creates the schema and seeds the knowledge
+  base on every start; the operation is idempotent)
+- Arq background worker
 - Next.js Web Application on port `3000`
+
+Open `http://localhost:3000` and sign in with the admin credentials above.
+
+Notes:
+- The web container reaches the API at `http://api:8000/api/v1` over the compose
+  network. Inside a container `localhost` is the container itself, so this value
+  must not be `localhost`.
+- With `ENVIRONMENT=development` a sample organization and site are seeded too.
+  Under `production`/`staging` only the admin and the knowledge base are created.
 
 ---
 
