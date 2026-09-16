@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -12,13 +12,15 @@ from packages.shared.models import (
     PlanLimit,
     PlanFeature,
     Subscription,
-    SubscriptionAddon
+    SubscriptionAddon,
+    Invoice,
 )
 from apps.api.routes.auth import get_current_user_payload
 from apps.api.routes.sites import verify_site_access
 from services.billing.plans import seed_billing_plans
 from services.billing.usage import UsageService
 from services.billing.entitlements import EntitlementGuard
+from services.billing.provider.factory import get_billing_provider
 
 router = APIRouter(tags=["Billing & Subscriptions"])
 
@@ -71,6 +73,33 @@ class GrantCreditRequest(BaseModel):
 
 class SwitchPlanRequest(BaseModel):
     plan_code: str
+
+class CheckoutSessionRequest(BaseModel):
+    plan_code: str
+    interval: str = "month"
+    return_url: Optional[str] = None
+
+class CheckoutSessionResponse(BaseModel):
+    checkout_url: str
+    session_id: Optional[str] = None
+    provider: str
+
+class CustomerPortalResponse(BaseModel):
+    portal_url: str
+
+class InvoiceResponse(BaseModel):
+    id: str
+    external_invoice_id: Optional[str]
+    number: Optional[str]
+    status: str
+    currency: str
+    subtotal_minor: int
+    tax_minor: int
+    total_minor: int
+    total_formatted: str
+    pdf_url: Optional[str]
+    issued_at: Optional[str]
+    paid_at: Optional[str]
 
 
 # ==========================================
@@ -287,3 +316,122 @@ async def grant_ai_credits(
         "new_balance": new_balance,
         "status": "success"
     }
+
+
+@router.post("/organizations/{org_id}/billing/checkout", response_model=CheckoutSessionResponse)
+async def create_checkout_session(
+    org_id: str,
+    req: CheckoutSessionRequest,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Kullanıcının plan yükseltmesi için Paddle checkout oturum URL'i üretir.
+    """
+    await verify_org_billing_access(org_id, payload, db, allowed_roles=["OWNER", "ADMIN"])
+    provider = get_billing_provider("paddle")
+    user_email = payload.get("email")
+
+    try:
+        result = await provider.create_checkout_session(
+            db=db,
+            org_id=org_id,
+            plan_code=req.plan_code,
+            interval=req.interval,
+            customer_email=user_email,
+            return_url=req.return_url
+        )
+        return CheckoutSessionResponse(
+            checkout_url=result.checkout_url,
+            session_id=result.session_id,
+            provider=result.provider
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/organizations/{org_id}/billing/portal", response_model=CustomerPortalResponse)
+async def get_customer_portal(
+    org_id: str,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Organizasyon yöneticisinin faturalarını ve kartını yönetebileceği Paddle Müşteri Portalı URL'i döner.
+    """
+    await verify_org_billing_access(org_id, payload, db, allowed_roles=["OWNER", "ADMIN"])
+    provider = get_billing_provider("paddle")
+    result = await provider.get_portal_url(db, org_id)
+    return CustomerPortalResponse(portal_url=result.portal_url)
+
+
+@router.get("/organizations/{org_id}/billing/invoices", response_model=List[InvoiceResponse])
+async def list_organization_invoices(
+    org_id: str,
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Organizasyona ait geçmiş faturaları listeler.
+    """
+    await verify_org_billing_access(org_id, payload, db)
+    res = await db.execute(
+        select(Invoice)
+        .where(Invoice.organization_id == org_id)
+        .order_by(Invoice.issued_at.desc())
+    )
+    invoices = res.scalars().all()
+    return [
+        InvoiceResponse(
+            id=inv.id,
+            external_invoice_id=inv.external_invoice_id,
+            number=inv.number,
+            status=inv.status,
+            currency=inv.currency,
+            subtotal_minor=inv.subtotal_minor,
+            tax_minor=inv.tax_minor,
+            total_minor=inv.total_minor,
+            total_formatted=f"{inv.total_minor / 100:.2f} {inv.currency}",
+            pdf_url=inv.pdf_url,
+            issued_at=inv.issued_at.isoformat() if inv.issued_at else None,
+            paid_at=inv.paid_at.isoformat() if inv.paid_at else None
+        )
+        for inv in invoices
+    ]
+
+
+@router.post("/billing/webhooks/{provider}")
+async def receive_billing_webhook(
+    provider: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Ödeme sağlayıcılarından (Paddle, iyzico) gelen webhook bildirimlerini doğrular ve işler.
+    Idempotent mimari ile aynı olayın iki kez işlenmesini engeller.
+    """
+    try:
+        provider_instance = get_billing_provider(provider)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Bilinmeyen faturalama sağlayıcısı: {provider}")
+
+    body_bytes = await request.body()
+    headers = dict(request.headers)
+
+    result = await provider_instance.handle_webhook_event(db, body_bytes, headers)
+
+    if not result.processed and result.action_taken == "SIGNATURE_VERIFICATION_FAILED":
+        raise HTTPException(status_code=400, detail="Geçersiz imza (Signature verification failed)")
+
+    if not result.processed and result.action_taken == "INVALID_JSON":
+        raise HTTPException(status_code=400, detail="Geçersiz JSON formatı")
+
+    return {
+        "status": "success" if result.processed else "failed",
+        "provider": provider.upper(),
+        "event_id": result.event_id,
+        "event_type": result.event_type,
+        "action_taken": result.action_taken,
+        "error": result.error
+    }
+

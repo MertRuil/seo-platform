@@ -304,6 +304,108 @@ class ApiClient {
   evaluateExperiment(orgId: string, siteId: string, data: { name: string; variant_pages: string[]; control_pages: string[] }) {
     return this.request<ExperimentEvaluationResponse>(`/organizations/${orgId}/sites/${siteId}/experiments`, { method: "POST", body: JSON.stringify(data) });
   }
+
+  // Faturalama & Abonelik
+  getBillingPlans() {
+    return this.request<PlanResponse[]>("/billing/plans");
+  }
+  getSubscription(orgId: string) {
+    return this.request<SubscriptionDetailsResponse>(`/organizations/${orgId}/billing/subscription`);
+  }
+  createCheckoutSession(orgId: string, data: { plan_code: string; interval?: string; return_url?: string }) {
+    return this.request<CheckoutSessionResponse>(`/organizations/${orgId}/billing/checkout`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+  getBillingPortal(orgId: string) {
+    return this.request<CustomerPortalResponse>(`/organizations/${orgId}/billing/portal`);
+  }
+  getInvoices(orgId: string) {
+    return this.request<InvoiceResponse[]>(`/organizations/${orgId}/billing/invoices`);
+  }
+  switchPlan(orgId: string, planCode: string) {
+    return this.request<SubscriptionDetailsResponse>(`/organizations/${orgId}/billing/plan`, {
+      method: "POST",
+      body: JSON.stringify({ plan_code: planCode }),
+    });
+  }
+  grantAiCredits(orgId: string, amount: number, reason?: string) {
+    return this.request<{ organization_id: string; granted_amount: number; new_balance: number; status: string }>(
+      `/organizations/${orgId}/billing/credits/grant`,
+      {
+        method: "POST",
+        body: JSON.stringify({ amount, reason: reason || "MANUAL" }),
+      }
+    );
+  }
+}
+
+export interface PriceResponse {
+  interval: string;
+  currency: string;
+  amount_minor: number;
+  amount_formatted: string;
+  active: boolean;
+}
+
+export interface PlanResponse {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  is_public: boolean;
+  sort_order: number;
+  prices: PriceResponse[];
+  limits: Record<string, number>;
+  features: Record<string, boolean>;
+}
+
+export interface UsageSummaryResponse {
+  metric: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  is_exceeded: boolean;
+}
+
+export interface SubscriptionDetailsResponse {
+  organization_id: string;
+  plan_code: string;
+  plan_name: string;
+  status: string;
+  provider: string;
+  current_period_start: string;
+  current_period_end?: string | null;
+  trial_ends_at?: string | null;
+  ai_credit_balance: number;
+  usages: Record<string, UsageSummaryResponse>;
+  features: Record<string, boolean>;
+}
+
+export interface CheckoutSessionResponse {
+  checkout_url: string;
+  session_id?: string | null;
+  provider: string;
+}
+
+export interface CustomerPortalResponse {
+  portal_url: string;
+}
+
+export interface InvoiceResponse {
+  id: string;
+  external_invoice_id?: string | null;
+  number?: string | null;
+  status: string;
+  currency: string;
+  subtotal_minor: number;
+  tax_minor: number;
+  total_minor: number;
+  total_formatted: string;
+  pdf_url?: string | null;
+  issued_at?: string | null;
+  paid_at?: string | null;
 }
 
 export const api = new ApiClient();

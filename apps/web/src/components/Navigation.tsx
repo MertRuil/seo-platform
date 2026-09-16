@@ -22,6 +22,7 @@ import {
   BookOpen,
   Sliders,
   History,
+  CreditCard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
       { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
       { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
       { name: "Denetim Günlüğü", href: "/audit", icon: History },
+      { name: "Abonelik & Fatura", href: "/billing", icon: CreditCard },
     ],
   },
 ];
