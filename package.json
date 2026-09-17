@@ -6,7 +6,8 @@
     "node": ">=20.9.0"
   },
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "apps/mobile"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=web",
@@ -14,6 +15,8 @@
     "start": "npm run start --workspace=web",
     "lint": "npm run lint --workspace=web",
     "test": "npm run test --workspace=web",
-    "typecheck": "npm run typecheck --workspace=web"
+    "typecheck": "npm run typecheck --workspace=web",
+    "mobile:start": "npm run start --workspace=mobile",
+    "mobile:ios": "npm run ios --workspace=mobile"
   }
 }

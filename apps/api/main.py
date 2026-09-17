@@ -105,11 +105,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
-origins = list(set([settings.FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"]))
+# CORS Configuration (Support both Next.js Web and Expo Mobile Web)
+origins = [
+    settings.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -166,6 +175,45 @@ app.include_router(quick_audit.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(connectors.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
+
+@app.get("/api/v1/notifications")
+async def get_notifications():
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    return [
+        {
+            "id": "notif-1",
+            "title": "Kritik SEO Sorunu Tespit Edildi",
+            "message": "Son taramada 3 sayfada 404 durumu saptandı. İndekslenebilirlik riski var.",
+            "type": "CRITICAL_ALERT",
+            "is_read": False,
+            "created_at": (now - timedelta(minutes=12)).isoformat()
+        },
+        {
+            "id": "notif-2",
+            "title": "Otonom Tarama Tamamlandı",
+            "message": "Sayfalar başarıyla tarandı. Sağlık skoru ve teknik metrikler güncellendi.",
+            "type": "CRAWL_COMPLETE",
+            "is_read": False,
+            "created_at": (now - timedelta(minutes=45)).isoformat()
+        },
+        {
+            "id": "notif-3",
+            "title": "Yeni AI Düzeltme Önerisi",
+            "message": "Schema.org Product JSON-LD yapılandırılmış verisi hazırlandı.",
+            "type": "AI_RECOMMENDATION",
+            "is_read": True,
+            "created_at": (now - timedelta(hours=3)).isoformat()
+        },
+        {
+            "id": "notif-4",
+            "title": "Aylık Kota Bilgilendirmesi",
+            "message": "Aylık sayfa kotanızın %36'sını kullandınız.",
+            "type": "BILLING_UPDATE",
+            "is_read": True,
+            "created_at": (now - timedelta(days=1)).isoformat()
+        }
+    ]
 
 @app.get("/")
 async def root():

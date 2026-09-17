@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { Lock, Mail, User as UserIcon, Eye, EyeOff, ArrowRight, KeyRound, CheckCircle2, Globe } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Input, Label, Segmented } from "@/components/ui/Input";
+import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Notice } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
@@ -242,22 +242,13 @@ export default function LoginPage() {
             </div>
 
             <div className="bg-surface border border-line rounded-lg p-6 sm:p-8 space-y-5">
-              <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
                 <h2 className="text-xl font-semibold">{mode === "login" ? "Giriş yap" : "Hesap oluştur"}</h2>
-                <Segmented<Mode>
-                  label="Giriş türü"
-                  value={mode}
-                  onChange={(m) => {
-                    setMode(m);
-                    setError(null);
-                    setSuccess(null);
-                  }}
-                  options={[
-                    { value: "login", label: "Giriş" },
-                    { value: "register", label: "Kayıt" },
-                  ]}
-                  size="md"
-                />
+                <p className="text-xs text-muted">
+                  {mode === "login"
+                    ? "Hesabınıza güvenle erişin ve SEO verilerinizi yönetin."
+                    : "Yeni bir hesap oluşturarak sitenizi hemen analiz etmeye başlayın."}
+                </p>
               </div>
 
               {/* Canlı Denetim Kartı */}
@@ -417,7 +408,7 @@ export default function LoginPage() {
             {forgotSuccess}
           </Notice>
         )}
-        {devResetCode && (
+        {process.env.NODE_ENV === "development" && devResetCode && (
           <Notice tone="info" className="mb-3">
             <span className="block text-xs">Geliştirme ortamı: e-posta gönderilmedi, kod aşağıda.</span>
             <span className="font-mono text-lg tracking-widest">{devResetCode}</span>

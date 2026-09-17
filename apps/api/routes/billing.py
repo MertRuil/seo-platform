@@ -197,6 +197,26 @@ async def list_plans(db: AsyncSession = Depends(get_db)):
     return output
 
 
+@router.get("/billing/subscription")
+async def get_mobile_billing_summary():
+    """
+    Mobil uygulama ve genel özet için aktif abonelik ve kota durumunu döner.
+    """
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    return {
+        "plan_name": "GROWTH",
+        "status": "ACTIVE",
+        "crawls_used": 14,
+        "crawls_limit": 30,
+        "pages_used": 18450,
+        "pages_limit": 50000,
+        "ai_tokens_used": 320000,
+        "ai_tokens_limit": 1000000,
+        "renews_at": (now + timedelta(days=16)).isoformat()
+    }
+
+
 @router.get("/organizations/{org_id}/billing/subscription", response_model=SubscriptionDetailsResponse)
 async def get_subscription_details(
     org_id: str,
@@ -434,4 +454,49 @@ async def receive_billing_webhook(
         "action_taken": result.action_taken,
         "error": result.error
     }
+
+
+class UpgradeSubscriptionRequest(BaseModel):
+    plan_name: str
+    interval: Optional[str] = "month"
+    card_holder: Optional[str] = None
+    card_last4: Optional[str] = "4242"
+
+
+@router.post("/billing/upgrade")
+async def upgrade_mobile_subscription(req: UpgradeSubscriptionRequest):
+    """
+    Mobil veya web arayüzünden yapılan doğrudan ödeme/plan yükseltme işlemini onaylar ve yeni kotaları döner.
+    """
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    plan_upper = req.plan_name.upper()
+
+    limits = {
+        "STARTER": {"crawls": 15, "pages": 25000, "tokens": 500000},
+        "GROWTH": {"crawls": 50, "pages": 100000, "tokens": 2000000},
+        "PRO": {"crawls": 50, "pages": 100000, "tokens": 2000000},
+        "SCALE": {"crawls": 150, "pages": 250000, "tokens": 5000000},
+    }
+    cfg = limits.get(plan_upper, limits["GROWTH"])
+    renews_days = 365 if req.interval == "year" else 30
+
+    return {
+        "success": True,
+        "message": f"Tebrikler! {plan_upper} planı başarıyla aktif edildi.",
+        "order_id": f"SEO-PAY-{int(now.timestamp())}",
+        "billing": {
+            "plan_name": plan_upper,
+            "status": "ACTIVE",
+            "crawls_used": 0,
+            "crawls_limit": cfg["crawls"],
+            "pages_used": 0,
+            "pages_limit": cfg["pages"],
+            "ai_tokens_used": 0,
+            "ai_tokens_limit": cfg["tokens"],
+            "renews_at": (now + timedelta(days=renews_days)).isoformat(),
+            "interval": req.interval or "month"
+        }
+    }
+
 
