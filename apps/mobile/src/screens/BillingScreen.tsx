@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   View, 
   Text, 
   StyleSheet, 
   ScrollView, 
   TouchableOpacity, 
-  Alert 
+  Alert,
+  RefreshControl 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -19,6 +20,7 @@ export const BillingScreen: React.FC = () => {
   const [toast, setToast] = useState<string | null>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [modalTargetPlan, setModalTargetPlan] = useState<PlanTier>("SCALE");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadBilling();
@@ -28,6 +30,15 @@ export const BillingScreen: React.FC = () => {
     const data = await fetchBilling();
     setBilling(data);
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadBilling();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleOpenUpgrade = (planName: PlanTier) => {
     if (billing?.plan_name === "SCALE" && planName === "SCALE") {
@@ -53,7 +64,18 @@ export const BillingScreen: React.FC = () => {
   const tokensPct = billing.ai_tokens_limit > 0 ? Math.round((billing.ai_tokens_used / billing.ai_tokens_limit) * 100) : 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       <Text style={styles.pageTitle}>Abonelik & Kota Yönetimi</Text>
       <Text style={styles.pageSubtitle}>
         Mevcut plan limitlerinizi ve otonom ajan kullanımınızı takip edin.

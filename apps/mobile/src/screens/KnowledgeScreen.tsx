@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   View, 
   Text, 
@@ -8,7 +8,8 @@ import {
   ScrollView, 
   ActivityIndicator,
   Linking,
-  Platform
+  Platform,
+  RefreshControl
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -20,6 +21,7 @@ export const KnowledgeScreen: React.FC = () => {
   const [query, setQuery] = useState("Kanonikleştirme");
   const [results, setResults] = useState<KnowledgeChunk[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     handleSearch();
@@ -36,8 +38,31 @@ export const KnowledgeScreen: React.FC = () => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (query.trim()) {
+        const data = await searchKnowledge(query.trim());
+        setResults(data);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [query]);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       <Text style={styles.pageTitle}>SEO RAG Bilgi Bankası</Text>
       <Text style={styles.pageSubtitle}>
         Google Search Central, RFC ve Schema.org doğrulanmış standartlarında arama yapın.

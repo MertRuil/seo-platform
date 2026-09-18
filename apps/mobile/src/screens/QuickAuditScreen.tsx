@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { 
   View, 
   Text, 
@@ -6,7 +6,9 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   ScrollView, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Share,
+  RefreshControl
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -19,6 +21,7 @@ export const QuickAuditScreen: React.FC = () => {
   const { selectedSite } = useApp();
   const [url, setUrl] = useState(selectedSite ? selectedSite.primary_url : "https://apple.com");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<QuickAuditResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -44,8 +47,58 @@ export const QuickAuditScreen: React.FC = () => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    if (!url.trim()) return;
+    setRefreshing(true);
+    try {
+      const data = await runQuickAudit(url.trim());
+      setResult(data);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [url]);
+
+  const handleShareReport = async () => {
+    if (!result) return;
+    try {
+      const issueSummary = result.checks
+        .filter((c) => !c.passed)
+        .map((c) => `• ${c.title}`)
+        .join("\n");
+
+      const message = `📊 Googlebot SEO Denetim Özeti
+🌐 URL: ${result.url}
+🎯 Sağlık Skoru: ${result.health_score}/100
+⚡ Yanıt Süresi: ${result.load_time_ms}ms (HTTP ${result.status_code})
+📝 Başlık: ${result.title || "Belirtilmemiş"}
+
+${issueSummary ? `⚠️ Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : "✅ Tüm temel SEO kriterleri başarılı.\n"}
+🚀 SEO Platform (Otonom AI) ile analiz edilmiştir.`;
+
+      await Share.share({
+        title: `SEO Denetim Özeti - ${result.url}`,
+        message,
+      });
+    } catch {
+      // ignore dismiss
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       <Text style={styles.pageTitle}>Canlı Hızlı URL Denetimi</Text>
       <Text style={styles.pageSubtitle}>
         Herhangi bir web sayfasını Google bot gözüyle anında analiz edin.
@@ -92,7 +145,7 @@ export const QuickAuditScreen: React.FC = () => {
           {/* Summary Card */}
           <GlassCard variant="elevated" style={styles.scoreCard}>
             <View style={styles.scoreHeader}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.scoreTitle} numberOfLines={1}>{result.url}</Text>
                 <Text style={styles.scoreSub}>HTTP {result.status_code} • {result.load_time_ms}ms Yanıt</Text>
               </View>
@@ -109,6 +162,16 @@ export const QuickAuditScreen: React.FC = () => {
               <Text style={[styles.metaLabel, { marginTop: 8 }]}>Açıklama (Description):</Text>
               <Text style={styles.metaValue}>{result.meta_description}</Text>
             </View>
+
+            {/* Share Report Button */}
+            <TouchableOpacity 
+              style={styles.shareReportBtn}
+              onPress={handleShareReport}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="share-social-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.shareReportBtnText}>Raporu Paylaş / Dışa Aktar</Text>
+            </TouchableOpacity>
           </GlassCard>
 
           {/* Checklist Items */}
@@ -318,5 +381,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     flex: 1,
+  },
+  shareReportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  shareReportBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

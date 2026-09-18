@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   View, 
   Text, 
@@ -6,7 +6,8 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator,
+  RefreshControl 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -21,6 +22,7 @@ export const RecommendationsScreen: React.FC = () => {
   const { selectedSite, activeCrawl } = useApp();
   const [items, setItems] = useState<RecommendationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("ALL");
   const [toast, setToast] = useState<string | null>(null);
@@ -46,6 +48,16 @@ export const RecommendationsScreen: React.FC = () => {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const data = await fetchRecommendations(selectedSite?.id || "site-1", selectedSite?.domain);
+      setItems(data);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedSite?.id, selectedSite?.domain]);
+
   const handleExecute = async (rec: RecommendationItem) => {
     setExecutingId(rec.id);
     try {
@@ -68,7 +80,18 @@ export const RecommendationsScreen: React.FC = () => {
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       <Text style={styles.pageTitle}>Otonom AI Tavsiyeleri</Text>
       <Text style={styles.pageSubtitle}>
         Çoklu ajan ağının ürettiği teknik, içerik ve schema düzeltmelerini inceleyin.

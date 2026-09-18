@@ -4,9 +4,11 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator
+  TouchableOpacity, 
+  TextInput, 
+  ActivityIndicator,
+  RefreshControl,
+  Share 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -20,10 +22,46 @@ import { SiteIssueItem, IssueSeverity } from "../types";
 
 export const DashboardScreen: React.FC = () => {
   const { user } = useAuth();
-  const { selectedSite, sites, addNewSite, startCrawl, setActiveTab, activeCrawl } = useApp();
+  const { selectedSite, sites, addNewSite, startCrawl, setActiveTab, activeCrawl, refreshSites } = useApp();
   const [issues, setIssues] = React.useState<SiteIssueItem[]>([]);
   const [selectedIssue, setSelectedIssue] = React.useState<SiteIssueItem | null>(null);
   const [issueFilter, setIssueFilter] = React.useState<"ALL" | IssueSeverity>("ALL");
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshSites();
+      if (selectedSite && (selectedSite.has_completed_crawl || selectedSite.id === "site-1")) {
+        const fresh = await fetchSiteIssues(selectedSite.id, selectedSite.domain);
+        setIssues(fresh);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshSites, selectedSite?.id, selectedSite?.domain, selectedSite?.has_completed_crawl]);
+
+  const handleShareHealth = async () => {
+    if (!selectedSite) return;
+    try {
+      const siteUrl = selectedSite.primary_url || `https://${selectedSite.domain}`;
+      const score = selectedSite.health_score || 0;
+      const msg = `📈 SEO Platform - Canlı Sağlık Raporu
+🌐 Web Sitesi: ${selectedSite.name} (${siteUrl})
+🎯 SEO Sağlık Skoru: ${score > 0 ? `${score}/100` : "Ölçülüyor"}
+🔍 Tespit Edilen Açık Fırsatlar: ${issues.length} adet
+⚡ Otonom Ajan Durumu: Aktif (Auto Low Risk)
+
+Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz atın.`;
+
+      await Share.share({
+        title: `SEO Sağlık Raporu - ${selectedSite.name}`,
+        message: msg,
+      });
+    } catch {
+      // ignore
+    }
+  };
 
   // First-time user onboarding state
   const [newUrl, setNewUrl] = React.useState("");
@@ -217,7 +255,19 @@ export const DashboardScreen: React.FC = () => {
   });
 
   return (
-    <ScrollView key="dashboard-view-scroll" style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView 
+      key="dashboard-view-scroll" 
+      style={styles.container} 
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
+    >
       {/* Site Banner */}
       <View style={styles.siteHeader}>
         <View style={styles.siteHeaderLeft}>
@@ -285,6 +335,14 @@ export const DashboardScreen: React.FC = () => {
         >
           <Ionicons name="sparkles" size={18} color={Colors.primary} />
           <Text style={styles.secondaryActionText}>AI Önerileri</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.shareActionButton}
+          activeOpacity={0.8}
+          onPress={handleShareHealth}
+        >
+          <Ionicons name="share-social-outline" size={18} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -600,6 +658,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 14,
     fontWeight: "700",
+  },
+  shareActionButton: {
+    width: 48,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.3)",
   },
   sectionHeader: {
     fontSize: 16,
