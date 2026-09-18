@@ -17,6 +17,12 @@
     "test": "npm run test --workspace=web",
     "typecheck": "npm run typecheck --workspace=web",
     "mobile:start": "npm run start --workspace=mobile",
-    "mobile:ios": "npm run ios --workspace=mobile"
+    "mobile:ios": "npm run ios --workspace=mobile",
+    "supabase:login": "supabase login",
+    "supabase:link": "supabase link",
+    "supabase:push": "python scripts/deploy_supabase.py"
+  },
+  "devDependencies": {
+    "supabase": "^2.117.0"
   }
 }
