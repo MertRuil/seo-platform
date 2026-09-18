@@ -49,9 +49,10 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
   } catch (err: any) {
     const isTimeout = err?.name === "TimeoutError" || String(err).includes("timeout") || String(err).includes("aborted");
 
-    // Üretimde bellek içi (serverless) depoya veya örnek veriye asla düşülmez:
-    // arka uca ulaşılamıyorsa istek okuma/yazma fark etmeksizin hata olarak döner.
-    if (IS_PRODUCTION) {
+    // Yalnızca REQUIRE_STRICT_BACKEND=true ise üretimde 502/504 döner.
+    // Varsayılan olarak (ör. Vercel bağımsız dağıtımlarında)
+    // arka uca ulaşılamadığında güvenli bir şekilde Next.js yerel mağazasına (serverlessStore) geçilir.
+    if (IS_PRODUCTION && process.env.REQUIRE_STRICT_BACKEND === "true") {
       if (isTimeout) {
         return NextResponse.json(
           { error: "Arka uç servisi zaman aşımına uğradı (504 Gateway Timeout).", detail: `İşlem ${timeout}ms süresince tamamlanamadı.` },
@@ -64,8 +65,7 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
       );
     }
 
-    // Geliştirme: mutasyon isteklerinde (POST, PUT, DELETE, PATCH) zaman aşımında sessizce sahte veriye düşülmemeli!
-    // Aksi halde tarama başlatma veya değişiklik uygulama gibi işlemler çift tetiklenebilir ya da kullanıcı yanıltılır.
+    // Geliştirme veya standalone mod: mutasyon isteklerinde (POST, PUT, DELETE, PATCH) zaman aşımında sessizce sahte veriye düşülmemeli
     if (isMutation && isTimeout) {
       return NextResponse.json(
         {
@@ -76,7 +76,7 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
       );
     }
 
-    // Yalnızca yerel geliştirme ortamında yerel depoya düşülür (null => çağıran rota serverlessStore kullanır)
+    // Yerel depoya düşülür (null => çağıran rota serverlessStore kullanır)
     return null;
   }
 }

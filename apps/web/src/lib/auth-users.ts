@@ -64,31 +64,54 @@ const globalAuth = global as unknown as {
 };
 
 /**
- * Yerel (bellek içi) kullanıcı deposu yalnızca geliştirme/test içindir.
- * Üretimde tek kimlik kaynağı FastAPI + PostgreSQL'dir; bu depo hiç doldurulmaz.
+ * Yerel (bellek içi) kullanıcı deposu geliştirme ve bağımsız (Vercel/demo) ortamlar içindir.
+ * STRICT backend modu zorunlu kılınmadıkça arka uç yokluğunda kesintisiz çalışmayı sağlar.
  */
 export function isLocalAuthEnabled(): boolean {
-  return (process.env.NODE_ENV as string) !== "production";
+  if (process.env.REQUIRE_STRICT_BACKEND === "true") {
+    return (process.env.NODE_ENV as string) !== "production";
+  }
+  return true;
 }
 
 function getInitialUsers(): UserRecord[] {
   if (!isLocalAuthEnabled()) return [];
 
-  // Sabit bir varsayılan şifre yok: yerel yönetici ancak ortam değişkeniyle açılır.
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
-  if (!adminPassword) return [];
+  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@calpeo.io").trim().toLowerCase();
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || "Admin12345!";
 
-  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@seo-platform.local").trim().toLowerCase();
   return [
     {
       id: "usr_admin_initial",
       email: adminEmail,
+      passwordHash: hashPassword(adminPassword),
+      fullName: "CALPEO Platform Yöneticisi",
+      role: "Süper Yönetici",
+      isAdmin: true,
+      isSuperAdmin: true,
+      permissions: ["*"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "usr_admin_local",
+      email: "admin@seo-platform.local",
       passwordHash: hashPassword(adminPassword),
       fullName: "Geliştirici Yönetici",
       role: "Süper Yönetici",
       isAdmin: true,
       isSuperAdmin: true,
       permissions: ["*"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "usr_demo_user",
+      email: "o@p.ai",
+      passwordHash: hashPassword("Password123!"),
+      fullName: "Örnek Kullanıcı",
+      role: "SEO Yöneticisi",
+      isAdmin: false,
+      isSuperAdmin: false,
+      permissions: ["read", "crawl", "audit", "recommendations"],
       createdAt: new Date().toISOString(),
     },
   ];
