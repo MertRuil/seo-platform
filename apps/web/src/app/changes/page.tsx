@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { GitCommit, RotateCcw, CheckCircle2, ShieldCheck, Play, ArrowRight, RefreshCw, Copy, Info, Lock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSite } from "@/context/SiteContext";
 import { useSiteData } from "@/hooks/useSiteData";
 import { DEMO_CHANGESETS, type ChangeSetItem } from "@/lib/demo";
 import { readActiveId, readChangeSets, writeChangeSets } from "@/lib/changesets";
@@ -20,6 +21,7 @@ const statusLabel = { BEKLİYOR: "Bekliyor", UYGULANIYOR: "Uygulanıyor", UYGULA
 
 export default function DegisikliklerPage() {
   const { user } = useAuth();
+  const { site } = useSite();
   const isAdmin = Boolean(user?.isAdmin || user?.isSuperAdmin);
   // Arka uçta değişiklik seti listeleme ucu yok; sandbox setleri tarayıcıda tutulur.
   const demo = useSiteData<ChangeSetItem[]>("changesets", async () => DEMO_CHANGESETS, DEMO_CHANGESETS, { requires: "none" });
@@ -38,9 +40,29 @@ export default function DegisikliklerPage() {
       const idx = id ? saved.findIndex((s) => s.id === id) : -1;
       if (idx >= 0) setActive(idx);
     } else {
-      setSets(DEMO_CHANGESETS);
+      const lastUrl = typeof window !== "undefined" ? localStorage.getItem("calpeo_last_audited_url") : null;
+      const domain = lastUrl ? lastUrl.replace(/^https?:\/\//, "").split("/")[0] : (site?.domain || null);
+      const target = lastUrl || (site?.primary_url || null);
+
+      if (domain && target) {
+        const dynamicSet: ChangeSetItem = {
+          id: "CS-LIVE-1",
+          sorunId: "ISSUE-01",
+          baslik: `${domain} Sayfası Başlık ve Canonical İyileştirmesi`,
+          onem: "CRITICAL",
+          etkilenenSayfa: target,
+          kategori: "CANONICAL",
+          durum: "BEKLİYOR",
+          oncekiKod: `<title>${domain}</title>\n<!-- Eksik rel=canonical veya hatalı yönlendirme -->`,
+          yeniKod: `<title>${domain} | Resmi Web Sitesi</title>\n<link rel="canonical" href="${target}" />`,
+          olusturulmaTarihi: "Bugün",
+        };
+        setSets([dynamicSet]);
+      } else {
+        setSets(DEMO_CHANGESETS);
+      }
     }
-  }, []);
+  }, [site?.domain, site?.primary_url]);
 
   const current = sets[active] ?? DEMO_CHANGESETS[0];
 

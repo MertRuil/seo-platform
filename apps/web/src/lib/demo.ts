@@ -233,7 +233,7 @@ export interface PageRow {
 
 export const DEMO_PAGES: PageRow[] = [
   { url: "https://flagship-store.com/", status: 200, title: "Ana Sayfa | Otonom E-Ticaret Deneyimi", canonical: "Kendisi", indexable: true, words: 1420, depth: 0, responseMs: 180 },
-  { url: "https://flagship-store.com/urunler/ayakkabi", status: 200, title: "Spor ve Koşu Ayakkabıları Modelleri", canonical: "Kendisi", indexable: true, words: 980, depth: 1, responseMs: 210 },
+  { url: "https://flagship-store.com/urunler/kategori", status: 200, title: "Öne Çıkan Ürün ve Kategori Modelleri", canonical: "Kendisi", indexable: true, words: 980, depth: 1, responseMs: 210 },
   { url: "https://flagship-store.com/urunler/kurumsal", status: 200, title: "Kurumsal Satış & Toplu Tedarik", canonical: "Döngü (hatalı)", canonicalBroken: true, indexable: false, words: 640, depth: 1, responseMs: 240 },
   { url: "https://flagship-store.com/blog/eski-yazi", status: 301, title: "Yönlendirme sayfası", canonical: "—", indexable: false, words: 0, depth: 2, responseMs: 90 },
   { url: "https://flagship-store.com/404-broken", status: 404, title: "Sayfa bulunamadı", canonical: "—", indexable: false, words: 30, depth: 2, responseMs: 70 },
@@ -336,13 +336,13 @@ export const DEMO_LINKS: LinksData = {
   avgDepth: "1,8",
   top: [
     { url: "https://flagship-store.com/", pagerank: 0.245, inbound: 85, outbound: 42, status: "Ana merkez (hub)" },
-    { url: "https://flagship-store.com/urunler/ayakkabi", pagerank: 0.142, inbound: 38, outbound: 18, status: "Güçlü kategori" },
+    { url: "https://flagship-store.com/urunler/kategori", pagerank: 0.142, inbound: 38, outbound: 18, status: "Güçlü kategori" },
     { url: "https://flagship-store.com/blog", pagerank: 0.118, inbound: 32, outbound: 65, status: "Otorite dağıtıcı" },
     { url: "https://flagship-store.com/fiyatlandirma", pagerank: 0.034, inbound: 3, outbound: 4, status: "Yetim / zayıf", weak: true },
   ],
   opportunities: [
     { source: "https://flagship-store.com/blog/seo-rehberi", target: "https://flagship-store.com/fiyatlandirma", reason: "Yüksek otoriteli blog sayfasından dönüşüm sayfasına bağlantı yok." },
-    { source: "https://flagship-store.com/urunler/ayakkabi", target: "https://flagship-store.com/fiyatlandirma", reason: "Kategori sayfasından fiyatlandırmaya bağlamsal geçiş eksik." },
+    { source: "https://flagship-store.com/urunler/kategori", target: "https://flagship-store.com/fiyatlandirma", reason: "Kategori sayfasından fiyatlandırmaya bağlamsal geçiş eksik." },
   ],
 };
 
@@ -356,7 +356,7 @@ export interface SchemaRow {
 
 export const DEMO_SCHEMA: SchemaRow[] = [
   { type: "Organization", page: "https://flagship-store.com/", status: "Geçerli", richResult: "Knowledge Graph", missing: "—" },
-  { type: "Product", page: "https://flagship-store.com/urunler/ayakkabi", status: "Geçerli", richResult: "Fiyat & stok rozeti", missing: "—" },
+  { type: "Product", page: "https://flagship-store.com/urunler/kategori", status: "Geçerli", richResult: "Fiyat & stok rozeti", missing: "—" },
   { type: "Article", page: "https://flagship-store.com/blog/rehber", status: "Geçerli", richResult: "Zengin makale görünümü", missing: "—" },
   { type: "BreadcrumbList", page: "Site geneli (124 sayfa)", status: "Geçerli", richResult: "Hiyerarşik URL yolu", missing: "—" },
 ];
@@ -389,13 +389,13 @@ export const DEMO_CHANGESETS: ChangeSetItem[] = [
   {
     id: "CS-4102",
     sorunId: "ISSUE-01",
-    baslik: "Ayakkabı kategori sayfası başlık ve canonical iyileştirmesi",
+    baslik: "Kategori sayfası başlık ve canonical iyileştirmesi",
     onem: "CRITICAL",
-    etkilenenSayfa: "https://flagship-store.com/urunler/ayakkabi",
+    etkilenenSayfa: "https://flagship-store.com/urunler/kategori",
     kategori: "CANONICAL",
     durum: "BEKLİYOR",
-    oncekiKod: `<title>Ayakkabılar</title>\n<link rel="canonical" href="https://flagship-store.com/404-broken" />`,
-    yeniKod: `<title>Koşu ve Spor Ayakkabıları Modelleri | Flagship</title>\n<link rel="canonical" href="https://flagship-store.com/urunler/ayakkabi" />`,
+    oncekiKod: `<title>Kategori Ürünleri</title>\n<link rel="canonical" href="https://flagship-store.com/404-broken" />`,
+    yeniKod: `<title>Öne Çıkan Ürünler ve Kategori Modelleri | Flagship</title>\n<link rel="canonical" href="https://flagship-store.com/urunler/kategori" />`,
     olusturulmaTarihi: "Bugün 01:25",
   },
 ];
@@ -457,7 +457,7 @@ export interface AuditRow {
 }
 
 export const DEMO_AUDIT: AuditRow[] = [
-  { time: "00:25:12", user: "Sistem (otonom motor)", action: "DEĞİŞİKLİK_UYGULANDI", target: "/urunler/ayakkabi", detail: "Canonical etiketi düzeltildi ve doğrulanarak kaydedildi.", ip: "127.0.0.1" },
+  { time: "00:25:12", user: "Sistem (otonom motor)", action: "DEĞİŞİKLİK_UYGULANDI", target: "/urunler/kategori", detail: "Canonical etiketi düzeltildi ve doğrulanarak kaydedildi.", ip: "127.0.0.1" },
   { time: "00:20:04", user: "mert@seo.com", action: "DEĞİŞİKLİK_ONAYLANDI", target: "Değişiklik seti #CS-4102", detail: "Kullanıcı manuel inceleme ve onay verdi.", ip: "127.0.0.1" },
   { time: "00:15:30", user: "Sistem (crawler)", action: "TARAMA_TAMAMLANDI", target: "https://flagship-store.com", detail: "124 sayfa tarandı ve indeks durumu güncellendi.", ip: "127.0.0.1" },
   { time: "00:10:02", user: "admin@calpeo.io", action: "OTURUM_AÇILDI", target: "JWT oturumu", detail: "HMAC-SHA256 imzalı oturum başlatıldı.", ip: "127.0.0.1" },

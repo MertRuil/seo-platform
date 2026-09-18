@@ -8,7 +8,7 @@ import { useSite } from "@/context/SiteContext";
 import { api, ApiError } from "@/lib/api";
 import { DEMO_CRAWLS, type CrawlRow } from "@/lib/demo";
 import { crawlsToRows } from "@/lib/mappers";
-import { addChangeSet, newChangeSetId } from "@/lib/changesets";
+import { addChangeSet, writeChangeSets, newChangeSetId } from "@/lib/changesets";
 import { formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel, Inset } from "@/components/ui/Panel";
@@ -142,7 +142,33 @@ export default function SiteTaramalariPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || "Siteye erişilemedi veya analiz hatası oluştu.");
       }
-      setQuick(await res.json());
+      const auditData: QuickResult = await res.json();
+      setQuick(auditData);
+
+      // Taratılan gerçek site için otomatik olarak Değişiklik Setleri oluştur
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("calpeo_last_audited_url", trimmed);
+          if (auditData.issues && auditData.issues.length > 0) {
+            const domain = trimmed.replace(/^https?:\/\//, "").split("/")[0];
+            const liveSets = auditData.issues.slice(0, 6).map((iss, i) => ({
+              id: `CS-LIVE-${i + 1}`,
+              sorunId: iss.rule_id || `ISSUE-${i + 1}`,
+              baslik: `${domain}: ${iss.title}`,
+              onem: iss.severity || "MEDIUM",
+              etkilenenSayfa: trimmed,
+              kategori: iss.category || "TEKNİK",
+              durum: "BEKLİYOR" as const,
+              oncekiKod: `<!-- ${trimmed} üzerinde tespit edilen eksiklik -->\n${iss.description}`,
+              yeniKod: `<!-- ${domain} için uygulanan SEO düzeltmesi -->\n${iss.recommendation || "İlgili standarda uygun iyileştirme yapıldı."}`,
+              olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
+            }));
+            writeChangeSets(liveSets);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (err) {
       setQuickError(err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu.");
     } finally {
