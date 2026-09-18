@@ -17,7 +17,7 @@ import { useAuth } from "../context/AuthContext";
 
 export const LoginScreen: React.FC = () => {
   const { login, register, continueAsGuest } = useAuth();
-  const [isRegister, setIsRegister] = useState(true);
+  const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -199,6 +199,28 @@ export const LoginScreen: React.FC = () => {
               </Text>
             </Text>
           </TouchableOpacity>
+
+          {/* Quick Demo Fill or Guest Login */}
+          {!isRegister && (
+            <View style={styles.demoActionsContainer}>
+              <TouchableOpacity 
+                style={styles.demoFillBtn}
+                onPress={fillDemoCredentials}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="flash-outline" size={13} color={Colors.primary} />
+                <Text style={styles.demoFillText}>Örnek Bilgileri Doldur (admin123)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.guestBtn}
+                onPress={continueAsGuest}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="person-outline" size={13} color={Colors.textMuted} />
+                <Text style={styles.guestBtnText}>Misafir / Demo Olarak Devam Et</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </GlassCard>
 
         {/* Security & Privacy Assurance Footer */}
@@ -385,5 +407,40 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 14,
     opacity: 0.8,
+  },
+  demoActionsContainer: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    gap: 8,
+    alignItems: "center",
+  },
+  demoFillBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.3)",
+  },
+  demoFillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
+  guestBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  guestBtnText: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
 });
