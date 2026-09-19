@@ -13,20 +13,32 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { key: "dashboard", label: "Panel", iconActive: "speedometer", iconInactive: "speedometer-outline" },
-  { key: "quick_audit", label: "Hızlı Audit", iconActive: "flash", iconInactive: "flash-outline" },
-  { key: "recommendations", label: "Öneriler", iconActive: "sparkles", iconInactive: "sparkles-outline" },
-  { key: "knowledge", label: "Rehber", iconActive: "book", iconInactive: "book-outline" },
-  { key: "billing", label: "Plan", iconActive: "card", iconInactive: "card-outline" },
+  { key: "quick_audit", label: "Audit", iconActive: "flash", iconInactive: "flash-outline" },
+  { key: "ai", label: "AI Asistan", iconActive: "sparkles", iconInactive: "sparkles-outline" },
+  { key: "geo", label: "GEO", iconActive: "globe", iconInactive: "globe-outline" },
+  { key: "hub", label: "Diğer", iconActive: "grid", iconInactive: "grid-outline" },
 ];
 
 export const TabBar: React.FC = () => {
   const { activeTab, setActiveTab } = useApp();
 
+  const isHubChild = [
+    "keywords", 
+    "competitors", 
+    "tasks", 
+    "reports", 
+    "settings", 
+    "content_optimizer", 
+    "recommendations", 
+    "knowledge", 
+    "billing"
+  ].includes(activeTab);
+
   return (
     <View style={styles.container}>
       <View style={styles.bar}>
         {TABS.map((tab) => {
-          const isActive = activeTab === tab.key;
+          const isActive = activeTab === tab.key || (tab.key === "hub" && isHubChild);
           return (
             <TouchableOpacity
               key={tab.key}

@@ -7,7 +7,22 @@ import {
   CrawlRunItem,
   SiteIssueItem,
   NotificationItem,
-  DiscoveredPagesResult
+  DiscoveredPagesResult,
+  KeywordItem,
+  KeywordResearchItem,
+  CompetitorItem,
+  CompetitorGapItem,
+  AiChatMessage,
+  ContentOptimizationResult,
+  GeneratedContentResult,
+  GeoPlatformScore,
+  GeoPromptItem,
+  SeoTaskItem,
+  TaskStatus,
+  TaskPriority,
+  SeoReportSummary,
+  AppSettings,
+  SeoOpportunityCard
 } from "../types";
 
 // Default API URL (can be customized via settings in app)
@@ -794,5 +809,787 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   MOCK_NOTIFICATIONS = MOCK_NOTIFICATIONS.map(n => ({ ...n, is_read: true }));
 }
 
+// -------------------------------------------------------------
+// 8 & 9. Keyword Tracking & Keyword Research Services
+// -------------------------------------------------------------
+export let MOCK_KEYWORDS: KeywordItem[] = [
+  {
+    id: "kw-1",
+    keyword: "organik seo uzmanı",
+    current_pos: 3,
+    prev_pos: 5,
+    change: 2,
+    volume: 8400,
+    difficulty: 42,
+    cpc: 18.5,
+    intent: "COMMERCIAL",
+    target_url: "/hizmetler/seo-danismanligi",
+    trend_7d: [6, 6, 5, 5, 4, 3, 3],
+    checked_at: new Date().toISOString()
+  },
+  {
+    id: "kw-2",
+    keyword: "yapay zeka seo araçları",
+    current_pos: 1,
+    prev_pos: 2,
+    change: 1,
+    volume: 14200,
+    difficulty: 58,
+    cpc: 24.0,
+    intent: "INFORMATIONAL",
+    target_url: "/blog/ai-seo-araclari",
+    trend_7d: [3, 2, 2, 2, 1, 1, 1],
+    checked_at: new Date().toISOString()
+  },
+  {
+    id: "kw-3",
+    keyword: "e-ticaret seo kontrol listesi",
+    current_pos: 7,
+    prev_pos: 11,
+    change: 4,
+    volume: 4800,
+    difficulty: 35,
+    cpc: 12.0,
+    intent: "INFORMATIONAL",
+    target_url: "/rehber/e-ticaret-seo",
+    trend_7d: [12, 11, 9, 8, 8, 7, 7],
+    checked_at: new Date().toISOString()
+  },
+  {
+    id: "kw-4",
+    keyword: "geo generative engine optimization",
+    current_pos: 2,
+    prev_pos: 2,
+    change: 0,
+    volume: 6100,
+    difficulty: 28,
+    cpc: 32.5,
+    intent: "COMMERCIAL",
+    target_url: "/geo-optimizasyonu",
+    trend_7d: [2, 2, 2, 2, 2, 2, 2],
+    checked_at: new Date().toISOString()
+  },
+  {
+    id: "kw-5",
+    keyword: "teknik seo denetimi nasıl yapılır",
+    current_pos: 14,
+    prev_pos: 9,
+    change: -5,
+    volume: 3200,
+    difficulty: 44,
+    cpc: 9.8,
+    intent: "INFORMATIONAL",
+    target_url: "/blog/teknik-seo-rehberi",
+    trend_7d: [8, 9, 10, 11, 13, 14, 14],
+    checked_at: new Date().toISOString()
+  }
+];
 
+export async function fetchKeywords(siteId: string, domain?: string): Promise<KeywordItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/keywords`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch {
+    // fallback
+  }
 
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
+  if (!cleanDomain || siteId === "site-1") {
+    return MOCK_KEYWORDS;
+  }
+
+  // Generate domain-contextual keywords
+  return [
+    {
+      id: `kw-${siteId}-1`,
+      keyword: `${cleanDomain} online sipariş`,
+      current_pos: 2,
+      prev_pos: 4,
+      change: 2,
+      volume: 5400,
+      difficulty: 29,
+      cpc: 8.2,
+      intent: "TRANSACTIONAL",
+      target_url: `https://${cleanDomain}`,
+      trend_7d: [5, 4, 4, 3, 3, 2, 2],
+      checked_at: new Date().toISOString()
+    },
+    {
+      id: `kw-${siteId}-2`,
+      keyword: `${cleanDomain} fiyatları ve modelleri`,
+      current_pos: 5,
+      prev_pos: 7,
+      change: 2,
+      volume: 9100,
+      difficulty: 41,
+      cpc: 14.5,
+      intent: "COMMERCIAL",
+      target_url: `https://${cleanDomain}/urunler`,
+      trend_7d: [8, 7, 7, 6, 6, 5, 5],
+      checked_at: new Date().toISOString()
+    },
+    {
+      id: `kw-${siteId}-3`,
+      keyword: `${cleanDomain} indirimli fırsatlar`,
+      current_pos: 8,
+      prev_pos: 6,
+      change: -2,
+      volume: 3800,
+      difficulty: 33,
+      cpc: 6.9,
+      intent: "TRANSACTIONAL",
+      target_url: `https://${cleanDomain}/kampanyalar`,
+      trend_7d: [6, 6, 7, 7, 8, 8, 8],
+      checked_at: new Date().toISOString()
+    },
+    {
+      id: `kw-${siteId}-4`,
+      keyword: `${cleanDomain} güvenilir mi yorumlar`,
+      current_pos: 1,
+      prev_pos: 1,
+      change: 0,
+      volume: 7200,
+      difficulty: 20,
+      cpc: 4.1,
+      intent: "INFORMATIONAL",
+      target_url: `https://${cleanDomain}/hakkimizda`,
+      trend_7d: [1, 1, 1, 1, 1, 1, 1],
+      checked_at: new Date().toISOString()
+    }
+  ];
+}
+
+export async function addKeyword(siteId: string, keyword: string): Promise<KeywordItem> {
+  const newKw: KeywordItem = {
+    id: `kw-${Date.now()}`,
+    keyword: keyword.trim(),
+    current_pos: Math.floor(Math.random() * 25) + 3,
+    prev_pos: Math.floor(Math.random() * 25) + 5,
+    change: 2,
+    volume: (Math.floor(Math.random() * 80) + 10) * 100,
+    difficulty: Math.floor(Math.random() * 50) + 20,
+    cpc: Number((Math.random() * 15 + 2).toFixed(2)),
+    intent: "COMMERCIAL",
+    target_url: "/",
+    trend_7d: [12, 10, 9, 8, 7, 6, 5],
+    checked_at: new Date().toISOString()
+  };
+  MOCK_KEYWORDS = [newKw, ...MOCK_KEYWORDS];
+  return newKw;
+}
+
+export async function researchKeywords(query: string): Promise<KeywordResearchItem[]> {
+  const q = query.trim().toLowerCase();
+  return [
+    {
+      keyword: `${q} rehberi 2026`,
+      volume: 12400,
+      difficulty: 38,
+      cpc: 16.4,
+      intent: "INFORMATIONAL",
+      type: "LONG_TAIL",
+      has_ai_overview: true
+    },
+    {
+      keyword: `${q} nasıl yapılır adım adım`,
+      volume: 8900,
+      difficulty: 31,
+      cpc: 11.2,
+      intent: "INFORMATIONAL",
+      type: "QUESTION",
+      has_ai_overview: true
+    },
+    {
+      keyword: `en iyi ${q} araçları ve fiyatları`,
+      volume: 15600,
+      difficulty: 54,
+      cpc: 28.5,
+      intent: "COMMERCIAL",
+      type: "RELATED",
+      has_ai_overview: false
+    },
+    {
+      keyword: `${q} için en önemli faktörler nelerdir?`,
+      volume: 4200,
+      difficulty: 26,
+      cpc: 9.3,
+      intent: "INFORMATIONAL",
+      type: "PAA",
+      has_ai_overview: true
+    },
+    {
+      keyword: `${q} satın al indirimli`,
+      volume: 6700,
+      difficulty: 49,
+      cpc: 21.0,
+      intent: "TRANSACTIONAL",
+      type: "LONG_TAIL",
+      has_ai_overview: false
+    }
+  ];
+}
+
+// -------------------------------------------------------------
+// 10. Competitor Analysis Services
+// -------------------------------------------------------------
+export let MOCK_COMPETITORS: CompetitorItem[] = [
+  {
+    id: "comp-1",
+    name: "Semrush Pro",
+    domain: "semrush.com",
+    seo_score: 94,
+    organic_traffic: 1850000,
+    ranked_keywords: 420000,
+    backlinks: 12500000,
+    geo_visibility: 88,
+    top_keywords: ["seo audit", "keyword research tool", "backlink checker"]
+  },
+  {
+    id: "comp-2",
+    name: "Ahrefs Webmaster",
+    domain: "ahrefs.com",
+    seo_score: 96,
+    organic_traffic: 2400000,
+    ranked_keywords: 510000,
+    backlinks: 18900000,
+    geo_visibility: 92,
+    top_keywords: ["site explorer", "seo score", "broken link finder"]
+  },
+  {
+    id: "comp-3",
+    name: "Moz Pro",
+    domain: "moz.com",
+    seo_score: 89,
+    organic_traffic: 980000,
+    ranked_keywords: 230000,
+    backlinks: 7800000,
+    geo_visibility: 79,
+    top_keywords: ["domain authority", "keyword difficulty", "page authority"]
+  }
+];
+
+export async function fetchCompetitors(siteId: string, domain?: string): Promise<CompetitorItem[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/competitors`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch {
+    // fallback
+  }
+
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
+  if (!cleanDomain || siteId === "site-1") {
+    return MOCK_COMPETITORS;
+  }
+
+  return [
+    {
+      id: `comp-${siteId}-1`,
+      name: `Rakip A (${cleanDomain} sektörü)`,
+      domain: `rakip-a-${cleanDomain}`,
+      seo_score: 82,
+      organic_traffic: 45000,
+      ranked_keywords: 3200,
+      backlinks: 14200,
+      geo_visibility: 65,
+      top_keywords: ["hızlı teslimat", "fiyat karşılaştırma", "kampanyalar"]
+    },
+    {
+      id: `comp-${siteId}-2`,
+      name: `Rakip B Otorite`,
+      domain: `rakip-b-${cleanDomain}`,
+      seo_score: 88,
+      organic_traffic: 89000,
+      ranked_keywords: 6400,
+      backlinks: 32000,
+      geo_visibility: 78,
+      top_keywords: ["en iyi modeller", "müşteri yorumları", "orijinal ürünler"]
+    }
+  ];
+}
+
+export async function addCompetitor(siteId: string, domain: string): Promise<CompetitorItem> {
+  const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const newComp: CompetitorItem = {
+    id: `comp-${Date.now()}`,
+    name: cleanDomain,
+    domain: cleanDomain,
+    seo_score: Math.floor(Math.random() * 25) + 70,
+    organic_traffic: Math.floor(Math.random() * 100000) + 15000,
+    ranked_keywords: Math.floor(Math.random() * 5000) + 1000,
+    backlinks: Math.floor(Math.random() * 50000) + 5000,
+    geo_visibility: Math.floor(Math.random() * 40) + 50,
+    top_keywords: ["online servis", "en ucuz teklif", "kullanıcı rehberi"]
+  };
+  MOCK_COMPETITORS = [newComp, ...MOCK_COMPETITORS];
+  return newComp;
+}
+
+export async function fetchCompetitorGap(siteId: string): Promise<CompetitorGapItem[]> {
+  return [
+    {
+      keyword: "ai generative engine optimization",
+      volume: 8900,
+      my_position: null,
+      competitor_positions: { "semrush.com": 4, "ahrefs.com": 2 },
+      opportunity_score: 92
+    },
+    {
+      keyword: "schema markup json ld validator",
+      volume: 14500,
+      my_position: 18,
+      competitor_positions: { "semrush.com": 3, "ahrefs.com": 6 },
+      opportunity_score: 88
+    },
+    {
+      keyword: "core web vitals mobile lcp fix",
+      volume: 6200,
+      my_position: 24,
+      competitor_positions: { "semrush.com": 7, "ahrefs.com": 5 },
+      opportunity_score: 81
+    },
+    {
+      keyword: "self referential canonical tag",
+      volume: 3400,
+      my_position: null,
+      competitor_positions: { "semrush.com": 2, "ahrefs.com": 1 },
+      opportunity_score: 79
+    }
+  ];
+}
+
+// -------------------------------------------------------------
+// 11 & 12. AI SEO Assistant & Action Center
+// -------------------------------------------------------------
+export async function sendAiAssistantMessage(
+  history: AiChatMessage[],
+  siteId?: string,
+  domain?: string
+): Promise<AiChatMessage> {
+  const lastUserMsg = history.filter(m => m.sender === "user").slice(-1)[0]?.text || "";
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "siteniz";
+
+  // Simulate thinking delay
+  await new Promise(r => setTimeout(r, 800));
+
+  const lower = lastUserMsg.toLowerCase();
+
+  if (lower.includes("trafik") || lower.includes("düştü") || lower.includes("neden")) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `${cleanDomain} üzerinde son 14 günde tespit edilen organik trafik değişimini analiz ettim:\n\n1. **Kritik 404 & Yönlendirme Kayıpları:** 3 adet yüksek trafikli kategori sayfasında yönlendirme zinciri oluşmuş.\n2. **Kanonikleştirme Hatası:** Parametreli URL'ler ana sayfaların PageRank otoritesini seyrelterek pozisyon kaybettirmiş.\n3. **Google Algoritma Uyumu:** Helpful Content sinyallerini artırmak için düşük kelimeli sayfalar konsolide edilmeli.`,
+      timestamp: new Date().toISOString(),
+      sources: ["Google Search Console API", "SeoRuleEngine Deep Crawl", "Google Algoritma Güncellemesi Mart 2026"],
+      suggested_actions: [
+        { label: "Kırık URL'leri Otomatik 301 Yap", action_type: "APPLY_FIX" },
+        { label: "Eksik Kanonikleri Düzelt", action_type: "APPLY_FIX" },
+        { label: "Yeni Tarama Başlat", action_type: "CRAWL" }
+      ]
+    };
+  }
+
+  if (lower.includes("problem") || lower.includes("hata") || lower.includes("ne yapmalıyım")) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `${cleanDomain} için bugün en yüksek etki sağlayacak 3 öncelikli işlem:\n\n• **1. Eksik Kanonikleri Ekle (+14 Puan):** Kopya içerik sinyallerini temizler.\n• **2. Ürün Schema.org JSON-LD Enjekte Et (+22 Puan):** Arama motorunda yıldızlı Rich Snippet görünürlüğü sağlar.\n• **3. LCP Görsel Sıkıştırması (+11 Puan):** Mobilde 2.5s altına inerek sıralama sinyalini güçlendirir.`,
+      timestamp: new Date().toISOString(),
+      sources: ["Google Search Central Kılavuzu", "Core Web Vitals Chrome UX Raporu"],
+      suggested_actions: [
+        { label: "Tümünü AI ile Düzelt", action_type: "APPLY_FIX" },
+        { label: "Görev Listesine Ekle", action_type: "CREATE_TASK" }
+      ]
+    };
+  }
+
+  // Default intelligent assistant response
+  return {
+    id: `ai-${Date.now()}`,
+    sender: "assistant",
+    text: `${cleanDomain} için SEO, GEO ve arama motoru optimizasyonu hedeflerinize yönelik sorunuzu inceledim.\n\nSitenizin güncel sağlık skoru ve tarama verilerini temel alarak: Yapılandırılmış veri enjeksiyonu, yapay zeka arama motorları (ChatGPT, Perplexity, Gemini) için alıntı optimizasyonu ve teknik indeksleme adımlarında size anında destek verebilirim.`,
+    timestamp: new Date().toISOString(),
+    sources: [`${cleanDomain} Site Audit Raporu`, "Google Arama Kalite Standartları"],
+    suggested_actions: [
+      { label: "İçerik Optimize Et", action_type: "GENERATE_CONTENT" },
+      { label: "Teknik Görev Oluştur", action_type: "CREATE_TASK" }
+    ]
+  };
+}
+
+// -------------------------------------------------------------
+// 13 & 14. Content Optimizer & AI Content Generator
+// -------------------------------------------------------------
+export async function analyzeContentUrl(url: string, targetKeyword?: string): Promise<ContentOptimizationResult> {
+  const cleanKeyword = targetKeyword || "organik seo uzmanı";
+  return {
+    url,
+    content_score: 78,
+    geo_score: 82,
+    readability_score: 85,
+    word_count: 1420,
+    target_keyword: cleanKeyword,
+    keyword_density: 1.8,
+    missing_entities: ["Entity: Google Knowledge Graph", "Entity: Helpful Content System", "Entity: Structured Data Validator"],
+    missing_headings: ["H2: 2026 Arama Trendleri", "H3: Sıkça Sorulan Sorular (FAQ)"],
+    ai_suggestions: [
+      "Hedef anahtar kelime ilk 100 kelime içerisinde bir kez daha vurgulanmalı.",
+      "İçeriğe 1 adet tablo veya karşılaştırma listesi eklenmesi 'Direct Answer' formatını güçlendirir.",
+      "Sayfa sonuna FAQ Schema destekli 3 soru ekleyin."
+    ]
+  };
+}
+
+export async function generateAiSeoContent(
+  type: GeneratedContentResult["type"],
+  topic: string,
+  targetKeyword: string
+): Promise<GeneratedContentResult> {
+  await new Promise(r => setTimeout(r, 600));
+
+  if (type === "META_TITLE") {
+    return {
+      type,
+      title: "Optimize Meta Başlık Önerisi",
+      content: `${topic} - En Kapsamlı Rehber | ${targetKeyword} 2026`,
+      tokens_used: 120
+    };
+  }
+
+  if (type === "META_DESCRIPTION") {
+    return {
+      type,
+      title: "Optimize Meta Açıklaması",
+      content: `${topic} hakkında bilmeniz gereken tüm detaylar, uzman stratejileri ve ${targetKeyword} optimizasyonu ipuçları bu rehberde. Hemen keşfedin!`,
+      tokens_used: 190
+    };
+  }
+
+  if (type === "FAQ") {
+    return {
+      type,
+      title: "FAQ Schema.org JSON-LD İçeriği",
+      content: `Q: ${topic} nedir?\nA: ${topic}, arama motorlarında ve yapay zeka sistemlerinde görünürlüğü maksimize eden modern bir optimizasyon sürecidir.\n\nQ: ${targetKeyword} neden önemlidir?\nA: Doğru hedefleme organik tıklama oranını (CTR) %30'a kadar artırır ve dönüşüm sağlar.`,
+      tokens_used: 350
+    };
+  }
+
+  return {
+    type,
+    title: `${topic} Kapsamlı İçerik Taslağı`,
+    content: `## Giriş\n${topic} konusuna genel bakış ve ${targetKeyword} önemi.\n\n## 1. Temel Kavramlar & Mimari\nModern optimizasyon prensipleri ve en iyi uygulamalar.\n\n## 2. Adım Adım Uygulama\nStratejik yol haritası ve ölçümleme metrikleri.\n\n## 3. Sık Yapılan Hatalar\nKaçınılması gereken tuzaklar ve kontrol listesi.`,
+    tokens_used: 480
+  };
+}
+
+// -------------------------------------------------------------
+// 15, 16 & 17. GEO (Generative Engine Optimization) Services
+// -------------------------------------------------------------
+export async function fetchGeoScores(siteId: string, domain?: string): Promise<GeoPlatformScore[]> {
+  return [
+    { platform: "ChatGPT", score: 86, mentions: 42, citations: 29, status: "DOMINANT" },
+    { platform: "Google AI Overview", score: 78, mentions: 34, citations: 22, status: "VISIBLE" },
+    { platform: "Perplexity", score: 89, mentions: 56, citations: 38, status: "DOMINANT" },
+    { platform: "Gemini", score: 71, mentions: 18, citations: 11, status: "VISIBLE" },
+    { platform: "Claude", score: 68, mentions: 15, citations: 9, status: "RARE" }
+  ];
+}
+
+export let MOCK_GEO_PROMPTS: GeoPromptItem[] = [
+  {
+    id: "gp-1",
+    prompt: "2026'da Türkiye'nin en iyi SEO ve GEO optimizasyon platformu hangisi?",
+    frequency: "GÜNLÜK",
+    brand_mentioned: true,
+    citation_rank: 1,
+    platform_results: {
+      ChatGPT: { mentioned: true, snippet: "Platform, otonom teknik denetim ve GEO optimizasyonu konusunda öne çıkan çözümler arasındadır." },
+      Perplexity: { mentioned: true, snippet: "Referans kaynaklar arasında doğrudan ilk sırada atıf yapılmıştır (Kaynak: acmestore.io)." },
+      Gemini: { mentioned: true, snippet: "Teknik SEO araçları karşılaştırmasında listelenmektedir." }
+    },
+    top_competitor_cited: "semrush.com"
+  },
+  {
+    id: "gp-2",
+    prompt: "E-ticaret sitelerinde kanonikleştirme ve zengin sonuç nasıl uygulanır?",
+    frequency: "GÜNLÜK",
+    brand_mentioned: true,
+    citation_rank: 2,
+    platform_results: {
+      ChatGPT: { mentioned: true, snippet: "Yayınlanan JSON-LD kılavuzu doğrudan önerilen referans kaynak olarak gösterildi." },
+      Perplexity: { mentioned: false, snippet: "Sektörel genel bloglar kaynak gösterildi." },
+      Gemini: { mentioned: true, snippet: "Marka otorite kaynağı olarak alıntılanmıştır." }
+    },
+    top_competitor_cited: "ahrefs.com"
+  },
+  {
+    id: "gp-3",
+    prompt: "Yapay zeka arama motorlarında marka görünürlüğü (GEO) nasıl artırılır?",
+    frequency: "HAFTALIK",
+    brand_mentioned: false,
+    citation_rank: null,
+    platform_results: {
+      ChatGPT: { mentioned: false, snippet: "Genel Wikipedia ve OpenAI dokümantasyonu kullanıldı." },
+      Perplexity: { mentioned: false, snippet: "Yabancı kaynaklar listelendi." },
+      Gemini: { mentioned: false, snippet: "Yalnızca resmi arama yönergeleri referans verildi." }
+    },
+    top_competitor_cited: "moz.com"
+  }
+];
+
+export async function fetchGeoPrompts(siteId: string, domain?: string): Promise<GeoPromptItem[]> {
+  return [...MOCK_GEO_PROMPTS];
+}
+
+export async function addGeoPrompt(siteId: string, promptText: string): Promise<GeoPromptItem> {
+  const newPrompt: GeoPromptItem = {
+    id: `gp-${Date.now()}`,
+    prompt: promptText.trim(),
+    frequency: "GÜNLÜK",
+    brand_mentioned: true,
+    citation_rank: Math.floor(Math.random() * 3) + 1,
+    platform_results: {
+      ChatGPT: { mentioned: true, snippet: "Soruya verilen yanıtta markanız güvenilir uzman kaynak olarak alıntılandı." },
+      Perplexity: { mentioned: true, snippet: "Domain URL'niz referans linkler arasına eklendi." },
+      Gemini: { mentioned: false, snippet: "Genel web sonuçları derlendi." }
+    }
+  };
+  MOCK_GEO_PROMPTS = [newPrompt, ...MOCK_GEO_PROMPTS];
+  return newPrompt;
+}
+
+// -------------------------------------------------------------
+// 24 & 25. SEO Task Management & AI Prioritization
+// -------------------------------------------------------------
+export let MOCK_TASKS: SeoTaskItem[] = [
+  {
+    id: "task-1",
+    title: "Parametreli Filtre Sayfalarına Canonical Ekle",
+    description: "Kategori sayfalarında rel=canonical self-referencing olarak ayarlanacak.",
+    priority: "CRITICAL",
+    status: "TODO",
+    estimated_impact: "HIGH",
+    difficulty: "EASY",
+    category: "TECHNICAL",
+    due_date: "2026-09-25",
+    affected_url: "/kategori?sort=asc",
+    created_at: new Date().toISOString()
+  },
+  {
+    id: "task-2",
+    title: "Ürün JSON-LD Schema İşaretlemesi Yap",
+    description: "Google Rich Snippet zengin kartları için AggregateRating ve Offers formatı entegre edilecek.",
+    priority: "HIGH",
+    status: "IN_PROGRESS",
+    estimated_impact: "HIGH",
+    difficulty: "MEDIUM",
+    category: "TECHNICAL",
+    due_date: "2026-09-28",
+    affected_url: "/urunler",
+    created_at: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: "task-3",
+    title: "Helpful Content İnce İçerik Konsolidasyonu",
+    description: "Düşük kelime sayılı 3 blog yazısı 301 yönlendirmesiyle ana rehberde birleştirilecek.",
+    priority: "MEDIUM",
+    status: "REVIEW",
+    estimated_impact: "MEDIUM",
+    difficulty: "HARD",
+    category: "CONTENT",
+    due_date: "2026-10-02",
+    affected_url: "/blog",
+    created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+  },
+  {
+    id: "task-4",
+    title: "Perplexity & ChatGPT İçin FAQ Schema Güncellemesi",
+    description: "Yapay zeka arama motorlarının doğrudan alıntı yapabilmesi için tanım blokları yerleştirilecek.",
+    priority: "HIGH",
+    status: "COMPLETED",
+    estimated_impact: "HIGH",
+    difficulty: "EASY",
+    category: "GEO",
+    due_date: "2026-09-18",
+    affected_url: "/hakkimizda",
+    created_at: new Date(Date.now() - 86400000 * 4).toISOString()
+  }
+];
+
+export async function fetchTasks(siteId: string): Promise<SeoTaskItem[]> {
+  return [...MOCK_TASKS];
+}
+
+export async function createTask(siteId: string, task: Partial<SeoTaskItem>): Promise<SeoTaskItem> {
+  const newTask: SeoTaskItem = {
+    id: `task-${Date.now()}`,
+    title: task.title || "Yeni SEO Görevi",
+    description: task.description || "",
+    priority: task.priority || "MEDIUM",
+    status: task.status || "TODO",
+    estimated_impact: task.estimated_impact || "HIGH",
+    difficulty: task.difficulty || "EASY",
+    category: task.category || "TECHNICAL",
+    due_date: task.due_date || new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
+    affected_url: task.affected_url || "/",
+    created_at: new Date().toISOString()
+  };
+  MOCK_TASKS = [newTask, ...MOCK_TASKS];
+  return newTask;
+}
+
+export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+  MOCK_TASKS = MOCK_TASKS.map(t => t.id === taskId ? { ...t, status } : t);
+}
+
+// -------------------------------------------------------------
+// 28. Reports & Native Export
+// -------------------------------------------------------------
+export async function fetchReports(siteId: string): Promise<SeoReportSummary[]> {
+  return [
+    {
+      id: "rep-1",
+      period_label: "GÜNLÜK",
+      date_range: "19 Eylül 2026",
+      overall_score: 87,
+      score_change: 3,
+      organic_clicks: 4820,
+      clicks_change_pct: 12.4,
+      top_keywords_gained: 8,
+      top_keywords_lost: 1,
+      issues_resolved: 4,
+      geo_score: 81,
+      executive_summary: "Bugün organik tıklamalarda %12.4 artış yaşandı. Kanonikleştirme düzeltmeleri sayesinde 4 kritik hata çözüldü."
+    },
+    {
+      id: "rep-2",
+      period_label: "HAFTALIK",
+      date_range: "12 - 19 Eylül 2026",
+      overall_score: 87,
+      score_change: 9,
+      organic_clicks: 31400,
+      clicks_change_pct: 18.2,
+      top_keywords_gained: 24,
+      top_keywords_lost: 3,
+      issues_resolved: 14,
+      geo_score: 81,
+      executive_summary: "Bu hafta arama motoru görünürlüğü belirgin şekilde yükseldi. ChatGPT ve Perplexity üzerinden gelen alıntı trafiği %25 arttı."
+    },
+    {
+      id: "rep-3",
+      period_label: "AYLIK",
+      date_range: "Ağustos - Eylül 2026",
+      overall_score: 87,
+      score_change: 16,
+      organic_clicks: 128600,
+      clicks_change_pct: 34.0,
+      top_keywords_gained: 92,
+      top_keywords_lost: 11,
+      issues_resolved: 48,
+      geo_score: 81,
+      executive_summary: "Aylık bazda genel SEO sağlık skoru 71'den 87'ye yükseldi. Teknik SEO problemleri %70 oranında temizlendi."
+    }
+  ];
+}
+
+// -------------------------------------------------------------
+// 42 & 43. Settings & Integrations
+// -------------------------------------------------------------
+export let MOCK_SETTINGS: AppSettings = {
+  theme: "DARK",
+  biometric_enabled: true,
+  push_alerts: true,
+  morning_brief_enabled: true,
+  weekly_report_email: true,
+  strict_live_backend: false,
+  connected_integrations: [
+    { id: "gsc", name: "Google Search Console", icon: "google", is_connected: true, last_synced: "15 dk önce" },
+    { id: "ga4", name: "Google Analytics 4", icon: "bar-chart", is_connected: true, last_synced: "1 saat önce" },
+    { id: "gbp", name: "Google Business Profile", icon: "map-pin", is_connected: false },
+    { id: "wp", name: "WordPress CMS", icon: "globe", is_connected: true, last_synced: "Dün" },
+    { id: "shopify", name: "Shopify Store", icon: "shopping-bag", is_connected: false },
+    { id: "slack", name: "Slack Bildirimleri", icon: "slack", is_connected: true, last_synced: "Canlı" }
+  ]
+};
+
+export async function fetchAppSettings(): Promise<AppSettings> {
+  return { ...MOCK_SETTINGS };
+}
+
+export async function updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+  MOCK_SETTINGS = { ...MOCK_SETTINGS, ...settings };
+  return { ...MOCK_SETTINGS };
+}
+
+// -------------------------------------------------------------
+// 50 & 51. Opportunity Feed & Morning Brief
+// -------------------------------------------------------------
+export async function fetchOpportunities(siteId: string, domain?: string): Promise<SeoOpportunityCard[]> {
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "siteniz";
+  return [
+    {
+      id: "opp-1",
+      type: "KEYWORD_WIN",
+      badge: "Hızlı Sıralama Fırsatı",
+      title: "11. Sıradaki Hedef Kelime",
+      subtitle: `${cleanDomain} için aranma hacmi 8.400 olan kelime ilk sayfanın hemen eşiğinde.`,
+      potential: "+640 Organik Ziyaretçi / Ay",
+      difficulty: "KOLAY",
+      action_label: "Hemen Optimize Et"
+    },
+    {
+      id: "opp-2",
+      type: "CANONICAL_FIX",
+      badge: "Kritik İndeksleme",
+      title: "5 Sayfada Canonical Eksikliği",
+      subtitle: "Parametreli sayfaların yinelenen içerik yaratması Googlebot tarafından cezalandırılabilir.",
+      potential: "+15 Sağlık Skoru Artışı",
+      difficulty: "KOLAY",
+      action_label: "AI ile Tek Tıkla Düzelt"
+    },
+    {
+      id: "opp-3",
+      type: "GEO_BOOST",
+      badge: "GEO Görünürlüğü",
+      title: "Perplexity & ChatGPT Alıntı Fırsatı",
+      subtitle: "Hakkımızda ve FAQ sayfasına Organization Schema ekleyerek yapay zeka alıntılarını ikiye katlayın.",
+      potential: "2.4x AI Atıf Artışı",
+      difficulty: "ORTA",
+      action_label: "Schema JSON-LD Ekle"
+    }
+  ];
+}
+
+export interface MorningBriefData {
+  greeting: string;
+  summary_text: string;
+  keywords_up: number;
+  keywords_down: number;
+  impressions_today: number;
+  new_backlinks: number;
+  critical_issues: number;
+  daily_actions: string[];
+}
+
+export async function fetchMorningBrief(siteId: string, domain?: string): Promise<MorningBriefData> {
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Web Siteniz";
+  return {
+    greeting: "Günaydın! ☀️",
+    summary_text: `Dün ${cleanDomain} üzerinde organik performans yükselişteydi.`,
+    keywords_up: 8,
+    keywords_down: 1,
+    impressions_today: 14250,
+    new_backlinks: 3,
+    critical_issues: 2,
+    daily_actions: [
+      "Kategori sayfalarındaki eksik canonical etiketlerini onayla.",
+      "11. sıradaki hedef kelime için içeriği güncelle.",
+      "Yeni bulunan 404 URL'yi 301 kalıcı yönlendirmesine bağla."
+    ]
+  };
+}

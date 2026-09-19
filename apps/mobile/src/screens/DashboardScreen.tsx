@@ -15,10 +15,13 @@ import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { LiveCrawlCard } from "../components/LiveCrawlCard";
 import { IssueDetailModal } from "../components/IssueDetailModal";
+import { MorningBriefCard } from "../components/MorningBriefCard";
+import { OpportunityFeedCard } from "../components/OpportunityFeedCard";
+import { GamificationWidget } from "../components/GamificationWidget";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchSiteIssues } from "../services/api";
-import { SiteIssueItem, IssueSeverity } from "../types";
+import { fetchSiteIssues, fetchMorningBrief, fetchOpportunities, MorningBriefData } from "../services/api";
+import { SiteIssueItem, IssueSeverity, SeoOpportunityCard } from "../types";
 
 export const DashboardScreen: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +31,9 @@ export const DashboardScreen: React.FC = () => {
   const [issueFilter, setIssueFilter] = React.useState<"ALL" | IssueSeverity>("ALL");
   const [refreshing, setRefreshing] = React.useState(false);
 
+  const [morningBrief, setMorningBrief] = React.useState<MorningBriefData | null>(null);
+  const [opportunities, setOpportunities] = React.useState<SeoOpportunityCard[]>([]);
+
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
@@ -35,6 +41,12 @@ export const DashboardScreen: React.FC = () => {
       if (selectedSite && (selectedSite.has_completed_crawl || selectedSite.id === "site-1")) {
         const fresh = await fetchSiteIssues(selectedSite.id, selectedSite.domain);
         setIssues(fresh);
+      }
+      if (selectedSite) {
+        const brief = await fetchMorningBrief(selectedSite.id, selectedSite.domain);
+        setMorningBrief(brief);
+        const opps = await fetchOpportunities(selectedSite.id, selectedSite.domain);
+        setOpportunities(opps);
       }
     } finally {
       setRefreshing(false);
@@ -74,6 +86,10 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
       fetchSiteIssues(selectedSite.id, selectedSite.domain).then(setIssues);
     } else {
       setIssues([]);
+    }
+    if (selectedSite) {
+      fetchMorningBrief(selectedSite.id, selectedSite.domain).then(setMorningBrief);
+      fetchOpportunities(selectedSite.id, selectedSite.domain).then(setOpportunities);
     }
   }, [selectedSite?.id, selectedSite?.has_completed_crawl, selectedSite?.domain]);
 
@@ -280,6 +296,22 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
         </View>
       </View>
 
+      {/* Daily Morning Briefing */}
+      {morningBrief && (
+        <MorningBriefCard
+          data={morningBrief}
+          onActionPress={() => setActiveTab("tasks")}
+        />
+      )}
+
+      {/* Gamification Streak & Goals Widget */}
+      <GamificationWidget
+        streakDays={7}
+        scoreImprovement={15}
+        completedTasks={3}
+        weeklyGoalTotal={4}
+      />
+
       {/* Live Crawl Progress or Launch Pill */}
       <LiveCrawlCard />
 
@@ -315,7 +347,68 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
             </Text>
           </View>
         </View>
+
+        {/* 4 SEO Sub-Scores Breakdown */}
+        <View style={styles.subScoresGrid}>
+          <View style={styles.subScoreItem}>
+            <Text style={styles.subScoreVal}>91</Text>
+            <Text style={styles.subScoreLbl}>Teknik SEO</Text>
+          </View>
+          <View style={styles.subScoreDivider} />
+          <View style={styles.subScoreItem}>
+            <Text style={styles.subScoreVal}>84</Text>
+            <Text style={styles.subScoreLbl}>İçerik Skoru</Text>
+          </View>
+          <View style={styles.subScoreDivider} />
+          <View style={styles.subScoreItem}>
+            <Text style={[styles.subScoreVal, { color: Colors.accent }]}>81</Text>
+            <Text style={styles.subScoreLbl}>GEO / AI</Text>
+          </View>
+          <View style={styles.subScoreDivider} />
+          <View style={styles.subScoreItem}>
+            <Text style={[styles.subScoreVal, { color: Colors.info }]}>88</Text>
+            <Text style={styles.subScoreLbl}>Hız & CWV</Text>
+          </View>
+        </View>
       </GlassCard>
+
+      {/* Google Search Console & Organic Performance */}
+      <GlassCard variant="elevated" style={styles.gscCard}>
+        <View style={styles.gscHeader}>
+          <View style={styles.gscHeaderLeft}>
+            <Ionicons name="bar-chart" size={15} color={Colors.primary} />
+            <Text style={styles.gscTitle}>Google Arama Performansı</Text>
+          </View>
+          <Text style={styles.gscPeriodBadge}>Son 28 Gün</Text>
+        </View>
+
+        <View style={styles.gscGrid}>
+          <View style={styles.gscStatBox}>
+            <Text style={styles.gscStatNum}>4.820</Text>
+            <Text style={styles.gscStatLbl}>Tıklama (+%12)</Text>
+          </View>
+          <View style={styles.gscStatBox}>
+            <Text style={styles.gscStatNum}>142.5K</Text>
+            <Text style={styles.gscStatLbl}>Gösterim</Text>
+          </View>
+          <View style={styles.gscStatBox}>
+            <Text style={styles.gscStatNum}>%3.4</Text>
+            <Text style={styles.gscStatLbl}>Ortalama CTR</Text>
+          </View>
+          <View style={styles.gscStatBox}>
+            <Text style={styles.gscStatNum}>#4.8</Text>
+            <Text style={styles.gscStatLbl}>Ort. Pozisyon</Text>
+          </View>
+        </View>
+      </GlassCard>
+
+      {/* SEO Opportunity Feed (Reels / Stories Style) */}
+      {opportunities.length > 0 && (
+        <OpportunityFeedCard
+          opportunities={opportunities}
+          onTakeAction={() => setActiveTab("quick_audit")}
+        />
+      )}
 
       {/* Quick Action Buttons */}
       <View style={styles.actionRow}>
@@ -331,10 +424,10 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
         <TouchableOpacity 
           style={styles.secondaryActionButton}
           activeOpacity={0.8}
-          onPress={() => setActiveTab("recommendations")}
+          onPress={() => setActiveTab("ai")}
         >
           <Ionicons name="sparkles" size={18} color={Colors.primary} />
-          <Text style={styles.secondaryActionText}>AI Önerileri</Text>
+          <Text style={styles.secondaryActionText}>AI Asistan</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -616,6 +709,94 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  subScoresGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+    borderRadius: 14,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  subScoreItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  subScoreVal: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  subScoreLbl: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  subScoreDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: Colors.borderSubtle,
+  },
+  gscCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  gscHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  gscHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  gscTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  gscPeriodBadge: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textMuted,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  gscGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  gscStatBox: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  gscStatNum: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  gscStatLbl: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: "500",
   },
   actionRow: {
     flexDirection: "row",

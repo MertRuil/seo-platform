@@ -3,7 +3,21 @@ import { SiteSummary, CrawlRunItem } from "../types";
 import { fetchSites, MOCK_SITES, triggerCrawl, fetchDiscoveredPages, runQuickAudit } from "../services/api";
 import { useAuth } from "./AuthContext";
 
-export type TabKey = "dashboard" | "quick_audit" | "recommendations" | "knowledge" | "billing";
+export type TabKey = 
+  | "dashboard" 
+  | "quick_audit" 
+  | "ai" 
+  | "geo" 
+  | "hub" 
+  | "keywords" 
+  | "competitors" 
+  | "tasks" 
+  | "reports" 
+  | "settings" 
+  | "content_optimizer" 
+  | "recommendations" 
+  | "knowledge" 
+  | "billing";
 
 interface AppContextType {
   sites: SiteSummary[];

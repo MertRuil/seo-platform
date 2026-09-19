@@ -14,6 +14,7 @@ import { Colors } from "../theme/colors";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { NotificationsModal } from "./NotificationsModal";
+import { GlobalSearchModal } from "./GlobalSearchModal";
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../services/api";
 import { NotificationItem } from "../types";
 
@@ -22,6 +23,7 @@ export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
   const [notifsVisible, setNotifsVisible] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   // Add site modal state
@@ -96,6 +98,15 @@ export const Header: React.FC = () => {
             <Ionicons name="chevron-down" size={12} color={Colors.textSecondary} />
           </TouchableOpacity>
 
+          {/* Global Search Button */}
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => setSearchVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search-outline" size={15} color={Colors.textPrimary} />
+          </TouchableOpacity>
+
           {/* Notifications Bell Button with Badge */}
           <TouchableOpacity 
             style={styles.iconButton}
@@ -133,6 +144,12 @@ export const Header: React.FC = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Global Search Modal */}
+      <GlobalSearchModal
+        visible={searchVisible}
+        onClose={() => setSearchVisible(false)}
+      />
 
       {/* Notifications Modal */}
       <NotificationsModal

@@ -13,6 +13,16 @@ import { RecommendationsScreen } from "./src/screens/RecommendationsScreen";
 import { KnowledgeScreen } from "./src/screens/KnowledgeScreen";
 import { BillingScreen } from "./src/screens/BillingScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
+import { AiAssistantScreen } from "./src/screens/AiAssistantScreen";
+import { GeoScreen } from "./src/screens/GeoScreen";
+import { HubScreen } from "./src/screens/HubScreen";
+import { KeywordsScreen } from "./src/screens/KeywordsScreen";
+import { CompetitorsScreen } from "./src/screens/CompetitorsScreen";
+import { TasksScreen } from "./src/screens/TasksScreen";
+import { ContentOptimizerScreen } from "./src/screens/ContentOptimizerScreen";
+import { ReportsScreen } from "./src/screens/ReportsScreen";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { QuickActionFab } from "./src/components/QuickActionFab";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -91,10 +101,20 @@ const MainNavigator: React.FC = () => {
               <View style={styles.screenContainer}>
                 {activeTab === "dashboard" && <DashboardScreen />}
                 {activeTab === "quick_audit" && <QuickAuditScreen />}
+                {activeTab === "ai" && <AiAssistantScreen />}
+                {activeTab === "geo" && <GeoScreen />}
+                {activeTab === "hub" && <HubScreen />}
+                {activeTab === "keywords" && <KeywordsScreen />}
+                {activeTab === "competitors" && <CompetitorsScreen />}
+                {activeTab === "tasks" && <TasksScreen />}
+                {activeTab === "content_optimizer" && <ContentOptimizerScreen />}
+                {activeTab === "reports" && <ReportsScreen />}
+                {activeTab === "settings" && <SettingsScreen />}
                 {activeTab === "recommendations" && <RecommendationsScreen />}
                 {activeTab === "knowledge" && <KnowledgeScreen />}
                 {activeTab === "billing" && <BillingScreen />}
               </View>
+              <QuickActionFab />
               <TabBar />
             </SafeAreaView>
           )}

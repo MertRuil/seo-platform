@@ -8,12 +8,14 @@ import {
   KeyboardAvoidingView, 
   Platform, 
   ScrollView, 
-  ActivityIndicator 
+  ActivityIndicator,
+  Modal 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
+import { OnboardingModal } from "./OnboardingModal";
 
 export const LoginScreen: React.FC = () => {
   const { login, register, continueAsGuest } = useAuth();
@@ -24,6 +26,38 @@ export const LoginScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Extended Auth & Modals State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalType, setLegalType] = useState<"KVKK" | "TERMS" | "PRIVACY">("KVKK");
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const handleBiometricLogin = async () => {
+    // Simulated Face ID / Touch ID success
+    setLoading(true);
+    setTimeout(async () => {
+      await continueAsGuest();
+      setLoading(false);
+    }, 600);
+  };
+
+  const handleSocialLogin = async (provider: "Apple" | "Google") => {
+    setLoading(true);
+    setTimeout(async () => {
+      await continueAsGuest();
+      setLoading(false);
+    }, 600);
+  };
+
+  const openLegal = (type: "KVKK" | "TERMS" | "PRIVACY") => {
+    setLegalType(type);
+    setShowLegalModal(true);
+  };
 
   const handleSubmit = async () => {
     setErrorMessage(null);
@@ -167,6 +201,17 @@ export const LoginScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Forgot Password Link */}
+          {!isRegister && (
+            <TouchableOpacity 
+              style={styles.forgotBtn} 
+              onPress={() => setShowForgotModal(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotBtnText}>Şifremi Unuttum</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Submit Button */}
           <TouchableOpacity 
             style={styles.submitBtn} 
@@ -182,6 +227,45 @@ export const LoginScreen: React.FC = () => {
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* Biometric Login (Face ID / Touch ID) */}
+          {!isRegister && (
+            <TouchableOpacity 
+              style={styles.biometricBtn}
+              onPress={handleBiometricLogin}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="scan-outline" size={18} color={Colors.primary} />
+              <Text style={styles.biometricBtnText}>Face ID / Biyometrik Giriş</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Social Logins */}
+          <View style={styles.socialDividerRow}>
+            <View style={styles.socialDividerLine} />
+            <Text style={styles.socialDividerText}>veya</Text>
+            <View style={styles.socialDividerLine} />
+          </View>
+
+          <View style={styles.socialRow}>
+            <TouchableOpacity 
+              style={styles.socialBtn}
+              onPress={() => handleSocialLogin("Apple")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="logo-apple" size={18} color={Colors.textPrimary} />
+              <Text style={styles.socialBtnText}>Apple</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.socialBtn}
+              onPress={() => handleSocialLogin("Google")}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="logo-google" size={18} color={Colors.textPrimary} />
+              <Text style={styles.socialBtnText}>Google</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Switch Mode Link */}
           <TouchableOpacity 
@@ -221,19 +305,114 @@ export const LoginScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Onboarding Wizard Trigger */}
+          <TouchableOpacity 
+            style={styles.onboardingTriggerBtn}
+            onPress={() => setShowOnboarding(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="compass-outline" size={15} color={Colors.accent} />
+            <Text style={styles.onboardingTriggerText}>Yeni Başlayanlar İçin Kurulum Sihirbazı</Text>
+          </TouchableOpacity>
         </GlassCard>
 
-        {/* Security & Privacy Assurance Footer */}
+        {/* Security & Legal Links */}
         <View style={styles.trustFooter}>
           <View style={styles.trustRow}>
             <Ionicons name="shield-checkmark-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.trustText}>256-Bit SSL Uçtan Uca Şifreli Giriş</Text>
+            <Text style={styles.trustText}>256-Bit SSL Uçtan Uca Şifreli Oturum</Text>
           </View>
-          <Text style={styles.termsText}>
-            Devam ederek Kullanım Şartları ve Gizlilik Politikasını kabul etmiş olursunuz.
-          </Text>
+          <View style={styles.legalLinksRow}>
+            <TouchableOpacity onPress={() => openLegal("KVKK")}>
+              <Text style={styles.legalLink}>KVKK Onayı</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>•</Text>
+            <TouchableOpacity onPress={() => openLegal("TERMS")}>
+              <Text style={styles.legalLink}>Kullanım Koşulları</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>•</Text>
+            <TouchableOpacity onPress={() => openLegal("PRIVACY")}>
+              <Text style={styles.legalLink}>Gizlilik Politikası</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
+
+      {/* Forgot Password Modal */}
+      <Modal visible={showForgotModal} transparent animationType="slide" onRequestClose={() => setShowForgotModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Ionicons name="key-outline" size={36} color={Colors.primary} style={{ alignSelf: "center" }} />
+            <Text style={styles.modalTitle}>Şifrenizi mi Unuttunuz?</Text>
+            <Text style={styles.modalSub}>Kayıtlı e-posta adresinize tek tıkla şifre sıfırlama bağlantısı gönderilecektir.</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="ornek@alanadiniz.com"
+              placeholderTextColor={Colors.textMuted}
+              value={forgotEmail}
+              onChangeText={setForgotEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {forgotSent ? (
+              <View style={styles.forgotSuccess}>
+                <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                <Text style={styles.forgotSuccessText}>Sıfırlama bağlantısı gönderildi!</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowForgotModal(false)}>
+                <Text style={styles.modalCancelText}>Kapat</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSubmitBtn}
+                onPress={() => {
+                  setForgotSent(true);
+                  setTimeout(() => {
+                    setShowForgotModal(false);
+                    setForgotSent(false);
+                  }, 1500);
+                }}
+              >
+                <Text style={styles.modalSubmitText}>Bağlantı Gönder</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Legal / KVKK Modal */}
+      <Modal visible={showLegalModal} transparent animationType="slide" onRequestClose={() => setShowLegalModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {legalType === "KVKK" && "KVKK & GDPR Aydınlatma Metni"}
+              {legalType === "TERMS" && "Kullanım Koşulları"}
+              {legalType === "PRIVACY" && "Gizlilik Politikası"}
+            </Text>
+            <ScrollView style={{ maxHeight: 280, marginVertical: 12 }}>
+              <Text style={styles.legalBody}>
+                {legalType === "KVKK" && "6698 sayılı Kişisel Verilerin Korunması Kanunu ve GDPR uyarınca; kullanıcı bilgileri, domain analitik verileri ve SEO performans metrikleri en üst düzey şifreleme ve izole veritabanı altyapısıyla saklanmakta, üçüncü şahıslarla asla paylaşılmamaktadır."}
+                {legalType === "TERMS" && "SEO Platform hizmetlerini kullanarak, web siteniz üzerinde otonom taranan sayfalar, robots.txt yönergeleri ve arama motoru kurallarına uygun işlem yapıldığını kabul etmektesiniz. Sistemimiz yalnızca yetkilendirilmiş alan adlarında analiz yürütür."}
+                {legalType === "PRIVACY" && "Gizliliğiniz bizim için esastır. E-posta, şifre ve site verileriniz Keychain / Keystore standartlarında saklanmaktadır. İstediğiniz an tüm verilerinizi dışa aktarabilir veya hesabınızı kalıcı olarak silebilirsiniz."}
+              </Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.modalSubmitBtn} onPress={() => setShowLegalModal(false)}>
+              <Text style={styles.modalSubmitText}>Anladım ve Kabul Ediyorum</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Onboarding Wizard Modal */}
+      <OnboardingModal 
+        visible={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -442,5 +621,191 @@ const styles = StyleSheet.create({
   guestBtnText: {
     fontSize: 12,
     color: Colors.textMuted,
+  },
+  forgotBtn: {
+    alignSelf: "flex-end",
+    marginBottom: 12,
+    marginTop: -6,
+  },
+  forgotBtnText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  biometricBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.surface,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.3)",
+    marginTop: 10,
+  },
+  biometricBtnText: {
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  socialDividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginVertical: 14,
+  },
+  socialDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.borderSubtle,
+  },
+  socialDividerText: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    textTransform: "uppercase",
+  },
+  socialRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  socialBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.surface,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  socialBtnText: {
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  onboardingTriggerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 10,
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  onboardingTriggerText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  legalLinksRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 4,
+  },
+  legalLink: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    textDecorationLine: "underline",
+  },
+  legalDot: {
+    color: Colors.textMuted,
+    fontSize: 10,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  modalSub: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginVertical: 10,
+    lineHeight: 18,
+  },
+  modalInput: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: Colors.textPrimary,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginVertical: 10,
+  },
+  forgotSuccess: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.successSurface,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  forgotSuccessText: {
+    color: Colors.success,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 6,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalSubmitBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+  },
+  modalSubmitText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  legalBody: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
   },
 });

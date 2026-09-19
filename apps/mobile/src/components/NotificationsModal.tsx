@@ -47,6 +47,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         return { name: "sparkles" as const, color: Colors.primary };
       case "BILLING_UPDATE":
         return { name: "card" as const, color: Colors.info };
+      case "KEYWORD_ALERT":
+        return { name: "trending-up" as const, color: Colors.accent };
+      case "GEO_ALERT":
+        return { name: "globe-outline" as const, color: Colors.primary };
+      default:
+        return { name: "information-circle" as const, color: Colors.info };
     }
   };
 

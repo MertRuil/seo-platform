@@ -21,6 +21,7 @@ export const Colors = {
   primary: "#6366F1", // Indigo / Electric violet
   primaryGradientStart: "#6366F1",
   primaryGradientEnd: "#8B5CF6",
+  accent: "#8B5CF6",
 
   success: "#10B981", // Emerald
   successSurface: "rgba(16, 185, 129, 0.12)",
