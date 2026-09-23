@@ -23,6 +23,7 @@ import { ContentOptimizerScreen } from "./src/screens/ContentOptimizerScreen";
 import { ReportsScreen } from "./src/screens/ReportsScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { QuickActionFab } from "./src/components/QuickActionFab";
+import { BiometricPromptModal } from "./src/components/BiometricPromptModal";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -116,6 +117,7 @@ const MainNavigator: React.FC = () => {
               </View>
               <QuickActionFab />
               <TabBar />
+              <BiometricPromptModal />
             </SafeAreaView>
           )}
         </ErrorBoundary>

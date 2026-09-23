@@ -18,7 +18,15 @@ import { AppSettings } from "../types";
 
 export const SettingsScreen: React.FC = () => {
   const { setActiveTab } = useApp();
-  const { user, logout } = useAuth();
+  const { 
+    user, 
+    logout, 
+    isBiometricEnrolled, 
+    enrolledBiometricType, 
+    enableBiometrics, 
+    disableBiometrics,
+    resetBiometricPrompt 
+  } = useAuth();
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => {
@@ -26,9 +34,15 @@ export const SettingsScreen: React.FC = () => {
   }, []);
 
   const handleToggleBiometric = async (val: boolean) => {
-    if (!settings) return;
-    const updated = await updateAppSettings({ biometric_enabled: val });
-    setSettings(updated);
+    if (val) {
+      await enableBiometrics("FACE_ID");
+    } else {
+      await disableBiometrics();
+    }
+    if (settings) {
+      const updated = await updateAppSettings({ biometric_enabled: val });
+      setSettings(updated);
+    }
   };
 
   const handleTogglePush = async (val: boolean) => {
@@ -83,14 +97,24 @@ export const SettingsScreen: React.FC = () => {
         <GlassCard style={styles.groupCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
-              <Ionicons name="scan-outline" size={20} color={Colors.primary} />
-              <View>
-                <Text style={styles.settingTitle}>Face ID / Biyometrik Giriş</Text>
-                <Text style={styles.settingSub}>Uygulamayı biyometrik parmak izi veya yüz tanıma ile açın</Text>
+              <Ionicons 
+                name={enrolledBiometricType === "TOUCH_ID" ? "finger-print-outline" : "scan-outline"} 
+                size={20} 
+                color={Colors.primary} 
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingTitle}>
+                  {enrolledBiometricType === "TOUCH_ID" ? "Touch ID / Parmak İzi ile Giriş" : "Face ID / Biyometrik Giriş"}
+                </Text>
+                <Text style={styles.settingSub}>
+                  {isBiometricEnrolled 
+                    ? "Cihazınızda biyometrik hızlı oturum açma aktif." 
+                    : "Şifre girmeden tek dokunuşla güvenli giriş yapın."}
+                </Text>
               </View>
             </View>
             <Switch
-              value={settings?.biometric_enabled ?? true}
+              value={isBiometricEnrolled}
               onValueChange={handleToggleBiometric}
               trackColor={{ false: Colors.surfaceElevated, true: Colors.primary }}
               thumbColor="#FFFFFF"

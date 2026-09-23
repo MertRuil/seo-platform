@@ -25,7 +25,9 @@ export const LoginScreen: React.FC = () => {
     continueAsGuest, 
     loginAsDemo, 
     loginWithSocial, 
-    loginWithBiometrics 
+    loginWithBiometrics,
+    isBiometricEnrolled,
+    enrolledBiometricType 
   } = useAuth();
 
   const [isRegister, setIsRegister] = useState(false);
@@ -387,28 +389,29 @@ export const LoginScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Biometric Login (Face ID / Touch ID / Hardware Adaptive) */}
-          {!isRegister && (
+          {/* Biometric Login (Face ID / Touch ID) - ONLY shown if already activated by user on this device */}
+          {!isRegister && isBiometricEnrolled && (
             <TouchableOpacity 
               style={styles.biometricBtn}
               onPress={handleBiometricLogin}
               activeOpacity={0.7}
             >
               <Ionicons 
-                name={biometricType === "FINGERPRINT" ? "finger-print-outline" : "scan-outline"} 
+                name={(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT" ? "finger-print-outline" : "scan-outline"} 
                 size={18} 
                 color={Colors.primary} 
               />
               <Text style={styles.biometricBtnText}>
-                {biometricType === "FACIAL_RECOGNITION" && "Face ID ile Giriş Yap"}
-                {biometricType === "FINGERPRINT" && "Touch ID ile Giriş Yap"}
-                {biometricType === "BOTH" && "Face ID & Parmak İzi ile Giriş"}
-                {biometricType === "NONE" && "Biyometrik Giriş Yap"}
+                {(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT"
+                  ? "Touch ID ile Hızlı Giriş"
+                  : "Face ID ile Hızlı Giriş"}
               </Text>
               <View style={styles.bioHardwareBadge}>
                 <View style={styles.bioHardwareDot} />
                 <Text style={styles.bioHardwareBadgeText}>
-                  {biometricType === "FACIAL_RECOGNITION" ? "Face ID" : biometricType === "FINGERPRINT" ? "Touch ID" : "Biyometrik"}
+                  {(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT"
+                    ? "Kayıtlı Touch ID"
+                    : "Kayıtlı Face ID"}
                 </Text>
               </View>
             </TouchableOpacity>

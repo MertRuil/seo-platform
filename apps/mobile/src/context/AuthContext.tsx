@@ -8,6 +8,13 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isBiometricEnrolled: boolean;
+  enrolledBiometricType: "FACE_ID" | "TOUCH_ID" | null;
+  hasAnsweredBiometricPrompt: boolean;
+  enableBiometrics: (type: "FACE_ID" | "TOUCH_ID") => Promise<void>;
+  disableBiometrics: () => Promise<void>;
+  markBiometricPromptAnswered: () => Promise<void>;
+  resetBiometricPrompt: () => Promise<void>;
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, pass: string, name: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -21,11 +28,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = "seo_auth_token";
 const USER_KEY = "seo_auth_user";
+const BIOMETRIC_ENROLLED_KEY = "seo_biometric_enrolled";
+const BIOMETRIC_TYPE_KEY = "seo_biometric_type";
+const BIOMETRIC_PROMPT_KEY = "seo_biometric_prompt_answered";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState<boolean>(false);
+  const [enrolledBiometricType, setEnrolledBiometricType] = useState<"FACE_ID" | "TOUCH_ID" | null>(null);
+  const [hasAnsweredBiometricPrompt, setHasAnsweredBiometricPrompt] = useState<boolean>(false);
 
   useEffect(() => {
     loadStoredSession();
@@ -35,6 +48,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const savedToken = await Storage.getItem(TOKEN_KEY);
       const savedUserStr = await Storage.getItem(USER_KEY);
+      const bioEnrolled = await Storage.getItem(BIOMETRIC_ENROLLED_KEY);
+      const bioType = await Storage.getItem(BIOMETRIC_TYPE_KEY);
+      const promptAnswered = await Storage.getItem(BIOMETRIC_PROMPT_KEY);
+
+      setIsBiometricEnrolled(bioEnrolled === "true");
+      setEnrolledBiometricType((bioType as "FACE_ID" | "TOUCH_ID") || null);
+      setHasAnsweredBiometricPrompt(promptAnswered === "true");
+
       if (savedToken && savedUserStr) {
         setToken(savedToken);
         setUser(JSON.parse(savedUserStr));
@@ -184,6 +205,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(bioUser);
   };
 
+  const enableBiometrics = async (type: "FACE_ID" | "TOUCH_ID") => {
+    await Storage.setItem(BIOMETRIC_ENROLLED_KEY, "true");
+    await Storage.setItem(BIOMETRIC_TYPE_KEY, type);
+    await Storage.setItem(BIOMETRIC_PROMPT_KEY, "true");
+    setIsBiometricEnrolled(true);
+    setEnrolledBiometricType(type);
+    setHasAnsweredBiometricPrompt(true);
+  };
+
+  const disableBiometrics = async () => {
+    await Storage.setItem(BIOMETRIC_ENROLLED_KEY, "false");
+    setIsBiometricEnrolled(false);
+  };
+
+  const markBiometricPromptAnswered = async () => {
+    await Storage.setItem(BIOMETRIC_PROMPT_KEY, "true");
+    setHasAnsweredBiometricPrompt(true);
+  };
+
+  const resetBiometricPrompt = async () => {
+    await Storage.removeItem(BIOMETRIC_PROMPT_KEY);
+    await Storage.removeItem(BIOMETRIC_ENROLLED_KEY);
+    await Storage.removeItem(BIOMETRIC_TYPE_KEY);
+    setIsBiometricEnrolled(false);
+    setEnrolledBiometricType(null);
+    setHasAnsweredBiometricPrompt(false);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -191,6 +240,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: Boolean(user),
         isLoading,
+        isBiometricEnrolled,
+        enrolledBiometricType,
+        hasAnsweredBiometricPrompt,
+        enableBiometrics,
+        disableBiometrics,
+        markBiometricPromptAnswered,
+        resetBiometricPrompt,
         login,
         register,
         logout,
