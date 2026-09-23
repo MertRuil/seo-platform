@@ -11,7 +11,10 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, pass: string, name: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  continueAsGuest: () => void;
+  continueAsGuest: () => Promise<void>;
+  loginAsDemo: () => Promise<void>;
+  loginWithSocial: (provider: "Apple" | "Google", email?: string, name?: string) => Promise<void>;
+  loginWithBiometrics: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,13 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const savedToken = await Storage.getItem(TOKEN_KEY);
       const savedUserStr = await Storage.getItem(USER_KEY);
-      if (savedToken && savedToken !== "guest-token" && savedUserStr) {
+      if (savedToken && savedUserStr) {
         setToken(savedToken);
         setUser(JSON.parse(savedUserStr));
       } else {
-        // Start fresh as unauthenticated visitor
-        await Storage.removeItem(TOKEN_KEY);
-        await Storage.removeItem(USER_KEY);
         setToken(null);
         setUser(null);
       }
@@ -131,15 +131,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const continueAsGuest = () => {
+  const continueAsGuest = async () => {
     const guestUser: UserProfile = {
       id: "guest-user",
       email: "demo@seoplatform.io",
       name: "Demo Yönetici",
       role: "SEO_SPECIALIST"
     };
+    await Storage.setItem(TOKEN_KEY, "guest-token");
+    await Storage.setItem(USER_KEY, JSON.stringify(guestUser));
     setToken("guest-token");
     setUser(guestUser);
+  };
+
+  const loginAsDemo = async () => {
+    const demoUser: UserProfile = {
+      id: "user-admin",
+      email: "admin@seoplatform.io",
+      name: "Ayberk Çalışkan (Demo)",
+      role: "ADMIN"
+    };
+    await Storage.setItem(TOKEN_KEY, "demo-admin-token");
+    await Storage.setItem(USER_KEY, JSON.stringify(demoUser));
+    setToken("demo-admin-token");
+    setUser(demoUser);
+  };
+
+  const loginWithSocial = async (provider: "Apple" | "Google", email?: string, name?: string) => {
+    const socialUser: UserProfile = {
+      id: `user-${provider.toLowerCase()}-${Date.now()}`,
+      email: email || (provider === "Apple" ? "ayberk@icloud.com" : "ayberkcaliskan@gmail.com"),
+      name: name || (provider === "Apple" ? "Ayberk Çalışkan (Apple)" : "Ayberk Çalışkan (Google)"),
+      role: "ADMIN"
+    };
+    await Storage.setItem(TOKEN_KEY, `${provider.toLowerCase()}-token-${Date.now()}`);
+    await Storage.setItem(USER_KEY, JSON.stringify(socialUser));
+    setToken(`${provider.toLowerCase()}-token-${Date.now()}`);
+    setUser(socialUser);
+  };
+
+  const loginWithBiometrics = async () => {
+    const bioUser: UserProfile = {
+      id: "user-biometric",
+      email: "ayberk@seoplatform.io",
+      name: "Ayberk Çalışkan (Face ID)",
+      role: "ADMIN"
+    };
+    await Storage.setItem(TOKEN_KEY, `bio-token-${Date.now()}`);
+    await Storage.setItem(USER_KEY, JSON.stringify(bioUser));
+    setToken(`bio-token-${Date.now()}`);
+    setUser(bioUser);
   };
 
   return (
@@ -152,7 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
-        continueAsGuest
+        continueAsGuest,
+        loginAsDemo,
+        loginWithSocial,
+        loginWithBiometrics
       }}
     >
       {children}

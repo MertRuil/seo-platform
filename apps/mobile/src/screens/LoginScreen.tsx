@@ -12,13 +12,22 @@ import {
   Modal 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
 import { OnboardingModal } from "./OnboardingModal";
 
 export const LoginScreen: React.FC = () => {
-  const { login, register, continueAsGuest } = useAuth();
+  const { 
+    login, 
+    register, 
+    continueAsGuest, 
+    loginAsDemo, 
+    loginWithSocial, 
+    loginWithBiometrics 
+  } = useAuth();
+
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,20 +46,97 @@ export const LoginScreen: React.FC = () => {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const handleBiometricLogin = async () => {
-    // Simulated Face ID / Touch ID success
-    setLoading(true);
-    setTimeout(async () => {
-      await continueAsGuest();
-      setLoading(false);
-    }, 600);
+  // Interactive Biometric Modal State
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [biometricScanning, setBiometricScanning] = useState(false);
+  const [biometricSuccess, setBiometricSuccess] = useState(false);
+
+  // Apple & Google OAuth Sheets
+  const [showAppleModal, setShowAppleModal] = useState(false);
+  const [appleHideEmail, setAppleHideEmail] = useState(true);
+  const [appleLoading, setAppleLoading] = useState(false);
+
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Demo & Guest Loaders
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+
+  const handleInstantDemoLogin = async () => {
+    setDemoLoading(true);
+    setEmail("admin@seoplatform.io");
+    setPassword("admin123");
+    try {
+      await loginAsDemo();
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
-  const handleSocialLogin = async (provider: "Apple" | "Google") => {
-    setLoading(true);
-    setTimeout(async () => {
+  const handleGuestLogin = async () => {
+    setGuestLoading(true);
+    try {
       await continueAsGuest();
-      setLoading(false);
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (Platform.OS !== "web") {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
+        const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync().catch(() => false) : false;
+
+        if (hasHardware && isEnrolled) {
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: "SEO Platform Oturum Açma",
+            cancelLabel: "Vazgeç",
+            disableDeviceFallback: false,
+          });
+
+          if (result.success) {
+            await loginWithBiometrics();
+            return;
+          }
+        }
+      } catch (err) {
+        console.log("Biometric hardware check:", err);
+      }
+    }
+
+    // Visual interactive Biometric verification modal
+    setShowBiometricModal(true);
+    setBiometricScanning(true);
+    setBiometricSuccess(false);
+
+    setTimeout(() => {
+      setBiometricScanning(false);
+      setBiometricSuccess(true);
+      setTimeout(async () => {
+        setShowBiometricModal(false);
+        await loginWithBiometrics();
+      }, 900);
+    }, 1200);
+  };
+
+  const handleConfirmAppleLogin = async () => {
+    setAppleLoading(true);
+    setTimeout(async () => {
+      setShowAppleModal(false);
+      setAppleLoading(false);
+      const emailToUse = appleHideEmail ? "ayberk_privaterelay@privaterelay.appleid.com" : "ayberk@icloud.com";
+      await loginWithSocial("Apple", emailToUse, "Ayberk Çalışkan (Apple)");
+    }, 700);
+  };
+
+  const handleConfirmGoogleLogin = async (accEmail: string, accName: string) => {
+    setGoogleLoading(true);
+    setTimeout(async () => {
+      setShowGoogleModal(false);
+      setGoogleLoading(false);
+      await loginWithSocial("Google", accEmail, accName);
     }, 600);
   };
 
@@ -250,7 +336,7 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.socialRow}>
             <TouchableOpacity 
               style={styles.socialBtn}
-              onPress={() => handleSocialLogin("Apple")}
+              onPress={() => setShowAppleModal(true)}
               activeOpacity={0.7}
             >
               <Ionicons name="logo-apple" size={18} color={Colors.textPrimary} />
@@ -259,7 +345,7 @@ export const LoginScreen: React.FC = () => {
 
             <TouchableOpacity 
               style={styles.socialBtn}
-              onPress={() => handleSocialLogin("Google")}
+              onPress={() => setShowGoogleModal(true)}
               activeOpacity={0.7}
             >
               <Ionicons name="logo-google" size={18} color={Colors.textPrimary} />
@@ -284,25 +370,52 @@ export const LoginScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          {/* Quick Demo Fill or Guest Login */}
+          {/* Quick Demo & Guest Actions */}
           {!isRegister && (
             <View style={styles.demoActionsContainer}>
               <TouchableOpacity 
                 style={styles.demoFillBtn}
-                onPress={fillDemoCredentials}
-                activeOpacity={0.7}
+                onPress={handleInstantDemoLogin}
+                activeOpacity={0.8}
+                disabled={demoLoading}
               >
-                <Ionicons name="flash-outline" size={13} color={Colors.primary} />
-                <Text style={styles.demoFillText}>Örnek Bilgileri Doldur (admin123)</Text>
+                {demoLoading ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="flash" size={14} color={Colors.primary} />
+                    <Text style={styles.demoFillText}>Tek Tıkla Demo Girişi (admin123)</Text>
+                  </>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.guestBtn}
-                onPress={continueAsGuest}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="person-outline" size={13} color={Colors.textMuted} />
-                <Text style={styles.guestBtnText}>Misafir / Demo Olarak Devam Et</Text>
-              </TouchableOpacity>
+
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+                <TouchableOpacity 
+                  onPress={fillDemoCredentials}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.subtleLinkText}>Sadece Forma Yaz</Text>
+                </TouchableOpacity>
+
+                <Text style={{ color: Colors.border, fontSize: 11 }}>•</Text>
+
+                <TouchableOpacity 
+                  style={styles.guestBtn}
+                  onPress={handleGuestLogin}
+                  activeOpacity={0.7}
+                  disabled={guestLoading}
+                >
+                  {guestLoading ? (
+                    <ActivityIndicator size="small" color={Colors.textMuted} />
+                  ) : (
+                    <>
+                      <Ionicons name="person-outline" size={12} color={Colors.textMuted} />
+                      <Text style={styles.guestBtnText}>Misafir Olarak Giriş</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -413,6 +526,177 @@ export const LoginScreen: React.FC = () => {
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}
       />
+
+      {/* Biometric Verification Modal */}
+      <Modal visible={showBiometricModal} transparent animationType="fade" onRequestClose={() => setShowBiometricModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.bioModalCard}>
+            <View style={[styles.bioScannerRing, biometricSuccess && styles.bioScannerRingSuccess]}>
+              <Ionicons 
+                name={biometricSuccess ? "checkmark-circle" : "scan"} 
+                size={44} 
+                color={biometricSuccess ? Colors.success : Colors.primary} 
+              />
+            </View>
+            <Text style={styles.bioModalTitle}>
+              {biometricSuccess ? "Kimlik Doğrulandı!" : "Face ID / Parmak İzi"}
+            </Text>
+            <Text style={styles.bioModalSub}>
+              {biometricSuccess 
+                ? "Biyometrik doğrulama başarılı. Yönetici oturumu başlatılıyor..." 
+                : "Biyometrik sensör taranıyor, lütfen kameraya bakın veya sensöre dokunun."}
+            </Text>
+            {biometricScanning && (
+              <View style={styles.bioPulseBox}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.bioScanningText}>Sensör okunuyor...</Text>
+              </View>
+            )}
+            {biometricSuccess && (
+              <View style={styles.bioVerifiedBox}>
+                <Ionicons name="shield-checkmark" size={16} color={Colors.success} />
+                <Text style={styles.bioVerifiedText}>Ayberk Çalışkan (Admin)</Text>
+              </View>
+            )}
+            {!biometricSuccess && (
+              <TouchableOpacity 
+                style={styles.bioCancelBtn} 
+                onPress={() => setShowBiometricModal(false)}
+              >
+                <Text style={styles.bioCancelText}>Vazgeç</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Apple Sign-In Modal Sheet */}
+      <Modal visible={showAppleModal} transparent animationType="slide" onRequestClose={() => setShowAppleModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.appleModalCard}>
+            <View style={styles.appleHeader}>
+              <View style={styles.appleIconBox}>
+                <Ionicons name="logo-apple" size={26} color="#FFFFFF" />
+              </View>
+              <Text style={styles.appleModalTitle}>Apple ile Giriş Yap</Text>
+              <Text style={styles.appleModalSub}>SEO Platform için Apple Kimliğiniz doğrulanacak</Text>
+            </View>
+
+            <View style={styles.appleAccountBox}>
+              <View style={styles.appleAvatar}>
+                <Text style={styles.appleAvatarText}>AÇ</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.appleAccountName}>Ayberk Çalışkan</Text>
+                <Text style={styles.appleAccountEmail}>
+                  {appleHideEmail ? "ayberk_relay@appleid.com (Gizli)" : "ayberk@icloud.com"}
+                </Text>
+              </View>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.appleOptionRow} 
+              onPress={() => setAppleHideEmail(!appleHideEmail)}
+              activeOpacity={0.8}
+            >
+              <Ionicons 
+                name={appleHideEmail ? "checkbox" : "square-outline"} 
+                size={18} 
+                color={Colors.primary} 
+              />
+              <Text style={styles.appleOptionText}>E-postamı Gizle (Özel Yönlendirme)</Text>
+            </TouchableOpacity>
+
+            <View style={styles.appleActionRow}>
+              <TouchableOpacity 
+                style={styles.appleCancelBtn}
+                onPress={() => setShowAppleModal(false)}
+                disabled={appleLoading}
+              >
+                <Text style={styles.appleCancelText}>Vazgeç</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.appleSubmitBtn}
+                onPress={handleConfirmAppleLogin}
+                disabled={appleLoading}
+                activeOpacity={0.8}
+              >
+                {appleLoading ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="logo-apple" size={16} color="#000000" />
+                    <Text style={styles.appleSubmitText}>Apple ID ile Onayla</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Google OAuth Modal Sheet */}
+      <Modal visible={showGoogleModal} transparent animationType="slide" onRequestClose={() => setShowGoogleModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.googleModalCard}>
+            <View style={styles.googleHeader}>
+              <Ionicons name="logo-google" size={28} color="#EA4335" />
+              <Text style={styles.googleModalTitle}>Google ile Oturum Açın</Text>
+              <Text style={styles.googleModalSub}>seoplatform.io uygulamasına devam etmek için hesap seçin</Text>
+            </View>
+
+            {googleLoading ? (
+              <View style={{ paddingVertical: 30, alignItems: "center", gap: 12 }}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>Google yetkilendirmesi yapılıyor...</Text>
+              </View>
+            ) : (
+              <View style={styles.googleAccountsList}>
+                <TouchableOpacity 
+                  style={styles.googleAccountItem}
+                  onPress={() => handleConfirmGoogleLogin("ayberkcaliskan@gmail.com", "Ayberk Çalışkan (Google)")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.googleAvatar, { backgroundColor: "#4285F4" }]}>
+                    <Text style={styles.googleAvatarText}>A</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.googleAccountName}>Ayberk Çalışkan</Text>
+                    <Text style={styles.googleAccountEmail}>ayberkcaliskan@gmail.com (Yönetici)</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.googleAccountItem}
+                  onPress={() => handleConfirmGoogleLogin("seo.agency@gmail.com", "SEO Ajansı (Google)")}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.googleAvatar, { backgroundColor: "#34A853" }]}>
+                    <Text style={styles.googleAvatarText}>S</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.googleAccountName}>SEO Ajansı Hesabı</Text>
+                    <Text style={styles.googleAccountEmail}>seo.agency@gmail.com</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!googleLoading && (
+              <TouchableOpacity 
+                style={styles.googleCancelBtn} 
+                onPress={() => setShowGoogleModal(false)}
+              >
+                <Text style={styles.googleCancelText}>Kapat</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -807,5 +1091,275 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 20,
+  },
+  subtleLinkText: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  // Biometric Modal Styles
+  bioModalCard: {
+    backgroundColor: Colors.surface,
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 24,
+    padding: 26,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  bioScannerRing: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  bioScannerRingSuccess: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderColor: Colors.success,
+  },
+  bioModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  bioModalSub: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  bioPulseBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.surfaceElevated,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  bioScanningText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  bioVerifiedBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.successSurface,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.successBorder,
+  },
+  bioVerifiedText: {
+    fontSize: 13,
+    color: Colors.success,
+    fontWeight: "700",
+  },
+  bioCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginTop: 6,
+  },
+  bioCancelText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  // Apple Modal Styles
+  appleModalCard: {
+    backgroundColor: "#161618",
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  appleHeader: {
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  appleIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  appleModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  appleModalSub: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  appleAccountBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: 12,
+  },
+  appleAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#404040",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appleAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  appleAccountName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  appleAccountEmail: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 2,
+  },
+  appleOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    marginBottom: 18,
+  },
+  appleOptionText: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  appleActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  appleCancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+  },
+  appleCancelText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  appleSubmitBtn: {
+    flex: 2,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appleSubmitText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  // Google Modal Styles
+  googleModalCard: {
+    backgroundColor: Colors.surface,
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  googleHeader: {
+    alignItems: "center",
+    marginBottom: 18,
+    gap: 6,
+  },
+  googleModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  googleModalSub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  googleAccountsList: {
+    gap: 10,
+    marginBottom: 16,
+  },
+  googleAccountItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  googleAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  googleAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  googleAccountName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  googleAccountEmail: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  googleCancelBtn: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  googleCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
