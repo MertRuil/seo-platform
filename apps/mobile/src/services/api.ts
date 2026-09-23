@@ -25,8 +25,11 @@ import {
   SeoOpportunityCard
 } from "../types";
 
-// Default API URL (can be customized via settings in app)
-let API_BASE_URL = "http://localhost:8000/api/v1";
+// Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
+let API_BASE_URL = 
+  (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) 
+    ? process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "")
+    : "http://localhost:8000/api/v1";
 
 export function setApiBaseUrl(url: string) {
   API_BASE_URL = url.replace(/\/$/, "");

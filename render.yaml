@@ -5,9 +5,13 @@ services:
     dockerfilePath: Dockerfile
     plan: free
     region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: DEBUG
+        value: "false"
       - key: APP_SECRET_KEY
         generateValue: true
       - key: ENCRYPTION_KEY
@@ -15,15 +19,11 @@ services:
       - key: INITIAL_ADMIN_EMAIL
         value: admin@calpeo.io
       - key: INITIAL_ADMIN_PASSWORD
-        value: Admin12345!
+        value: CalpeoAdmin2026!
+      # Live Supabase PostgreSQL Connection (Async & Sync)
       - key: DATABASE_URL
-        fromDatabase:
-          name: calpeo-seo-db
-          property: connectionString
-
-databases:
-  - name: calpeo-seo-db
-    plan: free
-    region: frankfurt
-    databaseName: calpeo_db
-    user: postgres
+        value: postgresql+asyncpg://postgres.wlrrdasqofpewvjtfkgs:CINHct6Og9WwuRQVckcF4PqQ@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+      - key: DATABASE_SYNC_URL
+        value: postgresql://postgres.wlrrdasqofpewvjtfkgs:CINHct6Og9WwuRQVckcF4PqQ@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+      - key: FRONTEND_URL
+        value: https://seo-platform-web.vercel.app

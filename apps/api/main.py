@@ -105,7 +105,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration (Support both Next.js Web and Expo Mobile Web)
+# CORS Configuration (Support Next.js Web, Expo Mobile Web, Vercel, Render, Railway)
 origins = [
     settings.FRONTEND_URL,
     "http://localhost:3000",
@@ -118,7 +118,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.vercel\.app|.*\.onrender\.com|.*\.railway\.app)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -140,7 +140,20 @@ async def global_unhandled_exception_handler(request: Request, exc: Exception):
         content={"detail": "Sunucu tarafında beklenmeyen bir hata meydana geldi. Lütfen sistem yöneticisi ile iletişime geçin."}
     )
 
-# Health Endpoints (Section 167)
+# Root & Cloud Healthcheck Endpoints (Render, Railway, Kubernetes)
+@app.get("/", tags=["Health"])
+async def root_status():
+    return {
+        "service": "Autonomous AI SEO Platform API",
+        "status": "online",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "ok", "service": "calpeo-seo-api"}
+
 @app.get("/health/live", tags=["Health"])
 async def health_live():
     return {"status": "alive", "timestamp": "ok"}
