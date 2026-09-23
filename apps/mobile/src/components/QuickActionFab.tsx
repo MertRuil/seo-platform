@@ -270,8 +270,8 @@ export const QuickActionFab: React.FC<QuickActionFabProps> = ({ onOpenSearch }) 
 const styles = StyleSheet.create({
   fabButton: {
     position: "absolute",
-    right: 20,
-    bottom: Platform.OS === "ios" ? 78 : 68,
+    right: 18,
+    bottom: Platform.OS === "ios" ? 104 : 94,
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -302,6 +302,9 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 36 : 24,
     borderWidth: 1,
     borderColor: Colors.border,
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   handle: {
     width: 38,

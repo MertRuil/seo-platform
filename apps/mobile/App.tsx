@@ -157,10 +157,12 @@ const styles = StyleSheet.create({
     borderRightWidth: isWeb ? 1 : 0,
     borderColor: "rgba(255, 255, 255, 0.08)",
     overflow: "hidden",
+    position: "relative",
   },
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+    position: "relative",
   },
   screenContainer: {
     flex: 1,

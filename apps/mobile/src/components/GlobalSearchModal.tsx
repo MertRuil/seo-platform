@@ -311,6 +311,9 @@ const styles = StyleSheet.create({
     height: "88%",
     borderWidth: 1,
     borderColor: Colors.border,
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   header: {
     flexDirection: "row",
