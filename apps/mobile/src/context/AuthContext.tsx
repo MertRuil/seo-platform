@@ -14,7 +14,7 @@ interface AuthContextType {
   continueAsGuest: () => Promise<void>;
   loginAsDemo: () => Promise<void>;
   loginWithSocial: (provider: "Apple" | "Google", email?: string, name?: string) => Promise<void>;
-  loginWithBiometrics: () => Promise<void>;
+  loginWithBiometrics: (method?: "FACE_ID" | "TOUCH_ID") => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -170,11 +170,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(socialUser);
   };
 
-  const loginWithBiometrics = async () => {
+  const loginWithBiometrics = async (method?: "FACE_ID" | "TOUCH_ID") => {
+    const isTouch = method === "TOUCH_ID";
     const bioUser: UserProfile = {
       id: "user-biometric",
       email: "ayberk@seoplatform.io",
-      name: "Ayberk Çalışkan (Face ID)",
+      name: isTouch ? "Ayberk Çalışkan (Touch ID)" : "Ayberk Çalışkan (Face ID)",
       role: "ADMIN"
     };
     await Storage.setItem(TOKEN_KEY, `bio-token-${Date.now()}`);

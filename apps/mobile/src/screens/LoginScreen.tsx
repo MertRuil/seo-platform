@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -46,10 +46,61 @@ export const LoginScreen: React.FC = () => {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Interactive Biometric Modal State
+  // Biometric Detection & State
+  type BiometricType = "FACIAL_RECOGNITION" | "FINGERPRINT" | "BOTH" | "NONE";
+  const [biometricType, setBiometricType] = useState<BiometricType>("FACIAL_RECOGNITION");
+  const [selectedBioTab, setSelectedBioTab] = useState<"FACE_ID" | "TOUCH_ID">("FACE_ID");
   const [showBiometricModal, setShowBiometricModal] = useState(false);
-  const [biometricScanning, setBiometricScanning] = useState(false);
-  const [biometricSuccess, setBiometricSuccess] = useState(false);
+  const [bioStatus, setBioStatus] = useState<"IDLE" | "SCANNING" | "SUCCESS" | "FAILED">("IDLE");
+  const [bioError, setBioError] = useState<string | null>(null);
+
+  // Detect Hardware Capabilities on Mount
+  useEffect(() => {
+    let isMounted = true;
+    const checkBiometricHardware = async () => {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
+        const types: LocalAuthentication.AuthenticationType[] = 
+          await LocalAuthentication.supportedAuthenticationTypesAsync().catch(() => [] as LocalAuthentication.AuthenticationType[]);
+
+        const hasFace = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
+        const hasFingerprint = types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT);
+
+        if (!isMounted) return;
+
+        if (hasFace && hasFingerprint) {
+          setBiometricType("BOTH");
+          setSelectedBioTab("FACE_ID");
+        } else if (hasFace) {
+          setBiometricType("FACIAL_RECOGNITION");
+          setSelectedBioTab("FACE_ID");
+        } else if (hasFingerprint) {
+          setBiometricType("FINGERPRINT");
+          setSelectedBioTab("TOUCH_ID");
+        } else {
+          // Web / Simulator heuristic: iOS/Mac defaults to Face ID, Android/Windows to Touch ID
+          const isApple = Platform.OS === "ios" || (Platform.OS === "web" && typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/i.test(navigator.userAgent));
+          if (isApple) {
+            setBiometricType("FACIAL_RECOGNITION");
+            setSelectedBioTab("FACE_ID");
+          } else {
+            setBiometricType("FINGERPRINT");
+            setSelectedBioTab("TOUCH_ID");
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setBiometricType("FACIAL_RECOGNITION");
+          setSelectedBioTab("FACE_ID");
+        }
+      }
+    };
+
+    checkBiometricHardware();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Apple & Google OAuth Sheets
   const [showAppleModal, setShowAppleModal] = useState(false);
@@ -84,41 +135,63 @@ export const LoginScreen: React.FC = () => {
   };
 
   const handleBiometricLogin = async () => {
+    setBioStatus("IDLE");
+    setBioError(null);
+
+    // If on native device with enrolled biometrics, attempt native prompt directly
     if (Platform.OS !== "web") {
       try {
         const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
         const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync().catch(() => false) : false;
 
         if (hasHardware && isEnrolled) {
+          const isFace = selectedBioTab === "FACE_ID" || biometricType === "FACIAL_RECOGNITION";
           const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: "SEO Platform Oturum Açma",
+            promptMessage: isFace ? "Face ID ile Kimliğinizi Doğrulayın" : "Touch ID / Parmak İzinizi Okutun",
             cancelLabel: "Vazgeç",
+            fallbackLabel: "Şifre ile Giriş",
             disableDeviceFallback: false,
           });
 
           if (result.success) {
-            await loginWithBiometrics();
+            await loginWithBiometrics(isFace ? "FACE_ID" : "TOUCH_ID");
+            return;
+          } else if (result.error === "user_cancel" || result.error === "app_cancel") {
+            // User cancelled native prompt
             return;
           }
         }
       } catch (err) {
-        console.log("Biometric hardware check:", err);
+        console.log("Native biometric error, showing interactive modal:", err);
       }
     }
 
-    // Visual interactive Biometric verification modal
+    // On Web / Simulator or when manual verification is requested:
+    // Open interactive prompt modal in IDLE state (NO AUTOMATIC LOGIN!)
     setShowBiometricModal(true);
-    setBiometricScanning(true);
-    setBiometricSuccess(false);
+  };
 
-    setTimeout(() => {
-      setBiometricScanning(false);
-      setBiometricSuccess(true);
+  const startBiometricScan = (forceFail = false) => {
+    setBioStatus("SCANNING");
+    setBioError(null);
+
+    setTimeout(async () => {
+      if (forceFail) {
+        setBioStatus("FAILED");
+        setBioError(
+          selectedBioTab === "FACE_ID"
+            ? "Yüzünüz tanınamadı. Lütfen doğrudan kameraya bakın veya şifrenizle giriş yapın."
+            : "Parmak izi eşleşmedi. Lütfen sensörü temizleyip tekrar dokunun."
+        );
+        return;
+      }
+
+      setBioStatus("SUCCESS");
       setTimeout(async () => {
         setShowBiometricModal(false);
-        await loginWithBiometrics();
-      }, 900);
-    }, 1200);
+        await loginWithBiometrics(selectedBioTab);
+      }, 700);
+    }, 1100);
   };
 
   const handleConfirmAppleLogin = async () => {
@@ -314,15 +387,30 @@ export const LoginScreen: React.FC = () => {
             )}
           </TouchableOpacity>
 
-          {/* Biometric Login (Face ID / Touch ID) */}
+          {/* Biometric Login (Face ID / Touch ID / Hardware Adaptive) */}
           {!isRegister && (
             <TouchableOpacity 
               style={styles.biometricBtn}
               onPress={handleBiometricLogin}
               activeOpacity={0.7}
             >
-              <Ionicons name="scan-outline" size={18} color={Colors.primary} />
-              <Text style={styles.biometricBtnText}>Face ID / Biyometrik Giriş</Text>
+              <Ionicons 
+                name={biometricType === "FINGERPRINT" ? "finger-print-outline" : "scan-outline"} 
+                size={18} 
+                color={Colors.primary} 
+              />
+              <Text style={styles.biometricBtnText}>
+                {biometricType === "FACIAL_RECOGNITION" && "Face ID ile Giriş Yap"}
+                {biometricType === "FINGERPRINT" && "Touch ID ile Giriş Yap"}
+                {biometricType === "BOTH" && "Face ID & Parmak İzi ile Giriş"}
+                {biometricType === "NONE" && "Biyometrik Giriş Yap"}
+              </Text>
+              <View style={styles.bioHardwareBadge}>
+                <View style={styles.bioHardwareDot} />
+                <Text style={styles.bioHardwareBadgeText}>
+                  {biometricType === "FACIAL_RECOGNITION" ? "Face ID" : biometricType === "FINGERPRINT" ? "Touch ID" : "Biyometrik"}
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -527,44 +615,237 @@ export const LoginScreen: React.FC = () => {
         onClose={() => setShowOnboarding(false)}
       />
 
-      {/* Biometric Verification Modal */}
-      <Modal visible={showBiometricModal} transparent animationType="fade" onRequestClose={() => setShowBiometricModal(false)}>
+      {/* Biometric Verification Modal (Adaptive Face ID / Touch ID) */}
+      <Modal 
+        visible={showBiometricModal} 
+        transparent 
+        animationType="fade" 
+        onRequestClose={() => {
+          if (bioStatus !== "SCANNING") setShowBiometricModal(false);
+        }}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.bioModalCard}>
-            <View style={[styles.bioScannerRing, biometricSuccess && styles.bioScannerRingSuccess]}>
-              <Ionicons 
-                name={biometricSuccess ? "checkmark-circle" : "scan"} 
-                size={44} 
-                color={biometricSuccess ? Colors.success : Colors.primary} 
-              />
+            {/* Device Hardware Detection Tag */}
+            <View style={styles.bioDeviceHardwareTag}>
+              <View style={styles.bioDeviceHardwareDot} />
+              <Text style={styles.bioDeviceHardwareText}>
+                {biometricType === "FACIAL_RECOGNITION" && "Cihaz Donanımı: TrueDepth Face ID"}
+                {biometricType === "FINGERPRINT" && "Cihaz Donanımı: Touch ID Sensörü"}
+                {biometricType === "BOTH" && "Cihaz Donanımı: Çoklu Biyometrik (Face + Touch)"}
+                {biometricType === "NONE" && "Biyometrik Kimlik Doğrulama"}
+              </Text>
             </View>
-            <Text style={styles.bioModalTitle}>
-              {biometricSuccess ? "Kimlik Doğrulandı!" : "Face ID / Parmak İzi"}
-            </Text>
-            <Text style={styles.bioModalSub}>
-              {biometricSuccess 
-                ? "Biyometrik doğrulama başarılı. Yönetici oturumu başlatılıyor..." 
-                : "Biyometrik sensör taranıyor, lütfen kameraya bakın veya sensöre dokunun."}
-            </Text>
-            {biometricScanning && (
-              <View style={styles.bioPulseBox}>
-                <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.bioScanningText}>Sensör okunuyor...</Text>
+
+            {/* Segmented Mode Switcher (Face ID vs Touch ID) */}
+            <View style={styles.bioTabContainer}>
+              <TouchableOpacity 
+                style={[styles.bioTabBtn, selectedBioTab === "FACE_ID" && styles.bioTabBtnActive]} 
+                onPress={() => {
+                  setSelectedBioTab("FACE_ID");
+                  setBioStatus("IDLE");
+                  setBioError(null);
+                }}
+                disabled={bioStatus === "SCANNING"}
+                activeOpacity={0.8}
+              >
+                <Ionicons 
+                  name="scan-outline" 
+                  size={14} 
+                  color={selectedBioTab === "FACE_ID" ? "#FFFFFF" : Colors.textMuted} 
+                />
+                <Text style={[styles.bioTabText, selectedBioTab === "FACE_ID" && styles.bioTabTextActive]}>
+                  Face ID (Yüz)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.bioTabBtn, selectedBioTab === "TOUCH_ID" && styles.bioTabBtnActive]} 
+                onPress={() => {
+                  setSelectedBioTab("TOUCH_ID");
+                  setBioStatus("IDLE");
+                  setBioError(null);
+                }}
+                disabled={bioStatus === "SCANNING"}
+                activeOpacity={0.8}
+              >
+                <Ionicons 
+                  name="finger-print-outline" 
+                  size={14} 
+                  color={selectedBioTab === "TOUCH_ID" ? "#FFFFFF" : Colors.textMuted} 
+                />
+                <Text style={[styles.bioTabText, selectedBioTab === "TOUCH_ID" && styles.bioTabTextActive]}>
+                  Touch ID (Parmak İzi)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Mode-Specific Graphic */}
+            {selectedBioTab === "FACE_ID" ? (
+              <View style={styles.bioReticleContainer}>
+                <View 
+                  style={[
+                    styles.bioReticleBox, 
+                    bioStatus === "SUCCESS" && styles.bioReticleBoxSuccess,
+                    bioStatus === "FAILED" && styles.bioReticleBoxFailed,
+                  ]}
+                >
+                  {/* Viewfinder Corner Markers */}
+                  <View style={[styles.bioCornerMarker, styles.bioCornerTL, bioStatus === "SUCCESS" && { borderColor: Colors.success }, bioStatus === "FAILED" && { borderColor: Colors.danger }]} />
+                  <View style={[styles.bioCornerMarker, styles.bioCornerTR, bioStatus === "SUCCESS" && { borderColor: Colors.success }, bioStatus === "FAILED" && { borderColor: Colors.danger }]} />
+                  <View style={[styles.bioCornerMarker, styles.bioCornerBL, bioStatus === "SUCCESS" && { borderColor: Colors.success }, bioStatus === "FAILED" && { borderColor: Colors.danger }]} />
+                  <View style={[styles.bioCornerMarker, styles.bioCornerBR, bioStatus === "SUCCESS" && { borderColor: Colors.success }, bioStatus === "FAILED" && { borderColor: Colors.danger }]} />
+
+                  {bioStatus === "SUCCESS" ? (
+                    <Ionicons name="checkmark-circle" size={54} color={Colors.success} />
+                  ) : bioStatus === "FAILED" ? (
+                    <Ionicons name="alert-circle" size={54} color={Colors.danger} />
+                  ) : (
+                    <Ionicons 
+                      name={bioStatus === "SCANNING" ? "happy-outline" : "person-outline"} 
+                      size={52} 
+                      color={Colors.primary} 
+                    />
+                  )}
+
+                  {/* Scanning beam line */}
+                  {bioStatus === "SCANNING" && (
+                    <View style={styles.bioScanningBeam} />
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View 
+                style={[
+                  styles.bioTouchRing, 
+                  bioStatus === "SUCCESS" && styles.bioTouchRingSuccess,
+                  bioStatus === "FAILED" && styles.bioTouchRingFailed,
+                ]}
+              >
+                {bioStatus === "SUCCESS" ? (
+                  <Ionicons name="checkmark-circle" size={54} color={Colors.success} />
+                ) : bioStatus === "FAILED" ? (
+                  <Ionicons name="close-circle" size={54} color={Colors.danger} />
+                ) : (
+                  <Ionicons 
+                    name="finger-print" 
+                    size={52} 
+                    color={bioStatus === "SCANNING" ? Colors.accent : Colors.primary} 
+                  />
+                )}
               </View>
             )}
-            {biometricSuccess && (
+
+            {/* Dynamic Title */}
+            <Text style={styles.bioModalTitle}>
+              {bioStatus === "SUCCESS" 
+                ? "Kimlik Doğrulandı!" 
+                : bioStatus === "FAILED" 
+                ? "Doğrulama Başarısız" 
+                : bioStatus === "SCANNING"
+                ? (selectedBioTab === "FACE_ID" ? "Yüz Taranıyor..." : "Parmak İzi Okunuyor...")
+                : (selectedBioTab === "FACE_ID" ? "Face ID İsteniyor" : "Parmak İzi İsteniyor")}
+            </Text>
+
+            {/* Dynamic Subtitle */}
+            <Text style={styles.bioModalSub}>
+              {bioStatus === "SUCCESS"
+                ? "Biyometrik doğrulama onaylandı. Yönetici oturumu başlatılıyor..."
+                : bioStatus === "FAILED"
+                ? (bioError || "Sensör eşleşmeyi doğrulayamadı. Lütfen tekrar deneyin.")
+                : bioStatus === "SCANNING"
+                ? (selectedBioTab === "FACE_ID" 
+                    ? "TrueDepth 3D yüz haritası analiz ediliyor, lütfen kameraya bakın..." 
+                    : "Parmak izi hatları taranıyor, parmağınızı kaldırmayın...")
+                : (selectedBioTab === "FACE_ID"
+                    ? "Kameraya doğrudan bakın ve yüz doğrulaması için aşağıdaki butona dokunun."
+                    : "Parmağınızı sensöre yerleştirin ve doğrulamak için aşağıdaki butona basın.")}
+            </Text>
+
+            {/* Explicit Prompt Actions - Requiring User Action */}
+            {bioStatus === "IDLE" && (
+              selectedBioTab === "FACE_ID" ? (
+                <TouchableOpacity 
+                  style={styles.bioActionPrimaryBtn} 
+                  onPress={() => startBiometricScan(false)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="scan" size={18} color="#FFFFFF" />
+                  <Text style={styles.bioActionPrimaryText}>Yüzümü Tara ve Doğrula</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.bioTouchSensorPad} 
+                  onPress={() => startBiometricScan(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="finger-print" size={20} color={Colors.primary} />
+                  <Text style={styles.bioTouchSensorPadText}>Sensöre Dokunun (Doğrula)</Text>
+                </TouchableOpacity>
+              )
+            )}
+
+            {/* Scanning Indicator */}
+            {bioStatus === "SCANNING" && (
+              <View style={styles.bioScanningBox}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.bioScanningText}>
+                  {selectedBioTab === "FACE_ID" ? "Yüz profili taranıyor..." : "Parmak izi sensörü okunuyor..."}
+                </Text>
+              </View>
+            )}
+
+            {/* Verified Badge */}
+            {bioStatus === "SUCCESS" && (
               <View style={styles.bioVerifiedBox}>
                 <Ionicons name="shield-checkmark" size={16} color={Colors.success} />
-                <Text style={styles.bioVerifiedText}>Ayberk Çalışkan (Admin)</Text>
+                <Text style={styles.bioVerifiedText}>
+                  {selectedBioTab === "FACE_ID" ? "Ayberk Çalışkan (Face ID)" : "Ayberk Çalışkan (Touch ID)"}
+                </Text>
               </View>
             )}
-            {!biometricSuccess && (
-              <TouchableOpacity 
-                style={styles.bioCancelBtn} 
-                onPress={() => setShowBiometricModal(false)}
-              >
-                <Text style={styles.bioCancelText}>Vazgeç</Text>
-              </TouchableOpacity>
+
+            {/* Failed Error Message & Retry */}
+            {bioStatus === "FAILED" && (
+              <>
+                <View style={styles.bioErrorBox}>
+                  <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+                  <Text style={styles.bioErrorText}>
+                    {bioError || "Doğrulama gerçekleştirilemedi."}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.bioRetryBtn} 
+                  onPress={() => startBiometricScan(false)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                  <Text style={styles.bioRetryText}>
+                    {selectedBioTab === "FACE_ID" ? "Tekrar Yüz Tara" : "Tekrar Sensöre Dokun"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Subtle Simulation & Cancel Actions */}
+            {bioStatus !== "SCANNING" && bioStatus !== "SUCCESS" && (
+              <>
+                <TouchableOpacity 
+                  style={styles.bioSimFailBtn}
+                  onPress={() => startBiometricScan(true)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.bioSimFailText}>Başarısız Eşleşme Simülasyonu Test Et</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.bioCancelBtn} 
+                  onPress={() => setShowBiometricModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.bioCancelText}>Vazgeç / Şifreyle Giriş</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -1098,31 +1379,199 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textDecorationLine: "underline",
   },
+  bioHardwareBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  bioHardwareDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
+  },
+  bioHardwareBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.primary,
+    letterSpacing: 0.3,
+  },
   // Biometric Modal Styles
   bioModalCard: {
     backgroundColor: Colors.surface,
     width: "100%",
-    maxWidth: 360,
-    borderRadius: 24,
-    padding: 26,
+    maxWidth: 380,
+    borderRadius: 28,
+    padding: 24,
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.45,
+    shadowRadius: 32,
+    elevation: 20,
   },
-  bioScannerRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+  bioDeviceHardwareTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    marginBottom: 16,
+  },
+  bioDeviceHardwareDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+  },
+  bioDeviceHardwareText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontWeight: "600",
+  },
+  bioTabContainer: {
+    flexDirection: "row",
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 14,
+    padding: 4,
+    gap: 4,
+    width: "100%",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  bioTabBtn: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: Colors.primary,
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  bioScannerRingSuccess: {
+  bioTabBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  bioTabText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: "600",
+  },
+  bioTabTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  // Face ID Reticle Viewfinder
+  bioReticleContainer: {
+    width: 130,
+    height: 130,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    position: "relative",
+  },
+  bioReticleBox: {
+    width: 120,
+    height: 120,
+    borderRadius: 24,
+    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.2)",
+    position: "relative",
+  },
+  bioReticleBoxSuccess: {
     backgroundColor: "rgba(16, 185, 129, 0.12)",
     borderColor: Colors.success,
+  },
+  bioReticleBoxFailed: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    borderColor: Colors.danger,
+  },
+  bioCornerMarker: {
+    position: "absolute",
+    width: 16,
+    height: 16,
+    borderColor: Colors.primary,
+  },
+  bioCornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 8,
+  },
+  bioCornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 8,
+  },
+  bioCornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 8,
+  },
+  bioCornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 8,
+  },
+  bioScanningBeam: {
+    position: "absolute",
+    top: "45%",
+    left: 8,
+    right: 8,
+    height: 2,
+    backgroundColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  // Touch ID Sensor Ring
+  bioTouchRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+  },
+  bioTouchRingSuccess: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderColor: Colors.success,
+    shadowColor: Colors.success,
+  },
+  bioTouchRingFailed: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    borderColor: Colors.danger,
+    shadowColor: Colors.danger,
   },
   bioModalTitle: {
     fontSize: 18,
@@ -1136,17 +1585,57 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 18,
+    paddingHorizontal: 8,
   },
-  bioPulseBox: {
+  // Explicit Action Buttons
+  bioActionPrimaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    backgroundColor: Colors.primary,
+    paddingVertical: 13,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  bioActionPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bioTouchSensorPad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    width: "100%",
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    paddingVertical: 13,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  bioTouchSensorPadText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  bioScanningBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: Colors.surfaceElevated,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 12,
+    width: "100%",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
   },
   bioScanningText: {
     fontSize: 13,
@@ -1158,21 +1647,68 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     backgroundColor: Colors.successSurface,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.successBorder,
+    marginBottom: 12,
+    width: "100%",
+    justifyContent: "center",
   },
   bioVerifiedText: {
     fontSize: 13,
     color: Colors.success,
     fontWeight: "700",
   },
-  bioCancelBtn: {
+  bioErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.dangerSurface,
     paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dangerBorder,
+    marginBottom: 12,
+    width: "100%",
+  },
+  bioErrorText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.danger,
+    lineHeight: 16,
+  },
+  bioRetryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    width: "100%",
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 10,
+  },
+  bioRetryText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  bioSimFailBtn: {
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  bioSimFailText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
+  bioCancelBtn: {
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    marginTop: 6,
+    marginTop: 2,
   },
   bioCancelText: {
     color: Colors.textMuted,
