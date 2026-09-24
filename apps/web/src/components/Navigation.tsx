@@ -26,6 +26,11 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  KeyRound,
+  Users,
+  PenTool,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 
 interface NavItem {
@@ -46,11 +51,28 @@ const navGroups: NavGroup[] = [
     items: [
       { name: "Genel Görünüm", href: "/", icon: BarChart3 },
       { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "pending" },
+      { name: "AI SEO Asistanı", href: "/ai", icon: Bot },
     ],
   },
   {
-    label: "Görünürlük",
-    items: [{ name: "Arama Performansı", href: "/performance", icon: TrendingUp }],
+    label: "Görünürlük & Sıralama",
+    items: [
+      { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
+      { name: "Anahtar Kelimeler", href: "/keywords", icon: KeyRound },
+      { name: "GEO (AI Görünürlük)", href: "/geo", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Rakipler & Pazar",
+    items: [
+      { name: "Rakip Analizi & Gap", href: "/competitors", icon: Users },
+    ],
+  },
+  {
+    label: "İçerik & Optimizasyon",
+    items: [
+      { name: "İçerik Optimizasyonu", href: "/content", icon: PenTool },
+    ],
   },
   {
     label: "Site & Teknik Sağlık",

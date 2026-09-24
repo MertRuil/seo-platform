@@ -462,3 +462,538 @@ export const DEMO_AUDIT: AuditRow[] = [
   { time: "00:15:30", user: "Sistem (crawler)", action: "TARAMA_TAMAMLANDI", target: "https://flagship-store.com", detail: "124 sayfa tarandı ve indeks durumu güncellendi.", ip: "127.0.0.1" },
   { time: "00:10:02", user: "admin@calpeo.io", action: "OTURUM_AÇILDI", target: "JWT oturumu", detail: "HMAC-SHA256 imzalı oturum başlatıldı.", ip: "127.0.0.1" },
 ];
+
+// ==========================================
+// 1. Keywords (Rank Tracker & Explorer)
+// ==========================================
+export interface KeywordItem {
+  id: string;
+  keyword: string;
+  current_pos: number;
+  prev_pos: number;
+  change: number;
+  volume: number;
+  difficulty: number;
+  cpc: number;
+  intent: "TRANSACTIONAL" | "COMMERCIAL" | "INFORMATIONAL" | "NAVIGATIONAL";
+  target_url: string;
+  trend_7d: number[];
+  serp_features?: string[];
+  checked_at: string;
+}
+
+export interface KeywordResearchItem {
+  keyword: string;
+  volume: number;
+  difficulty: number;
+  cpc: number;
+  intent: "TRANSACTIONAL" | "COMMERCIAL" | "INFORMATIONAL" | "NAVIGATIONAL";
+  type: "LONG_TAIL" | "QUESTION" | "RELATED" | "PAA";
+  has_ai_overview: boolean;
+}
+
+export interface KeywordsData {
+  trackedCount: number;
+  top3Count: number;
+  top10Count: number;
+  avgPosition: number;
+  totalVolume: number;
+  keywords: KeywordItem[];
+  researchSuggestions: KeywordResearchItem[];
+}
+
+export const DEMO_KEYWORDS: KeywordsData = {
+  trackedCount: 24,
+  top3Count: 8,
+  top10Count: 17,
+  avgPosition: 6.4,
+  totalVolume: 142800,
+  keywords: [
+    {
+      id: "kw-1",
+      keyword: "otonom seo platformu",
+      current_pos: 1,
+      prev_pos: 2,
+      change: 1,
+      volume: 8400,
+      difficulty: 32,
+      cpc: 14.5,
+      intent: "COMMERCIAL",
+      target_url: "https://flagship-store.com/",
+      trend_7d: [3, 2, 2, 2, 1, 1, 1],
+      serp_features: ["AI Overview", "Featured Snippet", "SiteLinks"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-2",
+      keyword: "yapay zeka canonical duzeltme",
+      current_pos: 2,
+      prev_pos: 4,
+      change: 2,
+      volume: 5200,
+      difficulty: 28,
+      cpc: 18.2,
+      intent: "TRANSACTIONAL",
+      target_url: "https://flagship-store.com/ozellikler/canonical",
+      trend_7d: [5, 4, 4, 3, 3, 2, 2],
+      serp_features: ["AI Overview", "People Also Ask"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-3",
+      keyword: "generative engine optimization turkiye",
+      current_pos: 3,
+      prev_pos: 5,
+      change: 2,
+      volume: 6800,
+      difficulty: 35,
+      cpc: 22.0,
+      intent: "COMMERCIAL",
+      target_url: "https://flagship-store.com/geo",
+      trend_7d: [7, 6, 5, 4, 4, 3, 3],
+      serp_features: ["AI Overview", "Video Pack"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-4",
+      keyword: "schema markup json ld validator",
+      current_pos: 4,
+      prev_pos: 4,
+      change: 0,
+      volume: 18200,
+      difficulty: 46,
+      cpc: 12.8,
+      intent: "INFORMATIONAL",
+      target_url: "https://flagship-store.com/schema",
+      trend_7d: [4, 4, 5, 4, 4, 4, 4],
+      serp_features: ["Featured Snippet", "People Also Ask"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-5",
+      keyword: "core web vitals mobile lcp hizlandirma",
+      current_pos: 6,
+      prev_pos: 9,
+      change: 3,
+      volume: 9400,
+      difficulty: 41,
+      cpc: 16.4,
+      intent: "INFORMATIONAL",
+      target_url: "https://flagship-store.com/cwv",
+      trend_7d: [11, 10, 9, 8, 7, 6, 6],
+      serp_features: ["People Also Ask"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-6",
+      keyword: "otomatik site ici link analizi",
+      current_pos: 7,
+      prev_pos: 6,
+      change: -1,
+      volume: 4600,
+      difficulty: 29,
+      cpc: 9.7,
+      intent: "COMMERCIAL",
+      target_url: "https://flagship-store.com/links",
+      trend_7d: [5, 5, 6, 6, 6, 7, 7],
+      serp_features: ["People Also Ask"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-7",
+      keyword: "teknik seo denetimi araci",
+      current_pos: 8,
+      prev_pos: 12,
+      change: 4,
+      volume: 24500,
+      difficulty: 58,
+      cpc: 26.5,
+      intent: "TRANSACTIONAL",
+      target_url: "https://flagship-store.com/health",
+      trend_7d: [14, 12, 11, 10, 9, 8, 8],
+      serp_features: ["AI Overview", "Local Pack", "People Also Ask"],
+      checked_at: "Bugün 01:10"
+    },
+    {
+      id: "kw-8",
+      keyword: "calpeo seo giris",
+      current_pos: 1,
+      prev_pos: 1,
+      change: 0,
+      volume: 12000,
+      difficulty: 12,
+      cpc: 3.2,
+      intent: "NAVIGATIONAL",
+      target_url: "https://flagship-store.com/login",
+      trend_7d: [1, 1, 1, 1, 1, 1, 1],
+      serp_features: ["SiteLinks"],
+      checked_at: "Bugün 01:10"
+    }
+  ],
+  researchSuggestions: [
+    {
+      keyword: "yapay zeka arama motorlari seo stratejileri 2026",
+      volume: 15400,
+      difficulty: 34,
+      cpc: 24.5,
+      intent: "INFORMATIONAL",
+      type: "LONG_TAIL",
+      has_ai_overview: true
+    },
+    {
+      keyword: "chatgpt ve perplexity alintisi nasil alinir?",
+      volume: 11200,
+      difficulty: 28,
+      cpc: 19.8,
+      intent: "INFORMATIONAL",
+      type: "QUESTION",
+      has_ai_overview: true
+    },
+    {
+      keyword: "en iyi otonom seo yazilimi karsilastirmasi",
+      volume: 18900,
+      difficulty: 52,
+      cpc: 31.0,
+      intent: "COMMERCIAL",
+      type: "RELATED",
+      has_ai_overview: false
+    },
+    {
+      keyword: "cloudflare worker seo yonlendirmeleri nasil yapilir?",
+      volume: 6800,
+      difficulty: 25,
+      cpc: 12.3,
+      intent: "INFORMATIONAL",
+      type: "QUESTION",
+      has_ai_overview: true
+    },
+    {
+      keyword: "otonom seo araci satin al",
+      volume: 8200,
+      difficulty: 49,
+      cpc: 38.0,
+      intent: "TRANSACTIONAL",
+      type: "LONG_TAIL",
+      has_ai_overview: false
+    }
+  ]
+};
+
+// ==========================================
+// 2. Competitors (Intelligence & Keyword Gap)
+// ==========================================
+export interface CompetitorItem {
+  id: string;
+  name: string;
+  domain: string;
+  seo_score: number;
+  organic_traffic: number;
+  ranked_keywords: number;
+  backlinks: number;
+  geo_visibility: number;
+  top_keywords: string[];
+}
+
+export interface CompetitorGapItem {
+  keyword: string;
+  volume: number;
+  my_position: number | null;
+  competitor_positions: Record<string, number>;
+  opportunity_score: number;
+  recommended_action: string;
+}
+
+export interface CompetitorsData {
+  myDomain: string;
+  mySeoScore: number;
+  myOrganicTraffic: number;
+  myRankedKeywords: number;
+  myBacklinks: number;
+  myGeoVisibility: number;
+  competitors: CompetitorItem[];
+  keywordGap: CompetitorGapItem[];
+}
+
+export const DEMO_COMPETITORS: CompetitorsData = {
+  myDomain: "flagship-store.com",
+  mySeoScore: 88,
+  myOrganicTraffic: 142000,
+  myRankedKeywords: 8400,
+  myBacklinks: 48500,
+  myGeoVisibility: 82,
+  competitors: [
+    {
+      id: "comp-1",
+      name: "Semrush Pro",
+      domain: "semrush.com",
+      seo_score: 95,
+      organic_traffic: 1850000,
+      ranked_keywords: 420000,
+      backlinks: 12500000,
+      geo_visibility: 89,
+      top_keywords: ["seo audit", "keyword research tool", "backlink checker"]
+    },
+    {
+      id: "comp-2",
+      name: "Ahrefs Webmaster",
+      domain: "ahrefs.com",
+      seo_score: 96,
+      organic_traffic: 2400000,
+      ranked_keywords: 510000,
+      backlinks: 18900000,
+      geo_visibility: 93,
+      top_keywords: ["site explorer", "seo score", "broken link finder"]
+    },
+    {
+      id: "comp-3",
+      name: "Moz Pro",
+      domain: "moz.com",
+      seo_score: 90,
+      organic_traffic: 980000,
+      ranked_keywords: 230000,
+      backlinks: 7800000,
+      geo_visibility: 79,
+      top_keywords: ["domain authority", "keyword difficulty", "page authority"]
+    }
+  ],
+  keywordGap: [
+    {
+      keyword: "ai generative engine optimization",
+      volume: 14800,
+      my_position: null,
+      competitor_positions: { "semrush.com": 3, "ahrefs.com": 2, "moz.com": 7 },
+      opportunity_score: 94,
+      recommended_action: "Kapsamlı rehber içeriği oluştur & AI FAQ Schema ekle"
+    },
+    {
+      keyword: "automated technical seo fixes cdn",
+      volume: 9200,
+      my_position: 18,
+      competitor_positions: { "semrush.com": 4, "ahrefs.com": 5, "moz.com": 9 },
+      opportunity_score: 88,
+      recommended_action: "Mevcut sayfayı güncel vaka çalışmasıyla zenginleştir"
+    },
+    {
+      keyword: "schema markup json ld validator",
+      volume: 18200,
+      my_position: 4,
+      competitor_positions: { "semrush.com": 2, "ahrefs.com": 1, "moz.com": 5 },
+      opportunity_score: 82,
+      recommended_action: "İç link gücünü artır ve ilk 2 sırayı hedefle"
+    },
+    {
+      keyword: "self referential canonical tag generator",
+      volume: 5400,
+      my_position: null,
+      competitor_positions: { "semrush.com": 2, "ahrefs.com": 3, "moz.com": 6 },
+      opportunity_score: 79,
+      recommended_action: "Ücretsiz çevrimiçi araç sayfası aç"
+    },
+    {
+      keyword: "core web vitals mobile inp optimization",
+      volume: 7600,
+      my_position: 12,
+      competitor_positions: { "semrush.com": 5, "ahrefs.com": 4, "moz.com": 8 },
+      opportunity_score: 75,
+      recommended_action: "Teknik kod örnekleri ve çözüm rehberi ekle"
+    }
+  ]
+};
+
+// ==========================================
+// 3. Content Optimizer & NLP Scorer
+// ==========================================
+export interface ContentOptimizationData {
+  url: string;
+  targetKeyword: string;
+  contentScore: number;
+  geoScore: number;
+  readabilityScore: number;
+  wordCount: number;
+  targetWordCount: number;
+  keywordDensity: number;
+  headings: { h1: number; h2: number; h3: number };
+  missingEntities: Array<{ name: string; current: number; recommended: string; status: "Eksik" | "Yetersiz" | "Optimal" }>;
+  missingHeadings: string[];
+  aiSuggestions: string[];
+}
+
+export const DEMO_CONTENT: ContentOptimizationData = {
+  url: "https://flagship-store.com/blog/otonom-seo-rehberi",
+  targetKeyword: "otonom seo yazılımı",
+  contentScore: 84,
+  geoScore: 88,
+  readabilityScore: 82,
+  wordCount: 1680,
+  targetWordCount: 1850,
+  keywordDensity: 1.7,
+  headings: { h1: 1, h2: 5, h3: 7 },
+  missingEntities: [
+    { name: "Google Knowledge Graph", current: 0, recommended: "2-4 kez", status: "Eksik" },
+    { name: "Helpful Content System", current: 1, recommended: "3-5 kez", status: "Yetersiz" },
+    { name: "Structured Data JSON-LD", current: 4, recommended: "3-5 kez", status: "Optimal" },
+    { name: "Core Web Vitals INP", current: 1, recommended: "2-4 kez", status: "Yetersiz" },
+    { name: "PageRank Dağılımı", current: 3, recommended: "2-4 kez", status: "Optimal" },
+    { name: "Generative AI Alıntıları", current: 0, recommended: "2-3 kez", status: "Eksik" }
+  ],
+  missingHeadings: [
+    "H2: 2026'da Otonom SEO Araçları Nasıl Çalışır?",
+    "H2: Geleneksel SEO ve Otonom CDN Çözümleri Arasındaki Farklar",
+    "H3: Sıkça Sorulan Sorular (FAQ Schema Destekli)"
+  ],
+  aiSuggestions: [
+    "Hedef anahtar kelime ilk 100 kelime içerisinde ve H1 başlığının hemen altında bir kez daha vurgulanmalı.",
+    "İçeriğe 1 adet karşılaştırma tablosu veya özellik matrisi eklenmesi, ChatGPT ve Perplexity'nin 'Direct Answer' alıntı ihtimalini %45 artırır.",
+    "Sayfa sonuna FAQPage schema uyumlu 3 soru ve net yanıt bloğu yerleştirin."
+  ]
+};
+
+// ==========================================
+// 4. AI SEO Specialist Copilot
+// ==========================================
+export interface AiCopilotMessage {
+  id: string;
+  sender: "user" | "assistant";
+  text: string;
+  timestamp: string;
+  sources?: string[];
+  actions?: Array<{ label: string; actionType: "APPLY_FIX" | "CRAWL" | "CREATE_TASK" | "GENERATE_CONTENT"; href?: string }>;
+}
+
+export const DEMO_AI_CHAT: AiCopilotMessage[] = [
+  {
+    id: "ai-1",
+    sender: "assistant",
+    text: "Merhaba! Ben Calpeo Otonom SEO & GEO Uzmanıyım. Sitenizin arama motoru performansı, tarama verileri, teknik indeksleme ve yapay zeka (ChatGPT, Perplexity, Gemini) görünürlüğünü gerçek zamanlı denetliyorum.\n\nBugün sitenizin performansını artırmak için ne yapmak istersiniz?",
+    timestamp: "Bugün 01:00",
+    sources: ["Google Search Central Kılavuzu", "Calpeo Rule Engine", "GSC Canlı Metrikleri"],
+    actions: [
+      { label: "Kritik Hataları Analiz Et", actionType: "APPLY_FIX", href: "/issues" },
+      { label: "Trafik Fırsatlarını Göster", actionType: "GENERATE_CONTENT", href: "/opportunities" },
+      { label: "Yeni Derin Tarama Başlat", actionType: "CRAWL", href: "/crawls" }
+    ]
+  },
+  {
+    id: "ai-2",
+    sender: "user",
+    text: "Sitemizde son günlerde tespit edilen en kritik teknik SEO açıkları neler?",
+    timestamp: "Bugün 01:05"
+  },
+  {
+    id: "ai-3",
+    sender: "assistant",
+    text: "flagship-store.com üzerinde son yapılan taramada 2 adet kritik, 1 adet yüksek öncelikli sorun saptandı:\n\n1. **Kanonik Yönlendirme Döngüsü (/urunler/kategori):** Sayfa kendi kendine 404 URL'ye canonical veriyor. Bu durum dizin kaybına yol açabilir (+14 Puan etki potansiyeli).\n2. **Eksik JSON-LD Schema (48 Ürün Sayfası):** Ürün sayfalarında fiyat ve stok rozetleri eksik. Google arama sonuçlarında yıldızlı snippet görünmüyor.\n3. **LCP Görsel Sıkıştırma (Mobil):** Ana banner görseli webp formatında değil, mobil LCP 3.2 sn seviyesinde.\n\nÖnerim: İlk olarak canonical düzeltmesini CDN seviyesinde yayına alalım.",
+    timestamp: "Bugün 01:05",
+    sources: ["Crawl Engine #CRAWL-9842", "Schema.org Validator", "Chrome UX Report LCP"],
+    actions: [
+      { label: "Canonical Düzeltmesini Onayla (#CS-4102)", actionType: "APPLY_FIX", href: "/changes" },
+      { label: "JSON-LD Kodunu İncele", actionType: "CREATE_TASK", href: "/schema" }
+    ]
+  }
+];
+
+// ==========================================
+// 5. GEO (Generative Engine Optimization)
+// ==========================================
+export interface GeoPlatformScore {
+  platform: string;
+  score: number;
+  mentions: number;
+  citations: number;
+  status: "DOMINANT" | "VISIBLE" | "RARE";
+  trend: string;
+}
+
+export interface GeoPromptItem {
+  id: string;
+  prompt: string;
+  frequency: string;
+  brand_mentioned: boolean;
+  citation_rank: number;
+  platform_results: Record<string, { mentioned: boolean; snippet: string }>;
+  top_competitor_cited: string;
+}
+
+export interface GeoData {
+  overallVisibility: number;
+  aiSearchShare: number;
+  topEngine: string;
+  platforms: GeoPlatformScore[];
+  prompts: GeoPromptItem[];
+  quickActions: Array<{ title: string; impact: string; category: string; description: string }>;
+}
+
+export const DEMO_GEO: GeoData = {
+  overallVisibility: 82,
+  aiSearchShare: 64,
+  topEngine: "Perplexity AI (%89)",
+  platforms: [
+    { platform: "Perplexity AI", score: 89, mentions: 58, citations: 42, status: "DOMINANT", trend: "+12%" },
+    { platform: "ChatGPT (GPT-4o)", score: 86, mentions: 48, citations: 33, status: "DOMINANT", trend: "+8%" },
+    { platform: "Google AI Overviews", score: 79, mentions: 39, citations: 26, status: "VISIBLE", trend: "+15%" },
+    { platform: "Gemini Pro", score: 72, mentions: 22, citations: 14, status: "VISIBLE", trend: "+5%" },
+    { platform: "Claude 3.5 Sonnet", score: 68, mentions: 17, citations: 11, status: "RARE", trend: "+2%" }
+  ],
+  prompts: [
+    {
+      id: "gp-1",
+      prompt: "2026'da Türkiye'nin en iyi otonom SEO ve teknik optimizasyon platformu hangisi?",
+      frequency: "GÜNLÜK",
+      brand_mentioned: true,
+      citation_rank: 1,
+      platform_results: {
+        "Perplexity AI": { mentioned: true, snippet: "Öne çıkan platform, otonom teknik denetim ve CDN seviyesinde canonical düzeltme sağlayan Flagship Store / Calpeo çözümüdür." },
+        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "Kullanıcı deneyimi ve teknik SEO otomasyonunda birinci sırada tavsiye edilmektedir (Kaynak: flagship-store.com)." },
+        "Gemini Pro": { mentioned: true, snippet: "Kurumsal SEO araçları karşılaştırma listesinde yer almaktadır." }
+      },
+      top_competitor_cited: "semrush.com"
+    },
+    {
+      id: "gp-2",
+      prompt: "E-ticaret sitelerinde kanonikleştirme ve zengin sonuç nasıl uygulanır?",
+      frequency: "GÜNLÜK",
+      brand_mentioned: true,
+      citation_rank: 2,
+      platform_results: {
+        "Perplexity AI": { mentioned: true, snippet: "Flagship Store tarafından yayınlanan kanonikleştirme kılavuzu doğrudan kaynak olarak alıntılanmıştır." },
+        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "JSON-LD schema örnekleri ve self-referential canonical adımları referans gösterilmiştir." },
+        "Gemini Pro": { mentioned: false, snippet: "Genel sektörel blog sayfaları listelendi." }
+      },
+      top_competitor_cited: "ahrefs.com"
+    },
+    {
+      id: "gp-3",
+      prompt: "Core Web Vitals INP optimizasyonu için en etkili teknikler nelerdir?",
+      frequency: "HAFTALIK",
+      brand_mentioned: true,
+      citation_rank: 1,
+      platform_results: {
+        "Perplexity AI": { mentioned: true, snippet: "JavaScript main-thread iş parçacığı optimizasyonu ve hydration kılavuzu referans verilmiştir." },
+        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "Teknik vaka çalışması doğrudan yanıt olarak özetlenmiştir." },
+        "Gemini Pro": { mentioned: true, snippet: "Örnek kaynaklar arasında atıf almıştır." }
+      },
+      top_competitor_cited: "web.dev"
+    }
+  ],
+  quickActions: [
+    {
+      title: "Direct Answer (Net Yanıt) Blokları Ekleyin",
+      impact: "+%24 Alıntı Artışı",
+      category: "GEO BİÇİMLENDİRME",
+      description: "Anahtar kavramların altına 40-60 kelimelik net tanımlar yerleştirerek ChatGPT ve Perplexity'nin doğrudan sizi alıntılamasını sağlayın."
+    },
+    {
+      title: "ClaimReview ve FAQPage Schema Doğrulaması",
+      impact: "+%18 Güvenilirlik",
+      category: "YAPILANDIRILMIŞ VERİ",
+      description: "Yapay zeka modellerinin içeriğinizi 'doğrulanmış gerçek' olarak sınıflandırması için schema hiyerarşisini tamamlayın."
+    },
+    {
+      title: "Otorite Karşılaştırma Tabloları",
+      impact: "+%31 Tablo Çekme Oranı",
+      category: "VERİ SUNUMU",
+      description: "Google AI Overviews ve Claude karmaşık metin yerine HTML tablolarını doğrudan yanıt kartına taşımaktadır."
+    }
+  ]
+};
+
