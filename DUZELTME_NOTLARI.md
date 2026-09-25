@@ -16,7 +16,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`7f6faff`** | `feat(ui): extend modern light and dark modes across all platform tabs and pages` | Tüm 14 sekmenin (sağlık, sorunlar, sayfalar, cwv, performans, fırsatlar, bilgi beyni, linkler, şema, diff, deneyler, taramalar, entegrasyonlar, denetim günlüğü) tam açık/koyu mod uyumu |
 | **`7adad18`** | `fix(auth): isolate failed attempts per email, handle unregistered users and add code preview` | E-posta bazlı bağımsız hatalı giriş sayacı, kayıtlı olmayan hesap ayrımı, SMTP e-posta servisi ve dev simülasyon kod önizlemesi |
 | **`9aeaa54`** | `feat(mvp): evrensel serverless api katmanı, canlı tarama motoru ve 1-tıkla onboarding` | Dışarıdan doğrudan kullanım için sıfır bağımlılıklı serverless API, canlı çok sayfalı polite crawler, PageRank iç link grafı, 1-tıkla demo onboarding, canlı site ekleme ve PDF yazdırma |
-| **`(güncel)`** | `fix(ui & security): fix add-site modal focus loss bug and harden backend site creation against ssrf/xss` | Modal tuşa basışta odak kaybetme hatasının giderilmesi, SSRF ve DNS rebinding kalkanı, site adı XSS temizliği, mükerrer alan adı engellemesi |
+| **`3ffade2`** | `feat(modules): 5 yeni ana modül ve canlı backend dağıtım hazırlığı (render, railway, supabase)` | Keywords rank tracker, competitors gap analizi, content optimizer, ai copilot, geo ai visibility ve supabase/render/railway yapılandırması |
+| **`(güncel)`** | `feat(compliance-tr): turkiye reklam kurulu, titck ve tbb mevzuatina ozel yasakli kelime kalkani (web & mobil)` | Sağlık (TİTCK), Hukuk (TBB), Finans (SPK/BDDK), E-Ticaret (Reklam Kurulu) ve Bahis/Tütün yasaklı kelime kalkanı, otomatik metin düzeltici ve anahtar kelime denetimi |
 
 ---
 
@@ -482,3 +483,88 @@ Bu geliştirme fazında; platformumuz küresel pazar liderleri (**Ahrefs, Semrus
 - **Next.js Web Derlemesi (npm run build):** 28 adet statik ve dinamik rota sıfır TypeScript ve lint hatası ile derlendi.
 - **React Native Mobil Derlemesi (npx tsc --noEmit):** 0 hata ile doğrulandı.
 - **Python FastAPI Backend Testleri (pytest):** 259 adet otomatik sistem ve güvenlik testi %100 başarıyla geçti.
+
+---
+
+## 18. 🇹🇷 Türkiye Reklam Kurulu, TİTCK ve TBB Mevzuatına Özel Yasaklı Kelime ve İfade Kalkanı (Compliance Shield)
+
+Türkiye'de faaliyet gösteren e-ticaret siteleri, klinikler, hukuk büroları ve finans kuruluşları; Reklam Kurulu (Ticaret Bakanlığı), TİTCK (Sağlık Bakanlığı), TBB (Türkiye Barolar Birliği) ve SPK/BDDK tarafından belirlenen katı reklam ve ifade yasaklarına tabidir. Bu kuralların ihlali; yüz binlerce liradan milyonlarca liraya varan idari para cezalarına, meslekten mene ve BTK tarafından sitenin re'sen erişime engellenmesine yol açmaktadır.
+
+Platformumuza Türkiye mevzuatına özel sektörel kural motoru, yasaklı kelime kalkanı ve otomatik düzeltme sistemi hem Web hem de Mobil için tam eşitlikte entegre edilmiştir.
+
+### 1. Araştırılan ve Sisteme Kodlanan Türk Mevzuat Kuralları
+
+1. **Sağlık & Medikal Sektörü:**
+   - **Mevzuat:** 1219 sayılı Kanun, Sağlık Hizmetlerinde Tanıtım ve Bilgilendirme Yönetmeliği & TİTCK Kılavuzları.
+   - **Yasaklanan İfadeler:** `"en iyi doktor"`, `"en iyi klinik"`, `"kesin tedavi"`, `"tedavi garantisi"`, `"şifa bulun"`, `"öncesi sonrası" / "before after"`, `"sıfır risk"`, `"ağrısız acısız garantili operasyon"`, `"yan etkisi yoktur"`.
+   - **Yaptırım Riski:** TİTCK idari para cezası, savcılık suç duyurusu ve BTK tarafından web sitesine anında erişim engeli.
+   - **Güvenli Alternatif:** `"deneyimli hekim kadrosu"`, `"teşhis ve tedavi planlaması"`, `"uzman konsültasyonu"`.
+
+2. **Gıda Takviyeleri & Zayıflama:**
+   - **Mevzuat:** Tarım ve Orman Bakanlığı & TİTCK Türk Gıda Kodeksi Beslenme ve Sağlık Beyanları Yönetmeliği.
+   - **Yasaklanan İfadeler:** `"zayıflatır"`, `"1 haftada 10 kilo"`, `"yağ yakıcı garanti"`, `"kanseri önler"`, `"şeker hastalığına son"`, `"Sağlık Bakanlığı onaylı takviye"` (Gıda takviyeleri Tarım Bakanlığı onaylıdır; Sağlık Bakanlığı onaylı ibaresi dolandırıcılık ve yanıltıcı reklam sayılır).
+   - **Yaptırım Riski:** Reklam Kurulu'ndan astronomik para cezası ve ürün toplatma kararı.
+   - **Güvenli Alternatif:** `"dengeli beslenmeyi destekler"`, `"normal metabolizmaya katkıda bulunur"`.
+
+3. **Hukuk & Avukatlık:**
+   - **Mevzuat:** 1136 sayılı Avukatlık Kanunu md. 55 & TBB Reklam Yasağı Yönetmeliği.
+   - **Yasaklanan İfadeler:** `"en iyi avukat"`, `"en başarılı hukuk bürosu"`, `"dava kazanma garantisi"`, `"kesin beraat"`, `"ücretsiz danışmanlık"`, `"indirimli avukatlık"`, `"başarı primi"`.
+   - **Yaptırım Riski:** Baro Disiplin Kurulu soruşturması, meslekten geçici men ve Reklam Kurulu durdurma cezası.
+   - **Güvenli Alternatif:** `"hukuki danışmanlık ve dava takibi"`, `"ceza hukuku alanında uzman kadro"`.
+
+4. **Finans, Kredi & Yatırım:**
+   - **Mevzuat:** 6362 sayılı Sermaye Piyasası Kanunu md. 106-107 & 5411 sayılı Bankacılık Kanunu & TCK md. 241 (Tefecilik).
+   - **Yasaklanan İfadeler:** `"kesin kazanç"`, `"garantili getiri"`, `"sıfır kayıp riski"`, `"sicili bozuklara kredi"`, `"kredi notu önemsiz"`, `"senetle kredi"`, `"tefeci kredi"`, `"kefilsiz şartsız anında para"`.
+   - **Yaptırım Riski:** Savcılık soruşturması, hapis cezası ve anında erişim engeli.
+   - **Güvenli Alternatif:** `"BDDK yetkili banka kredi faiz oranları"`, `"portföy yatırım bilgilendirmesi"`.
+
+5. **E-Ticaret & Fiyat İddiaları:**
+   - **Mevzuat:** Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği (md. 7, 8, 9).
+   - **Yasaklanan / İspata Muhtaç İfadeler:** `"en ucuz"`, `"türkiye'nin en ucuzu"`, `"dünyanın en iyisi"`, `"rakipsiz fiyat"` (resmi ve bağımsız piyasa araştırması ibraz edilemiyorsa suçtur), `"koşulsuz şartsız iade"` (yasal cayma hakkı istisnalarına aykırıdır).
+   - **Yaptırım Riski:** Reklam Kurulu reklam durdurma ve idari para cezası.
+   - **Güvenli Alternatif:** `"avantajlı fiyat seçenekleri"`, `"yasal cayma hakkı kapsamında iade"`.
+
+6. **Yasadışı Bahis ve Tütün / Elektronik Sigara:**
+   - **Mevzuat:** 7258 sayılı Kanun (Şans Oyunları) & 4207 sayılı Kanun (Tütün Ürünlerinin Zararlarının Önlenmesi).
+   - **Yasaklanan İfadeler:** `"canlı bahis"`, `"kaçak iddaa"`, `"elektronik sigara satın al"`, `"iqos"`, `"puff bar"`.
+   - **Yaptırım Riski:** Ağır ceza soruşturması ve BTK tarafından dakikalar içerisinde alan adına erişim engeli.
+
+---
+
+### 2. Uygulanan Mimari ve Özellikler
+
+#### A. Backend Kural Motoru (`services/seo_engine/`)
+- `RuleCategory.COMPLIANCE = "COMPLIANCE"` kategorisi eklendi.
+- `TurkishRegulatoryComplianceRule(SeoRule)` sınıfı ve `scan_text_for_turkish_compliance()` fonksiyonu kodlandı.
+- **Türkçe Unicode Karakter Kalkanı:** Python'da varsayılan `"İ".lower()` işleminin `i\u0307` (iki karakterli) dönmesi ve regex eşleşmelerini bozması sorunu, Unicode normalizasyonu ve birleştirme karakteri temizliği ile çözüldü.
+- `SeoRuleEngine` sınıfına tescil edildi.
+- `tests/unit/test_turkish_compliance.py`: 12 birim test ile tüm sektörler, regex kalıpları ve temiz metinler doğrulandı.
+- Tüm backend testleri (`pytest`): **271/271 test %100 başarılı** olarak tamamlandı.
+
+#### B. Web Uygulaması (`apps/web/`)
+- `apps/web/src/lib/compliance-tr.ts`: 7 sektör, regex kuralları, kanun maddeleri ve güvenli öneriler modülü.
+- `apps/web/src/app/content/page.tsx`:
+  - **"🇹🇷 Türkiye Mevzuat Uyum Kalkanı"** sekmesi.
+  - Canlı taslak metin editörü (karakter/kelime sayaçlı).
+  - Hazır sektör test senaryoları (Sağlık, Avukatlık, Finans, E-Ticaret, Temiz Metin).
+  - Anlık ihlal tespit listesi, ceza riski seviyesi (`CRITICAL`, `HIGH`, `MEDIUM`).
+  - **"Metinde Düzelt"** butonu: Yasaklı ifadeyi metin içerisinden otomatik olarak mevzuata uygun güvenli kelimeyle değiştirir.
+- `apps/web/src/app/keywords/page.tsx`:
+  - Sıralama takibinde ve kelime araştırmasında mevzuata aykırı anahtar kelimelere **"⚠️ TR Reklam Riski"** rozeti.
+  - "Yeni Anahtar Kelime Ekle" modalında anlık mevzuat uyarısı ve kanun maddesi bildirimi.
+- `apps/web/src/app/ai/page.tsx`:
+  - **"🇹🇷 TR Mevzuat & Reklam Denetimi"** hızlı promptu ve yapay zeka denetim yanıtı.
+- `npm run build`: 28 rotanın tamamı 0 hata ile derlendi.
+
+#### C. Mobil Uygulama (`apps/mobile/`)
+- `apps/mobile/src/types/index.ts`: `ComplianceSector` ve `ComplianceViolation` modelleri.
+- `apps/mobile/src/services/api.ts`: Mobil uyumlu `scanTurkishCompliance()` fonksiyonu ve kural tablosu.
+- `apps/mobile/src/screens/ContentOptimizerScreen.tsx`:
+  - Yeni **"🇹🇷 TR Uyum"** sekmesi.
+  - Sektör filtreleme çipleri ve hazır test senaryoları.
+  - Canlı metin denetimi, ihlal kartları ve **"Metinde Düzelt"** butonu.
+- `apps/mobile/src/screens/KeywordsScreen.tsx`:
+  - Kelime kartlarında ve araştırma sonuçlarında mevzuat risk rozeti.
+  - "Hedef Anahtar Kelime Ekle" modalında canlı yasal uyarı kutusu ve güvenli kelimeye tek tıkla geçiş.
+- `npx tsc --noEmit`: 0 hata ile doğrulandı.
+

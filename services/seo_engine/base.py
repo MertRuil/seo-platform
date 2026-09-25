@@ -22,6 +22,7 @@ class RuleCategory(str, Enum):
     JAVASCRIPT = "JAVASCRIPT"
     PERFORMANCE = "PERFORMANCE"
     MOBILE = "MOBILE"
+    COMPLIANCE = "COMPLIANCE"
 
 class IssueSeverity(str, Enum):
     INFO = "INFO"

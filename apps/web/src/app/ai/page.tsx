@@ -27,6 +27,10 @@ import { Input } from "@/components/ui/Input";
 
 const PRESET_PROMPTS = [
   {
+    title: "🇹🇷 TR Mevzuat & Reklam Denetimi",
+    prompt: "Sitemizi Türkiye Reklam Kurulu, TİTCK ve TBB mevzuatına göre tara; yasaklı sağlık beyanı veya haksız ticari iddiaları tespit et.",
+  },
+  {
     title: "Trafik Düşüşünü Analiz Et",
     prompt: "Son 14 gündeki organik trafik değişimini analiz et ve nedenlerini açıkla.",
   },
@@ -37,10 +41,6 @@ const PRESET_PROMPTS = [
   {
     title: "Schema.org JSON-LD Üret",
     prompt: "E-ticaret ürün sayfalarımız ve FAQ için geçerli JSON-LD schema kodu hazırla.",
-  },
-  {
-    title: "GEO & AI Arama Görünürlüğü",
-    prompt: "ChatGPT, Perplexity ve Gemini'de marka alıntılarımızı nasıl artırabiliriz?",
   },
 ];
 
@@ -80,7 +80,19 @@ export default function AiCopilotPage() {
       const lower = text.toLowerCase();
       let reply: AiCopilotMessage;
 
-      if (lower.includes("trafik") || lower.includes("düşüş")) {
+      if (lower.includes("mevzuat") || lower.includes("titck") || lower.includes("reklam") || lower.includes("yasak")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `Türkiye Cumhuriyeti Ticaret Bakanlığı Reklam Kurulu, TİTCK ve TBB mevzuatlarına göre siteniz taranmış ve sektörel uyum analizi tamamlanmıştır:\n\n1. **Sağlık & Tıbbi İddialar (TİTCK):** "Tedavi eder", "kesin şifa", "garantili sonuç" ve hekimler için "en iyi cerrah" ifadeleri kesinlikle yasaktır (1219 sayılı Kanun & Tanıtım Yönetmeliği md. 5).\n2. **Gıda Takviyeleri:** Takviyelerde "zayıflatır", "yağ yakar" veya "Sağlık Bakanlığı onaylı" denmesi en yüksek sınırdan idari para cezası ve ürün toplatma sebebidir.\n3. **Hukuk & Avukatlık (TBB):** "En iyi avukat", "dava kazanma garantisi" ve "ücretsiz danışmanlık" reklam yasağı kapsamındadır (1136 sayılı Kanun md. 55).\n4. **Kanıtlanamayan Üstünlükler:** "En ucuz", "rakipsiz fiyat" ifadeleri akredite pazar raporu olmadan kullanılamaz.\n\nÖnerim: İçerik Optimizasyonu sekmesindeki **Türkiye Mevzuat Uyum Kalkanı** ile metinlerinizi anında tarayın ve tek tıkla düzeltin.`,
+          timestamp: "Şimdi",
+          sources: ["T.C. Ticaret Bakanlığı Reklam Kurulu Kararları", "TİTCK Tanıtım ve Bilgilendirme Yönetmeliği", "TBB Reklam Yasağı Yönetmeliği"],
+          actions: [
+            { label: "TR Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("trafik") || lower.includes("düşüş")) {
         reply = {
           id: `ai-${Date.now()}`,
           sender: "assistant",

@@ -22,7 +22,9 @@ import {
   TaskPriority,
   SeoReportSummary,
   AppSettings,
-  SeoOpportunityCard
+  SeoOpportunityCard,
+  ComplianceViolation,
+  ComplianceSector
 } from "../types";
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
@@ -1596,3 +1598,170 @@ export async function fetchMorningBrief(siteId: string, domain?: string): Promis
     ]
   };
 }
+
+// -------------------------------------------------------------
+// 18. Türkiye Mevzuatı & Reklam Kurulu Yasaklı Kelime Kalkanı
+// -------------------------------------------------------------
+function normalizeTr(text: string): string {
+  if (!text) return "";
+  let s = text.replace(/İ/g, "i").replace(/I/g, "i").replace(/ı/g, "i");
+  s = s.replace(/Ğ/g, "g").replace(/ğ/g, "g");
+  s = s.replace(/Ü/g, "u").replace(/ü/g, "u");
+  s = s.replace(/Ş/g, "s").replace(/ş/g, "s");
+  s = s.replace(/Ö/g, "o").replace(/ö/g, "o");
+  s = s.replace(/Ç/g, "c").replace(/ç/g, "c");
+  return s.toLowerCase().replace(/\u0307/g, "");
+}
+
+export const TURKISH_MOBILE_COMPLIANCE_RULES = [
+  {
+    rule_id: "TR_HEALTH_TREATMENT",
+    sector: "HEALTH_MEDICAL" as ComplianceSector,
+    title: "Tıbbi Tedavi ve Şifa Vaadi Yasağı",
+    patterns: [/\btedavi\s+eder\b/i, /\bkesin\s+tedavi\b/i, /\bgarantili\s+tedavi\b/i, /\bsifa\s+bul\b/i, /\bhastaligi\s+yok\s+eder\b/i],
+    legal_basis: "1219 sayılı Kanun & Sağlık Hizmetlerinde Tanıtım Yönetmeliği",
+    penalty_risk: "TİTCK ve Reklam Kurulu idari para cezası ve reklam durdurma.",
+    suggested_fix: "'tedavi sürecini destekler' ifadesini kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_HEALTH_SUPERLATIVE",
+    sector: "HEALTH_MEDICAL" as ComplianceSector,
+    title: "Hekim Üstünlük ve Talep Yaratma Yasağı",
+    patterns: [/\ben\s+iyi\s+doktor\b/i, /\ben\s+iyi\s+cerrah\b/i, /\ben\s+basarili\s+cerrah\b/i, /\b1\s+numarali\s+klinik\b/i],
+    legal_basis: "Sağlık Hizmetlerinde Tanıtım Yönetmeliği md. 5/1-ç",
+    penalty_risk: "Reklam Kurulu para cezası ve Tabip Odası disiplin cezası.",
+    suggested_fix: "Sıfat yerine unvan ve hekimin uzmanlık alanını yalın belirtin.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "TR_HEALTH_BEFORE_AFTER",
+    sector: "HEALTH_MEDICAL" as ComplianceSector,
+    title: "Önce-Sonra ve Garanti Sonuç Vaadi",
+    patterns: [/\boncesi\s+sonrasi\b/i, /\bbefore\s+after\b/i, /\bgarantili\s+sonuc\b/i, /\bagrisiz\s+acisiz\s+kesin\b/i, /\bsifir\s+risk\b/i],
+    legal_basis: "Sağlık Hizmetlerinde Tanıtım Yönetmeliği md. 5/1-d",
+    penalty_risk: "Web sayfasına erişim engeli ve idari yaptırım.",
+    suggested_fix: "'Tedavi süreci hakkında hekiminize danışınız.'",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_FOOD_WEIGHT_LOSS",
+    sector: "FOOD_SUPPLEMENT" as ComplianceSector,
+    title: "Takviyelerde Zayıflama ve Tıbbi İddia Yasağı",
+    patterns: [/\bzayiflati(?:r|yor)\b/i, /\byag\s+yakici\s+garanti\b/i, /\b1\s+haftada\s+\d+\s+kilo\b/i, /\bkanseri\s+onler\b/i],
+    legal_basis: "Türk Gıda Kodeksi Beslenme ve Sağlık Beyanları Yönetmeliği",
+    penalty_risk: "En üst sınırdan idari para cezası ve toplatma kararı.",
+    suggested_fix: "'Tokluk hissine yardımcı olabilir' onaylı beyanını kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_FOOD_MINISTRY",
+    sector: "FOOD_SUPPLEMENT" as ComplianceSector,
+    title: "Sağlık Bakanlığı Onaylı Takviye Yanıltmacası",
+    patterns: [/\bsaglik\s+bakanligi\s+onayli\b/i, /\bbakanlik\s+onayli\s+ilac\b/i, /\bdoktor\s+tavsiyeli\s+takviye\b/i],
+    legal_basis: "TİTCK Duyuruları (Gıda takviyeleri Tarım Bakanlığı onaylıdır)",
+    penalty_risk: "Tüketiciyi aldatmaktan savcılık bildirimi ve para cezası.",
+    suggested_fix: "'T.C. Tarım ve Orman Bakanlığı Onaylı' ibaresini yazın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_LEGAL_SUPERLATIVE",
+    sector: "LEGAL_SERVICES" as ComplianceSector,
+    title: "Avukatlıkta Üstünlük ve Reklam Yasağı",
+    patterns: [/\ben\s+iyi\s+avukat\b/i, /\ben\s+iyi\s+ceza\s+avukati\b/i, /\ben\s+basarili\s+avukat\b/i, /\bturkiye'?nin\s+en\s+iyi\s+hukuk\s+burosu\b/i],
+    legal_basis: "1136 sayılı Avukatlık Kanunu md. 55 & TBB Reklam Yasağı",
+    penalty_risk: "Baro Disiplin Kurulu soruşturması ve kınama/para cezası.",
+    suggested_fix: "'Avukatlık ve Hukuki Danışmanlık' ifadesini tercih edin.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_LEGAL_GUARANTEE",
+    sector: "LEGAL_SERVICES" as ComplianceSector,
+    title: "Dava Kazanma Garantisi ve Ücretsiz Hizmet",
+    patterns: [/\bdava\s+kazanma\s+garantisi\b/i, /\bkesin\s+beraat\b/i, /\bucretsiz\s+danismanlik\b/i, /\bucretsiz\s+dava\b/i],
+    legal_basis: "Avukatlık Kanunu md. 164 & TBB Meslek Kuralları",
+    penalty_risk: "Disiplin suçu ve para cezası.",
+    suggested_fix: "'Danışmanlık ve süreç için büromuzla iletişime geçiniz.'",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_FINANCE_RETURN",
+    sector: "FINANCIAL_SERVICES" as ComplianceSector,
+    title: "Finansta Kesin Kazanç ve Garantili Getiri",
+    patterns: [/\bkesin\s+kazanc\b/i, /\bgarantili\s+getiri\b/i, /\bkayipsiz\s+yatirim\b/i, /\bgunluk\s+%\s*\d+\s+kar\b/i],
+    legal_basis: "6362 sayılı Sermaye Piyasası Kanunu md. 106-107",
+    penalty_risk: "SPK idari para cezası ve adli soruşturma.",
+    suggested_fix: "'Yatırımlar piyasa riski içerir uyarısı ekleyiniz.'",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_FINANCE_LOAN",
+    sector: "FINANCIAL_SERVICES" as ComplianceSector,
+    title: "Yetkisiz Kredi ve Tefecilik Reklamı",
+    patterns: [/\bsicili\s+bozuklara\s+kredi\b/i, /\bkredi\s+notu\s+onemsiz\b/i, /\bsenetlen\s+kredi\b/i, /\btefeci\s+kredi\b/i],
+    legal_basis: "5411 sayılı Bankacılık Kanunu & TCK md. 241",
+    penalty_risk: "Savcılık soruşturması ve anında erişim engeli.",
+    suggested_fix: "Yalnızca BDDK yetkili banka kredi faizlerini listeleyin.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "TR_COMMERCIAL_SUPERLATIVE",
+    sector: "SUPERLATIVE_COMMERCIAL" as ComplianceSector,
+    title: "İspatlanamayan 'En Ucuz' ve Üstünlük İddiası",
+    patterns: [/\bturkiye'?nin\s+en\s+ucuzu\b/i, /\ben\s+ucuz\s+fiyat\b/i, /\brakipsiz\s+fiyat\b/i, /\bdunyanin\s+en\s+iyisi\b/i],
+    legal_basis: "Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği",
+    penalty_risk: "Bağımsız araştırma raporu yoksa Reklam Kurulu cezası.",
+    suggested_fix: "'Avantajlı fiyat seçenekleri' şeklinde nesnel ifade kullanın.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "TR_ILLEGAL_BETTING",
+    sector: "ILLEGAL_BETTING_TOBACCO" as ComplianceSector,
+    title: "Yasadışı Bahis ve Tütün Satışı Yasağı",
+    patterns: [/\bcanli\s+bahis\b/i, /\bkacak\s+iddaa\b/i, /\belektronik\s+sigara\s+satin\s+al\b/i, /\biqos\b/i, /\bpuff\s+bar\b/i],
+    legal_basis: "7258 sayılı Kanun & 4207 sayılı Kanun",
+    penalty_risk: "Hapis cezası ve BTK tarafından anında site kapatma.",
+    suggested_fix: "Bu içeriklerin yayını ve satışı kesinlikle yasaktır.",
+    severity: "CRITICAL" as const,
+  },
+];
+
+export function scanTurkishCompliance(text: string, sector?: ComplianceSector): ComplianceViolation[] {
+  if (!text) return [];
+  const normalized = normalizeTr(text);
+  const violations: ComplianceViolation[] = [];
+
+  for (const rule of TURKISH_MOBILE_COMPLIANCE_RULES) {
+    if (sector && rule.sector !== sector) continue;
+
+    for (const pat of rule.patterns) {
+      const match = pat.exec(normalized);
+      if (match) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const snippet = text.slice(Math.max(0, start - 20), Math.min(text.length, end + 20));
+
+        violations.push({
+          rule_id: rule.rule_id,
+          sector: rule.sector,
+          title: rule.title,
+          explanation: rule.title,
+          matched_pattern: match[0],
+          matched_term: match[0],
+          context_snippet: snippet.trim(),
+          legal_basis: rule.legal_basis,
+          legal_reference: rule.legal_basis,
+          penalty_risk: rule.penalty_risk,
+          fine_risk: rule.penalty_risk,
+          suggested_fix: rule.suggested_fix,
+          suggested_replacement: rule.suggested_fix,
+          severity: rule.severity,
+        });
+        break;
+      }
+    }
+  }
+
+  return violations;
+}
+

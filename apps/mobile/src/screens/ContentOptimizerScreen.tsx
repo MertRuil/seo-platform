@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,12 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { analyzeContentUrl, generateAiSeoContent } from "../services/api";
-import { ContentOptimizationResult, GeneratedContentResult } from "../types";
+import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance } from "../services/api";
+import { ContentOptimizationResult, GeneratedContentResult, ComplianceSector, ComplianceViolation } from "../types";
 
 export const ContentOptimizerScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
-  const [activeTabSub, setActiveTabSub] = useState<"OPTIMIZER" | "GENERATOR">("OPTIMIZER");
+  const [activeTabSub, setActiveTabSub] = useState<"OPTIMIZER" | "GENERATOR" | "COMPLIANCE">("COMPLIANCE");
 
   // Optimizer state
   const [urlInput, setUrlInput] = useState(selectedSite?.primary_url || "https://acmestore.io");
@@ -34,6 +34,30 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [genTargetKw, setGenTargetKw] = useState("e-ticaret seo ipuçları");
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<GeneratedContentResult | null>(null);
+
+  // TR Compliance state
+  const [complianceDraft, setComplianceDraft] = useState(
+    "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
+  );
+  const [complianceSector, setComplianceSector] = useState<ComplianceSector | "ALL">("ALL");
+
+  const complianceViolations = useMemo(() => {
+    return scanTurkishCompliance(
+      complianceDraft,
+      complianceSector === "ALL" ? undefined : complianceSector
+    );
+  }, [complianceDraft, complianceSector]);
+
+  const handleFixViolation = (v: ComplianceViolation) => {
+    const term = v.matched_term || v.matched_pattern;
+    const fix = v.suggested_replacement || v.suggested_fix;
+    if (!term || !fix) return;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "gi");
+    const updated = complianceDraft.replace(regex, fix);
+    setComplianceDraft(updated);
+    Alert.alert("Düzeltildi", `"${term}" yerine "${fix}" uygulandı.`);
+  };
 
   const handleAnalyze = async () => {
     if (!urlInput.trim()) return;
@@ -79,6 +103,17 @@ export const ContentOptimizerScreen: React.FC = () => {
       {/* Tabs */}
       <View style={styles.tabRow}>
         <TouchableOpacity
+          style={[styles.tabBtn, activeTabSub === "COMPLIANCE" && styles.tabBtnActive]}
+          onPress={() => setActiveTabSub("COMPLIANCE")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="shield-checkmark" size={15} color={activeTabSub === "COMPLIANCE" ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.tabText, activeTabSub === "COMPLIANCE" && styles.tabTextActive]}>
+            🇹🇷 TR Uyum
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.tabBtn, activeTabSub === "OPTIMIZER" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("OPTIMIZER")}
           activeOpacity={0.7}
@@ -96,12 +131,228 @@ export const ContentOptimizerScreen: React.FC = () => {
         >
           <Ionicons name="sparkles" size={15} color={activeTabSub === "GENERATOR" ? Colors.primary : Colors.textMuted} />
           <Text style={[styles.tabText, activeTabSub === "GENERATOR" && styles.tabTextActive]}>
-            AI İçerik Üretici
+            AI Üretici
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {/* TAB 3: TR COMPLIANCE SHIELD */}
+        {activeTabSub === "COMPLIANCE" && (
+          <>
+            {/* Header info */}
+            <GlassCard style={styles.complianceIntroCard}>
+              <View style={styles.secHeader}>
+                <Ionicons name="shield-checkmark" size={18} color={Colors.primary} />
+                <Text style={styles.complianceIntroTitle}>Türkiye Mevzuat Denetim Kalkanı</Text>
+              </View>
+              <Text style={styles.complianceIntroText}>
+                Ticaret Bakanlığı Reklam Kurulu, TİTCK (Sağlık Bakanlığı), TBB ve SPK/BDDK mevzuatına göre
+                kullanımı yasak olan veya idari para cezası ve erişim engeline yol açabilecek kelimeleri anlık tarar.
+              </Text>
+            </GlassCard>
+
+            {/* Quick Presets */}
+            <Text style={styles.fieldLabel}>Hazır Test Senaryoları</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() =>
+                  setComplianceDraft(
+                    "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
+                  )
+                }
+              >
+                <Text style={styles.presetChipText}>🏥 Sağlık İhlali</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() =>
+                  setComplianceDraft(
+                    "İstanbul'un en iyi avukatı olarak ceza davalarında kesin beraat ve dava kazanma garantisi veriyoruz. İlk danışmanlık tamamen ücretsizdir."
+                  )
+                }
+              >
+                <Text style={styles.presetChipText}>⚖️ Avukatlık İhlali</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() =>
+                  setComplianceDraft(
+                    "Borsada garantili getiri ve kesin kazanç vaat eden algoritmamızla tanışın. Sicili bozuklara kredi ve senetle borç imkanı."
+                  )
+                }
+              >
+                <Text style={styles.presetChipText}>💳 Finans / Kredi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() =>
+                  setComplianceDraft(
+                    "Türkiye'nin en ucuz cep telefonu burada! Rakipsiz fiyat ve koşulsuz şartsız iade garantisi."
+                  )
+                }
+              >
+                <Text style={styles.presetChipText}>🛒 E-Ticaret / Fiyat</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() =>
+                  setComplianceDraft(
+                    "Uzman hekim kadromuz modern teşhis ve tetkik yöntemleriyle hizmetinizdedir. Randevu ve detaylı bilgi için bize ulaşabilirsiniz."
+                  )
+                }
+              >
+                <Text style={styles.presetChipText}>✅ Temiz Metin</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Sector Filters */}
+            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Sektör Filtresi</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
+              {[
+                { id: "ALL", label: "Tüm Sektörler" },
+                { id: "SAGLIK", label: "Sağlık & Klinik" },
+                { id: "GIDA_TAKVIYESI", label: "Gıda & Zayıflama" },
+                { id: "HUKUK", label: "Hukuk & Avukat" },
+                { id: "FINANS", label: "Finans & Kredi" },
+                { id: "E_TICARET", label: "E-Ticaret & Fiyat" },
+                { id: "BAHIS_TUTUN", label: "Bahis & Tütün" },
+              ].map((s) => {
+                const isAct = complianceSector === s.id;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.typeChip, isAct && styles.typeChipActive]}
+                    onPress={() => setComplianceSector(s.id as any)}
+                  >
+                    <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Editor Input Card */}
+            <GlassCard style={[styles.inputCard, { marginTop: 12 }]}>
+              <View style={styles.secHeader}>
+                <Text style={styles.cardTitle}>Denetlenecek Metin Taslağı</Text>
+                {complianceDraft.length > 0 && (
+                  <TouchableOpacity onPress={() => setComplianceDraft("")}>
+                    <Text style={styles.clearText}>Temizle</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TextInput
+                style={[styles.textInput, styles.draftInput]}
+                placeholder="Web sitenizde veya reklamlarınızda yayınlanacak metni buraya yapıştırın..."
+                placeholderTextColor={Colors.textMuted}
+                value={complianceDraft}
+                onChangeText={setComplianceDraft}
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+              />
+
+              <View style={styles.draftStatsRow}>
+                <Text style={styles.draftStatsText}>
+                  {complianceDraft.trim() ? complianceDraft.trim().split(/\s+/).length : 0} kelime • {complianceDraft.length} karakter
+                </Text>
+              </View>
+            </GlassCard>
+
+            {/* Scan Status Summary */}
+            {complianceViolations.length === 0 ? (
+              <GlassCard style={styles.cleanStatusCard}>
+                <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.cleanStatusTitle}>Mevzuata Tam Uyumlu</Text>
+                  <Text style={styles.cleanStatusDesc}>
+                    Metninizde Türkiye Reklam Kurulu, TİTCK veya TBB mevzuatınca yasaklanmış herhangi bir kural ihlali bulunamadı.
+                  </Text>
+                </View>
+              </GlassCard>
+            ) : (
+              <GlassCard style={styles.violationSummaryCard}>
+                <Ionicons name="alert-circle" size={24} color={Colors.danger} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.violationSummaryTitle}>
+                    {complianceViolations.length} Adet Mevzuat İhlali Tespit Edildi!
+                  </Text>
+                  <Text style={styles.violationSummaryDesc}>
+                    Aşağıdaki ifadeler reklam ve içerik mevzuatına aykırıdır; idari para cezası ve içerik engeli riski taşır.
+                  </Text>
+                </View>
+              </GlassCard>
+            )}
+
+            {/* Violation List Cards */}
+            {complianceViolations.map((v, i) => (
+              <GlassCard key={i} style={styles.violationItemCard}>
+                <View style={styles.violationCardHeader}>
+                  <View style={styles.sectorBadge}>
+                    <Text style={styles.sectorBadgeText}>{v.sector}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.riskBadge,
+                      v.severity === "CRITICAL"
+                        ? styles.riskBadgeCritical
+                        : v.severity === "HIGH"
+                        ? styles.riskBadgeHigh
+                        : styles.riskBadgeMedium,
+                    ]}
+                  >
+                    <Text style={styles.riskBadgeText}>
+                      {v.severity === "CRITICAL" ? "AĞIR RİSK" : v.severity === "HIGH" ? "YÜKSEK RİSK" : "ORTA RİSK"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Prohibited Term */}
+                <View style={styles.termBox}>
+                  <Text style={styles.termLabel}>Yasaklı İfade:</Text>
+                  <Text style={styles.termValue}>"{v.matched_term}"</Text>
+                </View>
+
+                {/* Explanation */}
+                <Text style={styles.violExplanation}>{v.explanation}</Text>
+
+                {/* Law Reference & Fine Risk */}
+                <View style={styles.legalInfoBox}>
+                  <View style={styles.legalInfoRow}>
+                    <Ionicons name="book-outline" size={13} color={Colors.textMuted} />
+                    <Text style={styles.legalInfoText}>Mevzuat: {v.legal_reference}</Text>
+                  </View>
+                  <View style={styles.legalInfoRow}>
+                    <Ionicons name="warning-outline" size={13} color={Colors.danger} />
+                    <Text style={[styles.legalInfoText, { color: Colors.danger }]}>Yaptırım: {v.fine_risk}</Text>
+                  </View>
+                </View>
+
+                {/* Suggested Replacement */}
+                {v.suggested_replacement && (
+                  <View style={styles.replacementRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.replLabel}>Önerilen Güvenli Alternatif:</Text>
+                      <Text style={styles.replValue}>"{v.suggested_replacement}"</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.fixBtn}
+                      onPress={() => handleFixViolation(v)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="sparkles" size={13} color="#FFFFFF" />
+                      <Text style={styles.fixBtnText}>Metinde Düzelt</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </GlassCard>
+            ))}
+          </>
+        )}
         {/* TAB 1: OPTIMIZER */}
         {activeTabSub === "OPTIMIZER" && (
           <>
@@ -568,5 +819,215 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "700",
+  },
+  complianceIntroCard: {
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
+  complianceIntroTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  complianceIntroText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  presetScroll: {
+    gap: 8,
+    paddingBottom: 4,
+    marginTop: 6,
+  },
+  presetChip: {
+    backgroundColor: Colors.surfaceElevated,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  presetChipText: {
+    fontSize: 12,
+    color: Colors.textPrimary,
+    fontWeight: "500",
+  },
+  clearText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textDecorationLine: "underline",
+  },
+  draftInput: {
+    minHeight: 100,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlignVertical: "top",
+  },
+  draftStatsRow: {
+    alignItems: "flex-end",
+    marginTop: 6,
+  },
+  draftStatsText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  cleanStatusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderWidth: 1,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  cleanStatusTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+  cleanStatusDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  violationSummaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderWidth: 1,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  violationSummaryTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.danger,
+  },
+  violationSummaryDesc: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  violationItemCard: {
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 10,
+    gap: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.danger,
+  },
+  violationCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectorBadge: {
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  sectorBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.primary,
+  },
+  riskBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  riskBadgeCritical: {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+  },
+  riskBadgeHigh: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+  },
+  riskBadgeMedium: {
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
+  },
+  riskBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: Colors.danger,
+  },
+  termBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  termLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  termValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.danger,
+  },
+  violExplanation: {
+    fontSize: 12,
+    color: Colors.textPrimary,
+    lineHeight: 18,
+  },
+  legalInfoBox: {
+    backgroundColor: Colors.surface,
+    padding: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  legalInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  legalInfoText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  replacementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 4,
+  },
+  replLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  replValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+  fixBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.success,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  fixBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });

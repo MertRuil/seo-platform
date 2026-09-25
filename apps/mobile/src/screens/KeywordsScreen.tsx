@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { fetchKeywords, addKeyword, researchKeywords } from "../services/api";
+import { fetchKeywords, addKeyword, researchKeywords, scanTurkishCompliance } from "../services/api";
 import { KeywordItem, KeywordResearchItem } from "../types";
 
 export const KeywordsScreen: React.FC = () => {
@@ -193,12 +193,30 @@ export const KeywordsScreen: React.FC = () => {
             filteredKeywords.map((kw) => {
               const isUp = kw.change > 0;
               const isDown = kw.change < 0;
+              const compIssues = scanTurkishCompliance(kw.keyword);
 
               return (
                 <GlassCard key={kw.id} style={styles.kwCard}>
                   <View style={styles.kwRow}>
                     <View style={styles.kwMain}>
-                      <Text style={styles.kwTitle}>{kw.keyword}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+                        <Text style={styles.kwTitle}>{kw.keyword}</Text>
+                        {compIssues.length > 0 && (
+                          <View style={styles.complianceWarnBadge}>
+                            <Ionicons name="warning" size={10} color={Colors.danger} />
+                            <Text style={styles.complianceWarnText}>TR Reklam Uyarısı</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      {compIssues.length > 0 && (
+                        <View style={styles.complianceMiniNote}>
+                          <Text style={styles.complianceMiniNoteText}>
+                            ⚠️ {compIssues[0].legal_reference}: Bu kelime Reklam Kurulu / TİTCK / TBB kısıtlamalarına tabidir.
+                          </Text>
+                        </View>
+                      )}
+
                       <Text style={styles.kwUrl} numberOfLines={1}>{kw.target_url}</Text>
                       
                       <View style={styles.kwPillsRow}>
@@ -282,50 +300,59 @@ export const KeywordsScreen: React.FC = () => {
           </ScrollView>
 
           {/* Research Results */}
-          {researchResults.map((r, idx) => (
-            <GlassCard key={idx} style={styles.kwCard}>
-              <View style={styles.kwRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <Text style={styles.kwTitle}>{r.keyword}</Text>
-                    {r.has_ai_overview && (
-                      <View style={styles.aiOverviewBadge}>
-                        <Ionicons name="sparkles" size={9} color={Colors.accent} />
-                        <Text style={styles.aiOverviewText}>AI Overview</Text>
+          {researchResults.map((r, idx) => {
+            const rComp = scanTurkishCompliance(r.keyword);
+            return (
+              <GlassCard key={idx} style={styles.kwCard}>
+                <View style={styles.kwRow}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                      <Text style={styles.kwTitle}>{r.keyword}</Text>
+                      {r.has_ai_overview && (
+                        <View style={styles.aiOverviewBadge}>
+                          <Ionicons name="sparkles" size={9} color={Colors.accent} />
+                          <Text style={styles.aiOverviewText}>AI Overview</Text>
+                        </View>
+                      )}
+                      {rComp.length > 0 && (
+                        <View style={styles.complianceWarnBadge}>
+                          <Ionicons name="warning" size={10} color={Colors.danger} />
+                          <Text style={styles.complianceWarnText}>TR Mevzuat Riski</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.kwPillsRow}>
+                      <View style={styles.kwPill}>
+                        <Text style={styles.kwPillText}>Hacim: {r.volume.toLocaleString()}</Text>
                       </View>
-                    )}
-                  </View>
-                  <View style={styles.kwPillsRow}>
-                    <View style={styles.kwPill}>
-                      <Text style={styles.kwPillText}>Hacim: {r.volume.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.kwPill}>
-                      <Text style={styles.kwPillText}>Zorluk: %{r.difficulty}</Text>
-                    </View>
-                    <View style={styles.kwPill}>
-                      <Text style={styles.kwPillText}>Intent: {r.intent}</Text>
+                      <View style={styles.kwPill}>
+                        <Text style={styles.kwPillText}>Zorluk: %{r.difficulty}</Text>
+                      </View>
+                      <View style={styles.kwPill}>
+                        <Text style={styles.kwPillText}>Intent: {r.intent}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                {/* Add to Tracking Button */}
-                <TouchableOpacity
-                  style={styles.trackAddBtn}
-                  onPress={async () => {
-                    if (selectedSite) {
-                      const created = await addKeyword(selectedSite.id, r.keyword);
-                      setKeywords(prev => [created, ...prev]);
-                      setActiveSegment("TRACKING");
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={16} color={Colors.primary} />
-                  <Text style={styles.trackAddText}>Takip Et</Text>
-                </TouchableOpacity>
-              </View>
-            </GlassCard>
-          ))}
+                  {/* Add to Tracking Button */}
+                  <TouchableOpacity
+                    style={styles.trackAddBtn}
+                    onPress={async () => {
+                      if (selectedSite) {
+                        const created = await addKeyword(selectedSite.id, r.keyword);
+                        setKeywords(prev => [created, ...prev]);
+                        setActiveSegment("TRACKING");
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={16} color={Colors.primary} />
+                    <Text style={styles.trackAddText}>Takip Et</Text>
+                  </TouchableOpacity>
+                </View>
+              </GlassCard>
+            );
+          })}
         </ScrollView>
       )}
 
@@ -344,6 +371,35 @@ export const KeywordsScreen: React.FC = () => {
               onChangeText={setNewKeywordInput}
               autoFocus
             />
+
+            {/* Live Compliance Warning in Modal */}
+            {(() => {
+              const modalIssues = newKeywordInput.trim() ? scanTurkishCompliance(newKeywordInput.trim()) : [];
+              if (modalIssues.length === 0) return null;
+              return (
+                <View style={styles.modalAlertBox}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="alert-circle" size={16} color={Colors.danger} />
+                    <Text style={styles.modalAlertTitle}>
+                      Mevzuat İhlali Uyarısı ({modalIssues[0].sector})
+                    </Text>
+                  </View>
+                  <Text style={styles.modalAlertDesc}>{modalIssues[0].explanation}</Text>
+                  <Text style={styles.modalAlertLegal}>Yasal Dayanak: {modalIssues[0].legal_reference}</Text>
+                  {modalIssues[0].suggested_replacement && (
+                    <TouchableOpacity
+                      style={styles.modalAlertFixBtn}
+                      onPress={() => setNewKeywordInput(modalIssues[0].suggested_replacement || "")}
+                    >
+                      <Ionicons name="sparkles" size={12} color={Colors.primary} />
+                      <Text style={styles.modalAlertFixText}>
+                        Önerilen güvenli kelimeye geç: "{modalIssues[0].suggested_replacement}"
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })()}
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddModalVisible(false)}>
@@ -715,5 +771,74 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
+  },
+  complianceWarnBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  complianceWarnText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.danger,
+  },
+  complianceMiniNote: {
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  complianceMiniNoteText: {
+    fontSize: 10,
+    color: Colors.danger,
+    lineHeight: 14,
+  },
+  modalAlertBox: {
+    backgroundColor: "rgba(239, 68, 68, 0.09)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 6,
+  },
+  modalAlertTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.danger,
+  },
+  modalAlertDesc: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  modalAlertLegal: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontStyle: "italic",
+  },
+  modalAlertFixBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  modalAlertFixText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.primary,
   },
 });

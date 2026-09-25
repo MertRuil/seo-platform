@@ -309,3 +309,30 @@ export interface SeoOpportunityCard {
   difficulty: "KOLAY" | "ORTA" | "İLERİ";
   action_label: string;
 }
+
+export type ComplianceSector =
+  | "HEALTH_MEDICAL"
+  | "FOOD_SUPPLEMENT"
+  | "LEGAL_SERVICES"
+  | "FINANCIAL_SERVICES"
+  | "SUPERLATIVE_COMMERCIAL"
+  | "ILLEGAL_BETTING_TOBACCO";
+
+export interface ComplianceViolation {
+  rule_id: string;
+  sector: ComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
+

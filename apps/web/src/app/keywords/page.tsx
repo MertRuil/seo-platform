@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   HelpCircle,
   Compass,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { DEMO_KEYWORDS, type KeywordItem, type KeywordResearchItem } from "@/lib/demo";
 import { formatCompact, formatNumber } from "@/lib/format";
@@ -27,6 +29,7 @@ import { Badge, type Tone } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { scanTurkishCompliance } from "@/lib/compliance-tr";
 
 function getIntentTone(intent: string): Tone {
   switch (intent) {
@@ -253,12 +256,24 @@ export default function KeywordsPage() {
               <tbody className="divide-y divide-line">
                 {filteredKeywords.map((item) => {
                   const kdInfo = getKdColor(item.difficulty);
+                  const compViolations = scanTurkishCompliance(item.keyword);
                   return (
                     <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       {/* Keyword + Intent */}
                       <td className="py-3.5 px-4">
                         <div className="flex flex-col gap-1">
-                          <span className="font-semibold text-ink">{item.keyword}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-ink">{item.keyword}</span>
+                            {compViolations.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-rose-50 text-rose-600 border border-rose-200"
+                                title={`${compViolations[0].title}: ${compViolations[0].legalBasis}`}
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                TR Reklam İhlal Riski: {compViolations[0].title}
+                              </span>
+                            )}
+                          </div>
                           <div>
                             <Badge tone={getIntentTone(item.intent)} mono>
                               {getIntentLabel(item.intent)}
@@ -402,11 +417,21 @@ export default function KeywordsPage() {
                 {researchResults.map((item, idx) => {
                   const isTracked = keywords.some((k) => k.keyword.toLowerCase() === item.keyword.toLowerCase());
                   const kd = getKdColor(item.difficulty);
+                  const expCompViolations = scanTurkishCompliance(item.keyword);
                   return (
                     <div key={idx} className="p-4 bg-surface hover:bg-surface-2 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-ink text-sm">{item.keyword}</span>
+                          {expCompViolations.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-rose-50 text-rose-600 border border-rose-200"
+                              title={`${expCompViolations[0].title}: ${expCompViolations[0].legalBasis}`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                              Yasaklı İfade ({expCompViolations[0].title})
+                            </span>
+                          )}
                           {item.has_ai_overview && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink">
                               <Sparkles className="w-3 h-3 text-accent" /> AI Overview SERP
@@ -467,6 +492,20 @@ export default function KeywordsPage() {
               onChange={(e) => setNewKeyword(e.target.value)}
               required
             />
+            {scanTurkishCompliance(newKeyword).length > 0 && (
+              <div className="mt-2 p-2.5 bg-rose-50 border border-rose-200 rounded-sm space-y-1">
+                <div className="flex items-center gap-1.5 text-rose-700 font-bold text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>TR Reklam Mevzuatı Uyarısı: {scanTurkishCompliance(newKeyword)[0].title}</span>
+                </div>
+                <p className="text-2xs text-rose-600 leading-relaxed">
+                  "{scanTurkishCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTurkishCompliance(newKeyword)[0].legalBasis} uyarınca yasaktır. Reklam Kurulu cezası riski taşır.
+                </p>
+                <p className="text-2xs text-emerald-700 font-semibold">
+                  Tavsiye Edilen Uyumlu Alternatif: {scanTurkishCompliance(newKeyword)[0].suggestedFix}
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
