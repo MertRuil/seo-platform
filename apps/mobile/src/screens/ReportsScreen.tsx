@@ -34,18 +34,18 @@ export const ReportsScreen: React.FC = () => {
   useEffect(() => {
     if (selectedSite) {
       setLoading(true);
-      if (!clientName) {
-        setClientName(selectedSite.name || "Müşteri Firma");
-      }
-      fetchReports(selectedSite.id).then(setReports).finally(() => setLoading(false));
+      setClientName(selectedSite.name || selectedSite.domain || "Müşteri Firma");
+      fetchReports(selectedSite.id, selectedSite.domain, selectedSite.name)
+        .then(setReports)
+        .finally(() => setLoading(false));
     }
-  }, [selectedSite?.id]);
+  }, [selectedSite?.id, selectedSite?.name, selectedSite?.domain]);
 
   const activeReport = reports.find(r => r.period_label === selectedPeriod) || reports[0];
 
   const handleShare = async (rep: SeoReportSummary, isPdfSummary: boolean = false) => {
     try {
-      const site = clientName || selectedSite?.name || "Web Siteniz";
+      const site = clientName.trim() || selectedSite?.name || selectedSite?.domain || "Web Siteniz";
       const domain = selectedSite?.domain || "";
       const headerTitle = isWhitelabelActive ? `${agencyName} | SEO & GEO Performans Raporu` : `📊 SEO & GEO Performans Raporu`;
       const footer = isWhitelabelActive 
@@ -53,7 +53,7 @@ export const ReportsScreen: React.FC = () => {
         : `Otonom SEO Platformu Mobil Raporu`;
 
       const text = `${headerTitle} (${rep.period_label})
-🌐 Müşteri / Site: ${site} (${domain})
+🌐 Müşteri / Site: ${site}${domain ? ` (${domain})` : ""}
 📅 Tarih Aralığı: ${rep.date_range}
 🎯 Genel SEO Skoru: ${rep.overall_score}/100 (+${rep.score_change} puan)
 ⚡ Organik Tıklama: ${rep.organic_clicks.toLocaleString()} (+%${rep.clicks_change_pct})
@@ -90,6 +90,18 @@ ${footer}`;
         >
           <Ionicons name="share-social-outline" size={18} color={Colors.primary} />
         </TouchableOpacity>
+      </View>
+
+      {/* Active Client Bar */}
+      <View style={styles.activeClientBar}>
+        <Ionicons name="business-outline" size={13} color={Colors.primary} />
+        <Text style={styles.activeClientText} numberOfLines={1}>
+          Raporlanan Müşteri:{" "}
+          <Text style={styles.activeClientBold}>
+            {clientName.trim() || selectedSite?.name || selectedSite?.domain || "Müşteri Firma"}
+          </Text>
+          {selectedSite?.domain ? ` • ${selectedSite.domain}` : ""}
+        </Text>
       </View>
 
       {/* Period Selector Chips */}
@@ -189,12 +201,22 @@ ${footer}`;
                     />
                   </View>
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Müşteri Firma Adı</Text>
+                    <View style={styles.inputLabelRow}>
+                      <Text style={styles.inputLabel}>Müşteri Firma Adı</Text>
+                      {selectedSite && clientName.trim() !== (selectedSite.name || selectedSite.domain) && (
+                        <TouchableOpacity
+                          onPress={() => setClientName(selectedSite.name || selectedSite.domain || "Müşteri Firma")}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.resetLabelBtn}>Site Adına Dönüştür</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <TextInput
                       style={styles.textInput}
                       value={clientName}
                       onChangeText={setClientName}
-                      placeholder="Örn: E-Ticaret Markası"
+                      placeholder={selectedSite?.name || "Örn: E-Ticaret Markası"}
                       placeholderTextColor={Colors.textMuted}
                     />
                   </View>
@@ -255,6 +277,25 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     padding: 6,
+  },
+  activeClientBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderSubtle,
+  },
+  activeClientText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  activeClientBold: {
+    color: Colors.textPrimary,
+    fontWeight: "700",
   },
   periodRow: {
     flexDirection: "row",
@@ -447,6 +488,16 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     gap: 4,
+  },
+  inputLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  resetLabelBtn: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: "600",
   },
   inputLabel: {
     fontSize: 11,

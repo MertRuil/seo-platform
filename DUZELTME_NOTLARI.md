@@ -1221,8 +1221,57 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
   - [`tests/unit/test_turkish_compliance.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_turkish_compliance.py): `test_commercial_fake_scarcity_detected` testi eklenerek "son 3 adet kaldı", "stokta son 1 ürün kaldı", "yalnızca son 5 adet kaldı" ve "hemen almazsanız tükeniyor" ifadelerinin Reklam Kurulu `TR_COMMERCIAL_FAKE_SCARCITY` kuralıyla başarıyla yakalandığı doğrulandı.
   - [`tests/unit/test_uk_compliance.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_uk_compliance.py): `test_uk_compliance_dark_patterns_scarcity` testi ile UK DMCC Act 2024 kapsamındaki kıtlık ihlallerinin tespiti doğrulandı.
 - **Test Sonuçları:**
-  - Python Birim Testleri: `330 / 330 başarılı` (%100 Geçti).
+  - Python Birim Testleri: `354 / 354 başarılı` (%100 Geçti).
   - TypeScript Derleme: Hem `apps/mobile` hem de `apps/web` **0 Hata** ile doğrulandı.
+
+---
+
+### 25. 📊 Raporlarda Yanlış Müşteri Adı (Site Değiştirilince Müşteri Adının Güncellenmemesi ve Çapraz Veri Sızıntısı Risk Onarımı)
+
+**Kullanıcı Bildirimi:**
+*"Raporlarda yanlış müşteri adı: Site değiştirilince rapordaki müşteri adı güncellenmiyor. Bir müşteriye başka bir müşterinin adıyla rapor gidebilir. kontrol sağla hataları düzelt"*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+1. **Mobilde `if (!clientName)` Şartının Site Değişimini Engellemesi ([`apps/mobile/src/screens/ReportsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ReportsScreen.tsx)):**
+   - Sayfa ilk açıldığında `clientName` mevcut sitenin (örn: Acme Store) adıyla dolduruluyordu.
+   - Kullanıcı uygulama başlığından veya site seçiciden farklı bir siteye (örn: Zenith Tech) geçtiğinde `useEffect` tetiklenmesine rağmen, içerisindeki `if (!clientName)` şartı `clientName` önceden dolu olduğu için `false` veriyordu.
+   - Bu sebeple `setClientName` hiçbir zaman yeni site için çalışmıyor, Whitelabel giriş kutusu ve rapor paylaşım fonksiyonu (`handleShare`) eski sitenin adını tutmaya devam ediyordu (`🌐 Müşteri / Site: Acme Store (zenithtech.co)`). Bu durum doğrudan bir müşteriye başka bir müşterinin adıyla rapor gitmesine yol açıyordu.
+2. **Web Uygulamasında `useEffect` Senkronizasyonunun Bulunmaması ([`apps/web/src/app/reports/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/reports/page.tsx)):**
+   - Web raporlama sayfasında `clientName` state'i yalnızca ilk mount anında `useState(site?.name || "Acme Store E-Ticaret")` ile başlatılıyordu.
+   - Kullanıcı navigasyondaki `SiteSwitcher` açılır menüsünden siteyi değiştirdiğinde (`site` objesi değiştiğinde), sayfada `site` değişimini dinleyen hiçbir `useEffect` hook'u yoktu.
+   - Sonuç olarak:
+     - PDF baskı sayfasındaki Müşteri & Alan Adı kartında,
+     - Panoya kopyalanan yönetici metin özetinde (`handleCopySummary`),
+     - İndirilen CSV/Excel raporunda (`handleExportCsv`) ve dosya adında (`seo_raporu_acme_store_...csv`) müşteri adı sürekli eski veya varsayılan ad olarak kalıyor; yeni seçilen sitenin domain bilgileriyle eski müşterinin adı karışıyordu.
+3. **Mobil Servis Rapor Özetlerinin Statik Kalması ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts)):**
+   - `fetchReports(siteId)` fonksiyonu jenerik metinler döndürüyor, çağrılan sitenin adını veya sağlık skorunu yönetici özetlerine taşımıyordu.
+
+#### B. Gerçekleştirilen Düzeltmeler
+1. **Mobil Rapor Senkronizasyonu ve Aktif Müşteri Bildirimi:**
+   - [`apps/mobile/src/screens/ReportsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ReportsScreen.tsx):
+     - `useEffect` bağımlılıkları `[selectedSite?.id, selectedSite?.name, selectedSite?.domain]` olarak güncellendi ve `if (!clientName)` engeli kaldırılarak site değişiminde `clientName` anında yeni sitenin adına eşitlendi.
+     - `handleShare` fonksiyonunda `clientName.trim() || selectedSite?.name || selectedSite?.domain` hiyerarşisi uygulandı.
+     - Rapor ekranının tepesine `activeClientBar` eklendi (`Raporlanan Müşteri: [Ad] • [Domain]`).
+     - Whitelabel formunda özel müşteri adı girildiğinde kullanıcının tek tıkla orijinal site adına dönebilmesi için `Site Adına Dönüştür` butonu sağlandı.
+2. **Web Rapor Sayfası Senkronizasyonu ve Canlı Güncelleme:**
+   - [`apps/web/src/app/reports/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/reports/page.tsx):
+     - `useEffect` eklenerek `[site?.id, site?.name, site?.domain]` değişiminde `clientName` anında seçili sitenin adına eşitlendi.
+     - Dinamik `activeClient`, `activeDomain` ve `activeUrl` hesaplaması eklendi.
+     - CSV dışa aktarımı (`handleExportCsv`), CSV dosya adı (`download`), panoya kopyalanan yönetici özeti (`handleCopySummary`) ve PDF baskı görünümü (`print`) dinamik olarak bu değerlere bağlandı.
+     - Whitelabel ayarlarında "Site adına sıfırla" butonu ve aktif seçili sitenin adı/domaini için rehber etiket eklendi.
+     - Sabit `acmestore.io` geri dönüşleri (fallbacks) kaldırılarak seçili sitenin verisi bağlandı.
+3. **Mobil Servis Dinamizmi:**
+   - [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts):
+     - `fetchReports(siteId, domain?, siteName?)` fonksiyonu güncellenerek seçili sitenin adı, domaini ve sağlık skoru doğrudan rapor yönetici özetine (`executive_summary`) yansıtıldı.
+4. **Otomasyon Testleri:**
+   - [`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts):
+     - Site A'dan Site B'ye geçildiğinde müşteri adının ve CSV dosya adının anında Site B'ye dönüştüğünü, eski müşteri adının sızmadığını ve özel ad girişlerinin desteklendiğini test eden senaryolar eklendi.
+
+#### C. Test ve Doğrulama
+- **Web Test Paketi:** `npm test` başarıyla tamamlandı (UI Logic, Auth Guards, Security Suite passed).
+- **Backend Test Paketi:** `354 / 354 pytest testi başarılı` (%100 Başarı).
+- **TypeScript Derlemesi:** `apps/mobile` ve `apps/web` **0 Hata** (`npx tsc --noEmit` başarılı).
+
 
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FileText,
   Download,
@@ -31,12 +31,23 @@ export default function ReportsPage() {
 
   // Whitelabel Settings State
   const [agencyName, setAgencyName] = useState("Nexus SEO Danışmanlık A.Ş.");
-  const [clientName, setClientName] = useState(site?.name || "Acme Store E-Ticaret");
+  const [clientName, setClientName] = useState(site?.name || site?.domain || "Müşteri Firma");
   const [reportPeriod, setReportPeriod] = useState<"HAFTALIK" | "AYLIK" | "KAPSAMLI">("HAFTALIK");
   const [customNote, setCustomNote] = useState(
     "Bu rapor, sitenizin teknik SEO sağlığı, Google ve yapay zeka arama motorları (GEO) görünürlüğü ile uluslararası mevzuat uyumunu özetlemek amacıyla otonom olarak hazırlanmıştır."
   );
   const [isCopied, setIsCopied] = useState(false);
+
+  // Synchronize client name whenever the active site changes
+  useEffect(() => {
+    if (site) {
+      setClientName(site.name || site.domain || "Müşteri Firma");
+    }
+  }, [site?.id, site?.name, site?.domain]);
+
+  const activeClient = clientName.trim() || site?.name || site?.domain || "Müşteri Firma";
+  const activeDomain = site?.domain || site?.primary_url?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "site.com";
+  const activeUrl = site?.primary_url || (activeDomain ? `https://${activeDomain}` : "https://site.com");
 
   const reportDate = new Date().toLocaleDateString("tr-TR", {
     year: "numeric",
@@ -53,8 +64,8 @@ export default function ReportsPage() {
       ["METRIK", "DEGER", "DURUM"],
       ["Rapor Tarihi", reportDate, "Tamamlandi"],
       ["Hazirlayan Ajans", agencyName, "Aktif"],
-      ["Musteri", clientName, "Aktif"],
-      ["Domain", site?.domain || "acmestore.io", "Aktif"],
+      ["Musteri", activeClient, "Aktif"],
+      ["Domain", activeDomain, "Aktif"],
       ["Genel SEO Saglik Skoru", "88/100", "+6 puan artis"],
       ["GEO / Yapay Zeka Skor", "84/100", "Dominant"],
       ["Organik Tiklama", "48500", "+%14 artis"],
@@ -83,7 +94,7 @@ export default function ReportsPage() {
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `seo_raporu_${clientName.toLowerCase().replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.csv`
+      `seo_raporu_${activeClient.toLowerCase().replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -93,7 +104,7 @@ export default function ReportsPage() {
   const handleCopySummary = () => {
     const text = `📊 KURUMSAL SEO & GEO YÖNETİCİ RAPORU
 🏢 Hazırlayan: ${agencyName}
-🎯 Müşteri: ${clientName} (${site?.domain || "acmestore.io"})
+🎯 Müşteri: ${activeClient} (${activeDomain})
 📅 Tarih: ${reportDate} (${reportPeriod === "HAFTALIK" ? "Haftalık Dönem" : reportPeriod === "AYLIK" ? "Aylık Dönem" : "Kapsamlı Audit"})
 
 📌 Öne Çıkan Metrikler:
@@ -170,13 +181,30 @@ Nexus Otonom SEO & GEO Platformu Tarafından Üretilmiştir.`;
             </div>
 
             <div>
-              <Label htmlFor="client_name">Müşteri / Marka Adı</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="client_name">Müşteri / Marka Adı</Label>
+                {site && clientName.trim() !== (site.name || site.domain) && (
+                  <button
+                    type="button"
+                    onClick={() => setClientName(site.name || site.domain || "Müşteri Firma")}
+                    className="text-[11px] text-accent hover:underline mb-1"
+                    title="Seçili sitenin adına sıfırla"
+                  >
+                    Site adına sıfırla
+                  </button>
+                )}
+              </div>
               <Input
                 id="client_name"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                placeholder="Örn: Acme Store"
+                placeholder={site?.name || "Örn: Marka / Müşteri Adı"}
               />
+              {site && (
+                <p className="text-[11px] text-muted mt-1 truncate">
+                  Seçili Site: <span className="font-semibold text-ink">{site.name}</span> ({activeDomain})
+                </p>
+              )}
             </div>
 
             <div>
@@ -252,10 +280,10 @@ Nexus Otonom SEO & GEO Platformu Tarafından Üretilmiştir.`;
               Müşteri & Alan Adı
             </span>
             <p className="text-sm font-bold text-ink print:text-black mt-0.5">
-              {clientName}
+              {activeClient}
             </p>
             <p className="text-xs font-mono text-muted print:text-gray-600">
-              {site?.primary_url || "https://acmestore.io"}
+              {activeUrl}
             </p>
           </div>
 

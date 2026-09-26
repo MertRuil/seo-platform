@@ -1513,13 +1513,17 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
 // -------------------------------------------------------------
 // 28. Reports & Native Export
 // -------------------------------------------------------------
-export async function fetchReports(siteId: string): Promise<SeoReportSummary[]> {
+export async function fetchReports(siteId: string, domain?: string, siteName?: string): Promise<SeoReportSummary[]> {
+  const targetSite = MOCK_SITES.find(s => s.id === siteId);
+  const name = siteName || targetSite?.name || domain || targetSite?.domain || "Web Siteniz";
+  const score = targetSite?.health_score && targetSite.health_score > 0 ? targetSite.health_score : 87;
+
   return [
     {
-      id: "rep-1",
+      id: `rep-1-${siteId}`,
       period_label: "GÜNLÜK",
       date_range: "19 Eylül 2026",
-      overall_score: 87,
+      overall_score: score,
       score_change: 3,
       organic_clicks: 4820,
       clicks_change_pct: 12.4,
@@ -1527,13 +1531,13 @@ export async function fetchReports(siteId: string): Promise<SeoReportSummary[]> 
       top_keywords_lost: 1,
       issues_resolved: 4,
       geo_score: 81,
-      executive_summary: "Bugün organik tıklamalarda %12.4 artış yaşandı. Kanonikleştirme düzeltmeleri sayesinde 4 kritik hata çözüldü."
+      executive_summary: `${name} için bugün organik tıklamalarda %12.4 artış yaşandı. Kanonikleştirme düzeltmeleri sayesinde 4 kritik hata çözüldü.`
     },
     {
-      id: "rep-2",
+      id: `rep-2-${siteId}`,
       period_label: "HAFTALIK",
       date_range: "12 - 19 Eylül 2026",
-      overall_score: 87,
+      overall_score: score,
       score_change: 9,
       organic_clicks: 31400,
       clicks_change_pct: 18.2,
@@ -1541,13 +1545,13 @@ export async function fetchReports(siteId: string): Promise<SeoReportSummary[]> 
       top_keywords_lost: 3,
       issues_resolved: 14,
       geo_score: 81,
-      executive_summary: "Bu hafta arama motoru görünürlüğü belirgin şekilde yükseldi. ChatGPT ve Perplexity üzerinden gelen alıntı trafiği %25 arttı."
+      executive_summary: `${name} için bu hafta arama motoru görünürlüğü belirgin şekilde yükseldi. ChatGPT ve Perplexity üzerinden gelen alıntı trafiği %25 arttı.`
     },
     {
-      id: "rep-3",
+      id: `rep-3-${siteId}`,
       period_label: "AYLIK",
       date_range: "Ağustos - Eylül 2026",
-      overall_score: 87,
+      overall_score: score,
       score_change: 16,
       organic_clicks: 128600,
       clicks_change_pct: 34.0,
@@ -1555,7 +1559,7 @@ export async function fetchReports(siteId: string): Promise<SeoReportSummary[]> 
       top_keywords_lost: 11,
       issues_resolved: 48,
       geo_score: 81,
-      executive_summary: "Aylık bazda genel SEO sağlık skoru 71'den 87'ye yükseldi. Teknik SEO problemleri %70 oranında temizlendi."
+      executive_summary: `${name} için aylık bazda genel SEO sağlık skoru yükseldi. Teknik SEO problemleri %70 oranında temizlendi.`
     }
   ];
 }
