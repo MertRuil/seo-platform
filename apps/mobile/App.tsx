@@ -18,6 +18,7 @@ import { GeoScreen } from "./src/screens/GeoScreen";
 import { HubScreen } from "./src/screens/HubScreen";
 import { KeywordsScreen } from "./src/screens/KeywordsScreen";
 import { CompetitorsScreen } from "./src/screens/CompetitorsScreen";
+import { BacklinksScreen } from "./src/screens/BacklinksScreen";
 import { TasksScreen } from "./src/screens/TasksScreen";
 import { ContentOptimizerScreen } from "./src/screens/ContentOptimizerScreen";
 import { ReportsScreen } from "./src/screens/ReportsScreen";
@@ -107,6 +108,7 @@ const MainNavigator: React.FC = () => {
                 {activeTab === "hub" && <HubScreen />}
                 {activeTab === "keywords" && <KeywordsScreen />}
                 {activeTab === "competitors" && <CompetitorsScreen />}
+                {activeTab === "backlinks" && <BacklinksScreen />}
                 {activeTab === "tasks" && <TasksScreen />}
                 {activeTab === "content_optimizer" && <ContentOptimizerScreen />}
                 {activeTab === "reports" && <ReportsScreen />}

@@ -6,15 +6,23 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert
+  Alert,
+  Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchAppSettings, updateAppSettings } from "../services/api";
-import { AppSettings } from "../types";
+import { 
+  fetchAppSettings, 
+  updateAppSettings, 
+  fetchGoogleSyncTelemetry, 
+  triggerGoogleSync, 
+  fetchAlertChannels, 
+  sendTestAlert 
+} from "../services/api";
+import { AppSettings, GoogleSyncTelemetry, AlertChannelConfig } from "../types";
 
 export const SettingsScreen: React.FC = () => {
   const { setActiveTab } = useApp();
@@ -28,10 +36,41 @@ export const SettingsScreen: React.FC = () => {
     resetBiometricPrompt 
   } = useAuth();
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [googleSync, setGoogleSync] = useState<GoogleSyncTelemetry | null>(null);
+  const [syncingGoogle, setSyncingGoogle] = useState(false);
+  const [alertChannels, setAlertChannels] = useState<AlertChannelConfig[]>([]);
+  const [testingChan, setTestingChan] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAppSettings().then(setSettings);
+    fetchGoogleSyncTelemetry().then(setGoogleSync);
+    fetchAlertChannels().then(setAlertChannels);
   }, []);
+
+  const handleSyncGoogle = async () => {
+    setSyncingGoogle(true);
+    try {
+      const res = await triggerGoogleSync();
+      setGoogleSync(res);
+      Alert.alert("Başarılı", "Google Search Console ve GA4 verileri başarıyla eşitlendi!");
+    } catch {
+      Alert.alert("Hata", "Google senkronizasyonu yapılamadı.");
+    } finally {
+      setSyncingGoogle(false);
+    }
+  };
+
+  const handleSendTestAlert = async (chan: AlertChannelConfig) => {
+    setTestingChan(chan.id);
+    try {
+      const res = await sendTestAlert(chan.id);
+      Alert.alert(chan.name, res.message);
+    } catch {
+      Alert.alert("Hata", "Test bildirimi gönderilemedi.");
+    } finally {
+      setTestingChan(null);
+    }
+  };
 
   const handleToggleBiometric = async (val: boolean) => {
     if (val) {
@@ -160,32 +199,93 @@ export const SettingsScreen: React.FC = () => {
           </View>
         </GlassCard>
 
-        {/* Connected Integrations */}
-        <Text style={styles.sectionTitle}>Bağlı Entegrasyonlar</Text>
+        {/* Google Sync Hub (GSC & GA4) */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Google Entegrasyon Hub'ı</Text>
+          <TouchableOpacity 
+            style={styles.syncNowBtn} 
+            onPress={handleSyncGoogle} 
+            disabled={syncingGoogle}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh-outline" size={14} color={Colors.primary} />
+            <Text style={styles.syncNowText}>{syncingGoogle ? "Eşitleniyor..." : "Şimdi Eşitle"}</Text>
+          </TouchableOpacity>
+        </View>
+
         <GlassCard style={styles.groupCard}>
-          {settings?.connected_integrations.map((int, i) => (
-            <React.Fragment key={int.id}>
-              {i > 0 && <View style={styles.divider} />}
-              <View style={styles.settingRow}>
-                <View style={styles.settingLeft}>
-                  <Ionicons
-                    name={int.icon === "google" ? "logo-google" : int.icon === "slack" ? "logo-slack" : "globe-outline"}
-                    size={20}
-                    color={int.is_connected ? Colors.success : Colors.textMuted}
-                  />
-                  <View>
-                    <Text style={styles.settingTitle}>{int.name}</Text>
-                    <Text style={styles.settingSub}>
-                      {int.is_connected ? `Bağlı • ${int.last_synced || "Aktif"}` : "Bağlantı kesildi"}
-                    </Text>
-                  </View>
+          {googleSync && (
+            <View style={styles.googleSyncBox}>
+              <View style={styles.googleServiceRow}>
+                <View style={styles.serviceHeaderLeft}>
+                  <Ionicons name="logo-google" size={18} color="#EA4335" />
+                  <Text style={styles.serviceName}>Google Search Console (GSC)</Text>
                 </View>
+                <View style={styles.activeTag}>
+                  <Text style={styles.activeTagText}>Bağlı</Text>
+                </View>
+              </View>
+              <Text style={styles.serviceDetailText}>
+                {googleSync.gsc.property} • {googleSync.gsc.total_clicks.toLocaleString()} Tıklama (%{googleSync.gsc.avg_ctr_percent} CTR)
+              </Text>
+
+              <View style={styles.divider} />
+
+              <View style={styles.googleServiceRow}>
+                <View style={styles.serviceHeaderLeft}>
+                  <Ionicons name="analytics-outline" size={18} color="#FBBC04" />
+                  <Text style={styles.serviceName}>Google Analytics 4 (GA4)</Text>
+                </View>
+                <View style={styles.activeTag}>
+                  <Text style={styles.activeTagText}>Aktif</Text>
+                </View>
+              </View>
+              <Text style={styles.serviceDetailText}>
+                {googleSync.ga4.property_id} • {googleSync.ga4.active_users.toLocaleString()} Kullanıcı (%{googleSync.ga4.organic_conversion_rate} Dönüşüm)
+              </Text>
+              
+              <Text style={styles.lastSyncMuted}>
+                Son Eşitleme: {new Date(googleSync.last_synced_at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+              </Text>
+            </View>
+          )}
+        </GlassCard>
+
+        {/* Anlık Alarm Kanalları (Slack, Telegram, Discord, Webhook) */}
+        <Text style={styles.sectionTitle}>Anlık Alarm Kanalları</Text>
+        <GlassCard style={styles.groupCard}>
+          {alertChannels.map((chan, i) => (
+            <React.Fragment key={chan.id}>
+              {i > 0 && <View style={styles.divider} />}
+              <View style={styles.alertChanRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.alertChanHeader}>
+                    <Ionicons 
+                      name={
+                        chan.type === "SLACK" ? "logo-slack" :
+                        chan.type === "TELEGRAM" ? "paper-plane-outline" :
+                        chan.type === "DISCORD" ? "game-controller-outline" : "globe-outline"
+                      } 
+                      size={16} 
+                      color={chan.enabled ? Colors.primary : Colors.textMuted} 
+                    />
+                    <Text style={styles.alertChanTitle}>{chan.name}</Text>
+                    {chan.enabled && <View style={styles.miniDot} />}
+                  </View>
+                  <Text style={styles.alertChanSub} numberOfLines={1}>
+                    {chan.target_url_or_id}
+                  </Text>
+                </View>
+
                 <TouchableOpacity
-                  style={[styles.intBtn, int.is_connected ? styles.intBtnActive : styles.intBtnInactive]}
-                  onPress={() => handleToggleIntegration(int.id)}
+                  style={styles.testBtn}
+                  onPress={() => handleSendTestAlert(chan)}
+                  disabled={testingChan === chan.id}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.intBtnText, int.is_connected ? styles.intBtnTextActive : styles.intBtnTextInactive]}>
-                    {int.is_connected ? "Bağlı" : "Bağla"}
+                  <Ionicons name="send-outline" size={12} color={Colors.primary} />
+                  <Text style={styles.testBtnText}>
+                    {testingChan === chan.id ? "..." : "Test"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -357,5 +457,112 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: Colors.textPrimary,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  syncNowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+  },
+  syncNowText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  googleSyncBox: {
+    gap: 8,
+  },
+  googleServiceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  serviceHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  serviceName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  activeTag: {
+    backgroundColor: Colors.successSurface,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  activeTagText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+  serviceDetailText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    paddingLeft: 26,
+  },
+  lastSyncMuted: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontStyle: "italic",
+    marginTop: 4,
+    textAlign: "right",
+  },
+  alertChanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  alertChanHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  alertChanTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  miniDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.success,
+  },
+  alertChanSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  testBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.25)",
+  },
+  testBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.primary,
   },
 });

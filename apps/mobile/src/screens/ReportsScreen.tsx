@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Share,
   ActivityIndicator,
-  Platform
+  TextInput,
+  Switch,
+  Platform,
+  Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
@@ -22,21 +25,35 @@ export const ReportsScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<"GÜNLÜK" | "HAFTALIK" | "AYLIK">("HAFTALIK");
 
+  // Whitelabel States
+  const [showWhitelabelSettings, setShowWhitelabelSettings] = useState(false);
+  const [isWhitelabelActive, setIsWhitelabelActive] = useState(false);
+  const [agencyName, setAgencyName] = useState("Dijital Büyüme Ajansı");
+  const [clientName, setClientName] = useState("");
+
   useEffect(() => {
     if (selectedSite) {
       setLoading(true);
+      if (!clientName) {
+        setClientName(selectedSite.name || "Müşteri Firma");
+      }
       fetchReports(selectedSite.id).then(setReports).finally(() => setLoading(false));
     }
   }, [selectedSite?.id]);
 
   const activeReport = reports.find(r => r.period_label === selectedPeriod) || reports[0];
 
-  const handleShare = async (rep: SeoReportSummary) => {
+  const handleShare = async (rep: SeoReportSummary, isPdfSummary: boolean = false) => {
     try {
-      const site = selectedSite?.name || "Web Siteniz";
+      const site = clientName || selectedSite?.name || "Web Siteniz";
       const domain = selectedSite?.domain || "";
-      const text = `📊 SEO & GEO Performans Raporu (${rep.period_label})
-🌐 Site: ${site} (${domain})
+      const headerTitle = isWhitelabelActive ? `${agencyName} | SEO & GEO Performans Raporu` : `📊 SEO & GEO Performans Raporu`;
+      const footer = isWhitelabelActive 
+        ? `Hazırlayan: ${agencyName} | Müşteri: ${site}\nGizli & Özel Analiz Belgesi`
+        : `Otonom SEO Platformu Mobil Raporu`;
+
+      const text = `${headerTitle} (${rep.period_label})
+🌐 Müşteri / Site: ${site} (${domain})
 📅 Tarih Aralığı: ${rep.date_range}
 🎯 Genel SEO Skoru: ${rep.overall_score}/100 (+${rep.score_change} puan)
 ⚡ Organik Tıklama: ${rep.organic_clicks.toLocaleString()} (+%${rep.clicks_change_pct})
@@ -47,7 +64,7 @@ export const ReportsScreen: React.FC = () => {
 📝 Yönetici Özeti:
 "${rep.executive_summary}"
 
-Otonom SEO Platformu Mobil Raporu`;
+${footer}`;
 
       await Share.share({
         title: `${site} SEO Raporu`,
@@ -141,24 +158,70 @@ Otonom SEO Platformu Mobil Raporu`;
               <Text style={styles.summaryBody}>{activeReport.executive_summary}</Text>
             </GlassCard>
 
+            {/* Whitelabel Customization Section */}
+            <GlassCard style={styles.whitelabelCard}>
+              <View style={styles.whitelabelHeaderRow}>
+                <View style={styles.whitelabelTitleGroup}>
+                  <Ionicons name="business-outline" size={17} color={Colors.primary} />
+                  <Text style={styles.whitelabelTitle}>Ajans Whitelabel Rapor Modu</Text>
+                </View>
+                <Switch
+                  value={isWhitelabelActive}
+                  onValueChange={setIsWhitelabelActive}
+                  trackColor={{ false: Colors.borderSubtle, true: Colors.primary }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {isWhitelabelActive && (
+                <View style={styles.whitelabelInputsContainer}>
+                  <Text style={styles.whitelabelDesc}>
+                    Platform logoları gizlenir; rapor başlığı ve dipnotu ajansınıza özel olarak düzenlenir.
+                  </Text>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Ajans Adı</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={agencyName}
+                      onChangeText={setAgencyName}
+                      placeholder="Örn: Büyüme Ajansı A.Ş."
+                      placeholderTextColor={Colors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Müşteri Firma Adı</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={clientName}
+                      onChangeText={setClientName}
+                      placeholder="Örn: E-Ticaret Markası"
+                      placeholderTextColor={Colors.textMuted}
+                    />
+                  </View>
+                </View>
+              )}
+            </GlassCard>
+
             {/* Share / Export Actions */}
             <View style={styles.exportRow}>
               <TouchableOpacity
                 style={styles.exportBtnPrimary}
-                onPress={() => handleShare(activeReport)}
+                onPress={() => handleShare(activeReport, false)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="share-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.exportBtnText}>Raporu Paylaş / Gönder</Text>
+                <Ionicons name="share-social-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.exportBtnText}>
+                  {isWhitelabelActive ? "Whitelabel Raporu Paylaş" : "Raporu Paylaş / Gönder"}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.exportBtnSecondary}
-                onPress={() => handleShare(activeReport)}
+                onPress={() => handleShare(activeReport, true)}
                 activeOpacity={0.8}
               >
                 <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
-                <Text style={styles.exportBtnSecText}>PDF Özeti</Text>
+                <Text style={styles.exportBtnSecText}>Metin Özeti</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -349,5 +412,55 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 13,
     fontWeight: "600",
+  },
+  whitelabelCard: {
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  whitelabelHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  whitelabelTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  whitelabelTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  whitelabelInputsContainer: {
+    gap: 10,
+    marginTop: 4,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderSubtle,
+  },
+  whitelabelDesc: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    lineHeight: 16,
+  },
+  inputGroup: {
+    gap: 4,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  textInput: {
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
+    color: Colors.textPrimary,
   },
 });

@@ -34,6 +34,14 @@ export const HubScreen: React.FC = () => {
       bg: "rgba(139, 92, 246, 0.12)"
     },
     {
+      tab: "backlinks" as const,
+      title: "Backlink & Toksik Link",
+      desc: "Bağlantı profili, DR otoritesi, spam skoru ve Google Disavow",
+      icon: "link" as const,
+      color: "#EC4899",
+      bg: "rgba(236, 72, 153, 0.12)"
+    },
+    {
       tab: "tasks" as const,
       title: "SEO Görevleri",
       desc: "AI önceliklendirmeli yapılacaklar listesi ve iş takibi",

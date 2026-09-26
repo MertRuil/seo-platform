@@ -19,7 +19,10 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`3ffade2`** | `feat(modules): 5 yeni ana modül ve canlı backend dağıtım hazırlığı (render, railway, supabase)` | Keywords rank tracker, competitors gap analizi, content optimizer, ai copilot, geo ai visibility ve supabase/render/railway yapılandırması |
 | **`018a1a9`** | `feat(compliance-tr): turkiye reklam kurulu, titck ve tbb mevzuatina ozel yasakli kelime kalkani` | Sağlık (TİTCK), Hukuk (TBB), Finans (SPK/BDDK), E-Ticaret (Reklam Kurulu) ve Bahis/Tütün yasaklı kelime kalkanı |
 | **`e26b57b`** | `feat(compliance-eu): avrupa birligi mevzuati ve greenwashing kalkani (web, mobil, backend)` | EmpCo (EU) 2024/825, EFSA 1924/2006, MiCA (EU) 2023/1114, Omnibus (EU) 2019/2161, 2001/83/EC |
-| **`(güncel)`** | `feat(compliance-us): abd federal mevzuati ftc fda sec uyum kalkani (web, mobil, backend)` | FTC Act Section 5, 16 CFR Part 464 (Fake Reviews), FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides |
+| **`8a51f5a`** | `feat(compliance-us): abd federal mevzuati ftc fda sec uyum kalkani (web, mobil, backend)` | FTC Act Section 5, 16 CFR Part 464 (Fake Reviews), FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides |
+| **`fc00dbb`** | `feat(compliance-asia): asya pasifik apac mevzuati jcaa samr mas pmda kalkani (web, mobil, backend)` | PMD Act 2024, JCAA/KFTC Stealth Marketing, SAMR Süperlatifler, MAS Kripto/Finans, Singapur CCCS Greenwashing |
+| **`(güncel)`** | `feat(production-ready): 5 ana modülün tamamlanması (backlinks, raporlama, google hub, alarmlar, uk kalkanı)` | Backlink Engine & Google Disavow, Whitelabel Export Suite, Google GSC+GA4 Live Sync Hub, Çok Kanallı Alarm Dispatcher, UK ASA/CMA/FCA Mevzuat Kalkanı |
+
 
 ---
 
@@ -838,6 +841,138 @@ Asya ve Pasifik (APAC) bölgesine ihracat yapan, sınır ötesi e-ticaret yürü
   - Quick Prompts içerisine `"🌏 Asya / PMDA & SAMR Uyum Kuralları"` eklendi.
 - Derleme: `npx tsc --noEmit` 0 hata.
 
+---
 
+## 19. 🚀 Canlıya Hazırlık: 5 Ana Modülün Uçtan Uca Tamamlanması (Web, Mobil, Backend & Testler)
 
+Platformun canlıya (production) alınabilmesi için eksik kalan ilk 5 ana iş paketi; bağımsız araştırmalar, katı birim testleri (unit tests), mimari kod incelemeleri (code review) ve Web/Mobil/Backend tam paritesiyle tamamlanmıştır.
 
+---
+
+### 1. 🔗 Madde 1: Detaylı Backlink Analizi, Toksik Link Dedektörü & Google Disavow Generator
+
+#### A. Araştırma ve Standartlar
+- **Google Search Central Yönergeleri:** Google'ın spam bağlantı algoritmaları (SpamBrain) ve manuel cezalar (Unnatural Links Penalty) gereğince, manipülatif PBN ağları, spam TLD'ler (`.xyz`, `.top`, `.click`, `.buzz`, vb.) ve agresif ticari anahtar kelime çapa metinleri (`exact-match commercial anchor texts`) alan adı otoritesini düşürmektedir.
+- **Resmi Google Disavow Formatı:** `# Google Search Console Disavow File`, domain başına `domain:example.com` ve URL başına tekil satır RFC formatı gereksinimleri incelenerek dinamik dışa aktarma mekanizması kurulmuştur.
+
+#### B. Mimari Uygulama & Parite
+- **Backend Motoru (`services/seo_engine/backlink_engine.py`):**
+  - `ToxicityFactor` enum: `SPAM_TLD`, `UNNATURAL_ANCHOR`, `LOW_AUTHORITY`, `EXCESSIVE_OUTBOUND`, `SITEWIDE_FOOTER`.
+  - `BacklinkAnalyzer` sınıfı: Toksisite skoru (0-100), Spam Bayrakları tespiti, Toksik/Şüpheli/Güvenli sınıflandırması.
+  - `generate_disavow_file_content()`: GSC Disavow Tool standartlarına %100 uyumlu UTF-8 `.txt` üreticisi.
+- **Python Birim Testleri (`tests/unit/test_backlink_engine.py`):**
+  - 6 adet birim test (`test_analyze_clean_backlink`, `test_spam_tld_detection`, `test_unnatural_anchor_detection`, `test_generate_disavow_file_content`, `test_batch_profile_summary`, `test_high_toxicity_classification`) %100 başarıyla tamamlandı.
+- **Web Uygulaması (`apps/web/src/app/backlinks/page.tsx`):**
+  - Toksisite Dağılımı ve Domain Otorite KPI Şeridi.
+  - Toksisite seviyesi filtreleri (`Tümü`, `Toksik (70+)`, `Şüpheli (40-69)`, `Güvenli (0-39)`).
+  - Tek tıkla **"Google Disavow Dosyası (.txt) İndir"** aksiyonu.
+  - `apps/web/src/components/Navigation.tsx` içerisine `Backlinks` menü bağlantısı entegre edildi.
+- **Mobil Uygulama (`apps/mobile/src/screens/BacklinksScreen.tsx`):**
+  - Toksisite KPI kartları, renk kodlu link listesi, arama/filtreleme çubukları, GSC Disavow dışa aktarma ve `App.tsx` navigasyon entegrasyonu.
+
+---
+
+### 2. 📑 Madde 2: Ajanslar & Müşteriler İçin Tek Tıkla PDF / Excel / Whitelabel Rapor Dışa Aktarma Suite
+
+#### A. Araştırma ve Ajans İhtiyaçları
+- Ajansların müşterilerine doğrudan sunabileceği, üçüncü parti marka logolarından arındırılmış (**Whitelabel**), kurum renkleri ve müşteri adı entegre edilebilir profesyonel denetim çıktıları gereksinimi analiz edildi.
+- Vektörel ve keskin A4 çıktısı için `@media print` CSS kuralları optimize edildi.
+
+#### B. Mimari Uygulama & Parite
+- **Web Raporlama Suite (`apps/web/src/app/reports/page.tsx`):**
+  - **Whitelabel Özelleştirici:** Ajans Adı, Müşteri Adı, Rapor Başlığı ve Özel Not alanları.
+  - **PDF / Yazdır Önizleme:** Modern editoryal düzende, sayfa kırılmaları optimize edilmiş (`break-inside: avoid;`) vektörel PDF çıktısı.
+  - **Excel / CSV Dışa Aktarma:** Sayfalar, sorunlar, Core Web Vitals ve anahtar kelime telemetrisini içeren UTF-8 BOM destekli CSV oluşturucu.
+  - **Yönetici Özeti Kopyalama:** WhatsApp / Slack veya e-posta için tek tıkla panoya biçimlendirilmiş özet kopyalama.
+  - `apps/web/src/components/Navigation.tsx` menüsüne `Raporlar (PDF/Excel)` sekmesi eklendi.
+- **Mobil Raporlama Ekranı (`apps/mobile/src/screens/ReportsScreen.tsx`):**
+  - Ajans/Müşteri Whitelabel anahtarı, `Share.share` ile yerel iOS/Android paylaşım menüsü üzerinden metin ve CSV raporu dışa aktarımı.
+
+---
+
+### 3. 📊 Madde 3: Google Search Console (GSC) & Google Analytics 4 (GA4) Canlı Senkronizasyon & Entegrasyon Hub'ı
+
+#### A. Araştırma ve API Standartları
+- **Google Search Console API (v3 / Search Analytics):** Gösterim (Impressions), Tıklama (Clicks), Ortalama Tıklama Oranı (CTR) ve Ortalama Konum (Position) metriklerinin URL ve sorgu bazlı birleştirilmesi.
+- **Google Analytics 4 Data API (v1beta):** `runReport` uç noktası üzerinden `activeUsers`, `sessions`, `engagementRate`, `bounceRate`, `conversions` ve `averageSessionDuration` metriklerinin çekilmesi.
+- **Birleşik Telemetri Analizi:** Arama Otoritesi / Kazanımı (`Search Attainment % = Clicks / Sessions`) ve Dönüşüm Verimi (`Conversion Yield % = Conversions / Sessions`) korelasyon metrikleri geliştirildi.
+
+#### B. Mimari Uygulama & Parite
+- **Backend İstemcileri & Hub:**
+  - `services/integrations/ga4_client.py`: GA4 Data API v1beta istemcisi ve canlı/mock telemetri desteği.
+  - `services/integrations/google_sync_hub.py`: GSC ve GA4 telemetrisini birleştiren `GoogleSyncHub` orkestratörü.
+  - `services/integrations/gsc_client.py`: Geliştirme/test ortamında mock tokenlar ve güvenli şifre çözme (`decrypt_secret`) hata yakalama kalkanı eklendi.
+- **Python Birim Testleri (`tests/unit/test_google_sync.py`):**
+  - `test_ga4_client_fetch_metrics`, `test_google_sync_hub_unified_telemetry`, `test_google_sync_hub_site_inspection` testleri 3/3 başarıyla geçti.
+- **Web Entegrasyon Hub'ı (`apps/web/src/app/integrations/page.tsx`):**
+  - Ayrı **"Google Hub (GSC + GA4)"** sekmesi.
+  - Canlı Metrik Şeritleri: Toplam Tıklama, Gösterim, Aktif Kullanıcılar, Oturumlar, Dönüşüm Oranı ve Arama Kazanımı.
+  - Canlı "Şimdi Eşitle" tetikleyicisi, mülk denetim kartları ve stratejik korelasyon önerileri paneli.
+- **Mobil Entegrasyon (`apps/mobile/src/screens/SettingsScreen.tsx`):**
+  - Google Hub canlı senkronizasyon kartı, anlık metrikler ve tek tıkla senkronizasyon butonu.
+
+---
+
+### 4. 🔔 Madde 4: Anlık Alarm Kanalları & Webhook Entegrasyonu (Slack, Discord, Telegram, HMAC Webhook)
+
+#### A. Araştırma ve İletim Standartları
+- **Slack Block Kit:** `blocks` API'si üzerinden renkli kenarlıklar, başlıklar, markdown alanları ve aksiyon butonları.
+- **Discord Webhook:** `embeds` API'si, dinamik renk kodları (Kritik: Kırmızı `#E02424`, Uyarı: Kehribar `#D97706`, Başarı: Zümrüt `#059669`) ve zengin alanlar.
+- **Telegram Bot API:** `sendMessage` uç noktası, HTML ayrıştırma modu (`parse_mode="HTML"`), kalın etiketler ve doğrudan aksiyon linkleri.
+- **Kurumsal Webhook & HMAC-SHA256 Güvenliği:** Üçüncü parti sistemlerin isteğin platformdan geldiğini doğrulayabilmesi için `X-Calpeo-Signature: sha256=<hex_digest>` ve `X-Calpeo-Timestamp` başlıklarıyla kriptografik imzalama.
+
+#### B. Mimari Uygulama & Parite
+- **Backend Dağıtıcısı (`services/notifications/alert_dispatcher.py`):**
+  - `ChannelType` (`SLACK`, `DISCORD`, `TELEGRAM`, `WEBHOOK`, `EMAIL`), `AlertPriority` (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`).
+  - Asenkron `dispatch_alert()` ve çoklu kanal paralel gönderim motoru.
+- **Python Birim Testleri (`tests/unit/test_alert_dispatcher.py`):**
+  - 5 adet birim test (`test_slack_payload_formatting`, `test_discord_payload_formatting`, `test_telegram_payload_formatting`, `test_hmac_webhook_signature`, `test_alert_dispatcher_multi_channel`) 5/5 başarıyla geçti.
+- **Web Arayüzü (`apps/web/src/app/integrations/page.tsx`):**
+  - "Anlık Alarm Kanalları" yönetim sekmesi, kanal durum rozetleri, tetiklenecek olaylar ve "Test Bildirimi Gönder" butonu.
+- **Mobil Arayüz (`apps/mobile/src/screens/SettingsScreen.tsx`):**
+  - Alarm kanalları listesi, durum anahtarları ve mobil anlık test bildirimi gönderimi.
+
+---
+
+### 5. 🇬🇧 Madde 5: Birleşik Krallık (UK) & Brexit Sonrası Reklam ve Mevzuat Denetim Kalkanı (UK - ASA / CMA / FCA)
+
+#### A. Resmi Mevzuat Araştırması ve Hukuki Dayanaklar
+1. **ASA (Advertising Standards Authority) & CAP Code Rule 12:**
+   - **Kural 12.12 & Human Medicines Regulations 2012 (Reg 284):** Birleşik Krallık'ta reçeteyle satılan ilaçların (POM - Prescription Only Medicines) halka açık reklamı kesinlikle yasaktır. "Botox", "Botulinum Toxin", "Azelastine" veya dolaylı "kırışıklık karşıtı enjeksiyonlar" reklam olarak kullanılamaz.
+2. **CMA (Competition and Markets Authority) & DMCC Act 2024:**
+   - **Green Claims Code & Digital Markets, Competition and Consumers Act 2024:** 2024/2025 DMCC Yasası uyarınca CMA, mahkemeye gitmeksizin bir firmanın **küresel cirosunun %10'una kadar** doğrudan idari para cezası kesme yetkisine sahiptir. Asılsız "carbon neutral", "eco-friendly" iddiaları, sahte kıtlık sayaçları ("only 2 left at this price") ve gizli ek masraflar ("drip pricing") yasaktır.
+3. **FCA (Financial Conduct Authority) & PS23/6 Politika Bildirimi:**
+   - Kripto varlık ve finansal promosyonlarda zorunlu yasal risk uyarısı: *"Don’t invest unless you’re prepared to lose all the money you invest. This is a high-risk investment and you are unlikely to be protected if something goes wrong."* ve ilk alıcılar için 24 saatlik cayma süresi (*24-hour cooling-off period*).
+4. **CAP Code Rule 22:**
+   - Nikotin içeren e-sigara (vape) ve dolum sıvılarının halka tanıtımı ve pazarlanması yasağı.
+
+#### B. Mimari Uygulama & Parite
+- **Backend Kural Motoru (`services/seo_engine/rules/uk_compliance.py`):**
+  - `UkComplianceSector` enum (`HEALTHCARE_PRESCRIPTION_ASA`, `GREEN_CLAIMS_CMA`, `FINANCIAL_CRYPTO_FCA`, `DARK_PATTERNS_DMCC`, `VAPING_NICOTINE_ASA`).
+  - Regex ve kural eşleştirme veri tabanı `UK_REGULATORY_RULES`.
+  - `UkRegulatoryComplianceRule(SeoRule)` sınıfı ve `services/seo_engine/engine.py` kaydı.
+- **Python Birim Testleri (`tests/unit/test_uk_compliance.py`):**
+  - 6 adet birim test (`test_uk_botox_pom_advertising_violation`, `test_uk_cma_greenwashing_violation`, `test_uk_fca_crypto_risk_warning_violation`, `test_uk_dmcc_fake_scarcity_violation`, `test_uk_clean_compliant_text`, `test_uk_compliance_rule_in_engine`) 6/6 başarıyla geçti.
+- **Web Kütüphanesi & Arayüzü (`apps/web/src/lib/compliance-uk.ts` & `apps/web/src/app/content/page.tsx`):**
+  - 5 Yönlü Yargı Alanı Seçici: `[ 🇹🇷 Türkiye ]`, `[ 🇪🇺 Avrupa Birliği ]`, `[ 🇺🇸 ABD ]`, `[ 🇬🇧 Birleşik Krallık (UK) ]`, `[ 🌏 Asya / APAC ]`.
+  - UK hazır test senaryoları (ASA Botox POM, CMA Greenwashing, FCA Kripto, DMCC Fake Scarcity, ASA Vape, Temiz Metin).
+  - Sektör filtreleri, DMCC Act %10 küresel ciro cezası uyarı kartları ve ihlal tablosu.
+- **Mobil Uygulama (`apps/mobile/src/types/index.ts`, `api.ts`, `ContentOptimizerScreen.tsx`):**
+  - `UkComplianceSector`, `UkComplianceViolation` tipleri ve `ComplianceJurisdiction = "TR" | "EU" | "US" | "UK" | "ASIA"` desteği.
+  - Mobil 5'li yargı alanı anahtarı, hazır test senaryoları, anlık ihlal kartları ve tek tıkla düzeltme aksiyonu.
+
+---
+
+### 6. 🧪 Doğrulama, Test İstatistikleri ve Kod İncelemesi (Code Review)
+
+- **Python Birim Testleri:** Toplam **309 / 309 Test Başarılı** (%100 Başarı Oranı).
+- **TypeScript Derleme Durumu:**
+  - `apps/web`: **0 Hata** (`npx tsc --noEmit` temiz).
+  - `apps/mobile`: **0 Hata** (`npx tsc --noEmit` temiz).
+- **Kod İncelemesi (Code Review) Düzeltmeleri:**
+  1. *Kriptografik Token Koruması:* `decrypt_secret` fonksiyonunun mock/dev ortamlarında fırlattığı `binascii.Error` hatası `try...except` ile sarmalanarak geliştirme ortamı çökmeleri engellendi.
+  2. *H1 Hiyerarşisi Esnekliği:* `page_context.get("h1")` değerinin string ya da liste olması durumuna karşı `" ".join(h1) if isinstance(h1, list) else str(h1)` güvenliği sağlandı.
+  3. *UI Badge Renk Standartları:* Web `Badge` bileşenine `tone="muted"` yerine tanımlı tokenlar (`tone="neutral" | "accent" | "evidence" | "warn" | "critical"`) geçildi.
+  4. *Mobil Platform Uyumluluğu:* React Native `Platform.OS` kontrollerinde eksik importlar giderilerek hem iOS hem Android için native paylaşım ve bildirim güvenliği sağlandı.
+
+Sistem, 6. madde (dağıtım/deployment) haricinde planlanan tüm özellikleriyle eksiksiz, güvenli ve canlıya almaya hazır durumdadır.

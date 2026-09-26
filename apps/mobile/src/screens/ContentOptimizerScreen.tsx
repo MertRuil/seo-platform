@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance } from "../services/api";
+import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, checkUkCompliance } from "../services/api";
 import { 
   ContentOptimizationResult, 
   GeneratedContentResult, 
@@ -27,6 +27,8 @@ import {
   UsComplianceViolation,
   AsiaComplianceSector,
   AsiaComplianceViolation,
+  UkComplianceSector,
+  UkComplianceViolation,
   ComplianceJurisdiction
 } from "../types";
 
@@ -55,6 +57,7 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [complianceSector, setComplianceSector] = useState<ComplianceSector | "ALL">("ALL");
   const [euComplianceSector, setEuComplianceSector] = useState<EuComplianceSector | "ALL">("ALL");
   const [usComplianceSector, setUsComplianceSector] = useState<UsComplianceSector | "ALL">("ALL");
+  const [ukComplianceSector, setUkComplianceSector] = useState<UkComplianceSector | "ALL">("ALL");
   const [asiaComplianceSector, setAsiaComplianceSector] = useState<AsiaComplianceSector | "ALL">("ALL");
 
   const complianceViolations = useMemo(() => {
@@ -73,13 +76,16 @@ export const ContentOptimizerScreen: React.FC = () => {
         complianceDraft,
         usComplianceSector === "ALL" ? undefined : usComplianceSector
       );
+    } else if (complianceJurisdiction === "UK") {
+      const res = checkUkCompliance(complianceDraft);
+      return ukComplianceSector === "ALL" ? res : res.filter((r) => r.sector === ukComplianceSector);
     } else {
       return scanAsiaCompliance(
         complianceDraft,
         asiaComplianceSector === "ALL" ? undefined : asiaComplianceSector
       );
     }
-  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector, usComplianceSector, asiaComplianceSector]);
+  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector, usComplianceSector, ukComplianceSector, asiaComplianceSector]);
 
   const handleSelectJurisdiction = (j: ComplianceJurisdiction) => {
     setComplianceJurisdiction(j);
@@ -90,6 +96,10 @@ export const ContentOptimizerScreen: React.FC = () => {
     } else if (j === "US") {
       setComplianceDraft(
         "Guaranteed cure for diabetes and chronic arthritis with our all-natural supplement! Earn 100% guaranteed return on crypto, buy prescription Adderall online no rx required. Lose 30 lbs in 2 weeks without diet or exercise!"
+      );
+    } else if (j === "UK") {
+      setComplianceDraft(
+        "Visit our London aesthetics clinic for cheap botox injections and botulinum toxin treatments! 100% guaranteed cure for arthritis, zero risk crypto yield, and 100% eco-friendly jackets with only 1 left in stock hurry!"
       );
     } else if (j === "ASIA") {
       setComplianceDraft(
@@ -102,7 +112,7 @@ export const ContentOptimizerScreen: React.FC = () => {
     }
   };
 
-  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation | UsComplianceViolation | AsiaComplianceViolation) => {
+  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation | UsComplianceViolation | AsiaComplianceViolation | UkComplianceViolation) => {
     const term = v.matched_term || v.matched_pattern;
     const fix = v.suggested_replacement || v.suggested_fix;
     if (!term || !fix) return;
@@ -256,6 +266,25 @@ export const ContentOptimizerScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.jurisdictionBtn,
+                  complianceJurisdiction === "UK" && styles.jurisdictionBtnActive,
+                ]}
+                onPress={() => handleSelectJurisdiction("UK")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.jurisdictionFlag}>🇬🇧</Text>
+                <Text
+                  style={[
+                    styles.jurisdictionBtnText,
+                    complianceJurisdiction === "UK" && styles.jurisdictionBtnTextActive,
+                  ]}
+                >
+                  UK
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.jurisdictionBtn,
                   complianceJurisdiction === "ASIA" && styles.jurisdictionBtnActive,
                 ]}
                 onPress={() => handleSelectJurisdiction("ASIA")}
@@ -284,6 +313,8 @@ export const ContentOptimizerScreen: React.FC = () => {
                     ? "Avrupa Birliği (AB) Mevzuat & Greenwashing Kalkanı"
                     : complianceJurisdiction === "US"
                     ? "ABD Federal Mevzuat Kalkanı (FTC / FDA / SEC)"
+                    : complianceJurisdiction === "UK"
+                    ? "Birleşik Krallık (UK) Reklam Kalkanı (ASA / CMA / FCA)"
                     : "Asya & Pasifik (APAC) Mevzuat Kalkanı (PMDA / SAMR / MAS)"}
                 </Text>
               </View>
@@ -294,6 +325,8 @@ export const ContentOptimizerScreen: React.FC = () => {
                   ? "Directive (EU) 2024/825 (EmpCo / Greenwashing), Directive 2001/83/EC, EFSA Reg 1924/2006, MiCA (EU) 2023/1114 ve Omnibus direktiflerine göre yasaklı iddia ve yanıltıcı beyanları anlık tarar."
                   : complianceJurisdiction === "US"
                   ? "FTC Act Section 5, 16 CFR Part 464 (Fake Reviews Rule), FDA FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides ve PACT Act uyarınca ihlal başına 51.744 $'a varan federal cezaları önler."
+                  : complianceJurisdiction === "UK"
+                  ? "ASA CAP Code Rule 12 (Reçeteli İlaç & Botox yasağı), CMA Green Claims Code & DMCC Act 2024 (%10 ciro cezası) ve FCA PS23/6 Kripto Promosyon kurallarına göre ihlalleri anlık tarar."
                   : "Japonya Yakki-ho (PMD Act) & JCAA (Stealth Marketing / Keihyo-ho), Çin Reklam Kanunu Md. 9 (SAMR Süperlatif Yasağı), Singapur MAS DPT Kripto Yönergeleri & HSA, ve Kore KFTC (뒷광고) uyarınca ceza ve kısıtlamaları önler."}
               </Text>
             </GlassCard>
@@ -518,6 +551,79 @@ export const ContentOptimizerScreen: React.FC = () => {
                     <Text style={styles.presetChipText}>✅ FTC/FDA Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
+              ) : complianceJurisdiction === "UK" ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Cheap botox injections and botulinum toxin treatments at our London clinic! Best botox prices in the UK."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>💉 ASA Botox & POM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Our herbal tincture cures cancer and provides a 100% guaranteed cure for arthritis. Guaranteed slimming formula."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏥 ASA Tedavi İddiası</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Guaranteed crypto returns with zero risk cryptocurrency investment! Refer a friend get £50 crypto bonus."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🪙 FCA Kripto Promosyon</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Our apparel is 100% eco-friendly and zero carbon product, completely green choice across the UK."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🌿 CMA Green Claims</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Only 1 left in stock! Offer expires in 5 minutes hurry countdown timer running out. Best price guaranteed in the UK."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>⏱️ DMCC Sahte Kıtlık</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Cheap disposable vapes and elf bar sale with nicotine vapes online for fast home delivery."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🚭 ASA Vaping Yasağı</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Consult our GMC-registered doctors for facial aesthetic consultations. Certified organic skincare supporting hydration. Capital at risk for investments."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>✅ UK Uyumlu Metin</Text>
+                  </TouchableOpacity>
+                </>
               ) : (
                 <>
                   <TouchableOpacity
@@ -681,6 +787,28 @@ export const ContentOptimizerScreen: React.FC = () => {
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setUsComplianceSector(s.id as any)}
+                      >
+                        <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                : complianceJurisdiction === "UK"
+                ? [
+                    { id: "ALL", label: "Tüm UK Sektörleri" },
+                    { id: "HEALTH_ASA_CAP", label: "💉 ASA Botox & POM" },
+                    { id: "FINANCIAL_FCA", label: "🪙 FCA Kripto & Finans" },
+                    { id: "GREEN_CLAIMS_CMA", label: "🌿 CMA Yeşil İddia" },
+                    { id: "CONSUMER_CMA_ASA", label: "⏱️ DMCC Sahte Kıtlık" },
+                    { id: "VAPING_TOBACCO_ASA", label: "🚭 ASA Vaping Yasağı" },
+                  ].map((s) => {
+                    const isAct = ukComplianceSector === s.id;
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[styles.typeChip, isAct && styles.typeChipActive]}
+                        onPress={() => setUkComplianceSector(s.id as any)}
                       >
                         <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
                           {s.label}

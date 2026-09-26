@@ -53,6 +53,12 @@ import {
   type AsiaComplianceViolation,
   type AsiaComplianceSector,
 } from "@/lib/compliance-asia";
+import {
+  scanTextForUkCompliance,
+  getUkSectorName,
+  type UkComplianceViolation,
+  type UkComplianceSector,
+} from "@/lib/compliance-uk";
 
 const SAMPLE_TEXTS_TR = [
   {
@@ -196,6 +202,44 @@ const SAMPLE_TEXTS_ASIA = [
   },
 ];
 
+const SAMPLE_TEXTS_UK = [
+  {
+    title: "💉 Health & POMs (Botox & Injections - ASA Rule 12.12)",
+    content: "Visit our London aesthetics clinic for cheap botox injections and discounted botulinum toxin treatments! Book your botox appointment today.",
+    keyword: "botox clinic london",
+  },
+  {
+    title: "🏥 Unproven Disease Cure (ASA CAP Rule 12.1)",
+    content: "Our natural herbal tincture cures cancer and guarantees complete healing without medication. 100% guaranteed cure for arthritis.",
+    keyword: "natural cancer remedy uk",
+  },
+  {
+    title: "🪙 FCA Crypto Promotions (PS23/6 Statutory Rules)",
+    content: "Earn guaranteed crypto returns with zero risk cryptocurrency investment! Refer a friend get £50 crypto bonus with passive crypto income guaranteed.",
+    keyword: "crypto trading platform uk",
+  },
+  {
+    title: "🌿 CMA Green Claims Code & DMCC Act 2024",
+    content: "Buy our 100% eco-friendly jackets! Completely carbon neutral product with the greenest choice guarantee and zero carbon delivery across the UK.",
+    keyword: "sustainable fashion uk",
+  },
+  {
+    title: "⏱️ Fake Scarcity & Dark Patterns (DMCC Act 2024)",
+    content: "Only 1 left in stock! Offer expires in 5 minutes hurry countdown timer running out. Best price guaranteed in the UK.",
+    keyword: "electronics store uk",
+  },
+  {
+    title: "🚭 Vaping Advertising Prohibition (CAP Rule 22)",
+    content: "Buy nicotine vapes online with cheap disposable vapes and elf bar sale deals available for fast delivery.",
+    keyword: "online vape shop uk",
+  },
+  {
+    title: "✅ Fully Compliant UK Standard Copy",
+    content: "Consult our GMC-registered clinicians for comprehensive facial aesthetic consultations. Certified organic skincare supporting skin hydration. Capital at risk for investments; past performance is not a guide to future returns.",
+    keyword: "facial aesthetic consultation london",
+  },
+];
+
 export default function ContentOptimizerPage() {
   const [data, setData] = useState<ContentOptimizationData>(DEMO_CONTENT);
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
@@ -203,7 +247,7 @@ export default function ContentOptimizerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Content Draft & Compliance Shield state
-  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "ASIA">("TR");
+  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "UK" | "ASIA">("TR");
   const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS_TR[0].content);
   const [selectedComplianceSector, setSelectedComplianceSector] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"nlp" | "compliance" | "generator">("nlp");
@@ -230,6 +274,10 @@ export default function ContentOptimizerPage() {
     } else if (complianceRegion === "US") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as UsComplianceSector);
       return scanUsCompliance(contentDraft, sectorFilter);
+    } else if (complianceRegion === "UK") {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as UkComplianceSector);
+      const res = scanTextForUkCompliance(contentDraft);
+      return sectorFilter ? res.filter((r) => r.sector === sectorFilter) : res;
     } else {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as AsiaComplianceSector);
       return scanAsiaCompliance(contentDraft, sectorFilter);
@@ -512,6 +560,21 @@ export default function ContentOptimizerPage() {
               <button
                 type="button"
                 onClick={() => {
+                  setComplianceRegion("UK");
+                  setContentDraft(SAMPLE_TEXTS_UK[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "UK"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🇬🇧</span> Birleşik Krallık (UK - ASA/CMA/FCA)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setComplianceRegion("ASIA");
                   setContentDraft(SAMPLE_TEXTS_ASIA[0].content);
                   setSelectedComplianceSector("ALL");
@@ -536,6 +599,8 @@ export default function ContentOptimizerPage() {
                 ? "European Union Prohibited Claims & Directives Simulator"
                 : complianceRegion === "US"
                 ? "United States (US) Prohibited Claims & Federal Simulator"
+                : complianceRegion === "UK"
+                ? "United Kingdom (UK) Post-Brexit Advertising & Regulatory Simulator"
                 : "Asia & Pacific (APAC) Prohibited Claims & Regulatory Simulator"
             }
             sub={
@@ -545,6 +610,8 @@ export default function ContentOptimizerPage() {
                 ? "Test real-world violations of Directive (EU) 2024/825 (Greenwashing), EFSA Regulation 1924/2006, MiCA and Directive 2001/83/EC"
                 : complianceRegion === "US"
                 ? "Test violations under FTC Act Section 5, FDA FD&C Act / DSHEA, SEC Rule 10b-5, FTC Green Guides, and ABA Model Rules"
+                : complianceRegion === "UK"
+                ? "Test violations under ASA CAP Code Rule 12 (POMs & Botox), CMA Green Claims Code & DMCC Act 2024, and FCA PS23/6 Crypto Rules"
                 : "Test violations under Japan PMD Act (Yakki-ho), JCAA Stealth Marketing, China SAMR Art. 9, Singapore MAS/HSA, and Korea KFTC"
             }
           >
@@ -555,6 +622,8 @@ export default function ContentOptimizerPage() {
                 ? SAMPLE_TEXTS_EU
                 : complianceRegion === "US"
                 ? SAMPLE_TEXTS_US
+                : complianceRegion === "UK"
+                ? SAMPLE_TEXTS_UK
                 : SAMPLE_TEXTS_ASIA
               ).map((sample, idx) => (
                 <button
@@ -586,6 +655,8 @@ export default function ContentOptimizerPage() {
                     ? "Paste or type your English, German or French marketing copy here..."
                     : complianceRegion === "US"
                     ? "Paste or type your US marketing copy, landing page or ad text here..."
+                    : complianceRegion === "UK"
+                    ? "Paste or type your UK marketing copy, Harley Street clinic page, or British ad copy here..."
                     : "Paste or type your Asian (English, Japanese, Chinese, or Korean) marketing copy here..."
                 }
               />
@@ -604,6 +675,8 @@ export default function ContentOptimizerPage() {
                     ? `EU Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under European Directives!`
                     : complianceRegion === "US"
                     ? `US Federal Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under FTC/FDA/SEC Rules!`
+                    : complianceRegion === "UK"
+                    ? `UK Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under ASA/CMA/FCA Rules!`
                     : `Asia / APAC Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under Asian Laws!`}
                 </span>
               </div>
@@ -624,6 +697,11 @@ export default function ContentOptimizerPage() {
                     Under US Federal Law (FTC Act Section 5, 21 U.S.C. FD&C Act, 16 CFR Part 464, SEC Rule 10b-5), these claims carry severe risk of{" "}
                     <strong>FTC civil penalties up to $51,744 per violation</strong>, FDA Warning Letters and product seizures, or SEC enforcement actions for fraudulent claims.
                   </>
+                ) : complianceRegion === "UK" ? (
+                  <>
+                    Under UK Post-Brexit Marketing Codes (ASA CAP Code Rule 12, CMA DMCC Act 2024, FCA PS23/6), these claims carry severe risk of{" "}
+                    <strong>direct CMA statutory fines up to 10% of global annual turnover</strong>, MHRA sanctions for POM/Botox advertising, and criminal prosecution under FSMA Section 21.
+                  </>
                 ) : (
                   <>
                     Under Asian Regulatory Frameworks (Japan Yakki-ho / Keihyo-ho, China SAMR Advertising Law Art. 9, Singapore MAS / HSA, Korea KFTC), these claims carry severe risk of{" "}
@@ -643,6 +721,8 @@ export default function ContentOptimizerPage() {
                     ? "Fully Compliant with EU Regulations"
                     : complianceRegion === "US"
                     ? "Fully Compliant with US Federal Regulations"
+                    : complianceRegion === "UK"
+                    ? "Fully Compliant with UK Regulations (ASA / CMA / FCA)"
                     : "Fully Compliant with Asia & Pacific (APAC) Regulations"}
                 </h4>
                 <p className="text-xs text-emerald-700">
@@ -652,6 +732,8 @@ export default function ContentOptimizerPage() {
                     ? "No prohibited health claims (EFSA), greenwashing claims (EmpCo Dir 2024/825), MiCA guaranteed returns or unverified market superlatives found."
                     : complianceRegion === "US"
                     ? "No prohibited disease claims (FDA), deceptive advertising or fake reviews (FTC), SEC guaranteed returns, or PACT Act violations found."
+                    : complianceRegion === "UK"
+                    ? "No prescription medicine / Botox advertising (Human Medicines Regs), unproven health claims (ASA CAP 12), FCA crypto promotion violations, or CMA greenwashing found."
                     : "No unapproved medical claims (Japan PMD Act), stealth marketing (JCAA / KFTC), absolute superlatives (China SAMR Art. 9), or MAS crypto promises found."}
                 </p>
               </div>
@@ -695,6 +777,15 @@ export default function ContentOptimizerPage() {
                   { id: "LEGAL_ABA", label: "Legal Services (ABA 7.1)" },
                   { id: "TOBACCO_PACT", label: "Tobacco & Vapes (PACT Act)" },
                 ]
+              : complianceRegion === "UK"
+              ? [
+                  { id: "ALL", label: "All UK Sectors" },
+                  { id: "HEALTH_ASA_CAP", label: "🏥 Health, POMs & Botox (ASA CAP 12)" },
+                  { id: "FINANCIAL_FCA", label: "🪙 Finance & Crypto (FCA PS23/6)" },
+                  { id: "GREEN_CLAIMS_CMA", label: "🌿 Green Claims & DMCC (CMA)" },
+                  { id: "CONSUMER_CMA_ASA", label: "⏱️ Dark Patterns & Scarcity (DMCC)" },
+                  { id: "VAPING_TOBACCO_ASA", label: "🚭 Nicotine Vaping (CAP 22)" },
+                ]
               : [
                   { id: "ALL", label: "All Asia / APAC Sectors" },
                   { id: "COSMETICS_HEALTH_PMDA", label: "🏥 Health & Cosmetics (PMD Act/HSA)" },
@@ -731,6 +822,8 @@ export default function ContentOptimizerPage() {
                   ? "Detected EU Regulatory Violations & Compliant Alternatives"
                   : complianceRegion === "US"
                   ? "Detected US Regulatory Violations & Compliant Alternatives"
+                  : complianceRegion === "UK"
+                  ? "Detected UK Regulatory Violations & Compliant Alternatives"
                   : "Detected Asia / APAC Regulatory Violations & Compliant Alternatives"
               }
               flush
@@ -748,6 +841,8 @@ export default function ContentOptimizerPage() {
                           ? "EU Legal Basis"
                           : complianceRegion === "US"
                           ? "US Legal Basis"
+                          : complianceRegion === "UK"
+                          ? "UK Legal Basis (ASA/CMA/FCA)"
                           : "Asia/APAC Legal Basis"}
                       </th>
                       <th className="py-3 px-3">{complianceRegion === "TR" ? "Ceza Riski" : "Penalty / Liability"}</th>
@@ -758,6 +853,8 @@ export default function ContentOptimizerPage() {
                           ? "Compliant EU Recommendation"
                           : complianceRegion === "US"
                           ? "Compliant US Recommendation"
+                          : complianceRegion === "UK"
+                          ? "Compliant UK Recommendation"
                           : "Compliant APAC Recommendation"}
                       </th>
                       <th className="py-3 px-3 text-right">{complianceRegion === "TR" ? "Eylem" : "Action"}</th>
@@ -783,6 +880,8 @@ export default function ContentOptimizerPage() {
                               ? getEuSectorName(v.sector as any)
                               : complianceRegion === "US"
                               ? getUsSectorName(v.sector as any)
+                              : complianceRegion === "UK"
+                              ? getUkSectorName(v.sector as any)
                               : getAsiaSectorName(v.sector as any)}
                           </Badge>
                         </td>

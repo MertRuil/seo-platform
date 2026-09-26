@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
     label: "Rakipler & Pazar",
     items: [
       { name: "Rakip Analizi & Gap", href: "/competitors", icon: Users },
+      { name: "Backlink & Toksik Link", href: "/backlinks", icon: Link2 },
     ],
   },
   {
@@ -96,6 +97,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Yönetim",
     items: [
+      { name: "Raporlar & Dışa Aktar", href: "/reports", icon: FileText },
       { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
       { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
       { name: "Denetim Günlüğü", href: "/audit", icon: History },

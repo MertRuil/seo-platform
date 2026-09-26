@@ -17,7 +17,8 @@ export type TabKey =
   | "content_optimizer" 
   | "recommendations" 
   | "knowledge" 
-  | "billing";
+  | "billing"
+  | "backlinks";
 
 interface AppContextType {
   sites: SiteSummary[];

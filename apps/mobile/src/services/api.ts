@@ -30,7 +30,13 @@ import {
   UsComplianceViolation,
   UsComplianceSector,
   AsiaComplianceViolation,
-  AsiaComplianceSector
+  AsiaComplianceSector,
+  BacklinkItem,
+  BacklinkSummary,
+  GoogleSyncTelemetry,
+  AlertChannelConfig,
+  UkComplianceSector,
+  UkComplianceViolation
 } from "../types";
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
@@ -2541,5 +2547,460 @@ export function scanAsiaCompliance(text: string, sector?: AsiaComplianceSector):
   return violations;
 }
 
+// -------------------------------------------------------------
+// 31. Backlink Analysis, Toxic Link Detection & Google Disavow
+// -------------------------------------------------------------
+export let MOCK_BACKLINKS: BacklinkItem[] = [
+  {
+    id: "bl-1",
+    source_url: "https://techcrunch.com/2026/02/top-enterprise-seo-platforms",
+    source_domain: "techcrunch.com",
+    target_url: "https://acmestore.io",
+    anchor_text: "Acme Store Platform",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 91,
+    page_authority: 78,
+    spam_score: 1,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-14",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-2",
+    source_url: "https://searchengineland.com/geo-ai-search-optimization-guide",
+    source_domain: "searchengineland.com",
+    target_url: "https://acmestore.io/geo",
+    anchor_text: "yapay zeka seo araçları ve geo",
+    anchor_category: "EXACT_MATCH",
+    is_dofollow: true,
+    domain_authority: 86,
+    page_authority: 71,
+    spam_score: 2,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-01",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-3",
+    source_url: "https://medium.com/@seoguru/best-ecommerce-practices-2026",
+    source_domain: "medium.com",
+    target_url: "https://acmestore.io/blog/ecommerce-seo",
+    anchor_text: "https://acmestore.io/blog/ecommerce-seo",
+    anchor_category: "NAKED_URL",
+    is_dofollow: false,
+    domain_authority: 82,
+    page_authority: 54,
+    spam_score: 3,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-10",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-4",
+    source_url: "https://e-ticaret-rehberi.org/baglantilar",
+    source_domain: "e-ticaret-rehberi.org",
+    target_url: "https://acmestore.io",
+    anchor_text: "tıklayın",
+    anchor_category: "GENERIC",
+    is_dofollow: true,
+    domain_authority: 42,
+    page_authority: 36,
+    spam_score: 12,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-01-20",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-5",
+    source_url: "https://free-crypto-casino-bonus.xyz/links-list",
+    source_domain: "free-crypto-casino-bonus.xyz",
+    target_url: "https://acmestore.io",
+    anchor_text: "online casino baccarat win free",
+    anchor_category: "EXACT_MATCH",
+    is_dofollow: true,
+    domain_authority: 4,
+    page_authority: 6,
+    spam_score: 88,
+    is_toxic: true,
+    toxicity_reasons: [
+      "Yüksek riskli spam TLD uzantısı (.xyz)",
+      "Yasaklı kumar/bahis anahtar kelimesi ('casino')",
+      "Kritik alan adı spam skoru (%88)",
+    ],
+    first_seen: "2026-03-18",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-6",
+    source_url: "https://auto-traffic-pbn.top/directory-scrape",
+    source_domain: "auto-traffic-pbn.top",
+    target_url: "https://acmestore.io/products",
+    anchor_text: "cheap replica watches payday",
+    anchor_category: "EXACT_MATCH",
+    is_dofollow: true,
+    domain_authority: 3,
+    page_authority: 5,
+    spam_score: 92,
+    is_toxic: true,
+    toxicity_reasons: [
+      "Yüksek riskli PBN uzantısı (.top)",
+      "Yapay link çiftliği tespit edildi",
+      "Kritik alan adı spam skoru (%92)",
+    ],
+    first_seen: "2026-03-22",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-7",
+    source_url: "https://webmaster-turkey.net/forum/seo-tartisma",
+    source_domain: "webmaster-turkey.net",
+    target_url: "https://acmestore.io/hakkimizda",
+    anchor_text: "Acme Store uzman incelemesi",
+    anchor_category: "PARTIAL_MATCH",
+    is_dofollow: true,
+    domain_authority: 56,
+    page_authority: 48,
+    spam_score: 8,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-05",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-8",
+    source_url: "https://spambot-linkfarm.click/viagra-cialis",
+    source_domain: "spambot-linkfarm.click",
+    target_url: "https://acmestore.io",
+    anchor_text: "buy viagra online overnight",
+    anchor_category: "EXACT_MATCH",
+    is_dofollow: true,
+    domain_authority: 2,
+    page_authority: 3,
+    spam_score: 96,
+    is_toxic: true,
+    toxicity_reasons: [
+      "Yüksek riskli şüpheli uzantı (.click)",
+      "Yasaklı spam anahtar kelime ('viagra')",
+      "Otomatik link çiftliği sinyalleri",
+    ],
+    first_seen: "2026-03-24",
+    status: "ACTIVE",
+  },
+];
 
+export async function fetchBacklinks(siteId?: string): Promise<BacklinkItem[]> {
+  return [...MOCK_BACKLINKS];
+}
 
+export async function fetchBacklinkSummary(siteId?: string): Promise<BacklinkSummary> {
+  const toxicCount = MOCK_BACKLINKS.filter(b => b.is_toxic).length;
+  const dofollowCount = MOCK_BACKLINKS.filter(b => b.is_dofollow).length;
+  const uniqueDomains = new Set(MOCK_BACKLINKS.map(b => b.source_domain)).size;
+  const avgDa = Math.round(MOCK_BACKLINKS.reduce((acc, b) => acc + b.domain_authority, 0) / (MOCK_BACKLINKS.length || 1));
+  const dofollowRatio = Math.round((dofollowCount / (MOCK_BACKLINKS.length || 1)) * 100);
+  const toxicPct = Math.round((toxicCount / (MOCK_BACKLINKS.length || 1)) * 100);
+  const toxicDomains = Array.from(new Set(MOCK_BACKLINKS.filter(b => b.is_toxic).map(b => b.source_domain)));
+
+  return {
+    total_backlinks: MOCK_BACKLINKS.length,
+    referring_domains: uniqueDomains,
+    dofollow_count: dofollowCount,
+    nofollow_count: MOCK_BACKLINKS.length - dofollowCount,
+    dofollow_ratio: dofollowRatio,
+    avg_domain_authority: avgDa,
+    toxic_backlinks_count: toxicCount,
+    toxic_domains_count: toxicDomains.length,
+    toxicity_percentage: toxicPct,
+    overall_toxicity_risk: toxicCount > 2 ? "HIGH" : toxicCount > 0 ? "MEDIUM" : "CLEAN",
+    top_toxic_domains: toxicDomains,
+  };
+}
+
+export function generateMobileDisavowText(backlinks: BacklinkItem[], domainName: string = "acmestore.io"): string {
+  const toxicItems = backlinks.filter(b => b.is_toxic);
+  const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  const lines = [
+    "# -------------------------------------------------------------",
+    "# Google Search Console - Disavow Links File",
+    `# Domain: ${domainName}`,
+    `# Exported: ${nowStr} UTC`,
+    `# Identified Toxic Links: ${toxicItems.length}`,
+    "# -------------------------------------------------------------",
+    ""
+  ];
+
+  const domains = new Set<string>();
+  toxicItems.forEach(item => {
+    if (!domains.has(item.source_domain)) {
+      lines.push(`# Reason: ${item.toxicity_reasons.join(" | ")}`);
+      lines.push(`domain:${item.source_domain}`);
+      domains.add(item.source_domain);
+    }
+  });
+
+  lines.push("");
+  lines.push("# End of Google Disavow File");
+  return lines.join("\n");
+}
+
+// -------------------------------------------------------------
+// Google Search Console & GA4 Live Sync Telemetry
+// -------------------------------------------------------------
+export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
+  status: "HEALTHY",
+  last_synced_at: new Date(Date.now() - 1000 * 60 * 14).toISOString(), // 14 mins ago
+  date_range: "Son 28 Gün",
+  gsc: {
+    property: "sc-domain:acmestore.io",
+    connected: true,
+    total_clicks: 14850,
+    total_impressions: 284000,
+    avg_ctr_percent: 5.23,
+    avg_position: 4.8,
+    top_queries_count: 320,
+    sample_queries: [
+      { query: "acme ecommerce store", clicks: 3420, impressions: 18400, position: 1.2 },
+      { query: "organik ürün satın al", clicks: 1890, impressions: 32000, position: 3.4 },
+      { query: "en uygun fiyatlı organik ürünler", clicks: 840, impressions: 14200, position: 2.1 },
+      { query: "hızlı teslimat e-ticaret", clicks: 610, impressions: 19800, position: 6.8 },
+    ],
+  },
+  ga4: {
+    property_id: "properties/398241029",
+    connected: true,
+    active_users: 18400,
+    total_sessions: 24600,
+    organic_sessions: 15200,
+    engagement_rate_percent: 72.4,
+    bounce_rate_percent: 27.6,
+    conversions: 842,
+    organic_conversion_rate: 5.54,
+    top_pages: [
+      { path: "/", sessions: 8400, bounce_rate: 22.4 },
+      { path: "/kategori/organik", sessions: 4200, bounce_rate: 28.1 },
+      { path: "/urun/dogal-zeytinyagi", sessions: 1850, bounce_rate: 18.2 },
+      { path: "/sepet", sessions: 1420, bounce_rate: 9.8 },
+    ],
+  },
+  correlation: {
+    search_traffic_attainment_percent: 102.3,
+    organic_lead_yield: 842,
+  },
+  insights: [
+    {
+      type: "HIGH_PERFORMANCE",
+      severity: "SUCCESS",
+      message: "Organik oturum dönüşüm oranı %5.54 ile e-ticaret ortalamasının (%2.1) oldukça üzerinde.",
+    },
+    {
+      type: "CTR_OPPORTUNITY",
+      severity: "MEDIUM",
+      message: "'hızlı teslimat e-ticaret' sorgusu 6.8 pozisyonunda yüksek gösterime sahip; meta açıklama iyileştirmesiyle CTR artırılabilir.",
+    },
+  ],
+};
+
+export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleSyncTelemetry> {
+  await new Promise((r) => setTimeout(r, 200));
+  return MOCK_GOOGLE_SYNC;
+}
+
+export async function triggerGoogleSync(siteId?: string): Promise<GoogleSyncTelemetry> {
+  await new Promise((r) => setTimeout(r, 600));
+  return {
+    ...MOCK_GOOGLE_SYNC,
+    last_synced_at: new Date().toISOString(),
+  };
+}
+
+// -------------------------------------------------------------
+// Alert Channels & Webhook Integration (Telegram, Slack, Discord)
+// -------------------------------------------------------------
+export const MOCK_ALERT_CHANNELS: AlertChannelConfig[] = [
+  {
+    id: "chan-slack-1",
+    type: "SLACK",
+    name: "Slack #seo-alarmlari",
+    enabled: true,
+    target_url_or_id: "https://hooks.slack.com/services/T00/B00/XXXX",
+    events: {
+      rank_drops: true,
+      critical_issues: true,
+      compliance_alerts: true,
+    },
+    last_delivered_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: "chan-telegram-1",
+    type: "TELEGRAM",
+    name: "Telegram Bot (@SeoAlertBot)",
+    enabled: true,
+    target_url_or_id: "-100293847192",
+    events: {
+      rank_drops: true,
+      critical_issues: true,
+      compliance_alerts: false,
+    },
+    last_delivered_at: new Date(Date.now() - 3600000 * 6).toISOString(),
+  },
+  {
+    id: "chan-discord-1",
+    type: "DISCORD",
+    name: "Discord Webhook #seo-ops",
+    enabled: false,
+    target_url_or_id: "https://discord.com/api/webhooks/123/abc",
+    events: {
+      rank_drops: false,
+      critical_issues: true,
+      compliance_alerts: true,
+    },
+  },
+];
+
+export async function fetchAlertChannels(siteId?: string): Promise<AlertChannelConfig[]> {
+  await new Promise((r) => setTimeout(r, 150));
+  return MOCK_ALERT_CHANNELS;
+}
+
+export async function saveAlertChannel(channel: AlertChannelConfig): Promise<{ success: boolean; message: string }> {
+  await new Promise((r) => setTimeout(r, 300));
+  return { success: true, message: `${channel.name} başarıyla güncellendi.` };
+}
+
+export async function sendTestAlert(channelId: string): Promise<{ success: boolean; message: string }> {
+  await new Promise((r) => setTimeout(r, 500));
+  return {
+    success: true,
+    message: "Test alarm bildirimi başarıyla kanala iletildi (HTTP 200 OK).",
+  };
+}
+
+// -------------------------------------------------------------
+// UK & Brexit Advertising Compliance (ASA CAP, CMA, FCA)
+// -------------------------------------------------------------
+interface UkComplianceRuleDefinition {
+  rule_id: string;
+  sector: UkComplianceSector;
+  title: string;
+  pattern: RegExp;
+  legal_basis: string;
+  legal_reference: string;
+  penalty_risk: string;
+  fine_risk: string;
+  suggested_fix: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
+export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
+  {
+    rule_id: "UK-ASA-12-1-BOTOX",
+    sector: "UK_HEALTH_ASA_CAP",
+    title: "Reçeteli İlaç (Botox / POM) Reklam Yasağı İhlali",
+    pattern: /\b(botox|botulinum toxin|dysport|azzalure|prescription medicine|reçeteli enjeksiyon)\b/i,
+    legal_basis: "UK ASA CAP Code Rule 12.12 & Human Medicines Regulations 2012 (Regulation 284)",
+    legal_reference: "ASA Enforcement Notice: Advertising of Prescription-Only Medicines (POMs)",
+    penalty_risk: "ASA kamuya açık kınama, MHRA ceza soruşturması ve arama motoru/sosyal medya reklam engeli",
+    fine_risk: "Sınırsız para cezası ve 2 yıla kadar hapis cezası yaptırımı",
+    suggested_fix: "Botox veya reçeteli marka isimlerini kaldırın; 'consultation for facial aesthetics' veya 'anti-wrinkle treatment' gibi genel klinik terimler kullanın.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "UK-ASA-12-1-CURE",
+    sector: "UK_HEALTH_ASA_CAP",
+    title: "Kanıtlanmamış Tıbbi Tedavi & Mucizevi İyileşme İddiası",
+    pattern: /\b(cures? cancer|miracle cure|100% cure|guaranteed weight loss|hastalığı tamamen iyileştirir|mucize tedavi|garantili zayıflama)\b/i,
+    legal_basis: "UK ASA CAP Code Rule 12.1 (Objective claims must be backed by robust scientific evidence)",
+    legal_reference: "ASA & CAP Health, beauty and slimming guidelines",
+    penalty_risk: "ASA tarafından yanıltıcı reklam tespiti, Trading Standards referansı",
+    fine_risk: "Trading Standards idari yaptırımları ve reklam yayından çekme kararı",
+    suggested_fix: "Mutlak iyileşme vaatlerini kaldırın; bağımsız klinik çalışmalarla desteklenen 'destekleyebilir / katkı sağlayabilir' formunu kullanın.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "UK-FCA-PS23-CRYPTO",
+    sector: "UK_FINANCIAL_FCA",
+    title: "FCA Kripto ve Finansal Promosyon Kuralı (Risk Uyarısı Yok)",
+    pattern: /\b(crypto investment|guaranteed crypto returns|zero risk investment|kripto para garantili getiri|risksiz yatırım|100% profit crypto)\b/i,
+    legal_basis: "FCA Financial Promotions Regime for Cryptoassets (PS23/6 & FSMA 2000 Section 21)",
+    legal_reference: "FCA Policy Statement PS23/6: Financial promotion rules for cryptoassets",
+    penalty_risk: "FCA izinsiz finansal promosyon suçu, web sitesi DNS engellemesi",
+    fine_risk: "FSMA 2000 uyarınca sınırsız adli para cezası ve yetkili kurum işlem yasağı",
+    suggested_fix: "Yasal FCA risk uyarısını ekleyin: 'Don’t invest unless you’re prepared to lose all the money you invest. This is a high-risk investment.'",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "UK-CMA-GREEN-CLAIMS",
+    sector: "UK_GREEN_CLAIMS_CMA",
+    title: "CMA Yeşil Aklama (Greenwashing) ve Kanıtsız Eko İddiası",
+    pattern: /\b(100% eco-friendly|100% green|carbon neutral|net zero product|tamamen çevre dostu|sıfır karbonlu ürün)\b/i,
+    legal_basis: "UK CMA Green Claims Code & Digital Markets, Competition and Consumers (DMCC) Act 2024",
+    legal_reference: "Competition and Markets Authority (CMA) Green Claims Code guidance",
+    penalty_risk: "CMA tarafından doğrudan ciro üzerinden idari para cezası ve mahkeme kararı",
+    fine_risk: "Küresel cironun %10'una kadar doğrudan idari para cezası (DMCC Act 2024)",
+    suggested_fix: "Mutlak '100% eco' veya 'carbon neutral' ifadeleri yerine doğrulanabilir LCA kapsamını belirtin (örn: 'Ambalajında %70 geri dönüştürülmüş plastik kullanılmıştır').",
+    severity: "HIGH",
+  },
+  {
+    rule_id: "UK-CMA-FAKE-SCARCITY",
+    sector: "UK_CONSUMER_CMA_ASA",
+    title: "Sahte Kıtlık ve Aciliyet Baskısı (Dark Patterns)",
+    pattern: /\b(only \d+ left in stock|offer ends in \d+ minutes|hemen almazsanız tükeniyor|yalnızca son \d+ adet kaldı)\b/i,
+    legal_basis: "CMA Online Choice Architecture Guidance & ASA CAP Code Rule 3.1",
+    legal_reference: "DMCC Act 2024 Banned Unfair Commercial Practices (Schedule 20)",
+    penalty_risk: "CMA ve Trading Standards tüketiciyi aldatıcı ticari uygulama cezası",
+    fine_risk: "Şirket cirosunun %10'una varan cezalar",
+    suggested_fix: "Sayaç veya kıtlık ifadelerinin gerçek envanterle birebir senkronize olduğunu doğrulayın veya yapay aciliyet oluşturmayı bırakın.",
+    severity: "HIGH",
+  },
+  {
+    rule_id: "UK-ASA-22-VAPING",
+    sector: "UK_VAPING_TOBACCO_ASA",
+    title: "Elektronik Sigara ve Vaping Promosyon Yasağı",
+    pattern: /\b(disposable vape|elf bar|geek bar|nicotine vape|elektronik sigara satın al|likit dolum)\b/i,
+    legal_basis: "UK ASA CAP Code Rule 22.12 & Tobacco and Related Products Regulations 2016 (TRPR)",
+    legal_reference: "CAP Guidance on advertising electronic cigarettes",
+    penalty_risk: "Tüm reklamların derhal durdurulması ve Trading Standards el koyma kararı",
+    fine_risk: "Yasal yaptırımlar ve ürün toplatma kararları",
+    suggested_fix: "Elektronik sigara ve nikotinli ürünlerin halka açık promosyon ve reklamlarını web sitenizden kaldırın.",
+    severity: "CRITICAL",
+  },
+];
+
+export function checkUkCompliance(text: string): UkComplianceViolation[] {
+  if (!text || text.trim().length === 0) return [];
+
+  const violations: UkComplianceViolation[] = [];
+
+  for (const rule of UK_COMPLIANCE_DATABASE) {
+    const match = text.match(rule.pattern);
+    if (match) {
+      const matchIndex = match.index || 0;
+      const start = Math.max(0, matchIndex - 30);
+      const end = Math.min(text.length, matchIndex + match[0].length + 30);
+      const snippet = `...${text.substring(start, end).trim()}...`;
+
+      violations.push({
+        rule_id: rule.rule_id,
+        sector: rule.sector,
+        title: rule.title,
+        matched_pattern: rule.pattern.toString(),
+        matched_term: match[0],
+        context_snippet: snippet,
+        legal_basis: rule.legal_basis,
+        legal_reference: rule.legal_reference,
+        penalty_risk: rule.penalty_risk,
+        fine_risk: rule.fine_risk,
+        suggested_fix: rule.suggested_fix,
+        severity: rule.severity,
+      });
+    }
+  }
+
+  return violations;
+}

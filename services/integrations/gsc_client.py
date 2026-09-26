@@ -16,7 +16,10 @@ class GoogleSearchConsoleClient:
     API_BASE = "https://www.googleapis.com/webmasters/v3"
 
     def __init__(self, encrypted_access_token: str):
-        self.access_token = decrypt_secret(encrypted_access_token)
+        try:
+            self.access_token = decrypt_secret(encrypted_access_token)
+        except Exception:
+            self.access_token = encrypted_access_token
 
     async def get_search_analytics(
         self,

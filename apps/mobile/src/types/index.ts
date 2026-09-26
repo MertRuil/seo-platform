@@ -193,6 +193,39 @@ export interface CompetitorGapItem {
   opportunity_score: number;
 }
 
+export type AnchorCategory = "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL";
+
+export interface BacklinkItem {
+  id: string;
+  source_url: string;
+  source_domain: string;
+  target_url: string;
+  anchor_text: string;
+  anchor_category: AnchorCategory;
+  is_dofollow: boolean;
+  domain_authority: number;
+  page_authority: number;
+  spam_score: number;
+  is_toxic: boolean;
+  toxicity_reasons: string[];
+  first_seen: string;
+  status: "ACTIVE" | "LOST";
+}
+
+export interface BacklinkSummary {
+  total_backlinks: number;
+  referring_domains: number;
+  dofollow_count: number;
+  nofollow_count: number;
+  dofollow_ratio: number;
+  avg_domain_authority: number;
+  toxic_backlinks_count: number;
+  toxic_domains_count: number;
+  toxicity_percentage: number;
+  overall_toxicity_risk: "CLEAN" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  top_toxic_domains: string[];
+}
+
 export interface AiChatMessage {
   id: string;
   sender: "user" | "assistant";
@@ -361,7 +394,7 @@ export interface EuComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
-export type ComplianceJurisdiction = "TR" | "EU" | "US" | "ASIA";
+export type ComplianceJurisdiction = "TR" | "EU" | "US" | "UK" | "ASIA";
 
 export type UsComplianceSector =
   | "HEALTH_FDA"
@@ -415,6 +448,86 @@ export interface AsiaComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
+export type UkComplianceSector =
+  | "UK_HEALTH_ASA_CAP"
+  | "UK_FINANCIAL_FCA"
+  | "UK_GREEN_CLAIMS_CMA"
+  | "UK_CONSUMER_CMA_ASA"
+  | "UK_VAPING_TOBACCO_ASA";
 
+export interface UkComplianceViolation {
+  rule_id: string;
+  sector: UkComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
 
+export interface GoogleSyncTelemetry {
+  status: "HEALTHY" | "SYNCING" | "ERROR";
+  last_synced_at: string;
+  date_range: string;
+  gsc: {
+    property: string;
+    connected: boolean;
+    total_clicks: number;
+    total_impressions: number;
+    avg_ctr_percent: number;
+    avg_position: number;
+    top_queries_count: number;
+    sample_queries: Array<{
+      query: string;
+      clicks: number;
+      impressions: number;
+      position: number;
+    }>;
+  };
+  ga4: {
+    property_id: string;
+    connected: boolean;
+    active_users: number;
+    total_sessions: number;
+    organic_sessions: number;
+    engagement_rate_percent: number;
+    bounce_rate_percent: number;
+    conversions: number;
+    organic_conversion_rate: number;
+    top_pages: Array<{
+      path: string;
+      sessions: number;
+      bounce_rate: number;
+    }>;
+  };
+  correlation: {
+    search_traffic_attainment_percent: number;
+    organic_lead_yield: number;
+  };
+  insights: Array<{
+    type: string;
+    severity: "HIGH" | "MEDIUM" | "SUCCESS";
+    message: string;
+  }>;
+}
 
+export interface AlertChannelConfig {
+  id: string;
+  type: "SLACK" | "DISCORD" | "TELEGRAM" | "WEBHOOK";
+  name: string;
+  enabled: boolean;
+  target_url_or_id: string;
+  events: {
+    rank_drops: boolean;
+    critical_issues: boolean;
+    compliance_alerts: boolean;
+  };
+  last_delivered_at?: string;
+}
