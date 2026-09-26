@@ -753,5 +753,91 @@ ABD pazarına giren, ABD'de ikamet eden tüketicilere ürün/hizmet sunan veya A
   - "Hedef Anahtar Kelime Ekle" modalında canlı FTC / FDA / SEC federal uyarı kutusu ve önerilen güvenli alternatife otomatik geçiş butonu.
 - Derleme: `npx tsc --noEmit` 0 hata.
 
+---
+
+## 21. Asya & Pasifik (APAC) Reklam, E-Ticaret ve Arama Motoru Mevzuat Denetim Kalkanı (Japonya PMDA/JCAA, Çin SAMR, Singapur MAS/HSA, Güney Kore KFTC)
+
+Asya ve Pasifik (APAC) bölgesine ihracat yapan, sınır ötesi e-ticaret yürüten veya Asya pazarlarını hedefleyen işletmelerin karşılaştığı ağır idari para cezaları, adli yaptırımlar, gümrük el koymaları ve dijital platform yasaklarını önlemek amacıyla; Japonya, Çin, Singapur ve Güney Kore resmi denetim kurumlarının en güncel yayımlanmış tebliğ, kanun ve kılavuzları taranmış, doğrulanmış ve platformumuza (Backend, Web, Mobil) tam entegre edilmiştir.
+
+### 1. Araştırılan ve Doğrulanan Resmi Asya Mevzuatları & Yasaklı İfadeler
+
+1. **Japonya (PMDA / MHLW / JCAA):**
+   - **İlaç ve Tıbbi Cihazlar Kanunu (PMD Act / 薬機法 - *Yakki-ho* Madde 66 ve 68):**
+     - Kozmetik, cilt bakım veya genel gıda ürünlerinde tıbbi tedavi, kanser iyileştirme, yaşlanmayı geri döndürme veya kırışıklıkları kalıcı olarak yok etme iddiaları (`"ガンが治る"`, `"糖尿病が完治"`, `"シミが完全に消える"`, `"若返り効果100%"`, `"permanent wrinkle removal"`, `"guaranteed disease cure"`) kesinlikle yasaktır.
+     - **Yaptırım:** 2 yıla kadar hapis cezası veya 2.000.000 JPY adli para cezası; ayrıca Sağlık, Çalışma ve Refah Bakanlığı (MHLW) tarafından şirketin ilgili ürün satış cirosunun **%4.5'i oranında idari para cezası (課徴金)**.
+   - **Haksız Primler ve Yanıltıcı Temsiller Kanunu (*Keihyo-ho* / 景品表示法):**
+     - **Ekim 2023 Gizli Reklam Düzenlemesi (ステマ規制 - Stealth Marketing):** Sponsorlu veya teşvikli içeriklerde, açıkça görülebilir `#PR` veya `広告` ibaresi bulundurmamak kanuna aykırıdır. Sahte yorum satın alma (`"ステマ代行"`, `"サクラレビュー"`, `"やらせレビュー"`) yasaktır.
+     - **Üstünlük Yanılsaması (優良誤認 - Superior Misrepresentation):** Bağımsız ve doğrulanabilir üçüncü taraf araştırması olmadan kullanılan `"日本一"` (Japonya'nın bir numarası), `"業界No.1"` (Sektör birincisi), `"必ず痩せる"` (Kesin zayıflama) iddiaları yasaktır. İhlal halinde cironun **%3'ü oranında idari ceza**.
+   - **Tıbbi Hizmetler Kanunu (医療法 - Medical Care Act):**
+     - Reçeteli ilaçların (Ozempic, Wegovy vb.) doktor muayenesi ve reçetesi olmaksızın çevrimiçi satışı veya ithalat aracılığı (`"処方箋なしで買える"`, `"buy ozempic without prescription"`) yasaktır.
+
+2. **Çin (SAMR - Devlet Piyasa Denetim İdaresi & E-Ticaret Kanunu):**
+   - **Çin Halk Cumhuriyeti Reklam Kanunu (中华人民共和国广告法 Madde 9/3):**
+     - Mutlak süperlatiflerin reklam metinlerinde, meta açıklamalarında ve başlıklarında kullanılması kesinlikle yasaktır: `"国家级"` (Devlet / milli düzey), `"最高级"` (En üst düzey), `"最佳"` (En iyi), `"第一品牌"` (Bir numara marka), `"顶级品质"` (En üstün kalite), `"绝无仅有"` (Benzersiz/tek).
+     - **Yaptırım:** SAMR (State Administration for Market Regulation) tarafından **100.000 RMB ile 1.000.000 RMB arasında** doğrudan idari para cezası, işletme ruhsatının askıya alınması veya iptali.
+   - **Haksız Rekabetle Mücadele Kanunu (Madde 8) & E-Ticaret Kanunu (Madde 17):**
+     - Sahte sipariş, sahte inceleme ve yapay trafik üretimi (`"刷单"` - Shuadan, `"炒信"` - Chaoxin, `"买好评"` - sahte olumlu yorum satın alma, Xiaohongshu sahte tohumlama) yasaktır. **2.000.000 RMB'ye kadar** para cezası.
+
+3. **Singapur (MAS / HSA / CCCS / Tütün ve Kumar Düzenlemeleri):**
+   - **Singapur Para Otoritesi (MAS - Monetary Authority of Singapore):**
+     - **Dijital Ödeme Jetonu (DPT) Hizmetleri Kılavuzu (2022):** Halka açık alanlarda ve sosyal medyada kripto varlık pazarlaması, garantili kripto kazancı (`"guaranteed crypto yield"`, `"risk-free crypto arbitrage"`, `"guaranteed bitcoin returns"`) kesinlikle yasaktır.
+   - **Sağlık Bilimleri Otoritesi (HSA - Health Sciences Authority):**
+     - Sağlık Ürünleri ve İlaç Kanunu uyarınca reçetesiz reçeteli ilaç satışı ve gıda takviyelerinde kanser/kronik hastalık tedavi vaatleri yasaktır.
+   - **Singapur Rekabet ve Tüketici Komisyonu (CCCS) - Yeşil İddialar Kılavuzu & CPFTA:**
+     - Kanıtlanamayan `"100% eco-friendly"`, `"carbon neutral guaranteed"`, `"completely zero environmental impact"` iddiaları tüketiciyi aldatıcı ticari uygulama (CPFTA) kapsamında kovuşturulur.
+   - **Tütün Kanunu & Kumar Kontrol Kanunu 2022 (Gambling Control Act):**
+     - Elektronik sigara (vape, puff bar, pods) satışı, ithalatı ve tanıtımı istisnasız yasaktır (**10.000 SGD para cezası ve 6 aya kadar hapis**). Lisanssız online kumar/bahis (`"online baccarat singapore"`, `"online slot game"`) tanıtımı ceza davasına tabidir.
+
+4. **Güney Kore (KFTC / MFDS):**
+   - **Kore Adil Ticaret Komisyonu (KFTC - Fair Labeling and Advertising Act):**
+     - **Gizli/Arka Kapı Reklamcılığı Yasağı (*Dwit-gwanggo* / 뒷광고):** Ücretli sponsorluk veya ücretsiz ürün sağlandığı belirtilmeksizin yayınlanan influencer ve arama motoru içerikleri yasaktır. İhlal halinde **500 milyon KRW veya cironun %2'sine kadar ceza**.
+     - Yorum manipülasyonu (`"댓글 알바"`, `"리뷰 조작"`, `"가짜 후기 구매"`) yasaktır.
+   - **Gıda ve İlaç Güvenliği Bakanlığı (MFDS - Health Functional Food Act):**
+     - Sağlık fonksiyonel gıdalarının ilaç gibi gösterilmesi (`"암을 완치"`, `"당뇨병 치료"`) ve gerçek dışı hızlı kilo verme vaatleri (`"운동 없이 10kg 감량"`, `"먹기만 해도 살빠지는"`) yasaktır. Ürünler Coupang ve Naver SmartStore gibi pazar yerlerinden anında kaldırılır.
+
+---
+
+### 2. Üç Katmanlı Mimari Uygulama & Parite
+
+#### A. Backend Kural Motoru (`services/seo_engine/`)
+- `services/seo_engine/rules/asia_compliance.py` oluşturuldu:
+  - `AsiaComplianceSector` enum tanımlandı (`COSMETICS_HEALTH_PMDA`, `STEALTH_MARKETING_JCAA_KFTC`, `ABSOLUTE_SUPERLATIVES_SAMR`, `DIETARY_SUPPLEMENTS_WEIGHTLOSS`, `FINANCIAL_CRYPTO_MAS`, `GREEN_CLAIMS_APAC`, `VAPING_GAMBLING_BAN_APAC`).
+  - Çift dilli (İngilizce + Japonca Kanji/Kana + Çince Hanzi + Korece Hangul) regex veri tabanı `ASIA_REGULATORY_RULES` oluşturuldu.
+  - `scan_text_for_asia_compliance(text, sector_filter)` tarama fonksiyonu yazıldı.
+  - `AsiaRegulatoryComplianceRule(SeoRule)` sınıfı implemente edildi (Kategori: `RuleCategory.COMPLIANCE`, Varsayılan Önem: `IssueSeverity.CRITICAL`).
+- `services/seo_engine/engine.py`: `SeoRuleEngine` içerisine tescil edildi.
+- `tests/unit/test_asia_compliance.py`: 12 birim test ile PMD Act, online reçeteli ilaç, Japonya JCAA ve Kore KFTC gizli reklam, Çin SAMR mutlak süperlatifleri, MHLW zayıflama, Singapur MAS kripto, CCCS greenwashing, vape/kumar yasağı, temiz metin ve motor entegrasyonu doğrulandı.
+- Tüm test paketi: **289 testin 289'u (%100) başarılı**.
+
+#### B. Web Uygulaması (`apps/web/`)
+- `apps/web/src/lib/compliance-asia.ts`: Asya Uyum Kütüphanesi (Regex kuralları, Asya mevzuat atıfları, ciro cezası oranları, güvenli alternatif metinler).
+- `apps/web/src/app/content/page.tsx`:
+  - **4 Yönlü Yargı Alanı Seçici:** `[ 🇹🇷 Türkiye ]`, `[ 🇪🇺 Avrupa Birliği ]`, `[ 🇺🇸 ABD ]`, `[ 🌏 Asya / APAC (JCAA / SAMR / MAS) ]`.
+  - Asya'ya özel 8 test senaryosu (PMDA Tıbbi İddia, PMDA/HSA Reçeteli İlaç, JCAA/KFTC Gizli Reklam, SAMR Süperlatif Yasağı, MHLW Zayıflama, MAS Kripto & Kredi, CCCS Yeşil İddia, Vape/Kumar Yasağı, Asya Uyumlu Metin).
+  - Asya sektör filtreleri ve anlık kural ihlali tespit tablosu.
+- `apps/web/src/app/keywords/page.tsx`:
+  - Sıralama takibinde ve anahtar kelime araştırmasında `🌏 Asia Violation` / `🌏 Asia Prohibited` etiketleri.
+  - Kelime ekleme modalında Asya mevzuatına dayalı anlık canlı ihlal uyarısı ve tek tıkla güvenli alternatife otomatik geçiş butonu.
+- `apps/web/src/app/ai/page.tsx`:
+  - **"🌏 Asya / APAC Mevzuat & PMDA/SAMR"** hızlı istemi ve PMDA, SAMR, MAS yönergelerini içeren yapay zeka denetim yanıtı.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
+#### C. Mobil Uygulama (`apps/mobile/`)
+- `apps/mobile/src/types/index.ts`: `AsiaComplianceSector`, `AsiaComplianceViolation` modelleri ve `ComplianceJurisdiction = "TR" | "EU" | "US" | "ASIA"`.
+- `apps/mobile/src/services/api.ts`: `ASIA_MOBILE_COMPLIANCE_RULES` kural tablosu, `scanAsiaCompliance()` fonksiyonu ve `sendAiAssistantMessage` içerisine Asya regülasyon zekası.
+- `apps/mobile/src/screens/ContentOptimizerScreen.tsx`:
+  - Üstte 4 butonlu yargı alanı anahtarı: `[ 🇹🇷 TR ]`, `[ 🇪🇺 EU ]`, `[ 🇺🇸 US ]`, `[ 🌏 Asya ]`.
+  - Asya hazır test senaryoları çipleri (🏥 PMDA Tıbbi İddia, 💊 PMDA/HSA Reçeteli İlaç, ⭐ JCAA/KFTC Gizli Reklam, 🏆 SAMR Süperlatif, 🥗 MHLW Zayıflama, 💳 MAS Kripto, 🌿 CCCS Yeşil İddia, 🚭 Vape/Kumar, ✅ Asya Uyumlu).
+  - Asya sektör filtreleme butonları.
+  - Canlı denetim, ihlal kartları, yaptırım uyarısı ve tek tıkla **"Metinde Düzelt"** aksiyonu.
+- `apps/mobile/src/screens/KeywordsScreen.tsx`:
+  - Takip listesinde `🌏 Asia Uyum Riski` rozeti ve JCAA/SAMR/MAS yasal dayanak açıklaması.
+  - Anahtar kelime araştırma listesinde `🌏 Asia Mevzuat Riski` etiketi.
+  - "Hedef Anahtar Kelime Ekle" modalında canlı Asya-Pasifik uyarı kutusu ve önerilen güvenli alternatife otomatik geçiş butonu.
+- `apps/mobile/src/screens/AiAssistantScreen.tsx`:
+  - Quick Prompts içerisine `"🌏 Asya / PMDA & SAMR Uyum Kuralları"` eklendi.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
+
 
 

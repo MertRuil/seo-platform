@@ -47,6 +47,12 @@ import {
   type UsComplianceViolation,
   type UsComplianceSector,
 } from "@/lib/compliance-us";
+import {
+  scanAsiaCompliance,
+  getAsiaSectorName,
+  type AsiaComplianceViolation,
+  type AsiaComplianceSector,
+} from "@/lib/compliance-asia";
 
 const SAMPLE_TEXTS_TR = [
   {
@@ -147,6 +153,49 @@ const SAMPLE_TEXTS_US = [
   },
 ];
 
+const SAMPLE_TEXTS_ASIA = [
+  {
+    title: "🏥 PMD Act & Yakki-ho (Japan Unapproved Medical)",
+    content: "Our luxury facial essence permanently removes wrinkles and reverses aging completely! Daily drink cures cancer and diabetes with miracle botanical remedy.",
+    keyword: "anti aging skincare tokyo",
+  },
+  {
+    title: "⭐ Stealth Marketing & Fake Reviews (JCAA / KFTC)",
+    content: "Boost your store ranking: purchase fake reviews and stealth marketing service for Google, Xiaohongshu, and Naver with undisclosed influencer promotion.",
+    keyword: "influencer marketing seoul",
+  },
+  {
+    title: "🏆 China SAMR Absolute Superlatives (Art. 9)",
+    content: "Our brand provides national level best engineering, the absolute best in China with highest level quality. Guaranteed Japan's number one cosmetic product.",
+    keyword: "ecommerce brand shanghai",
+  },
+  {
+    title: "🥗 Dietary Supplements & Rapid Slimming (MHLW / MFDS)",
+    content: "Lose 10 kg in 2 weeks without diet or exercise! Drink our miracle slimming tea for effortless fat burning supplement results while sleeping.",
+    keyword: "slimming tea asia",
+  },
+  {
+    title: "📈 Singapore MAS Crypto & Guaranteed Lending",
+    content: "Earn guaranteed crypto yield with our 100% risk-free investment algorithm bot in Singapore! Instant personal loans no credit check with guaranteed loan approval.",
+    keyword: "crypto trading platform singapore",
+  },
+  {
+    title: "🌿 Singapore CCCS Green Claims & Carbon Neutral",
+    content: "Our sneakers feature 100% eco-friendly materials and certified carbon neutral delivery with zero carbon guaranteed across APAC.",
+    keyword: "sustainable fashion singapore",
+  },
+  {
+    title: "🚭 Vaping & Online Casino Prohibition (Singapore)",
+    content: "Buy vapes online in Singapore with fast shipping or play at the trusted online casino Singapore with instant payouts.",
+    keyword: "online retail singapore",
+  },
+  {
+    title: "✅ Fully Compliant Asian / APAC Copy",
+    content: "Formulated with gentle botanical extracts to support skin hydration and maintain natural barrier balance. Certified under Japanese cosmetic standards. Consult a certified dermatologist for personalized guidance.",
+    keyword: "hydrating lotion tokyo",
+  },
+];
+
 export default function ContentOptimizerPage() {
   const [data, setData] = useState<ContentOptimizationData>(DEMO_CONTENT);
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
@@ -154,7 +203,7 @@ export default function ContentOptimizerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Content Draft & Compliance Shield state
-  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US">("TR");
+  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "ASIA">("TR");
   const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS_TR[0].content);
   const [selectedComplianceSector, setSelectedComplianceSector] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"nlp" | "compliance" | "generator">("nlp");
@@ -178,9 +227,12 @@ export default function ContentOptimizerPage() {
     } else if (complianceRegion === "EU") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as EuComplianceSector);
       return scanEuCompliance(contentDraft, sectorFilter);
-    } else {
+    } else if (complianceRegion === "US") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as UsComplianceSector);
       return scanUsCompliance(contentDraft, sectorFilter);
+    } else {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as AsiaComplianceSector);
+      return scanAsiaCompliance(contentDraft, sectorFilter);
     }
   }, [complianceRegion, contentDraft, selectedComplianceSector]);
 
@@ -457,6 +509,21 @@ export default function ContentOptimizerPage() {
               >
                 <span>🇺🇸</span> ABD (FTC / FDA / SEC)
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setComplianceRegion("ASIA");
+                  setContentDraft(SAMPLE_TEXTS_ASIA[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "ASIA"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🌏</span> Asya / APAC (JCAA / SAMR / MAS)
+              </button>
             </div>
           </div>
 
@@ -467,14 +534,18 @@ export default function ContentOptimizerPage() {
                 ? "Türkiye Sektörel Yasaklı Kalıp Test Simülatörü"
                 : complianceRegion === "EU"
                 ? "European Union Prohibited Claims & Directives Simulator"
-                : "United States (US) Prohibited Claims & Federal Simulator"
+                : complianceRegion === "US"
+                ? "United States (US) Prohibited Claims & Federal Simulator"
+                : "Asia & Pacific (APAC) Prohibited Claims & Regulatory Simulator"
             }
             sub={
               complianceRegion === "TR"
                 ? "Farklı sektörlerde Türkiye Reklam Kurulu ve TİTCK tarafından yasaklanan örnek metinleri anında test edin"
                 : complianceRegion === "EU"
                 ? "Test real-world violations of Directive (EU) 2024/825 (Greenwashing), EFSA Regulation 1924/2006, MiCA and Directive 2001/83/EC"
-                : "Test violations under FTC Act Section 5, FDA FD&C Act / DSHEA, SEC Rule 10b-5, FTC Green Guides, and ABA Model Rules"
+                : complianceRegion === "US"
+                ? "Test violations under FTC Act Section 5, FDA FD&C Act / DSHEA, SEC Rule 10b-5, FTC Green Guides, and ABA Model Rules"
+                : "Test violations under Japan PMD Act (Yakki-ho), JCAA Stealth Marketing, China SAMR Art. 9, Singapore MAS/HSA, and Korea KFTC"
             }
           >
             <div className="flex flex-wrap gap-2">
@@ -482,7 +553,9 @@ export default function ContentOptimizerPage() {
                 ? SAMPLE_TEXTS_TR
                 : complianceRegion === "EU"
                 ? SAMPLE_TEXTS_EU
-                : SAMPLE_TEXTS_US
+                : complianceRegion === "US"
+                ? SAMPLE_TEXTS_US
+                : SAMPLE_TEXTS_ASIA
               ).map((sample, idx) => (
                 <button
                   key={idx}
@@ -511,7 +584,9 @@ export default function ContentOptimizerPage() {
                     ? "İçeriğinizi buraya yapıştırın veya yazın..."
                     : complianceRegion === "EU"
                     ? "Paste or type your English, German or French marketing copy here..."
-                    : "Paste or type your US marketing copy, landing page or ad text here..."
+                    : complianceRegion === "US"
+                    ? "Paste or type your US marketing copy, landing page or ad text here..."
+                    : "Paste or type your Asian (English, Japanese, Chinese, or Korean) marketing copy here..."
                 }
               />
             </div>
@@ -527,7 +602,9 @@ export default function ContentOptimizerPage() {
                     ? `Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı ${complianceViolations.length} İfade Tespit Edildi!`
                     : complianceRegion === "EU"
                     ? `EU Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under European Directives!`
-                    : `US Federal Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under FTC/FDA/SEC Rules!`}
+                    : complianceRegion === "US"
+                    ? `US Federal Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under FTC/FDA/SEC Rules!`
+                    : `Asia / APAC Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under Asian Laws!`}
                 </span>
               </div>
               <p className="text-xs text-rose-600 leading-relaxed">
@@ -542,10 +619,15 @@ export default function ContentOptimizerPage() {
                     Under EU Directives (EmpCo 2024/825, EFSA Reg 1924/2006, MiCA 2023/1114, Directive 2001/83/EC), these claims carry risk of{" "}
                     <strong>fines up to 4% of annual turnover under EU consumer law</strong>, product recalls, or national regulatory bans by EU member state authorities.
                   </>
-                ) : (
+                ) : complianceRegion === "US" ? (
                   <>
                     Under US Federal Law (FTC Act Section 5, 21 U.S.C. FD&C Act, 16 CFR Part 464, SEC Rule 10b-5), these claims carry severe risk of{" "}
                     <strong>FTC civil penalties up to $51,744 per violation</strong>, FDA Warning Letters and product seizures, or SEC enforcement actions for fraudulent claims.
+                  </>
+                ) : (
+                  <>
+                    Under Asian Regulatory Frameworks (Japan Yakki-ho / Keihyo-ho, China SAMR Advertising Law Art. 9, Singapore MAS / HSA, Korea KFTC), these claims carry severe risk of{" "}
+                    <strong>surcharges up to 4.5% of total sales in Japan</strong>, <strong>up to 2,000,000 RMB fines in China</strong>, or criminal penalties and site bans in Singapore.
                   </>
                 )}
               </p>
@@ -559,14 +641,18 @@ export default function ContentOptimizerPage() {
                     ? "Mevzuata Tam Uyumlu"
                     : complianceRegion === "EU"
                     ? "Fully Compliant with EU Regulations"
-                    : "Fully Compliant with US Federal Regulations"}
+                    : complianceRegion === "US"
+                    ? "Fully Compliant with US Federal Regulations"
+                    : "Fully Compliant with Asia & Pacific (APAC) Regulations"}
                 </h4>
                 <p className="text-xs text-emerald-700">
                   {complianceRegion === "TR"
                     ? "İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır."
                     : complianceRegion === "EU"
                     ? "No prohibited health claims (EFSA), greenwashing claims (EmpCo Dir 2024/825), MiCA guaranteed returns or unverified market superlatives found."
-                    : "No prohibited disease claims (FDA), deceptive advertising or fake reviews (FTC), SEC guaranteed returns, or PACT Act violations found."}
+                    : complianceRegion === "US"
+                    ? "No prohibited disease claims (FDA), deceptive advertising or fake reviews (FTC), SEC guaranteed returns, or PACT Act violations found."
+                    : "No unapproved medical claims (Japan PMD Act), stealth marketing (JCAA / KFTC), absolute superlatives (China SAMR Art. 9), or MAS crypto promises found."}
                 </p>
               </div>
             </div>
@@ -598,7 +684,8 @@ export default function ContentOptimizerPage() {
                   { id: "LEGAL_SERVICES", label: "Legal Services (CCBE)" },
                   { id: "TOBACCO_NICOTINE", label: "Tobacco & Vaping (TPD)" },
                 ]
-              : [
+              : complianceRegion === "US"
+              ? [
                   { id: "ALL", label: "All US Sectors" },
                   { id: "HEALTH_FDA", label: "Health & FDA (FD&C Act)" },
                   { id: "SUPPLEMENTS_WEIGHTLOSS", label: "Supplements & Weight Loss (DSHEA)" },
@@ -607,6 +694,16 @@ export default function ContentOptimizerPage() {
                   { id: "GREEN_GUIDES_FTC", label: "Environmental (FTC Green Guides)" },
                   { id: "LEGAL_ABA", label: "Legal Services (ABA 7.1)" },
                   { id: "TOBACCO_PACT", label: "Tobacco & Vapes (PACT Act)" },
+                ]
+              : [
+                  { id: "ALL", label: "All Asia / APAC Sectors" },
+                  { id: "COSMETICS_HEALTH_PMDA", label: "🏥 Health & Cosmetics (PMD Act/HSA)" },
+                  { id: "STEALTH_MARKETING_JCAA_KFTC", label: "⭐ Stealth Marketing (JCAA/KFTC)" },
+                  { id: "ABSOLUTE_SUPERLATIVES_SAMR", label: "🏆 Superlatives (SAMR Art. 9)" },
+                  { id: "DIETARY_SUPPLEMENTS_WEIGHTLOSS", label: "🥗 Supplements & Slimming" },
+                  { id: "FINANCIAL_CRYPTO_MAS", label: "💳 Crypto & Loans (MAS DPT)" },
+                  { id: "GREEN_CLAIMS_APAC", label: "🌿 Green Claims (CCCS)" },
+                  { id: "VAPING_GAMBLING_BAN_APAC", label: "🚭 Vaping & Gambling Ban" },
                 ]
             ).map((sec) => (
               <button
@@ -632,7 +729,9 @@ export default function ContentOptimizerPage() {
                   ? "Tespit Edilen Mevzuat İhlalleri ve Uyumlu Alternatifleri"
                   : complianceRegion === "EU"
                   ? "Detected EU Regulatory Violations & Compliant Alternatives"
-                  : "Detected US Regulatory Violations & Compliant Alternatives"
+                  : complianceRegion === "US"
+                  ? "Detected US Regulatory Violations & Compliant Alternatives"
+                  : "Detected Asia / APAC Regulatory Violations & Compliant Alternatives"
               }
               flush
             >
@@ -647,7 +746,9 @@ export default function ContentOptimizerPage() {
                           ? "İhlal Edilen Mevzuat"
                           : complianceRegion === "EU"
                           ? "EU Legal Basis"
-                          : "US Legal Basis"}
+                          : complianceRegion === "US"
+                          ? "US Legal Basis"
+                          : "Asia/APAC Legal Basis"}
                       </th>
                       <th className="py-3 px-3">{complianceRegion === "TR" ? "Ceza Riski" : "Penalty / Liability"}</th>
                       <th className="py-3 px-4">
@@ -655,7 +756,9 @@ export default function ContentOptimizerPage() {
                           ? "Tavsiye Edilen Uyumlu Alternatif"
                           : complianceRegion === "EU"
                           ? "Compliant EU Recommendation"
-                          : "Compliant US Recommendation"}
+                          : complianceRegion === "US"
+                          ? "Compliant US Recommendation"
+                          : "Compliant APAC Recommendation"}
                       </th>
                       <th className="py-3 px-3 text-right">{complianceRegion === "TR" ? "Eylem" : "Action"}</th>
                     </tr>
@@ -678,7 +781,9 @@ export default function ContentOptimizerPage() {
                               ? getTrSectorName(v.sector as any)
                               : complianceRegion === "EU"
                               ? getEuSectorName(v.sector as any)
-                              : getUsSectorName(v.sector as any)}
+                              : complianceRegion === "US"
+                              ? getUsSectorName(v.sector as any)
+                              : getAsiaSectorName(v.sector as any)}
                           </Badge>
                         </td>
 

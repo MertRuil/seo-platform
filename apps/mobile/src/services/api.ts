@@ -28,7 +28,9 @@ import {
   EuComplianceViolation,
   EuComplianceSector,
   UsComplianceViolation,
-  UsComplianceSector
+  UsComplianceSector,
+  AsiaComplianceViolation,
+  AsiaComplianceSector
 } from "../types";
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
@@ -1217,6 +1219,20 @@ export async function sendAiAssistantMessage(
     };
   }
 
+  if (lower.includes("asya") || lower.includes("apac") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas")) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `🌏 **Asya & Pasifik (APAC) Reklam ve SEO Mevzuat Kalkanı Rehberi:**\n\n• **1. Japonya PMDA Yakki-ho & JCAA (Ekim 2023 Stektoma):** Kozmetiklerde 'kanser/hastalık tedavisi' veya 'kırışıklıkları tamamen yok etme' iddiaları suçtur (2 yıla kadar hapis, %4.5 ciro cezası). Gizli reklamlar (#PR olmadan) cironun %3'ü ceza alır.\n• **2. Çin SAMR (Reklam Kanunu Md. 9):** '国家级' (Devlet düzeyi), '最高级' (En üst düzey), '最佳' (En iyi), '第一' (1 numara) mutlak süperlatifleri kesinlikle yasaktır (100k - 1M RMB ceza).\n• **3. Singapur MAS & HSA:** Halka açık kripto reklamı ve risksiz getiri vaatleri kesinlikle yasaktır. Reçeteli ilaç ve elektronik sigara (vape) satışı 10.000 SGD ceza ve hapis gerektirir.\n• **4. Güney Kore KFTC (뒷광고):** İnceleme manipülasyonu ve bildirimsiz influencer sponsorluklarına 500M KRW ceza uygulanır.`,
+      timestamp: new Date().toISOString(),
+      sources: ["Japonya Tüketici Ajansı (CAA / JCAA)", "Çin Devlet Piyasa Denetim İdaresi (SAMR)", "Singapur Para Otoritesi (MAS DPT Guidelines)"],
+      suggested_actions: [
+        { label: "Mevzuat Kalkanını Aç", action_type: "GENERATE_CONTENT" },
+        { label: "Asya Uyumlu Görev Aç", action_type: "CREATE_TASK" }
+      ]
+    };
+  }
+
   // Default intelligent assistant response
   return {
     id: `ai-${Date.now()}`,
@@ -2304,6 +2320,198 @@ export function scanUsCompliance(text: string, sector?: UsComplianceSector): UsC
 
     for (const pat of rule.patterns) {
       const match = pat.exec(normalized);
+      if (match) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const snippet = text.slice(Math.max(0, start - 20), Math.min(text.length, end + 20));
+
+        violations.push({
+          rule_id: rule.rule_id,
+          sector: rule.sector,
+          title: rule.title,
+          explanation: rule.title,
+          matched_pattern: match[0],
+          matched_term: match[0],
+          context_snippet: snippet.trim(),
+          legal_basis: rule.legal_basis,
+          legal_reference: rule.legal_basis,
+          penalty_risk: rule.penalty_risk,
+          fine_risk: rule.penalty_risk,
+          suggested_fix: rule.suggested_fix,
+          suggested_replacement: rule.suggested_fix,
+          severity: rule.severity,
+        });
+        break;
+      }
+    }
+  }
+
+  return violations;
+}
+
+// -------------------------------------------------------------
+// 30. Asia & Pacific (APAC) Regulatory Compliance Rules (Japan, China, Singapore, South Korea)
+// -------------------------------------------------------------
+export const ASIA_MOBILE_COMPLIANCE_RULES = [
+  // 1. Health, Cosmetics & Prescription Drugs (Japan PMDA Yakki-ho / Singapore HSA / China)
+  {
+    rule_id: "ASIA_PMDA_UNAPPROVED_MEDICAL",
+    sector: "COSMETICS_HEALTH_PMDA" as AsiaComplianceSector,
+    title: "Kozmetik/Gıdada İlaç Gibi Tedavi veya Kanser İyileştirme İddiası",
+    patterns: [
+      /\b(?:permanent(?:ly)?\s+removes?\s+wrinkles|reverses?\s+aging\s+completely)\b/i,
+      /\b(?:cures?\s+(?:cancer|diabetes|hypertension|alzheimer)|guaranteed\s+disease\s+cure)\b/i,
+      /\b(?:miracle\s+treatment\s+for\s+chronic\s+disease|eradicates?\s+all\s+tumors?)\b/i,
+      /(?:ガンが治る|糖尿病が完治|若返り効果100%|シミが完全に消える|病気が治る)/i,
+      /(?:包治百病|彻底根治糖尿病|抗癌神药|消灭肿瘤|彻底治愈高血压)/i,
+      /(?:암을\s*완치|당뇨병\s*치료|노화\s*완전\s*역전|기미\s*완전\s*제거)/i,
+    ],
+    legal_basis: "Japan PMD Act (薬機法 Art. 66/68), Singapore Health Products Act, China Drug Administration Law",
+    penalty_risk: "2 yıla kadar hapis cezası, brüt cironun %4.5'i oranında idari para cezası ve kurumsal men yaptırımı.",
+    suggested_fix: "Kozmetiklerde tıbbi tedavi iddiası yerine nemlendirme ve cilt bakım desteği ifadeleri kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "ASIA_PMDA_HSA_POM_ONLINE",
+    sector: "COSMETICS_HEALTH_PMDA" as AsiaComplianceSector,
+    title: "Reçetesiz Online Reçeteli İlaç (Ozempic/Wegovy vb.) Satışı",
+    patterns: [
+      /\b(?:buy|order)\s+(?:ozempic|wegovy|saxenda|retin[\s-]a|viagra|antibiotics)\s+without\s+(?:prescription|doctor)\b/i,
+      /\bno\s+prescription\s+required\s+for\s+(?:ozempic|wegovy|saxenda)\b/i,
+      /(?:処方箋なしで買える|医師の診察不要でオゼンピック|処方薬個人輸入代行)/i,
+      /(?:无需处方购买|处方药包邮|代购处方药|免处方直邮)/i,
+      /(?:처방전\s*없이\s*구매|의사\s*처방\s*없이\s*오젬픽|전문의약품\s*해외직구)/i,
+    ],
+    legal_basis: "Singapore Medicines Act, Japan Medical Care Act (医療法), South Korea Pharmaceutical Affairs Act",
+    penalty_risk: "Gümrükte el koyma, adli ceza davası ve domain erişim engellemesi.",
+    suggested_fix: "Reçeteli ilaçlar yalnızca lisanslı hekim muayenesi ve resmi eczaneler aracılığıyla temin edilebilir.",
+    severity: "CRITICAL" as const,
+  },
+
+  // 2. Stealth Marketing & Fake Reviews (Japan JCAA / Korea KFTC / China SAMR)
+  {
+    rule_id: "ASIA_STEALTH_MARKETING_DISCLOSURE",
+    sector: "STEALTH_MARKETING_JCAA_KFTC" as AsiaComplianceSector,
+    title: "Gizli Reklam (Stektoma / Dwit-gwanggo) ve Sahte Yorum Satın Alma",
+    patterns: [
+      /\b(?:buy\s+(?:google|naver|douyin|xiaohongshu)\s+reviews|purchase\s+fake\s+reviews)\b/i,
+      /\b(?:stealth\s+marketing\s+service|undisclosed\s+influencer\s+promotion)\b/i,
+      /(?:ステマ代行|やらせレビュー|サクラレビュー募集|ステルスマーケティング)/i,
+      /(?:刷单|炒信|买好评|刷好评|小红书假种草|购买虚假评价)/i,
+      /(?:뒷광고|댓글\s*알바|리뷰\s*조작|가짜\s*후기\s*구매|체험단\s*미표시)/i,
+    ],
+    legal_basis: "Japonya Keihyo-ho (ステマ規制 Ekim 2023), Kore KFTC Fair Labeling Act (뒷광고), Çin E-Ticaret Kanunu Md. 17",
+    penalty_risk: "Japonya'da cironun %3'ü ceza; Güney Kore'de 500 milyon KRW ceza; Çin'de 2 milyon RMB'ye varan para cezası.",
+    suggested_fix: "Sponsorlu içeriklerde başlık ve metinde '#PR', '広告' veya '유료광고' ibaresini açıkça belirtin.",
+    severity: "CRITICAL" as const,
+  },
+
+  // 3. Absolute Superlatives & Unsubstantiated "No. 1" Claims (China SAMR / Japan JCAA)
+  {
+    rule_id: "ASIA_SAMR_ABSOLUTE_SUPERLATIVES",
+    sector: "ABSOLUTE_SUPERLATIVES_SAMR" as AsiaComplianceSector,
+    title: "Yasaklanmış Mutlak Süperlatifler ve Kanıtsız '1 Numara' İddiaları",
+    patterns: [
+      /\b(?:national\s+level\s+best|absolute\s+best\s+in\s+china|highest\s+level\s+quality)\b/i,
+      /\b(?:japan'?s?\s+number\s+(?:one|1)|asia'?s?\s+(?:best|number\s+(?:one|1)))\b/i,
+      /\b(?:korea'?s?\s+number\s+(?:one|1)|guaranteed\s+number\s+one\s+brand)\b/i,
+      /(?:国家级|最高级|最佳|第一品牌|顶级品质|绝无仅有)/i,
+      /(?:日本一|業界No\.?1|必ず痩せる|効果100%|完璧な効果)/i,
+      /(?:대한민국\s*최고|국내\s*1위|완벽한\s*효과\s*보장)/i,
+    ],
+    legal_basis: "Çin Reklam Kanunu Md. 9/3 (Süperlatif yasağı), Japonya Keihyo-ho (優良誤認 - Üstünlük Yanılsaması)",
+    penalty_risk: "SAMR tarafından 100.000 - 1.000.000 RMB ceza; Japonya Tüketici Ajansı tarafından cironun %3'ü ceza.",
+    suggested_fix: "Mutlak ifadeler yerine bağımsız araştırma tarihli ve doğrulanabilir veriler kullanın.",
+    severity: "HIGH" as const,
+  },
+
+  // 4. Dietary Supplements & Weight Loss (Japan MHLW / Korea MFDS)
+  {
+    rule_id: "ASIA_SUPPLEMENT_WEIGHTLOSS_UNREALISTIC",
+    sector: "DIETARY_SUPPLEMENTS_WEIGHTLOSS" as AsiaComplianceSector,
+    title: "Zahmetsiz Hızlı Zayıflama ve Gerçek Dışı Kilo Kaybı İddiası",
+    patterns: [
+      /\blose\s+\d+\s*kg\s+in\s+\d+\s*(?:days?|weeks?)\s+without\s+(?:diet|exercise)\b/i,
+      /\b(?:effortless\s+fat\s+burning\s+supplement|miracle\s+slimming\s+tea)\b/i,
+      /\b(?:burn\s+belly\s+fat\s+while\s+sleeping|permanent\s+weight\s+loss\s+guaranteed)\b/i,
+      /(?:飲むだけで激痩せ|運動なしで10kg減量|食事制限なしで脂肪燃焼)/i,
+      /(?:无需节食月瘦\d+斤|躺着减肥|无副作用强效燃脂|神效瘦身茶)/i,
+      /(?:운동\s*없이\s*\d+kg\s*감량|먹기만\s*해도\s*살빠지는|다이어트\s*보장)/i,
+    ],
+    legal_basis: "Japonya Yakki-ho & Güney Kore MFDS Sağlık Fonksiyonel Gıda Kanunu",
+    penalty_risk: "Pazar yerlerinden (Rakuten, Coupang) anında men, ürün toplatma ve ağır idari para cezaları.",
+    suggested_fix: "Ürünün dengeli diyet ve egzersiz programı ile birlikte kilo kontrolünü desteklediğini belirtin.",
+    severity: "HIGH" as const,
+  },
+
+  // 5. Financial Services, Crypto & Predatory Lending (Singapore MAS / Japan FSA)
+  {
+    rule_id: "ASIA_MAS_CRYPTO_FINANCIAL_PROMISE",
+    sector: "FINANCIAL_CRYPTO_MAS" as AsiaComplianceSector,
+    title: "Garantili Kripto Kazancı ve Gelir Şartsız Anında Kredi Reklamı",
+    patterns: [
+      /\bguaranteed\s+(?:crypto|bitcoin|forex)\s+(?:yield|return|profit)\b/i,
+      /\b100%\s+risk[\s-]free\s+(?:crypto\s+arbitrage|investment\s+algorithm)\b/i,
+      /\binstant\s+personal\s+loans?\s+no\s+credit\s+check\b/i,
+      /\bguaranteed\s+loan\s+approval\s+regardless\s+of\s+credit\b/i,
+      /(?:元本保証の仮想通貨|確実な暗号資産利回り|審査なし即日融資|誰でも必ず借りられる)/i,
+      /(?:稳赚不赔虚拟币|保证100%收益率|无征信即时放款|高回报无风险理财)/i,
+      /(?:원금\s*보장\s*코인\s*수익|100%\s*무위험\s*투자|신용\s*조회\s*없는\s*즉시대출)/i,
+    ],
+    legal_basis: "Singapur Para Otoritesi (MAS DPT Yönergeleri 2022) & Japonya Finansal Hizmetler Ajansı (FSA)",
+    penalty_risk: "Singapur ve Japonya'da lisans iptali, adli soruşturma ve kripto hizmeti sunma men yaptırımı.",
+    suggested_fix: "Zorunlu risk uyarısı ekleyin: 'Kripto varlık alım satımı yüksek risk içerir. Ana para kaybı riski mevcuttur.'",
+    severity: "CRITICAL" as const,
+  },
+
+  // 6. Environmental & Green Claims (Singapore CCCS / Japan JCAA)
+  {
+    rule_id: "ASIA_GREENWASHING_UNSUBSTANTIATED",
+    sector: "GREEN_CLAIMS_APAC" as AsiaComplianceSector,
+    title: "Kanıtlanamayan Karbon Nötr ve Yüzde Yüz Eko Dostu İddiası",
+    patterns: [
+      /\b(?:100%\s+eco[\s-]friendly|completely\s+green\s+product|certified\s+carbon\s+neutral\s+delivery)\b/i,
+      /\b(?:zero\s+carbon\s+guaranteed|100%\s+sustainable\s+lifecycle)\b/i,
+      /(?:環境負荷ゼロ|100%エコ|カーボンニュートラル保証|完全無公害)/i,
+      /(?:零碳环保|100%纯天然无害|绝对零污染|完全绿色产品)/i,
+      /(?:100%\s*친환경|탄소중립\s*완벽\s*보장|공해\s*전혀\s*없는)/i,
+    ],
+    legal_basis: "Singapur Rekabet ve Tüketici Komisyonu (CCCS) Yeşil İddialar Kılavuzu & Japonya CAA Çevre Rehberi",
+    penalty_risk: "Tüketiciyi aldatıcı ticari uygulama (CPFTA) cezaları ve düzeltici ilan zorunluluğu.",
+    suggested_fix: "Genel iddialar yerine ambalajın %60 geri dönüştürülmüş materyalden üretildiği gibi net kanıt sunun.",
+    severity: "HIGH" as const,
+  },
+
+  // 7. Tobacco, Vaping & Unauthorized Online Gambling (Singapore / East Asia)
+  {
+    rule_id: "ASIA_TOBACCO_VAPE_GAMBLING_BAN",
+    sector: "VAPING_GAMBLING_BAN_APAC" as AsiaComplianceSector,
+    title: "Elektronik Sigara/Vape Satışı ve Yasa Dışı Online Bahis Tanıtımı",
+    patterns: [
+      /\b(?:buy|order)\s+(?:vapes?|e[\s-]cigarettes?|puff\s+bars?|relx\s+pods?)\s+online\b/i,
+      /\b(?:trusted\s+online\s+casino\s+singapore|best\s+online\s+betting\s+malaysia)\b/i,
+      /\b(?:online\s+baccarat\s+singapore|online\s+slot\s+game\s+malaysia)\b/i,
+      /(?:電子タバコ通販|ニコチンリキッド販売|オンラインカジノおすすめ|ネットカジノ勝てる)/i,
+      /(?:电子烟线上购买|网上赌博直营|真人视讯百家乐|网络彩票稳赢)/i,
+      /(?:전자담배\s*온라인\s*구매|사설\s*토토\s*사이트|온라인\s*카지노\s*추천|바카라\s*필승법)/i,
+    ],
+    legal_basis: "Singapur Tütün Kanunu (Vape yasağı), Singapur Kumar Kontrol Kanunu 2022 & Çin E-Sigara Online Yasağı",
+    penalty_risk: "Singapur'da 10.000 SGD para cezası ve 6 aya kadar hapis; Çin ve Japonya'da site kapatma ve ağır para cezası.",
+    suggested_fix: "Elektronik sigara ve lisanssız çevrim içi kumar/bahis tanıtan tüm içerikleri tamamen kaldırın.",
+    severity: "CRITICAL" as const,
+  },
+];
+
+export function scanAsiaCompliance(text: string, sector?: AsiaComplianceSector): AsiaComplianceViolation[] {
+  if (!text) return [];
+  const normalized = text.toLowerCase();
+  const violations: AsiaComplianceViolation[] = [];
+
+  for (const rule of ASIA_MOBILE_COMPLIANCE_RULES) {
+    if (sector && rule.sector !== sector) continue;
+
+    for (const pat of rule.patterns) {
+      const match = pat.exec(normalized) || pat.exec(text);
       if (match) {
         const start = match.index;
         const end = start + match[0].length;

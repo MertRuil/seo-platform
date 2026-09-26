@@ -42,6 +42,7 @@ export const AiAssistantScreen: React.FC = () => {
     "Neden trafiğim düştü?",
     "En önemli 3 SEO problemim ne?",
     "Bu hafta ne yapmalıyım?",
+    "🌏 Asya / PMDA & SAMR Uyum Kuralları",
     "Hangi içerikleri yazmalıyım?",
     "Rakibim neden benden yukarıda?"
   ];

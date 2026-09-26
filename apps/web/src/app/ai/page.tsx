@@ -39,6 +39,10 @@ const PRESET_PROMPTS = [
     prompt: "Sitemizi ABD Federal Mevzuatına göre denetle: FTC Act Section 5, FDA (FD&C Act / DSHEA), SEC Rule 10b-5 ve FTC Green Guides uyumunu analiz et.",
   },
   {
+    title: "🌏 Asya / APAC Mevzuat & PMDA/SAMR",
+    prompt: "Sitemizi Asya ve Pasifik (APAC) mevzuatına göre tara: Japonya Yakki-ho / Keihyo-ho (Stealth Marketing), Çin SAMR Reklam Kanunu (Art. 9) ve Singapur MAS kripto kurallarına uyumu incele.",
+  },
+  {
     title: "Trafik Düşüşünü Analiz Et",
     prompt: "Son 14 gündeki organik trafik değişimini analiz et ve nedenlerini açıkla.",
   },
@@ -88,7 +92,19 @@ export default function AiCopilotPage() {
       const lower = text.toLowerCase();
       let reply: AiCopilotMessage;
 
-      if (lower.includes("us") || lower.includes("abd") || lower.includes("ftc") || lower.includes("fda") || lower.includes("sec") || lower.includes("dshea") || lower.includes("ryan haight")) {
+      if (lower.includes("asia") || lower.includes("asya") || lower.includes("apac") || lower.includes("jcaa") || lower.includes("yakki") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas") || lower.includes("kftc")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `🌏 **Asya & Pasifik (APAC) Bölgesi Mevzuat ve Reklam Denetimi:**\n\n1. **Japonya PMD Act (薬機法 - Yakki-ho Art. 66/68):** Kozmetik, gıda ve takviyelerde tıbbi tedavi/hastalık önleme iddiaları ("ガンが治る", "シミが消える", "若返り効果100%") yasaktır. İhlal halinde 2 yıla kadar hapis veya toplam cironun %4.5'ine varan idari para cezası verilir.\n2. **Japonya JCAA Stealth Marketing Yasağı (ステマ規制, Ekim 2023):** Sponsorlu veya teşvikli içeriklerde belirgin biçimde "#PR" veya "広告" etiketi yer almalıdır; gizli reklam ve sahte yorumlar şirketin cirosundan %3 kesinti cezası doğurur.\n3. **Çin SAMR Reklam Kanunu (中华人民共和国广告法 Madde 9):** "Ulusal Düzey" (国家级), "En Yüksek" (最高级), "En İyi" (最佳), "1 Numara" (第一) gibi kanıtlanamayan mutlak süperlatif ifadelerin kullanımı 100.000 - 1.000.000 RMB ceza gerektirir.\n4. **Güney Kore KFTC Backdoor Advertising (뒷광고):** Tüketiciyi aldatıcı gizli fenomen reklamları ve sahte incelemeler 500 milyon KRW veya cironun %2'si kadar ceza ile yaptırımlandırılır.\n5. **Singapur MAS Kripto Yönergeleri (DPT):** Kamuya açık mecralarda kripto para reklamı ve "guaranteed crypto yield" / "risk-free" vaatleri katı şekilde yasaklanmıştır.\n6. **Tütün & Vaping / Kumar Yasakları:** Singapur ve Güneydoğu Asya'da elektronik sigara (vape) satışı 10.000 SGD ceza ve 6 ay hapis; yasadışı online kumar siteleri anında engellenir.\n\nÖnerim: İçerik sekmesindeki **Asya / APAC Uyum Kalkanı** simülatörünü kullanarak Asya pazarına açılan içeriklerinizi güvenle denetleyin.`,
+          timestamp: "Şimdi",
+          sources: ["Japan PMD Act (Yakki-ho)", "JCAA Keihyo-ho (Stealth Marketing)", "China Advertising Law (SAMR Art. 9)", "Singapore MAS Digital Payment Token Guidelines", "Korea Fair Trade Commission (KFTC)"],
+          actions: [
+            { label: "Asya Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "Asya Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("us") || lower.includes("abd") || lower.includes("ftc") || lower.includes("fda") || lower.includes("sec") || lower.includes("dshea") || lower.includes("ryan haight")) {
         reply = {
           id: `ai-${Date.now()}`,
           sender: "assistant",

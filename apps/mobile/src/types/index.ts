@@ -361,7 +361,7 @@ export interface EuComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
-export type ComplianceJurisdiction = "TR" | "EU" | "US";
+export type ComplianceJurisdiction = "TR" | "EU" | "US" | "ASIA";
 
 export type UsComplianceSector =
   | "HEALTH_FDA"
@@ -388,6 +388,33 @@ export interface UsComplianceViolation {
   suggested_replacement?: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
+
+export type AsiaComplianceSector =
+  | "COSMETICS_HEALTH_PMDA"
+  | "STEALTH_MARKETING_JCAA_KFTC"
+  | "ABSOLUTE_SUPERLATIVES_SAMR"
+  | "DIETARY_SUPPLEMENTS_WEIGHTLOSS"
+  | "FINANCIAL_CRYPTO_MAS"
+  | "GREEN_CLAIMS_APAC"
+  | "VAPING_GAMBLING_BAN_APAC";
+
+export interface AsiaComplianceViolation {
+  rule_id: string;
+  sector: AsiaComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
 
 
 

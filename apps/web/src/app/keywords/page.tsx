@@ -32,6 +32,7 @@ import { Modal } from "@/components/ui/Modal";
 import { scanTurkishCompliance } from "@/lib/compliance-tr";
 import { scanEuCompliance } from "@/lib/compliance-eu";
 import { scanUsCompliance } from "@/lib/compliance-us";
+import { scanAsiaCompliance } from "@/lib/compliance-asia";
 
 function getIntentTone(intent: string): Tone {
   switch (intent) {
@@ -261,6 +262,7 @@ export default function KeywordsPage() {
                   const trViolations = scanTurkishCompliance(item.keyword);
                   const euViolations = scanEuCompliance(item.keyword);
                   const usViolations = scanUsCompliance(item.keyword);
+                  const asiaViolations = scanAsiaCompliance(item.keyword);
                   return (
                     <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       {/* Keyword + Intent */}
@@ -293,6 +295,15 @@ export default function KeywordsPage() {
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-blue-600 shrink-0" />
                                 🇺🇸 US Violation: {usViolations[0].title}
+                              </span>
+                            )}
+                            {asiaViolations.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-purple-50 text-purple-700 border border-purple-200"
+                                title={`Asia: ${asiaViolations[0].title} (${asiaViolations[0].legalBasis})`}
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5 text-purple-600 shrink-0" />
+                                🌏 Asia Violation: {asiaViolations[0].title}
                               </span>
                             )}
                           </div>
@@ -442,6 +453,7 @@ export default function KeywordsPage() {
                   const expTr = scanTurkishCompliance(item.keyword);
                   const expEu = scanEuCompliance(item.keyword);
                   const expUs = scanUsCompliance(item.keyword);
+                  const expAsia = scanAsiaCompliance(item.keyword);
                   return (
                     <div key={idx} className="p-4 bg-surface hover:bg-surface-2 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="space-y-1">
@@ -472,6 +484,15 @@ export default function KeywordsPage() {
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-blue-600 shrink-0" />
                               🇺🇸 US Prohibited: {expUs[0].title}
+                            </span>
+                          )}
+                          {expAsia.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-purple-50 text-purple-700 border border-purple-200"
+                              title={`Asia: ${expAsia[0].title} (${expAsia[0].legalBasis})`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-purple-600 shrink-0" />
+                              🌏 Asia Prohibited: {expAsia[0].title}
                             </span>
                           )}
                           {item.has_ai_overview && (
@@ -573,6 +594,20 @@ export default function KeywordsPage() {
                 </p>
                 <p className="text-2xs text-emerald-700 font-semibold">
                   Compliant US Recommendation: {scanUsCompliance(newKeyword)[0].suggestedFix}
+                </p>
+              </div>
+            )}
+            {scanAsiaCompliance(newKeyword).length > 0 && (
+              <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-sm space-y-1">
+                <div className="flex items-center gap-1.5 text-purple-800 font-bold text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span>🌏 Asia / APAC Regulatory Warning: {scanAsiaCompliance(newKeyword)[0].title}</span>
+                </div>
+                <p className="text-2xs text-purple-700 leading-relaxed">
+                  "{scanAsiaCompliance(newKeyword)[0].matchedPattern}" violates {scanAsiaCompliance(newKeyword)[0].legalBasis} ({scanAsiaCompliance(newKeyword)[0].penaltyRisk}).
+                </p>
+                <p className="text-2xs text-emerald-700 font-semibold">
+                  Compliant Asia Recommendation: {scanAsiaCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
             )}
