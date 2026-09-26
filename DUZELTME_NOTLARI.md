@@ -1089,4 +1089,48 @@ Yapılan detaylı mimari incelemede ve kod denetiminde müşteriyi yanıltan bu 
   - `apps/mobile`: `npx tsc --noEmit` -> **0 Hata (Exit Code: 0)**
   - `apps/web`: `npx tsc --noEmit` -> **0 Hata (Exit Code: 0)**
 
+---
+
+### 22. 📢 Webhook Sessiz Yutma Hatası ve Telegram HTML Entity Kaçırma Onarımı
+
+Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'test' veya 'mock' kelimesi geçiyorsa bildirim hiç gönderilmiyor ama 'gönderildi' diye kaydediliyor. contest.io ya da latest-corp.com gibi gerçek adresler de bu yüzden etkileniyor. Telegram'da < veya & içeren mesajlar da hiç iletilmiyor. kontrol sağla"*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+1. **Alt Dize (Substring) Eşleşmesi ile Gerçek Webhook'ların Yutulması:**
+   - [`services/notifications/alert_dispatcher.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/notifications/alert_dispatcher.py) içerisinde Slack, Discord, Telegram ve Özel Webhook metodlarında `if "mock" in webhook_url.lower() or "test" in webhook_url.lower():` koşulu bulunuyordu.
+   - Bu kontrol sebebiyle `https://contest.io/webhook` (içinde `"test"` geçen), `https://api.latest-corp.com/alerts` (içinde `"test"` geçen) veya `https://fastest-cdn.net/events` gibi meşru alan adlarına sahip müşterilerin bildirimleri hiçbir HTTP isteği atılmadan sessizce simülasyona alınıyor; ancak `success: True` dönerek sanki iletilmiş gibi kaydediliyordu.
+   - Benzer şekilde Telegram `bot_token` içinde tesadüfen `"test"` veya `"mock"` karakterleri geçen meşru bot token'ları da sessizce engelleniyordu.
+2. **Telegram HTML Parse Mode Kaçırma (Escaping) Eksikliği:**
+   - Telegram Bot API'si `parse_mode="HTML"` modundayken metin içerisinde ham olarak `<, >, &` karakterleri bulunduğunda `HTTP 400 Bad Request: can't parse entities` hatası dönmekte ve mesajı tamamen reddetmektedir.
+   - `alert.title`, `alert.site_domain` veya `alert.summary` alanlarında `"GSC & GA4"`, `"CTR < %2.0"`, `"Pozisyon > 10"` veya `"<title> & <meta>"` gibi SEO'da sıkça geçen karakterler Telegram API tarafından geçersiz HTML etiketi veya bozuk entity olarak algılanıp bildirimler iletilmiyordu.
+
+#### B. Gerçekleştirilen Düzeltmeler
+
+1. **Katı Protokol Tabanlı Mock Ayrımı (`_is_mock_url`, `_is_mock_bot_token`):**
+   - Alt dize (`in url`) araması tamamen kaldırıldı.
+   - Mock tespiti yalnızca açık şema ile sınırlandırıldı: `webhook_url.startswith("mock://")` veya `webhook_url.strip().lower() == "mock"`.
+   - Telegram bot token'ı için yalnızca `bot_token.startswith("mock_")` veya `mock` anahtarları mock kabul edildi.
+   - `contest.io`, `latest-corp.com`, `fastest-cdn.net` gibi tüm gerçek HTTP/HTTPS uç noktalarının ağ üzerinden gerçek `httpx.post` çağrısıyla iletilmesi sağlandı.
+2. **SSRF Koruması:**
+   - Gerçek webhook uç noktaları için giden isteklerde `validate_safe_url` kontrolü eklenerek yerel ağ ve metadata sızıntılarına karşı güvenlik sıkılaştırıldı.
+3. **Telegram HTML Güvenli Karakter Dönüşümü (`_telegram_html_escape`):**
+   - Python `html.escape(str, quote=False)` kullanılarak tüm başlık, özet, alan adı, olay ve zaman damgası alanlarındaki `&` -> `&amp;`, `<` -> `&lt;`, `>` -> `&gt;` olarak dönüştürüldü.
+   - Böylece Telegram istemcisinde karakterler bozulmadan `<` ve `&` olarak görüntülenirken Telegram sunucusu 400 hatası vermez.
+4. **Çift Katmanlı Düşme Koruması (Plain Text Fallback):**
+   - Telegram API'si her şeye rağmen `400 Bad Request: can't parse entities` döndürürse, sistem otomatik olarak devreye girip bildirimi `parse_mode` olmaksızın düz metin (plain text) olarak yeniden gönderir; böylece hiçbir kritik alarm kaybolmaz.
+5. **Slack mrkdwn Güvenliği (`_slack_mrkdwn_escape`):**
+   - Slack Block Kit bloklarında `&`, `<` ve `>` karakterleri dönüştürülerek format bozulmaları engellendi.
+
+#### C. Test ve Doğrulama
+- **Eklenen Testler ([`tests/unit/test_alert_dispatcher.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_alert_dispatcher.py)):**
+  - `test_mock_detection_helpers`: `contest.io`, `latest-corp.com`, `fastest-cdn.net` adreslerinin mock OLMADIĞINI ve gerçek kabul edildiğini doğrular.
+  - `test_telegram_html_escape_special_characters`: `<, >, &` karakterlerinin `&lt;, &gt;, &amp;` olarak dönüştürüldüğünü test eder.
+  - `test_slack_mrkdwn_escape`: Slack kaçırma mekanizmasını doğrular.
+  - `test_webhook_dispatches_real_http_to_contest_io`: `contest.io` adresine gerçek HTTP POST yapıldığını doğrular.
+  - `test_webhook_dispatches_real_http_to_latest_corp`: `latest-corp.com` adresine gerçek HTTP POST yapıldığını doğrular.
+  - `test_telegram_alert_escapes_payload_in_http_call`: Telegram API çağrısında giden metnin güvenli entity'lerle iletildiğini doğrular.
+  - `test_telegram_alert_fallback_to_plain_text_on_entity_error`: Telegram entity hatası aldığında otomatik plain-text tekrar denemesi ile bildirimin ulaştığını doğrular.
+- **Sonuç:** `326 / 326 pytest testi başarılı` (%100 Başarı). TypeScript: Web ve Mobil 0 Hata.
+
+
 
