@@ -24,7 +24,9 @@ import {
   AppSettings,
   SeoOpportunityCard,
   ComplianceViolation,
-  ComplianceSector
+  ComplianceSector,
+  EuComplianceViolation,
+  EuComplianceSector
 } from "../types";
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
@@ -1771,4 +1773,299 @@ export function scanTurkishCompliance(text: string, sector?: ComplianceSector): 
 
   return violations;
 }
+
+// -------------------------------------------------------------
+// 19. Avrupa Birliği Mevzuatı & Reklam/İddia Kalkanı (EU Compliance)
+// -------------------------------------------------------------
+export const EU_MOBILE_COMPLIANCE_RULES = [
+  // 1. Health & Pharmaceuticals
+  {
+    rule_id: "EU_HEALTH_CURE_CLAIM",
+    sector: "HEALTH_PHARMA" as EuComplianceSector,
+    title: "Garantili İyileşme ve Mucize Şifa Vaadi Yasağı",
+    patterns: [
+      /\bguaranteed\s+(?:cure|healing)\b/i,
+      /\b100%\s+(?:cure|guaranteed\s+recovery)\b/i,
+      /\bmiracle\s+(?:cure|treatment|remedy)\b/i,
+      /\beradicate\s+(?:disease|illness)\s+completely\b/i,
+      /\bheilungsversprechen\b/i,
+      /\bgarantierte\s+heilung\b/i,
+      /\bwundermittel\b/i,
+      /\bguérison\s+garantie\b/i,
+      /\bremède\s+miracle\b/i,
+    ],
+    legal_basis: "Directive 2001/83/EC (Articles 86-90) & MDR (EU) 2017/745 Article 7",
+    penalty_risk: "AB üye ülkeleri ulusal sağlık otoriteleri cezası, ihtiyati tedbir ve reklam yasağı.",
+    suggested_fix: "Kesin şifa vaadi yerine 'doktor gözetiminde iyileşme sürecini destekler' ifadesini kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "EU_HEALTH_ZERO_RISK",
+    sector: "HEALTH_PHARMA" as EuComplianceSector,
+    title: "Tıbbi Operasyonlarda Sıfır Risk ve Yan Etkisizlik İddiası",
+    patterns: [
+      /\bzero\s+risk\s+(?:surgery|operation|procedure)\b/i,
+      /\brisk[\s-]free\s+(?:surgery|treatment|procedure)\b/i,
+      /\bno\s+side\s+effects?\b/i,
+      /\b100%\s+safe\s+procedure\b/i,
+      /\brisikofreie\s+operation\b/i,
+      /\bohne\s+nebenwirkungen\b/i,
+      /\bsans\s+aucun\s+effet\s+secondaire\b/i,
+      /\bopération\s+sans\s+risque\b/i,
+    ],
+    legal_basis: "MDR (EU) 2017/745 Article 7(d) & Directive 2005/29/EC (Yanıltıcı Güvenlik İddiası)",
+    penalty_risk: "BfArM, ANSM vb. AB sağlık ajansları idari yaptırımları ve tazminat davaları.",
+    suggested_fix: "Her cerrahi işlemin risk barındırdığını belirtin ve uzman hekime danışılmasını tavsiye edin.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "EU_HEALTH_POM_ONLINE",
+    sector: "HEALTH_PHARMA" as EuComplianceSector,
+    title: "Reçeteli İlaçların Doğrudan Halka Tanıtımı ve Satışı Yasağı",
+    patterns: [
+      /\b(?:buy|order)\s+(?:ozempic|wegovy|mounjaro|antibiotics|xanax|valium)\s+without\s+prescription\b/i,
+      /\bprescription[\s-]free\s+(?:antibiotics|sedatives|weight\s+loss\s+injections?)\b/i,
+      /\brezeptfrei\s+(?:ozempic|wegovy|antibiotika)\b/i,
+      /\bsans\s+ordonnance\s+(?:ozempic|antibiotiques)\b/i,
+    ],
+    legal_basis: "Directive 2001/83/EC Article 88 (Reçeteli ilaçların doğrudan halka reklamı yasağı)",
+    penalty_risk: "Yasadışı ilaç dağıtımı gerekçesiyle savcılık soruşturması ve anında alan adı engeli.",
+    suggested_fix: "Reçeteli ilaçlar AB'de internet üzerinden halka doğrudan tanıtılamaz veya satılamaz.",
+    severity: "CRITICAL" as const,
+  },
+  // 2. Food Supplements & Weight Loss (EFSA)
+  {
+    rule_id: "EU_FOOD_WEIGHT_LOSS_RATE",
+    sector: "FOOD_SUPPLEMENT" as EuComplianceSector,
+    title: "Gıda Takviyelerinde Zayıflama Hızı ve Miktarı Vaat Etme Yasağı",
+    patterns: [
+      /\blose\s+\d+\s*(?:kg|kilos|lbs|pounds)\s+in\s+\d+\s*(?:days?|weeks?)\b/i,
+      /\b(?:rapid|guaranteed)\s+fat\s+burn(?:ing)?\b/i,
+      /\bslimming\s+guarantee\b/i,
+      /\bburns?\s+belly\s+fat\s+in\s+\d+\s+days?\b/i,
+      /\b\d+\s*kg\s+in\s+\d+\s*(?:woche|tagen?)\s+abnehmen\b/i,
+      /\bfettverbrennung\s+garantiert\b/i,
+      /\bperdre\s+\d+\s*kg\s+en\s+\d+\s*(?:jours?|semaines?)\b/i,
+      /\bbrûle[\s-]graisse\s+garanti\b/i,
+    ],
+    legal_basis: "Regulation (EC) No 1924/2006 Article 12(b) (Kilo verme hızı veya miktarı belirten beyan yasağı)",
+    penalty_risk: "Ulusal gıda güvenliği kurumları (DGCCRF, BVL, NVWA) tarafından toplatma ve idari ceza.",
+    suggested_fix: "EFSA onaylı 'Kilo kontrolü sürecini destekler' genel beyanını kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "EU_FOOD_DISEASE_PREVENTION",
+    sector: "FOOD_SUPPLEMENT" as EuComplianceSector,
+    title: "Gıdalara Hastalık Önleme veya Tedavi Özelliği Atfetme Yasağı",
+    patterns: [
+      /\bcures?\s+(?:cancer|diabetes|arthritis|alzheimer'?s)\b/i,
+      /\bprevents?\s+(?:cancer|diabetes|heart\s+attacks?)\b/i,
+      /\bheals?\s+chronic\s+diseases?\b/i,
+      /\bschützt\s+vor\s+(?:krebs|diabetes)\b/i,
+      /\bheilt\s+arthrose\b/i,
+      /\bguérit\s+le\s+diabète\b/i,
+      /\bprévient\s+le\s+cancer\b/i,
+    ],
+    legal_basis: "Regulation (EU) No 1169/2011 (FIC) Article 7(3) & Regulation (EC) No 1924/2006 Article 14",
+    penalty_risk: "Gıdayı ilaç gibi lanse etmekten ağır para cezaları ve AB pazarından men.",
+    suggested_fix: "Yalnızca AB Komisyonu tarafından onaylanmış fonksiyonel beslenme beyanlarını kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  // 3. Greenwashing & Environmental Claims (EmpCo Directive)
+  {
+    rule_id: "EU_GREEN_OFFSETTING_CLAIMS",
+    sector: "GREEN_CLAIMS" as EuComplianceSector,
+    title: "Karbon Dengelemeye Dayalı 'Karbon Nötr / Climate Neutral' Yasağı",
+    patterns: [
+      /\bcarbon\s+neutral\b/i,
+      /\bclimate\s+neutral\b/i,
+      /\bco2\s+neutral\b/i,
+      /\bclimate\s+positive\b/i,
+      /\bnet[\s-]zero\s+product\b/i,
+      /\bclimate\s+compensated\b/i,
+      /\bklimaneutral\b/i,
+      /\bco2[\s-]neutral\b/i,
+      /\bklimapositiv\b/i,
+      /\bneutre\s+en\s+carbone\b/i,
+      /\bzéro\s+émission\s+nette\b/i,
+    ],
+    legal_basis: "Directive (EU) 2024/825 (EmpCo / Greenwashing) Annex I & UCPD",
+    penalty_risk: "Tüketiciyi aldatmaktan yıllık cironun %4'üne varan idari para cezası.",
+    suggested_fix: "Offset satın alarak 'nötr' demek yerine ürünün kendi doğrudan emisyon azaltım oranını somut verilerle sunun.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "EU_GREEN_GENERIC_ECO",
+    sector: "GREEN_CLAIMS" as EuComplianceSector,
+    title: "Kanıtlanmamış Jenerik Çevre Dostu (100% Eco-Friendly) İddiası",
+    patterns: [
+      /\b100%\s+eco[\s-]friendly\b/i,
+      /\b100%\s+green\s+product\b/i,
+      /\b100%\s+sustainable\b/i,
+      /\bcompletely\s+environmentally\s+friendly\b/i,
+      /\b100%\s+umweltfreundlich\b/i,
+      /\bvöllig\s+ökologisch\b/i,
+      /\b100%\s+écologique\b/i,
+    ],
+    legal_basis: "Directive (EU) 2024/825 & Green Claims Directive Article 3",
+    penalty_risk: "Resmi AB Ekolabel veya akredite sertifika olmaksızın kullanım halinde ticari ihtiyati tedbir.",
+    suggested_fix: "Jenerik iddia yerine 'Paketimiz %80 geri dönüştürülmüş kağıttan üretilmiştir' gibi spesifik ve kanıtlanabilir veri sunun.",
+    severity: "HIGH" as const,
+  },
+  // 4. Consumer Protection, Pricing & E-Commerce
+  {
+    rule_id: "EU_COMMERCIAL_SUPERLATIVE",
+    sector: "CONSUMER_ECOMMERCE" as EuComplianceSector,
+    title: "Kanıtlanamayan 'Avrupa'nın En Ucuzu' ve Rakipsiz Fiyat İddiası",
+    patterns: [
+      /\bcheapest\s+(?:in\s+europe|in\s+the\s+eu|in\s+the\s+world)\b/i,
+      /\bunbeatable\s+price\b/i,
+      /\bbest\s+price\s+guarantee\b/i,
+      /\blowest\s+price\s+guaranteed\b/i,
+      /\bgünstigster\s+in\s+europa\b/i,
+      /\btiefstpreisgarantie\b/i,
+      /\bunschlagbarer\s+preis\b/i,
+      /\ble\s+moins\s+cher\s+d'?europe\b/i,
+      /\bprix\s+imbattable\b/i,
+    ],
+    legal_basis: "Directive 2005/29/EC (UCPD) & Omnibus Directive (EU) 2019/2161",
+    penalty_risk: "Ulusal rekabet ve tüketici koruma otoritelerinden en az 2 milyon € veya cironun %4'ü ceza.",
+    suggested_fix: "Bağımsız piyasa araştırması yoksa 'Rekabetçi fiyat seçenekleri' ifadesini kullanın.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "EU_COMMERCIAL_FALSE_REFUND",
+    sector: "CONSUMER_ECOMMERCE" as EuComplianceSector,
+    title: "Yasal Cayma İstisnalarını Gizleyen Koşulsuz İade Garantisi",
+    patterns: [
+      /\bunconditional\s+(?:money[\s-]back\s+guarantee|refund)\b/i,
+      /\bno\s+questions?\s+asked\s+refund\b/i,
+      /\bbedingungslose\s+geld[\s-]zurück[\s-]garantie\b/i,
+      /\bremboursement\s+inconditionnel\b/i,
+    ],
+    legal_basis: "Consumer Rights Directive (2011/83/EU) Article 16 (Yasal cayma hakkı istisnaları)",
+    penalty_risk: "Tüketici hakları ihlali ve haksız ticari uygulama yaptırımı.",
+    suggested_fix: "'AB tüketici mevzuatına uygun 14 günlük yasal cayma hakkı' ifadesini kullanın.",
+    severity: "MEDIUM" as const,
+  },
+  // 5. Financial Services, Crypto & Consumer Credit
+  {
+    rule_id: "EU_FINANCE_GUARANTEED_RETURNS",
+    sector: "FINANCIAL_SERVICES" as EuComplianceSector,
+    title: "Kripto ve Finansta Garantili Kazanç ve Risksiz Yatırım Vaadi",
+    patterns: [
+      /\bguaranteed\s+(?:returns?|profits?|yield)\b/i,
+      /\brisk[\s-]free\s+(?:investment|trading)\b/i,
+      /\b100%\s+(?:safe\s+investment|guaranteed\s+profit)\b/i,
+      /\bguaranteed\s+crypto\s+(?:profit|yield|returns?)\b/i,
+      /\b100%\s+winning\s+(?:trading\s+bot|signals?)\b/i,
+      /\bgarantierte\s+rendite\b/i,
+      /\brisikofreie\s+geldanlage\b/i,
+      /\bgarantierter\s+krypto[\s-]gewinn\b/i,
+      /\brendement\s+garanti\b/i,
+      /\binvestissement\s+sans\s+risque\b/i,
+    ],
+    legal_basis: "Markets in Crypto-Assets Regulation (EU) 2023/1114 (MiCA) & MiFID II (2014/65/EU)",
+    penalty_risk: "ESMA, BaFin, AMF ve CNMV tarafından 5.000.000 €'ya kadar veya cironun %10'u idari para cezası.",
+    suggested_fix: "Zorunlu AB risk uyarısı ekleyin: 'Sermayeniz risk altındadır. Geçmiş getiri geleceğin garantisi değildir.'",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "EU_FINANCE_PREDATORY_CREDIT",
+    sector: "FINANCIAL_SERVICES" as EuComplianceSector,
+    title: "Kredi Notu Önemsiz / Anında Garantili Kredi Reklamı Yasağı",
+    patterns: [
+      /\binstant\s+loans?\s+no\s+credit\s+check\b/i,
+      /\bbad\s+credit\s+loans?\s+guaranteed\b/i,
+      /\bcredit\s+score\s+does(?:n't|\s+not)\s+matter\b/i,
+      /\bkredit\s+ohne\s+schufa\s+sofort\b/i,
+      /\btrotz\s+schufa\s+garantiert\b/i,
+      /\bcrédit\s+sans\s+enquête\s+fiché\b/i,
+    ],
+    legal_basis: "Consumer Credit Directive (EU) 2023/2225 (Kredi değerliliği değerlendirme zorunluluğu)",
+    penalty_risk: "Mali denetleme kurumları yaptırımı ve kredi pazarlama faaliyetinin durdurulması.",
+    suggested_fix: "Örnek APR maliyet tablosu sunun ve kredinin kredi değerlilik onayına tabi olduğunu belirtin.",
+    severity: "CRITICAL" as const,
+  },
+  // 6. Tobacco & Cross-Border Vaping
+  {
+    rule_id: "EU_TOBACCO_CROSSBORDER_VAPING",
+    sector: "TOBACCO_NICOTINE" as EuComplianceSector,
+    title: "Elektronik Sigara ve Puff Bar Sınır Ötesi Çevrimiçi Reklam Yasağı",
+    patterns: [
+      /\bbuy\s+e[\s-]cigarettes?\s+online\b/i,
+      /\border\s+vapes?\s+online\s+cheap\b/i,
+      /\bcheap\s+disposable\s+vapes?\b/i,
+      /\bbuy\s+puff\s+bar\s+online\b/i,
+      /\border\s+iqos\s+(?:online|heatsticks?)\b/i,
+      /\be[\s-]zigaretten\s+online\s+bestellen\b/i,
+      /\bpuff\s+bar\s+kaufen\b/i,
+      /\bacheter\s+vape\s+en\s+ligne\b/i,
+      /\bcommander\s+cigarette\s+électronique\b/i,
+    ],
+    legal_basis: "Tobacco Products Directive 2014/40/EU (Article 20 Sınır ötesi dijital reklam yasağı)",
+    penalty_risk: "Gümrük el koymaları, ulusal halk sağlığı para cezaları ve dijital erişim engeli.",
+    suggested_fix: "Elektronik sigara ve dolum sıvılarının AB içi sınır ötesi dijital reklamı kesinlikle yasaktır.",
+    severity: "CRITICAL" as const,
+  },
+  // 7. Legal Services
+  {
+    rule_id: "EU_LEGAL_OUTCOME_GUARANTEE",
+    sector: "LEGAL_SERVICES" as EuComplianceSector,
+    title: "Dava Kazanma Garantisi ve Yanıltıcı Süperlatif Avukatlık Reklamı",
+    patterns: [
+      /\bguaranteed\s+(?:court\s+win|acquittal|case\s+victory)\b/i,
+      /\b100%\s+success\s+rate\s+(?:lawyer|attorney)\b/i,
+      /\bbest\s+lawyer\s+in\s+(?:europe|germany|france|spain|italy)\b/i,
+      /\berfolgsgarantie\s+vor\s+gericht\b/i,
+      /\b100%\s+freispruch\s+garantie\b/i,
+      /\bbester\s+anwalt\s+deutschlands\b/i,
+      /\bgagner\s+votre\s+procès\s+garanti\b/i,
+    ],
+    legal_basis: "CCBE Code of Conduct for European Lawyers & Ulusal Baro Meslek Kuralları",
+    penalty_risk: "Avrupa Barolar Birliği disiplin kovuşturması, geçici meslekten men ve haksız rekabet tazminatı.",
+    suggested_fix: "Sonuç garantisi vermeden büronun uzmanlık ve hizmet alanlarını yalın olarak belirtin.",
+    severity: "CRITICAL" as const,
+  },
+];
+
+export function scanEuCompliance(text: string, sector?: EuComplianceSector): EuComplianceViolation[] {
+  if (!text) return [];
+  const normalized = text.toLowerCase();
+  const violations: EuComplianceViolation[] = [];
+
+  for (const rule of EU_MOBILE_COMPLIANCE_RULES) {
+    if (sector && rule.sector !== sector) continue;
+
+    for (const pat of rule.patterns) {
+      const match = pat.exec(normalized);
+      if (match) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const snippet = text.slice(Math.max(0, start - 20), Math.min(text.length, end + 20));
+
+        violations.push({
+          rule_id: rule.rule_id,
+          sector: rule.sector,
+          title: rule.title,
+          explanation: rule.title,
+          matched_pattern: match[0],
+          matched_term: match[0],
+          context_snippet: snippet.trim(),
+          legal_basis: rule.legal_basis,
+          legal_reference: rule.legal_basis,
+          penalty_risk: rule.penalty_risk,
+          fine_risk: rule.penalty_risk,
+          suggested_fix: rule.suggested_fix,
+          suggested_replacement: rule.suggested_fix,
+          severity: rule.severity,
+        });
+        break;
+      }
+    }
+  }
+
+  return violations;
+}
+
 

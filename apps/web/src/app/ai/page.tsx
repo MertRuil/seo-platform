@@ -31,6 +31,10 @@ const PRESET_PROMPTS = [
     prompt: "Sitemizi Türkiye Reklam Kurulu, TİTCK ve TBB mevzuatına göre tara; yasaklı sağlık beyanı veya haksız ticari iddiaları tespit et.",
   },
   {
+    title: "🇪🇺 EU Mevzuat & Greenwashing",
+    prompt: "Sitemizi Avrupa Birliği Direktiflerine göre tara: Directive 2024/825 (EmpCo greenwashing), EFSA Regulation 1924/2006 ve MiCA kurallarına uyumu incele.",
+  },
+  {
     title: "Trafik Düşüşünü Analiz Et",
     prompt: "Son 14 gündeki organik trafik değişimini analiz et ve nedenlerini açıkla.",
   },
@@ -80,15 +84,27 @@ export default function AiCopilotPage() {
       const lower = text.toLowerCase();
       let reply: AiCopilotMessage;
 
-      if (lower.includes("mevzuat") || lower.includes("titck") || lower.includes("reklam") || lower.includes("yasak")) {
+      if (lower.includes("eu") || lower.includes("avrupa") || lower.includes("greenwashing") || lower.includes("empco") || lower.includes("efsa") || lower.includes("mica")) {
         reply = {
           id: `ai-${Date.now()}`,
           sender: "assistant",
-          text: `Türkiye Cumhuriyeti Ticaret Bakanlığı Reklam Kurulu, TİTCK ve TBB mevzuatlarına göre siteniz taranmış ve sektörel uyum analizi tamamlanmıştır:\n\n1. **Sağlık & Tıbbi İddialar (TİTCK):** "Tedavi eder", "kesin şifa", "garantili sonuç" ve hekimler için "en iyi cerrah" ifadeleri kesinlikle yasaktır (1219 sayılı Kanun & Tanıtım Yönetmeliği md. 5).\n2. **Gıda Takviyeleri:** Takviyelerde "zayıflatır", "yağ yakar" veya "Sağlık Bakanlığı onaylı" denmesi en yüksek sınırdan idari para cezası ve ürün toplatma sebebidir.\n3. **Hukuk & Avukatlık (TBB):** "En iyi avukat", "dava kazanma garantisi" ve "ücretsiz danışmanlık" reklam yasağı kapsamındadır (1136 sayılı Kanun md. 55).\n4. **Kanıtlanamayan Üstünlükler:** "En ucuz", "rakipsiz fiyat" ifadeleri akredite pazar raporu olmadan kullanılamaz.\n\nÖnerim: İçerik Optimizasyonu sekmesindeki **Türkiye Mevzuat Uyum Kalkanı** ile metinlerinizi anında tarayın ve tek tıkla düzeltin.`,
+          text: `Avrupa Birliği direktifleri ve tüzüklerine göre (EU Compliance Shield) siteniz taranmış ve 5 kritik uyumsuzluk alanı belirlenmiştir:\n\n1. **Greenwashing & Çevre İddiaları (Directive (EU) 2024/825 EmpCo):** Karbon kredisi/ofsetlemeye dayalı "carbon neutral", "climate positive", "CO2 neutral" iddiaları yasaklanmıştır. "100% eco-friendly" ifadesi resmi EU Ecolabel sertifikası olmaksızın kullanılamaz (Yıllık cironun %4'üne varan ceza).\n2. **Gıda & Takviyeler (EFSA Reg 1924/2006):** Kilo verme hızı veya miktarı vaat eden ("lose 10 kg in 2 weeks") veya hastalık önleme/tedavi iddiaları yasaktır.\n3. **Finans & Kripto (MiCA 2023/1114 & MiFID II):** Kripto ve yatırımlarda "guaranteed returns", "risk-free investment" vaatleri yasaktır.\n4. **Tüketici Fiyatlandırması (Omnibus 2019/2161):** "Cheapest in Europe" veya kanıtlanamayan fiyat süperlatifleri haksız ticari uygulama kapsamındadır.\n5. **İlaç & Sağlık (Directive 2001/83/EC):** Reçeteli ilaçların (POM) halka açık satışı ve "guaranteed cure" iddiaları yasaktır.\n\nÖnerim: İçerik sekmesindeki **Avrupa Birliği Uyum Kalkanı** simülatörünü çalıştırarak metinlerinizi AB standartlarına getirin.`,
+          timestamp: "Şimdi",
+          sources: ["Directive (EU) 2024/825 (EmpCo)", "Regulation (EC) No 1924/2006 (EFSA)", "Regulation (EU) 2023/1114 (MiCA)", "Directive 2001/83/EC"],
+          actions: [
+            { label: "EU Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "Kelimeleri İncele", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("mevzuat") || lower.includes("titck") || lower.includes("reklam") || lower.includes("yasak")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `Türkiye Cumhuriyeti Ticaret Bakanlığı Reklam Kurulu, TİTCK ve TBB mevzuatlarına göre siteniz taranmış ve sektörel uyum analizi tamamlanmıştır:\n\n1. **Sağlık & Tıbbi İddialar (TİTCK):** "Tedavi eder", "kesin şifa", "garantili sonuç" ve hekimler için "en iyi cerrah" ifadeleri kesinlikle yasaktır (12 Kasım 2025 tarihli Yönetmelik & 1219 sayılı Kanun).\n2. **Gıda Takviyeleri:** Takviyelerde "zayıflatır", "yağ yakar" veya "Sağlık Bakanlığı onaylı" denmesi en yüksek sınırdan idari para cezası ve ürün toplatma sebebidir.\n3. **Hukuk & Avukatlık (TBB):** "En iyi avukat", "dava kazanma garantisi" ve "ücretsiz danışmanlık" reklam yasağı kapsamındadır (1136 sayılı Kanun md. 55).\n4. **Kanıtlanamayan Üstünlükler:** "En ucuz", "rakipsiz fiyat" ifadeleri akredite pazar raporu olmadan kullanılamaz (2026 ceza tavanı: 8.635.800 TL).\n\nÖnerim: İçerik Optimizasyonu sekmesindeki **Mevzuat Uyum Kalkanı** ile metinlerinizi anında tarayın ve tek tıkla düzeltin.`,
           timestamp: "Şimdi",
           sources: ["T.C. Ticaret Bakanlığı Reklam Kurulu Kararları", "TİTCK Tanıtım ve Bilgilendirme Yönetmeliği", "TBB Reklam Yasağı Yönetmeliği"],
           actions: [
-            { label: "TR Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
             { label: "Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
           ],
         };

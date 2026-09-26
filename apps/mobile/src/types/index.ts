@@ -335,4 +335,33 @@ export interface ComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
+export type EuComplianceSector =
+  | "HEALTH_PHARMA"
+  | "FOOD_SUPPLEMENT"
+  | "GREEN_CLAIMS"
+  | "CONSUMER_ECOMMERCE"
+  | "FINANCIAL_SERVICES"
+  | "LEGAL_SERVICES"
+  | "TOBACCO_NICOTINE";
+
+export interface EuComplianceViolation {
+  rule_id: string;
+  sector: EuComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
+export type ComplianceJurisdiction = "TR" | "EU";
+
+
 

@@ -568,3 +568,88 @@ Platformumuza Türkiye mevzuatına özel sektörel kural motoru, yasaklı kelime
   - "Hedef Anahtar Kelime Ekle" modalında canlı yasal uyarı kutusu ve güvenli kelimeye tek tıkla geçiş.
 - `npx tsc --noEmit`: 0 hata ile doğrulandı.
 
+---
+
+## 19. Avrupa Birliği (AB) Mevzuatı & Greenwashing / Reklam Kalkanı (Web, Mobil, Engine)
+
+Avrupa Birliği (AB) pazarına açılan veya AB vatandaşlarına e-ticaret, sağlık turizmi, danışmanlık ya da finansal hizmet sunan işletmelerin tabi olduğu katı direktifler ve tüzükler araştırılmış, güncel mevzuat doğrulanarak sisteme entegre edilmiştir.
+
+### 1. Araştırılan ve Doğrulanan AB Mevzuatı & Yasaklı İfadeler
+
+1. **Yeşil Aklama ve Çevre İddiaları (Greenwashing & Climate Claims):**
+   - **Mevzuat:** **Directive (EU) 2024/825 (EmpCo - Empowering Consumers for the Green Transition)** & **Green Claims Directive**.
+   - **Yasaklanan İfadeler:** Karbon kredisi/offset alımına dayalı `"carbon neutral"`, `"climate neutral"`, `"CO2 neutral"`, `"climate positive"`, `"net-zero product"` iddiaları (Directif Ek I, Madde 4a uyarınca kesinlikle yasaklanmıştır). Ayrıca bağımsız resmi AB Ekolabel (Ecolabel) sertifikası bulunmayan `"100% eco-friendly"`, `"100% sustainable"` gibi jenerik çevresel üstünlük iddiaları.
+   - **Yaptırım Riski:** Tüketiciyi yanıltmaktan yıllık cironun en az **%4'ü oranında idari para cezası** ve haksız ticari uygulama yaptırımları.
+   - **Güvenli Alternatif:** `"Paketimiz %80 geri dönüştürülmüş FSC sertifikalı kağıttan üretilmiştir"` gibi bağımsız olarak kanıtlanabilir somut veriler.
+
+2. **Sağlık & İlaç Sektörü (Health & Pharmaceuticals):**
+   - **Mevzuat:** **Directive 2001/83/EC (Madde 86-90)** & **Medical Device Regulation - MDR (EU) 2017/745 (Madde 7)**.
+   - **Yasaklanan İfadeler:** Reçeteli ilaçların doğrudan halka çevrimiçi satışı ve tanıtımı (`"buy ozempic without prescription"`, `"rezeptfrei wegovy"`), kesin şifa ve mucizevi iyileşme vaatleri (`"guaranteed cure"`, `"heilungsversprechen"`, `"miracle treatment"`), cerrahi operasyonlarda `"zero risk"`, `"risikofreie operation"`, `"no side effects"` yanıltıcı güvenlik iddiaları.
+   - **Yaptırım Riski:** Üye ülke sağlık otoriteleri (BfArM, ANSM vb.) tarafından adli soruşturma, anında alan adı erişim engeli ve ağır tazminat cezaları.
+   - **Güvenli Alternatif:** `"Hekim gözetiminde iyileşme sürecini destekler"`, `"Cerrahi süreçler hakkında hekiminize danışınız"`.
+
+3. **Gıda Takviyeleri & Zayıflama (EFSA Nutrition & Health Claims):**
+   - **Mevzuat:** **Regulation (EC) No 1924/2006 (Madde 12(b) & Madde 14)** & **Regulation (EU) No 1169/2011 (FIC Madde 7(3))**.
+   - **Yasaklanan İfadeler:** Kilo verme hızı veya miktarı belirten beyanlar (`"lose 10 kg in 2 weeks"`, `"guaranteed rapid fat burning"`), gıdaya hastalık önleme veya iyileştirme atfeden beyanlar (`"cures cancer"`, `"prevents diabetes"`, `"schützt vor krebs"`).
+   - **Yaptırım Riski:** Ulusal gıda denetim ajansları (DGCCRF, BVL, NVWA) tarafından ürün toplatma, toptan imha ve AB pazarından men.
+   - **Güvenli Alternatif:** EFSA onaylı genel fonksiyon beyanı: `"Enerjisi kısıtlanmış diyetin parçası olarak kilo kontrolünü destekler"`.
+
+4. **Tüketici Hakları, Fiyatlandırma & E-Ticaret:**
+   - **Mevzuat:** **Omnibus Directive (EU) 2019/2161**, **Price Indication Directive (Madde 6a)**, **Directive 2005/29/EC (UCPD)**, **Consumer Rights Directive (2011/83/EU Madde 16)**.
+   - **Yasaklanan İfadeler:** Bağımsız kanıtı olmayan `"cheapest in Europe"`, `"unbeatable price"`, `"tiefstpreisgarantie"`, yasal cayma hakkı istisnalarını gizleyen aldatıcı `"unconditional money-back guarantee"`, `"no questions asked refund"`.
+   - **Yaptırım Riski:** Rekabet kurumlarınca en az **2.000.000 €** veya işletmenin yıllık cirosunun en az %4'ü oranında idari para cezası.
+   - **Güvenli Alternatif:** `"Rekabetçi fiyat seçenekleri"`, `"AB tüketici mevzuatına uygun 14 günlük yasal cayma hakkı"`.
+
+5. **Finans, Kripto Varlıklar & Tüketici Kredisi:**
+   - **Mevzuat:** **Markets in Crypto-Assets Regulation (EU) 2023/1114 (MiCA)**, **MiFID II (Directive 2014/65/EU)**, **Consumer Credit Directive (EU) 2023/2225**.
+   - **Yasaklanan İfadeler:** Kripto ve finansta garanti getiri iddiaları (`"guaranteed returns"`, `"risk-free investment"`, `"guaranteed crypto yield"`), kredi notunu ve gelir değerlendirmesini yok sayan tefecilik/yıkıcı kredi reklamları (`"instant loans no credit check"`, `"kredit ohne schufa"`).
+   - **Yaptırım Riski:** ESMA, BaFin, AMF ve CNMV tarafından **5.000.000 €'ya kadar** veya şirket cirosunun %10'u oranında ceza.
+   - **Güvenli Alternatif:** Zorunlu AB risk uyarısı: `"Sermayeniz risk altındadır. Geçmiş performans geleceğin garantisi değildir."`.
+
+6. **Tütün & Elektronik Sigara (TPD):**
+   - **Mevzuat:** **Tobacco Products Directive 2014/40/EU (Madde 20)**.
+   - **Yasaklanan İfadeler:** Elektronik sigara, e-likit ve puff bar ürünlerinin AB içi sınır ötesi çevrimiçi reklamı ve satışı (`"buy e-cigarettes online"`, `"buy puff bar online"`).
+
+7. **Hukuki Danışmanlık ve Avukatlık (CCBE):**
+   - **Mevzuat:** **CCBE Code of Conduct for European Lawyers** & Ulusal Baro Meslek Kuralları.
+   - **Yasaklanan İfadeler:** Dava sonucu garantisi (`"guaranteed court win"`, `"100% success rate lawyer"`), kanıtlanamaz süperlatifler (`"best lawyer in Europe"`).
+
+---
+
+### 2. Üç Katmanlı Mimari Uygulama
+
+#### A. Backend Kural Motoru (`services/seo_engine/`)
+- `services/seo_engine/rules/eu_compliance.py` oluşturuldu.
+- `EuRegulatoryComplianceRule(SeoRule)` sınıfı, `EuComplianceSector` enum'ı ve çok dilli (İngilizce, Almanca, Fransızca) regex tarama motoru `scan_text_for_eu_compliance()` kodlandı.
+- `SeoRuleEngine` sınıfına tescil edildi.
+- `tests/unit/test_eu_compliance.py`: 15 kapsamlı birim test ile tüm AB sektörleri doğrulandı.
+- Tüm test paketi: **286/286 test %100 başarılı** olarak geçti.
+
+#### B. Web Uygulaması (`apps/web/`)
+- `apps/web/src/lib/compliance-eu.ts`: AB uyum kuralları, regex tabloları ve tarama fonksiyonu.
+- `apps/web/src/app/content/page.tsx`:
+  - **Yargı Alanı Seçici:** `[ 🇹🇷 Türkiye ]` ve `[ 🇪🇺 Avrupa Birliği ]` butonları ile anında geçiş.
+  - AB'ye özel 6 test senaryosu (Greenwashing, Reçeteli İlaç, EFSA Zayıflama, MiCA Finans, Omnibus Fiyat, AB Uyumlu Metin).
+  - AB sektör filtreleri ve anlık kural ihlali tespit tablosu.
+- `apps/web/src/app/keywords/page.tsx`:
+  - Sıralama takibinde ve araştırma sonuçlarında `🇪🇺 EU Violation` rozetleri.
+  - Kelime ekleme modalında AB direktiflerine dayalı anlık canlı ihlal uyarıları.
+- `apps/web/src/app/ai/page.tsx`:
+  - **"🇪🇺 EU Mevzuat & Greenwashing"** hızlı istemi ve AB direktiflerine atıfta bulunan yapay zeka denetim yanıtı.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
+#### C. Mobil Uygulama (`apps/mobile/`)
+- `apps/mobile/src/types/index.ts`: `EuComplianceSector`, `EuComplianceViolation`, `ComplianceJurisdiction` modelleri.
+- `apps/mobile/src/services/api.ts`: `EU_MOBILE_COMPLIANCE_RULES` ve `scanEuCompliance()` fonksiyonu.
+- `apps/mobile/src/screens/ContentOptimizerScreen.tsx`:
+  - Üstte `[ 🇹🇷 Türkiye Mevzuatı ]` ve `[ 🇪🇺 Avrupa Birliği (EU) ]` toggle anahtarı.
+  - AB hazır test çipleri (🌿 Greenwashing, 💊 POM, 🥗 EFSA, 📈 MiCA, 🏷️ Omnibus, ⚖️ CCBE, ✅ AB Uyumlu).
+  - AB sektör filtreleme butonları.
+  - Canlı denetim, ihlal kartları, yaptırım uyarısı ve tek tıkla **"Metinde Düzelt"** aksiyonu.
+- `apps/mobile/src/screens/KeywordsScreen.tsx`:
+  - Takip listesinde `🇪🇺 EU Uyum Riski` rozeti ve direktif açıklaması.
+  - Anahtar kelime araştırma listesinde `🇪🇺 EU Mevzuat Riski` etiketi.
+  - "Hedef Anahtar Kelime Ekle" modalında canlı AB direktif uyarısı ve önerilen güvenli alternatife otomatik geçiş butonu.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
+

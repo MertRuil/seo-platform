@@ -31,36 +31,75 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import {
   scanTurkishCompliance,
-  getSectorName,
-  type ComplianceViolation,
-  type ComplianceSector,
+  getSectorName as getTrSectorName,
+  type ComplianceViolation as TrComplianceViolation,
+  type ComplianceSector as TrComplianceSector,
 } from "@/lib/compliance-tr";
+import {
+  scanEuCompliance,
+  getEuSectorName,
+  type EuComplianceViolation,
+  type EuComplianceSector,
+} from "@/lib/compliance-eu";
 
-const SAMPLE_TEXTS = [
+const SAMPLE_TEXTS_TR = [
   {
-    title: "Sağlık & Klinik Örneği (Yasaklı İddialar)",
+    title: "🏥 Sağlık & Klinik (TİTCK İhlalleri)",
     content: "İstanbul'un en iyi doktoru ve 1 numaralı kliniğimiz ile sedef hastalığını tedavi eder, burun estetiğinde öncesi sonrası garantili sonuç sunarız. Sıfır risk ile ağrısız acısız kesin çözüm.",
     keyword: "estetik cerrahi uzmanı",
   },
   {
-    title: "Hukuk & Avukatlık Örneği (TBB Reklam İhlalleri)",
+    title: "⚖️ Hukuk & Avukatlık (TBB Reklam İhlalleri)",
     content: "Ankara'nın en iyi ceza avukatı olarak dava kazanma garantisi ve ücretsiz danışmanlık veriyoruz. %100 başarı oranı ile en başarılı avukat bürosu.",
     keyword: "ceza avukatı ankara",
   },
   {
-    title: "Gıda Takviyesi Örneği (Yasaklı Zayıflama Beyanları)",
+    title: "💊 Gıda Takviyesi (Yasaklı Zayıflama Beyanları)",
     content: "Bu bitkisel çay 1 haftada 10 kilo zayıflatır ve kanseri önler. Sağlık Bakanlığı onaylı takviye olarak doktor tavsiyeli güvenli formül.",
     keyword: "zayıflama çayı",
   },
   {
-    title: "Finans & Kredi Örneği (Yetkisiz Vaatler)",
+    title: "💳 Finans & Kredi (Yetkisiz Vaatler)",
     content: "Kripto botumuz ile günlük %10 kar ve kesin kazanç garantisi. Sicili bozuklara kredi ve senetle kredi anında hesabınızda.",
     keyword: "kredi başvurusu",
   },
   {
-    title: "Mevzuata Tam Uyumlu Kurumsal Örnek",
+    title: "✅ Mevzuata Tam Uyumlu Kurumsal Örnek",
     content: "Deneyimli hekim kadromuz ile tedavi sürecini destekleyen bilgilendirme danışmanlığı sunuyoruz. Yasal haklarınız kapsamında detaylı bilgi almak için iletişime geçebilirsiniz.",
     keyword: "sağlık danışmanlığı",
+  },
+];
+
+const SAMPLE_TEXTS_EU = [
+  {
+    title: "🌿 Greenwashing & Climate (Dir (EU) 2024/825)",
+    content: "Our new clothing line is 100% eco-friendly and 100% sustainable. Completely carbon neutral and climate positive shopping with net-zero product footprint.",
+    keyword: "sustainable fashion europe",
+  },
+  {
+    title: "🏥 Health & Pharma (Dir 2001/83/EC & MDR)",
+    content: "Order Ozempic without prescription online! Our European clinic offers a guaranteed cure for diabetes with zero risk surgery and no side effects.",
+    keyword: "weight loss clinic europe",
+  },
+  {
+    title: "🥗 Supplements & Weight Loss (EFSA Reg 1924/2006)",
+    content: "Drink our herbal extract to lose 10 kg in 2 weeks with our rapid fat burning formula. Clinically proven, cures arthritis and prevents cancer.",
+    keyword: "slimming tea europe",
+  },
+  {
+    title: "💰 Finance & Crypto (MiCA & MiFID II)",
+    content: "Invest in our algorithm for guaranteed returns and risk-free investment with guaranteed crypto profit. Instant loans no credit check guaranteed.",
+    keyword: "crypto trading platform eu",
+  },
+  {
+    title: "🛒 E-Commerce Superlative (Omnibus Directive)",
+    content: "We are the cheapest in Europe with an unbeatable price and unconditional money-back guarantee with no questions asked refund.",
+    keyword: "electronics store europe",
+  },
+  {
+    title: "✅ Fully Compliant EU Standard Copy",
+    content: "Our specialized clinical diagnostics adhere to European standards. Competitive pricing with standard 14-day statutory withdrawal rights. Capital at risk for investments.",
+    keyword: "medical diagnostics eu",
   },
 ];
 
@@ -71,7 +110,8 @@ export default function ContentOptimizerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Content Draft & Compliance Shield state
-  const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS[0].content);
+  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU">("TR");
+  const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS_TR[0].content);
   const [selectedComplianceSector, setSelectedComplianceSector] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"nlp" | "compliance" | "generator">("nlp");
 
@@ -86,11 +126,16 @@ export default function ContentOptimizerPage() {
   });
   const [copied, setCopied] = useState(false);
 
-  // Scan live text for Turkish regulatory compliance
+  // Scan live text for regulatory compliance based on selected jurisdiction
   const complianceViolations = useMemo(() => {
-    const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as ComplianceSector);
-    return scanTurkishCompliance(contentDraft, sectorFilter);
-  }, [contentDraft, selectedComplianceSector]);
+    if (complianceRegion === "TR") {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as TrComplianceSector);
+      return scanTurkishCompliance(contentDraft, sectorFilter);
+    } else {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as EuComplianceSector);
+      return scanEuCompliance(contentDraft, sectorFilter);
+    }
+  }, [complianceRegion, contentDraft, selectedComplianceSector]);
 
   const criticalViolations = complianceViolations.filter((v) => v.severity === "CRITICAL");
 
@@ -113,9 +158,10 @@ export default function ContentOptimizerPage() {
     }, 700);
   };
 
-  const handleApplyFix = (violation: ComplianceViolation) => {
+  const handleApplyFix = (violation: { matchedPattern: string; suggestedFix: string }) => {
     // Replace matched text with suggested fix in the draft
-    const regex = new RegExp(violation.matchedPattern, "gi");
+    const escaped = violation.matchedPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "gi");
     setContentDraft((prev) => prev.replace(regex, violation.suggestedFix));
   };
 
@@ -279,7 +325,7 @@ export default function ContentOptimizerPage() {
           }`}
         >
           <Scale className="w-4 h-4 text-accent" />
-          🇹🇷 Türkiye Mevzuat Uyum Kalkanı
+          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : "🇪🇺 EU"})
           {complianceViolations.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-2xs">
               {complianceViolations.length}
@@ -303,13 +349,70 @@ export default function ContentOptimizerPage() {
 
       {activeTab === "compliance" ? (
         /* =========================================================
-           TAB 2: TÜRKİYE MEVZUAT VE REKLAM KURULU UYUM KALKANI
+           TAB 2: TÜRKİYE & AVRUPA BİRLİĞİ MEVZUAT UYUM KALKANI
            ========================================================= */
         <div className="space-y-6">
+          {/* Jurisdiction / Region Switcher */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-surface-2 border border-line rounded-sm">
+            <div>
+              <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Scale className="w-4 h-4 text-accent" />
+                Denetlenecek Yargı Alanı ve Mevzuat Rejimi
+              </h3>
+              <p className="text-xs text-muted">
+                Hedef pazarınıza göre Türkiye Reklam Kurulu ve TİTCK veya Avrupa Birliği (EU Directives, EFSA, MiCA) kurallarını seçin.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 bg-surface border border-line-strong rounded-sm shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setComplianceRegion("TR");
+                  setContentDraft(SAMPLE_TEXTS_TR[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "TR"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🇹🇷</span> Türkiye (Reklam Kurulu / TİTCK)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setComplianceRegion("EU");
+                  setContentDraft(SAMPLE_TEXTS_EU[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "EU"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🇪🇺</span> Avrupa Birliği (Directives / EFSA / MiCA)
+              </button>
+            </div>
+          </div>
+
           {/* Quick Sample Selector */}
-          <Panel title="Sektörel Yasaklı Kalıp Test Simülatörü" sub="Farklı sektörlerde Türkiye Reklam Kurulu ve TİTCK tarafından yasaklanan örnek metinleri anında test edin">
+          <Panel
+            title={
+              complianceRegion === "TR"
+                ? "Türkiye Sektörel Yasaklı Kalıp Test Simülatörü"
+                : "European Union Prohibited Claims & Directives Simulator"
+            }
+            sub={
+              complianceRegion === "TR"
+                ? "Farklı sektörlerde Türkiye Reklam Kurulu ve TİTCK tarafından yasaklanan örnek metinleri anında test edin"
+                : "Test real-world violations of Directive (EU) 2024/825 (Greenwashing), EFSA Regulation 1924/2006, MiCA and Directive 2001/83/EC"
+            }
+          >
             <div className="flex flex-wrap gap-2">
-              {SAMPLE_TEXTS.map((sample, idx) => (
+              {(complianceRegion === "TR" ? SAMPLE_TEXTS_TR : SAMPLE_TEXTS_EU).map((sample, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -332,7 +435,11 @@ export default function ContentOptimizerPage() {
                 value={contentDraft}
                 onChange={(e) => setContentDraft(e.target.value)}
                 className="w-full bg-surface border border-line-strong rounded-sm p-3 text-sm text-ink font-sans focus:outline-none focus:border-accent leading-relaxed"
-                placeholder="İçeriğinizi buraya yapıştırın veya yazın..."
+                placeholder={
+                  complianceRegion === "TR"
+                    ? "İçeriğinizi buraya yapıştırın veya yazın..."
+                    : "Paste or type your English, German or French marketing copy here..."
+                }
               />
             </div>
           </Panel>
@@ -342,20 +449,38 @@ export default function ContentOptimizerPage() {
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-sm space-y-2">
               <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
                 <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
-                <span>Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı {complianceViolations.length} İfade Tespit Edildi!</span>
+                <span>
+                  {complianceRegion === "TR"
+                    ? `Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı ${complianceViolations.length} İfade Tespit Edildi!`
+                    : `EU Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under European Directives!`}
+                </span>
               </div>
               <p className="text-xs text-rose-600 leading-relaxed">
-                Türk Ticaret Kanunu, TİTCK Sağlık Hizmetleri Tanıtım Yönetmeliği veya TBB Avukatlık Reklam Yasağı uyarınca aşağıdaki ifadeler sitenize
-                <strong> Ticaret Bakanlığı Reklam Kurulu tarafından idari para cezası</strong>, reklam durdurma veya <strong>BTK erişim engeli</strong> getirilmesine yol açabilir.
+                {complianceRegion === "TR" ? (
+                  <>
+                    Türk Ticaret Kanunu, TİTCK Sağlık Hizmetleri Tanıtım Yönetmeliği veya TBB Avukatlık Reklam Yasağı uyarınca aşağıdaki ifadeler sitenize{" "}
+                    <strong>Ticaret Bakanlığı Reklam Kurulu tarafından 8.635.800 TL'ye varan idari para cezası</strong>, reklam durdurma veya{" "}
+                    <strong>BTK erişim engeli</strong> getirilmesine yol açabilir.
+                  </>
+                ) : (
+                  <>
+                    Under EU Directives (EmpCo 2024/825, EFSA Reg 1924/2006, MiCA 2023/1114, Directive 2001/83/EC), these claims carry risk of{" "}
+                    <strong>fines up to 4% of annual turnover under EU consumer law</strong>, product recalls, or national regulatory bans by EU member state authorities.
+                  </>
+                )}
               </p>
             </div>
           ) : (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center gap-3">
               <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
               <div>
-                <h4 className="text-sm font-bold text-emerald-800">Mevzuata Tam Uyumlu</h4>
+                <h4 className="text-sm font-bold text-emerald-800">
+                  {complianceRegion === "TR" ? "Mevzuata Tam Uyumlu" : "Fully Compliant with EU Regulations"}
+                </h4>
                 <p className="text-xs text-emerald-700">
-                  İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır.
+                  {complianceRegion === "TR"
+                    ? "İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır."
+                    : "No prohibited health claims (EFSA), greenwashing claims (EmpCo Dir 2024/825), MiCA guaranteed returns or unverified market superlatives found."}
                 </p>
               </div>
             </div>
@@ -363,21 +488,35 @@ export default function ContentOptimizerPage() {
 
           {/* Sector Filters */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-semibold text-muted whitespace-nowrap">Sektör Filtresi:</span>
-            {[
-              { id: "ALL", label: "Tüm Sektörler" },
-              { id: "HEALTH_MEDICAL", label: "Sağlık & Medikal (TİTCK)" },
-              { id: "FOOD_SUPPLEMENT", label: "Gıda Takviyeleri & Zayıflama" },
-              { id: "LEGAL_SERVICES", label: "Hukuk & Avukatlık (TBB)" },
-              { id: "FINANCIAL_SERVICES", label: "Finans & Yatırım (SPK/BDDK)" },
-              { id: "SUPERLATIVE_COMMERCIAL", label: "E-Ticaret & Reklam" },
-              { id: "ILLEGAL_BETTING_TOBACCO", label: "Bahis & Tütün" },
-            ].map((sec) => (
+            <span className="text-xs font-semibold text-muted whitespace-nowrap">
+              {complianceRegion === "TR" ? "Sektör Filtresi:" : "Sector Filter:"}
+            </span>
+            {(complianceRegion === "TR"
+              ? [
+                  { id: "ALL", label: "Tüm Sektörler" },
+                  { id: "HEALTH_MEDICAL", label: "Sağlık & Medikal (TİTCK)" },
+                  { id: "FOOD_SUPPLEMENT", label: "Gıda Takviyeleri & Zayıflama" },
+                  { id: "LEGAL_SERVICES", label: "Hukuk & Avukatlık (TBB)" },
+                  { id: "FINANCIAL_SERVICES", label: "Finans & Yatırım (SPK/BDDK)" },
+                  { id: "SUPERLATIVE_COMMERCIAL", label: "E-Ticaret & Reklam" },
+                  { id: "ILLEGAL_BETTING_TOBACCO", label: "Bahis & Tütün" },
+                ]
+              : [
+                  { id: "ALL", label: "All EU Sectors" },
+                  { id: "HEALTH_PHARMA", label: "Health & Pharma (Dir 2001/83)" },
+                  { id: "FOOD_SUPPLEMENT", label: "Food & Weight Loss (EFSA)" },
+                  { id: "GREEN_CLAIMS", label: "Green Claims (Dir 2024/825)" },
+                  { id: "CONSUMER_ECOMMERCE", label: "E-Commerce (Omnibus/UCPD)" },
+                  { id: "FINANCIAL_SERVICES", label: "Finance & Crypto (MiCA)" },
+                  { id: "LEGAL_SERVICES", label: "Legal Services (CCBE)" },
+                  { id: "TOBACCO_NICOTINE", label: "Tobacco & Vaping (TPD)" },
+                ]
+            ).map((sec) => (
               <button
                 key={sec.id}
                 type="button"
                 onClick={() => setSelectedComplianceSector(sec.id)}
-                className={`text-xs px-2.5 py-1 rounded-sm font-medium transition-colors ${
+                className={`text-xs px-2.5 py-1 rounded-sm font-medium transition-colors cursor-pointer ${
                   selectedComplianceSector === sec.id
                     ? "bg-accent-fill text-white font-semibold"
                     : "bg-surface text-muted border border-line hover:text-ink"
@@ -390,17 +529,24 @@ export default function ContentOptimizerPage() {
 
           {/* Violations Table */}
           {complianceViolations.length > 0 && (
-            <Panel title="Tespit Edilen Mevzuat İhlalleri ve Uyumlu Alternatifleri" flush>
+            <Panel
+              title={
+                complianceRegion === "TR"
+                  ? "Tespit Edilen Mevzuat İhlalleri ve Uyumlu Alternatifleri"
+                  : "Detected EU Regulatory Violations & Compliant Alternatives"
+              }
+              flush
+            >
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-surface-2 border-b border-line text-xs font-semibold text-muted uppercase tracking-wider">
                     <tr>
-                      <th className="py-3 px-4">Yasaklı İfade</th>
-                      <th className="py-3 px-3">Sektör</th>
-                      <th className="py-3 px-3">İhlal Edilen Mevzuat</th>
-                      <th className="py-3 px-3">Ceza Riski</th>
-                      <th className="py-3 px-4">Tavsiye Edilen Uyumlu Alternatif</th>
-                      <th className="py-3 px-3 text-right">Eylem</th>
+                      <th className="py-3 px-4">{complianceRegion === "TR" ? "Yasaklı İfade" : "Prohibited Phrase"}</th>
+                      <th className="py-3 px-3">{complianceRegion === "TR" ? "Sektör" : "Sector"}</th>
+                      <th className="py-3 px-3">{complianceRegion === "TR" ? "İhlal Edilen Mevzuat" : "EU Legal Basis"}</th>
+                      <th className="py-3 px-3">{complianceRegion === "TR" ? "Ceza Riski" : "Penalty / Liability"}</th>
+                      <th className="py-3 px-4">{complianceRegion === "TR" ? "Tavsiye Edilen Uyumlu Alternatif" : "Compliant EU Recommendation"}</th>
+                      <th className="py-3 px-3 text-right">{complianceRegion === "TR" ? "Eylem" : "Action"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -417,7 +563,9 @@ export default function ContentOptimizerPage() {
 
                         <td className="py-3.5 px-3">
                           <Badge tone={v.severity === "CRITICAL" ? "critical" : "warn"} mono>
-                            {getSectorName(v.sector)}
+                            {complianceRegion === "TR"
+                              ? getTrSectorName(v.sector as any)
+                              : getEuSectorName(v.sector as any)}
                           </Badge>
                         </td>
 
@@ -440,7 +588,7 @@ export default function ContentOptimizerPage() {
                             onClick={() => handleApplyFix(v)}
                             className="whitespace-nowrap"
                           >
-                            Metinde Düzelt
+                            {complianceRegion === "TR" ? "Metinde Düzelt" : "Apply Fix"}
                           </Button>
                         </td>
                       </tr>

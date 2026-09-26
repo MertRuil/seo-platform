@@ -15,8 +15,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance } from "../services/api";
-import { ContentOptimizationResult, GeneratedContentResult, ComplianceSector, ComplianceViolation } from "../types";
+import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance } from "../services/api";
+import { 
+  ContentOptimizationResult, 
+  GeneratedContentResult, 
+  ComplianceSector, 
+  ComplianceViolation,
+  EuComplianceSector,
+  EuComplianceViolation,
+  ComplianceJurisdiction
+} from "../types";
 
 export const ContentOptimizerScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -35,20 +43,42 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<GeneratedContentResult | null>(null);
 
-  // TR Compliance state
+  // Compliance state (TR & EU)
+  const [complianceJurisdiction, setComplianceJurisdiction] = useState<ComplianceJurisdiction>("TR");
   const [complianceDraft, setComplianceDraft] = useState(
     "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
   );
   const [complianceSector, setComplianceSector] = useState<ComplianceSector | "ALL">("ALL");
+  const [euComplianceSector, setEuComplianceSector] = useState<EuComplianceSector | "ALL">("ALL");
 
   const complianceViolations = useMemo(() => {
-    return scanTurkishCompliance(
-      complianceDraft,
-      complianceSector === "ALL" ? undefined : complianceSector
-    );
-  }, [complianceDraft, complianceSector]);
+    if (complianceJurisdiction === "TR") {
+      return scanTurkishCompliance(
+        complianceDraft,
+        complianceSector === "ALL" ? undefined : complianceSector
+      );
+    } else {
+      return scanEuCompliance(
+        complianceDraft,
+        euComplianceSector === "ALL" ? undefined : euComplianceSector
+      );
+    }
+  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector]);
 
-  const handleFixViolation = (v: ComplianceViolation) => {
+  const handleSelectJurisdiction = (j: ComplianceJurisdiction) => {
+    setComplianceJurisdiction(j);
+    if (j === "EU") {
+      setComplianceDraft(
+        "Our revolutionary sneaker is 100% eco-friendly and climate neutral through carbon offset investments. Lose 10 kg in 2 weeks with our guaranteed rapid fat burn formula, cheapest in Europe!"
+      );
+    } else {
+      setComplianceDraft(
+        "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
+      );
+    }
+  };
+
+  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation) => {
     const term = v.matched_term || v.matched_pattern;
     const fix = v.suggested_replacement || v.suggested_fix;
     if (!term || !fix) return;
@@ -137,101 +167,250 @@ export const ContentOptimizerScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* TAB 3: TR COMPLIANCE SHIELD */}
+        {/* TAB 3: TR & EU COMPLIANCE SHIELD */}
         {activeTabSub === "COMPLIANCE" && (
           <>
+            {/* Jurisdiction Switcher */}
+            <View style={styles.jurisdictionToggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.jurisdictionBtn,
+                  complianceJurisdiction === "TR" && styles.jurisdictionBtnActive,
+                ]}
+                onPress={() => handleSelectJurisdiction("TR")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.jurisdictionFlag}>🇹🇷</Text>
+                <Text
+                  style={[
+                    styles.jurisdictionBtnText,
+                    complianceJurisdiction === "TR" && styles.jurisdictionBtnTextActive,
+                  ]}
+                >
+                  Türkiye Mevzuatı
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.jurisdictionBtn,
+                  complianceJurisdiction === "EU" && styles.jurisdictionBtnActive,
+                ]}
+                onPress={() => handleSelectJurisdiction("EU")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.jurisdictionFlag}>🇪🇺</Text>
+                <Text
+                  style={[
+                    styles.jurisdictionBtnText,
+                    complianceJurisdiction === "EU" && styles.jurisdictionBtnTextActive,
+                  ]}
+                >
+                  Avrupa Birliği (EU)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Header info */}
             <GlassCard style={styles.complianceIntroCard}>
               <View style={styles.secHeader}>
                 <Ionicons name="shield-checkmark" size={18} color={Colors.primary} />
-                <Text style={styles.complianceIntroTitle}>Türkiye Mevzuat Denetim Kalkanı</Text>
+                <Text style={styles.complianceIntroTitle}>
+                  {complianceJurisdiction === "TR"
+                    ? "Türkiye Mevzuat Denetim Kalkanı"
+                    : "Avrupa Birliği (AB) Mevzuat & Greenwashing Kalkanı"}
+                </Text>
               </View>
               <Text style={styles.complianceIntroText}>
-                Ticaret Bakanlığı Reklam Kurulu, TİTCK (Sağlık Bakanlığı), TBB ve SPK/BDDK mevzuatına göre
-                kullanımı yasak olan veya idari para cezası ve erişim engeline yol açabilecek kelimeleri anlık tarar.
+                {complianceJurisdiction === "TR"
+                  ? "Ticaret Bakanlığı Reklam Kurulu, TİTCK (Sağlık Bakanlığı), TBB ve SPK/BDDK mevzuatına göre kullanımı yasak olan veya idari para cezası ve erişim engeline yol açabilecek kelimeleri anlık tarar."
+                  : "Directive (EU) 2024/825 (EmpCo / Greenwashing), Directive 2001/83/EC, EFSA Reg 1924/2006, MiCA (EU) 2023/1114 ve Omnibus direktiflerine göre yasaklı iddia ve yanıltıcı beyanları anlık tarar."}
               </Text>
             </GlassCard>
 
             {/* Quick Presets */}
-            <Text style={styles.fieldLabel}>Hazır Test Senaryoları</Text>
+            <Text style={styles.fieldLabel}>
+              {complianceJurisdiction === "TR" ? "Hazır Test Senaryoları" : "AB Mevzuat Test Senaryoları"}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() =>
-                  setComplianceDraft(
-                    "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
-                  )
-                }
-              >
-                <Text style={styles.presetChipText}>🏥 Sağlık İhlali</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() =>
-                  setComplianceDraft(
-                    "İstanbul'un en iyi avukatı olarak ceza davalarında kesin beraat ve dava kazanma garantisi veriyoruz. İlk danışmanlık tamamen ücretsizdir."
-                  )
-                }
-              >
-                <Text style={styles.presetChipText}>⚖️ Avukatlık İhlali</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() =>
-                  setComplianceDraft(
-                    "Borsada garantili getiri ve kesin kazanç vaat eden algoritmamızla tanışın. Sicili bozuklara kredi ve senetle borç imkanı."
-                  )
-                }
-              >
-                <Text style={styles.presetChipText}>💳 Finans / Kredi</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() =>
-                  setComplianceDraft(
-                    "Türkiye'nin en ucuz cep telefonu burada! Rakipsiz fiyat ve koşulsuz şartsız iade garantisi."
-                  )
-                }
-              >
-                <Text style={styles.presetChipText}>🛒 E-Ticaret / Fiyat</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.presetChip}
-                onPress={() =>
-                  setComplianceDraft(
-                    "Uzman hekim kadromuz modern teşhis ve tetkik yöntemleriyle hizmetinizdedir. Randevu ve detaylı bilgi için bize ulaşabilirsiniz."
-                  )
-                }
-              >
-                <Text style={styles.presetChipText}>✅ Temiz Metin</Text>
-              </TouchableOpacity>
+              {complianceJurisdiction === "TR" ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏥 Sağlık İhlali</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "İstanbul'un en iyi avukatı olarak ceza davalarında kesin beraat ve dava kazanma garantisi veriyoruz. İlk danışmanlık tamamen ücretsizdir."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>⚖️ Avukatlık İhlali</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Borsada garantili getiri ve kesin kazanç vaat eden algoritmamızla tanışın. Sicili bozuklara kredi ve senetle borç imkanı."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>💳 Finans / Kredi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Türkiye'nin en ucuz cep telefonu burada! Rakipsiz fiyat ve koşulsuz şartsız iade garantisi."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🛒 E-Ticaret / Fiyat</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Uzman hekim kadromuz modern teşhis ve tetkik yöntemleriyle hizmetinizdedir. Randevu ve detaylı bilgi için bize ulaşabilirsiniz."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>✅ Temiz Metin</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Our revolutionary sneakers are 100% eco-friendly and climate neutral through carbon offset investments. Net-zero product guarantee for green consumers."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🌿 Greenwashing İhlali</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Buy Ozempic and Wegovy online without prescription. Guaranteed cure for chronic obesity with zero risk surgery options."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>💊 Reçeteli İlaç / POM</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Lose 10 kg in 2 weeks with our rapid fat burning supplement! Proven botanical formula prevents diabetes and cures chronic fatigue."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🥗 EFSA Zayıflama</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Guaranteed crypto yield and 100% safe investment algorithm! Instant bad credit loans with no credit check."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>📈 MiCA Kripto & Kredi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Lowest price guaranteed and cheapest in Europe! Unconditional money-back guarantee with no questions asked refund."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏷️ Omnibus & Fiyat</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Best lawyer in Europe with 100% success rate. Guaranteed court win in cross-border tax dispute litigation."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>⚖️ CCBE Hukuk İhlali</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Packaging is manufactured from 80% recycled FSC-certified paper. Supports weight management as part of an energy-restricted diet under physician guidance."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>✅ AB Uyumlu Metin</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </ScrollView>
 
             {/* Sector Filters */}
             <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Sektör Filtresi</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
-              {[
-                { id: "ALL", label: "Tüm Sektörler" },
-                { id: "SAGLIK", label: "Sağlık & Klinik" },
-                { id: "GIDA_TAKVIYESI", label: "Gıda & Zayıflama" },
-                { id: "HUKUK", label: "Hukuk & Avukat" },
-                { id: "FINANS", label: "Finans & Kredi" },
-                { id: "E_TICARET", label: "E-Ticaret & Fiyat" },
-                { id: "BAHIS_TUTUN", label: "Bahis & Tütün" },
-              ].map((s) => {
-                const isAct = complianceSector === s.id;
-                return (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[styles.typeChip, isAct && styles.typeChipActive]}
-                    onPress={() => setComplianceSector(s.id as any)}
-                  >
-                    <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
-                      {s.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {complianceJurisdiction === "TR"
+                ? [
+                    { id: "ALL", label: "Tüm Sektörler" },
+                    { id: "HEALTH_MEDICAL", label: "Sağlık & Klinik" },
+                    { id: "FOOD_SUPPLEMENT", label: "Gıda & Zayıflama" },
+                    { id: "LEGAL_SERVICES", label: "Hukuk & Avukat" },
+                    { id: "FINANCIAL_SERVICES", label: "Finans & Kredi" },
+                    { id: "SUPERLATIVE_COMMERCIAL", label: "E-Ticaret & Fiyat" },
+                    { id: "ILLEGAL_BETTING_TOBACCO", label: "Bahis & Tütün" },
+                  ].map((s) => {
+                    const isAct = complianceSector === s.id;
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[styles.typeChip, isAct && styles.typeChipActive]}
+                        onPress={() => setComplianceSector(s.id as any)}
+                      >
+                        <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                : [
+                    { id: "ALL", label: "Tüm AB Sektörleri" },
+                    { id: "GREEN_CLAIMS", label: "🌿 Green Claims & EmpCo" },
+                    { id: "HEALTH_PHARMA", label: "🏥 Sağlık & POM" },
+                    { id: "FOOD_SUPPLEMENT", label: "🥗 EFSA Gıda & Diyet" },
+                    { id: "FINANCIAL_SERVICES", label: "💳 MiCA Finans & Kripto" },
+                    { id: "CONSUMER_ECOMMERCE", label: "🛒 Omnibus & E-Ticaret" },
+                    { id: "LEGAL_SERVICES", label: "⚖️ CCBE Hukuk" },
+                    { id: "TOBACCO_NICOTINE", label: "🚬 TPD Tütün & Vape" },
+                  ].map((s) => {
+                    const isAct = euComplianceSector === s.id;
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[styles.typeChip, isAct && styles.typeChipActive]}
+                        onPress={() => setEuComplianceSector(s.id as any)}
+                      >
+                        <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
             </ScrollView>
 
             {/* Editor Input Card */}
@@ -270,7 +449,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.cleanStatusTitle}>Mevzuata Tam Uyumlu</Text>
                   <Text style={styles.cleanStatusDesc}>
-                    Metninizde Türkiye Reklam Kurulu, TİTCK veya TBB mevzuatınca yasaklanmış herhangi bir kural ihlali bulunamadı.
+                    {complianceJurisdiction === "TR"
+                      ? "Metninizde Türkiye Reklam Kurulu, TİTCK veya TBB mevzuatınca yasaklanmış herhangi bir kural ihlali bulunamadı."
+                      : "Metninizde Avrupa Birliği Direktifleri (EmpCo, EFSA, MiCA, Omnibus) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."}
                   </Text>
                 </View>
               </GlassCard>
@@ -282,7 +463,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                     {complianceViolations.length} Adet Mevzuat İhlali Tespit Edildi!
                   </Text>
                   <Text style={styles.violationSummaryDesc}>
-                    Aşağıdaki ifadeler reklam ve içerik mevzuatına aykırıdır; idari para cezası ve içerik engeli riski taşır.
+                    {complianceJurisdiction === "TR"
+                      ? "Aşağıdaki ifadeler reklam ve içerik mevzuatına aykırıdır; idari para cezası ve içerik engeli riski taşır."
+                      : "Aşağıdaki ifadeler Avrupa Birliği tüketici, sağlık ve yeşil dönüşüm direktiflerine aykırıdır; yüksek idari para cezaları riski taşır."}
                   </Text>
                 </View>
               </GlassCard>
@@ -314,30 +497,32 @@ export const ContentOptimizerScreen: React.FC = () => {
                 {/* Prohibited Term */}
                 <View style={styles.termBox}>
                   <Text style={styles.termLabel}>Yasaklı İfade:</Text>
-                  <Text style={styles.termValue}>"{v.matched_term}"</Text>
+                  <Text style={styles.termValue}>"{v.matched_term || v.matched_pattern}"</Text>
                 </View>
 
                 {/* Explanation */}
-                <Text style={styles.violExplanation}>{v.explanation}</Text>
+                <Text style={styles.violExplanation}>{v.explanation || v.title}</Text>
 
                 {/* Law Reference & Fine Risk */}
                 <View style={styles.legalInfoBox}>
                   <View style={styles.legalInfoRow}>
                     <Ionicons name="book-outline" size={13} color={Colors.textMuted} />
-                    <Text style={styles.legalInfoText}>Mevzuat: {v.legal_reference}</Text>
+                    <Text style={styles.legalInfoText}>Mevzuat: {v.legal_reference || v.legal_basis}</Text>
                   </View>
                   <View style={styles.legalInfoRow}>
                     <Ionicons name="warning-outline" size={13} color={Colors.danger} />
-                    <Text style={[styles.legalInfoText, { color: Colors.danger }]}>Yaptırım: {v.fine_risk}</Text>
+                    <Text style={[styles.legalInfoText, { color: Colors.danger }]}>
+                      Yaptırım: {v.fine_risk || v.penalty_risk}
+                    </Text>
                   </View>
                 </View>
 
                 {/* Suggested Replacement */}
-                {v.suggested_replacement && (
+                {(v.suggested_replacement || v.suggested_fix) && (
                   <View style={styles.replacementRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.replLabel}>Önerilen Güvenli Alternatif:</Text>
-                      <Text style={styles.replValue}>"{v.suggested_replacement}"</Text>
+                      <Text style={styles.replValue}>"{v.suggested_replacement || v.suggested_fix}"</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.fixBtn}
@@ -818,6 +1003,39 @@ const styles = StyleSheet.create({
   copyBtnText: {
     color: "#FFFFFF",
     fontSize: 12,
+    fontWeight: "700",
+  },
+  jurisdictionToggleRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  jurisdictionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 9,
+  },
+  jurisdictionBtnActive: {
+    backgroundColor: Colors.primary,
+  },
+  jurisdictionFlag: {
+    fontSize: 14,
+  },
+  jurisdictionBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  jurisdictionBtnTextActive: {
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   complianceIntroCard: {
