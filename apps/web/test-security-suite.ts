@@ -24,50 +24,74 @@ async function runTests() {
   // TEST 1: Next.js OAuth Endpoint Rejection of Tokenless & Dummy Token Requests (Açık #1)
   console.log("Test 1: Next.js OAuth Route Security Checks");
   
-  // 1A: Tokenless request
-  const reqNoToken = new Request("http://localhost:3000/api/v1/auth/oauth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "google" }),
-  });
-  const resNoToken = await oauthPost(reqNoToken);
-  const dataNoToken = await resNoToken.json();
-  assert.strictEqual(resNoToken.status, 401, "Tokenless request MUST return 401");
-  assert(dataNoToken.error.includes("belirteci (token) zorunludur"));
-  console.log("  [PASS] 1A: Tokenless POST { provider: 'google' } rejected with 401.");
+  // Offline-safe mock for external identity providers (Google, GitHub)
+  // Ensures test suite NEVER sends real internet packets, preventing test flakes in offline/CI environments
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const urlStr = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (urlStr.includes("oauth2.googleapis.com")) {
+      return new Response(JSON.stringify({ error: "invalid_token", error_description: "Invalid Value" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (urlStr.includes("api.github.com")) {
+      return new Response(JSON.stringify({ message: "Bad credentials" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return originalFetch(input, init);
+  };
 
-  // 1B: Dummy token "x"
-  const reqDummyX = new Request("http://localhost:3000/api/v1/auth/oauth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "google", token: "x" }),
-  });
-  const resDummyX = await oauthPost(reqDummyX);
-  const dataDummyX = await resDummyX.json();
-  assert.strictEqual(resDummyX.status, 401, "Dummy token 'x' MUST return 401");
-  assert(dataDummyX.error.includes("Geçersiz veya sahte"));
-  console.log("  [PASS] 1B: Dummy token 'x' rejected with 401.");
+  try {
+    // 1A: Tokenless request
+    const reqNoToken = new Request("http://localhost:3000/api/v1/auth/oauth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google" }),
+    });
+    const resNoToken = await oauthPost(reqNoToken);
+    const dataNoToken = await resNoToken.json();
+    assert.strictEqual(resNoToken.status, 401, "Tokenless request MUST return 401");
+    assert(dataNoToken.error.includes("belirteci (token) zorunludur"));
+    console.log("  [PASS] 1A: Tokenless POST { provider: 'google' } rejected with 401.");
 
-  // 1C: Dummy token "admin"
-  const reqDummyAdmin = new Request("http://localhost:3000/api/v1/auth/oauth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "google", token: "admin" }),
-  });
-  const resDummyAdmin = await oauthPost(reqDummyAdmin);
-  assert.strictEqual(resDummyAdmin.status, 401, "Dummy token 'admin' MUST return 401");
-  console.log("  [PASS] 1C: Dummy token 'admin' rejected with 401.");
+    // 1B: Dummy token "x"
+    const reqDummyX = new Request("http://localhost:3000/api/v1/auth/oauth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", token: "x" }),
+    });
+    const resDummyX = await oauthPost(reqDummyX);
+    const dataDummyX = await resDummyX.json();
+    assert.strictEqual(resDummyX.status, 401, "Dummy token 'x' MUST return 401");
+    assert(dataDummyX.error.includes("Geçersiz veya sahte"));
+    console.log("  [PASS] 1B: Dummy token 'x' rejected with 401.");
 
-  // 1D: Test token in non-test environment rejected
-  const reqTestToken = new Request("http://localhost:3000/api/v1/auth/oauth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: "google", token: "test-oauth-token:victim@example.com" }),
-  });
-  const resTestToken = await oauthPost(reqTestToken);
-  // In non-test environment, it falls through to Google tokeninfo and gets rejected with 401/502
-  assert(resTestToken.status === 401 || resTestToken.status === 502, "Test token in prod/dev must fail");
-  console.log("  [PASS] 1D: test-oauth-token:* rejected when NODE_ENV != 'test'.\n");
+    // 1C: Dummy token "admin"
+    const reqDummyAdmin = new Request("http://localhost:3000/api/v1/auth/oauth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", token: "admin" }),
+    });
+    const resDummyAdmin = await oauthPost(reqDummyAdmin);
+    assert.strictEqual(resDummyAdmin.status, 401, "Dummy token 'admin' MUST return 401");
+    console.log("  [PASS] 1C: Dummy token 'admin' rejected with 401.");
+
+    // 1D: Test token in non-test environment rejected
+    const reqTestToken = new Request("http://localhost:3000/api/v1/auth/oauth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", token: "test-oauth-token:victim@example.com" }),
+    });
+    const resTestToken = await oauthPost(reqTestToken);
+    // In non-test environment without real internet, it safely returns 401 or 502 without flaking
+    assert(resTestToken.status === 401 || resTestToken.status === 502, "Test token in prod/dev must fail");
+    console.log("  [PASS] 1D: test-oauth-token:* rejected when NODE_ENV != 'test'.\n");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   // TEST 2: SSRF Target Validation (Açık #4)
   console.log("Test 2: SSRF Target URL Validation Checks");

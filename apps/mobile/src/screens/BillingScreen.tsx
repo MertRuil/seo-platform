@@ -27,8 +27,12 @@ export const BillingScreen: React.FC = () => {
   }, []);
 
   const loadBilling = async () => {
-    const data = await fetchBilling();
-    setBilling(data);
+    try {
+      const data = await fetchBilling();
+      setBilling(data);
+    } catch {
+      // Offline fallback
+    }
   };
 
   const onRefresh = useCallback(async () => {

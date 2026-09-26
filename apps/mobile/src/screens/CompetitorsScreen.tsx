@@ -36,10 +36,13 @@ export const CompetitorsScreen: React.FC = () => {
       Promise.all([
         fetchCompetitors(selectedSite.id, selectedSite.domain),
         fetchCompetitorGap(selectedSite.id)
-      ]).then(([comps, gap]) => {
-        setCompetitors(comps);
-        setGapItems(gap);
-      }).finally(() => setLoading(false));
+      ])
+        .then(([comps, gap]) => {
+          setCompetitors(comps);
+          setGapItems(gap);
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
     }
   }, [selectedSite?.id, selectedSite?.domain]);
 

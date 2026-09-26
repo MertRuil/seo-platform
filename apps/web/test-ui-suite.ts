@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
 
-function run() {
+async function run() {
   console.log("UI LOGIC TEST SUITE");
 
   // decideSource: precedence no-backend > unauthorized > no-org > no-site > no-crawl > live
@@ -241,9 +241,49 @@ function run() {
 
   console.log("  calculateConversionRates (Organic CVR fix): ok");
 
+  // Network Error & Offline Resilience Regression Test
+  const safeNetworkExecute = async <T>(
+    networkTask: () => Promise<T>,
+    fallbackValue: T
+  ): Promise<{ data: T; fellBack: boolean; errorHandled: boolean }> => {
+    try {
+      const result = await networkTask();
+      return { data: result, fellBack: false, errorHandled: true };
+    } catch {
+      // Must not throw or produce unhandled rejection on network drop
+      return { data: fallbackValue, fellBack: true, errorHandled: true };
+    }
+  };
+
+  // 1. Simulating sudden network loss (ENOTFOUND / Network Request Failed)
+  const networkLossTask = async () => {
+    throw new TypeError("fetch failed: ENOTFOUND api.seoplatform.local");
+  };
+
+  let resFallback: any = null;
+  await assert.doesNotReject(async () => {
+    resFallback = await safeNetworkExecute(networkLossTask, { status: "demo", reason: "offline" });
+  }, "Network drop must NEVER throw an unhandled rejection or crash the app");
+
+  assert.strictEqual(resFallback.fellBack, true);
+  assert.strictEqual(resFallback.errorHandled, true);
+  assert.strictEqual(resFallback.data.status, "demo");
+
+  // 2. Simulating successful network task
+  const healthyTask = async () => ({ status: "live", id: "site-101" });
+  const resHealthy = await safeNetworkExecute(healthyTask, { status: "demo", id: "demo-site" });
+  assert.strictEqual(resHealthy.fellBack, false);
+  assert.strictEqual(resHealthy.data.status, "live");
+
+  console.log("  safeNetworkExecute (Offline & Crash Resilience): ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 
-run();
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
 
 

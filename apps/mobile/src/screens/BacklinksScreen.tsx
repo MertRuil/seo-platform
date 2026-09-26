@@ -36,6 +36,7 @@ export const BacklinksScreen: React.FC = () => {
         setBacklinks(links);
         setSummary(sum);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [selectedSite?.id, selectedSite?.domain]);
 

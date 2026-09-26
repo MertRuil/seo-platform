@@ -122,7 +122,11 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         /* yok say */
       }
       if (org && s) {
-        loadCrawls(org, s).then((cl) => setInputs((i) => ({ ...i, hasSite: true, hasCrawl: cl.some(isCompleted) })));
+        loadCrawls(org, s)
+          .then((cl) => setInputs((i) => ({ ...i, hasSite: true, hasCrawl: cl.some(isCompleted) })))
+          .catch(() => {
+            setInputs((i) => ({ ...i, hasSite: true, hasCrawl: false, backendReachable: false }));
+          });
       }
     },
     [sites, org, loadCrawls]

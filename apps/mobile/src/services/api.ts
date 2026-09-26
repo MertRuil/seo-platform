@@ -56,8 +56,28 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
-// -------------------------------------------------------------
-// Fallback / Demo Mock Dataset (Ensures instant 100% offline demo)
+/**
+ * Ağ hatası ve çevrimdışı kalkanı:
+ * Ağ kesintisi, DNS çözme hatası veya sunucu zaman aşımında
+ * uygulamanın unhandled rejection ile çökmesini engeller;
+ * zaman aşımı ile isteği sonlandırır ve güvenli şekilde null döner.
+ */
+export async function safeNetworkFetch(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 5000
+): Promise<Response | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = options.signal || controller.signal;
+    const res = await fetch(url, { ...options, signal });
+    clearTimeout(timer);
+    return res;
+  } catch {
+    return null;
+  }
+}
 // -------------------------------------------------------------
 export const MOCK_SITES: SiteSummary[] = [
   {
@@ -153,20 +173,21 @@ export const MOCK_BILLING: BillingSummary = {
 
 export async function fetchSites(): Promise<SiteSummary[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/organizations`, {
+    const res = await safeNetworkFetch(`${API_BASE_URL}/organizations`, {
       headers: { "Content-Type": "application/json" }
     });
-    if (!res.ok) throw new Error("HTTP error");
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0 && data[0].sites) {
-      return data[0].sites.map((s: any) => ({
-        id: s.id,
-        name: s.domain,
-        domain: s.domain,
-        primary_url: s.primary_url || `https://${s.domain}`,
-        health_score: s.health_score ?? 85,
-        execution_mode: s.execution_mode || "AUTO_LOW_RISK"
-      }));
+    if (res && res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].sites) {
+        return data[0].sites.map((s: any) => ({
+          id: s.id,
+          name: s.domain,
+          domain: s.domain,
+          primary_url: s.primary_url || `https://${s.domain}`,
+          health_score: s.health_score ?? 85,
+          execution_mode: s.execution_mode || "AUTO_LOW_RISK"
+        }));
+      }
     }
   } catch {
     // Return mock on network/dev failure
@@ -176,8 +197,8 @@ export async function fetchSites(): Promise<SiteSummary[]> {
 
 export async function fetchRecommendations(siteId: string, domain?: string): Promise<RecommendationItem[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/recommendations`);
-    if (res.ok) {
+    const res = await safeNetworkFetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/recommendations`);
+    if (res && res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;
     }
@@ -451,8 +472,8 @@ export async function searchKnowledge(query: string): Promise<KnowledgeChunk[]> 
 
 export async function fetchBilling(): Promise<BillingSummary> {
   try {
-    const res = await fetch(`${API_BASE_URL}/billing/subscription`);
-    if (res.ok) {
+    const res = await safeNetworkFetch(`${API_BASE_URL}/billing/subscription`);
+    if (res && res.ok) {
       const data = await res.json();
       return data;
     }
@@ -3130,10 +3151,10 @@ export const MOCK_GOOGLE_SYNC_DISCONNECTED: GoogleSyncTelemetry = {
 
 export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleSyncTelemetry> {
   try {
-    const res = await fetch(`${API_BASE_URL}/integrations/google/status?site_id=${siteId || "default"}`, {
+    const res = await safeNetworkFetch(`${API_BASE_URL}/integrations/google/status?site_id=${siteId || "default"}`, {
       headers: { "Content-Type": "application/json" }
     });
-    if (res.ok) {
+    if (res && res.ok) {
       const data = await res.json();
       if (data.status === "HEALTHY") {
         return {
@@ -3186,12 +3207,12 @@ export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleS
 
 export async function triggerGoogleSync(siteId?: string): Promise<GoogleSyncTelemetry> {
   try {
-    const res = await fetch(`${API_BASE_URL}/integrations/google/sync`, {
+    const res = await safeNetworkFetch(`${API_BASE_URL}/integrations/google/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ site_id: siteId || "default", force: true }),
     });
-    if (res.ok) {
+    if (res && res.ok) {
       const data = await res.json();
       if (data.status === "ERROR" || data.error_code === "AUTH_FAILED") {
         return {
@@ -3205,7 +3226,7 @@ export async function triggerGoogleSync(siteId?: string): Promise<GoogleSyncTele
         ...data,
         last_synced_at: new Date().toISOString(),
       };
-    } else {
+    } else if (res) {
       const err = await res.json().catch(() => ({ detail: "Google API yetkilendirme hatası (401 Unauthorized)" }));
       return {
         ...MOCK_GOOGLE_SYNC_ERROR,

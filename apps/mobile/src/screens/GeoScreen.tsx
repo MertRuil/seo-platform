@@ -37,10 +37,13 @@ export const GeoScreen: React.FC = () => {
       Promise.all([
         fetchGeoScores(selectedSite.id, selectedSite.domain),
         fetchGeoPrompts(selectedSite.id, selectedSite.domain)
-      ]).then(([scores, pList]) => {
-        setPlatformScores(scores);
-        setPrompts(pList);
-      }).finally(() => setLoading(false));
+      ])
+        .then(([scores, pList]) => {
+          setPlatformScores(scores);
+          setPrompts(pList);
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
     }
   }, [selectedSite?.id, selectedSite?.domain]);
 

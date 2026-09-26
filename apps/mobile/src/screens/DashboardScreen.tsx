@@ -36,7 +36,9 @@ export const DashboardScreen: React.FC = () => {
   const [googleSync, setGoogleSync] = React.useState<GoogleSyncTelemetry | null>(null);
 
   React.useEffect(() => {
-    fetchGoogleSyncTelemetry(selectedSite?.id).then(setGoogleSync);
+    fetchGoogleSyncTelemetry(selectedSite?.id)
+      .then(setGoogleSync)
+      .catch(() => {});
   }, [selectedSite?.id]);
 
   const onRefresh = React.useCallback(async () => {
@@ -90,13 +92,19 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
 
   React.useEffect(() => {
     if (selectedSite && (selectedSite.has_completed_crawl || selectedSite.id === "site-1")) {
-      fetchSiteIssues(selectedSite.id, selectedSite.domain).then(setIssues);
+      fetchSiteIssues(selectedSite.id, selectedSite.domain)
+        .then(setIssues)
+        .catch(() => {});
     } else {
       setIssues([]);
     }
     if (selectedSite) {
-      fetchMorningBrief(selectedSite.id, selectedSite.domain).then(setMorningBrief);
-      fetchOpportunities(selectedSite.id, selectedSite.domain).then(setOpportunities);
+      fetchMorningBrief(selectedSite.id, selectedSite.domain)
+        .then(setMorningBrief)
+        .catch(() => {});
+      fetchOpportunities(selectedSite.id, selectedSite.domain)
+        .then(setOpportunities)
+        .catch(() => {});
     }
   }, [selectedSite?.id, selectedSite?.has_completed_crawl, selectedSite?.domain]);
 

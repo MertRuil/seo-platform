@@ -46,9 +46,9 @@ export const SettingsScreen: React.FC = () => {
   const [testingChan, setTestingChan] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAppSettings().then(setSettings);
-    fetchGoogleSyncTelemetry().then(setGoogleSync);
-    fetchAlertChannels().then(setAlertChannels);
+    fetchAppSettings().then(setSettings).catch(() => {});
+    fetchGoogleSyncTelemetry().then(setGoogleSync).catch(() => {});
+    fetchAlertChannels().then(setAlertChannels).catch(() => {});
   }, []);
 
   const handleSetTestState = async (state: GoogleConnectionTestState) => {

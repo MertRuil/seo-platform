@@ -41,6 +41,7 @@ export const KeywordsScreen: React.FC = () => {
       setLoadingKeywords(true);
       fetchKeywords(selectedSite.id, selectedSite.domain)
         .then(setKeywords)
+        .catch(() => {})
         .finally(() => setLoadingKeywords(false));
     }
   }, [selectedSite?.id, selectedSite?.domain]);

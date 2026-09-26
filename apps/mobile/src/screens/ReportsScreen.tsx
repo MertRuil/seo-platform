@@ -37,6 +37,7 @@ export const ReportsScreen: React.FC = () => {
       setClientName(selectedSite.name || selectedSite.domain || "Müşteri Firma");
       fetchReports(selectedSite.id, selectedSite.domain, selectedSite.name)
         .then(setReports)
+        .catch(() => {})
         .finally(() => setLoading(false));
     }
   }, [selectedSite?.id, selectedSite?.name, selectedSite?.domain]);

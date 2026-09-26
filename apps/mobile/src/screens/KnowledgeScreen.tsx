@@ -33,6 +33,8 @@ export const KnowledgeScreen: React.FC = () => {
     try {
       const data = await searchKnowledge(query.trim());
       setResults(data);
+    } catch {
+      // offline fallback
     } finally {
       setLoading(false);
     }

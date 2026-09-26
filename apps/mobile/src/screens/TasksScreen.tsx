@@ -33,7 +33,10 @@ export const TasksScreen: React.FC = () => {
   useEffect(() => {
     if (selectedSite) {
       setLoading(true);
-      fetchTasks(selectedSite.id).then(setTasks).finally(() => setLoading(false));
+      fetchTasks(selectedSite.id)
+        .then(setTasks)
+        .catch(() => {})
+        .finally(() => setLoading(false));
     }
   }, [selectedSite?.id]);
 

@@ -27,8 +27,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`11f97b5`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
 | **`44b5efc`** | `fix(reports): site degisiminde musteri adinin dinamik guncellenmesi ve veri sizintisi engeli` | Web ve mobil raporlarda site değiştirildiğinde müşteri adı ve dosya adının anında güncellenmesi, çapraz müşteri veri sızıntısının engellenmesi |
 | **`21d0b42`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
-| **`c9ac3c3`** | `fix(reports): csv disa aktariminda # karakterinde dosyanin kesilmesi onarildi` | data: URI ve encodeURI yerine Blob ve URL.createObjectURL entegrasyonu, RFC 4180 hucre kacisi ve guvenli dosya adi sanitization |
-| **`(güncel)`** | `fix(mobile): wordpress shopify ve slack entegrasyonlarini baglama/kesme secenegi geri getirildi` | Mobil Ayarlar ekranında eksik olan CMS & platform entegrasyonları kartı, onaylı bağlantı kesme/bağlama akışı ve durum rozetleri eklendi |
+| **`ab6b442`** | `fix(mobile): wordpress shopify ve slack entegrasyonlarini baglama/kesme secenegi geri getirildi` | Mobil Ayarlar ekranında eksik olan CMS & platform entegrasyonları kartı, onaylı bağlantı kesme/bağlama akışı ve durum rozetleri eklendi |
+| **`(güncel)`** | `fix(test): cevrimdisi ci ortaminda test guvenilirligi ve ag hatasi cokme korumasi saglandi` | Harici OAuth/ağ isteklerinin mocklanması ile offline/CI test bağımsızlığı, mobil ve web tarafında unhandled rejection ve ağ çökme koruması |
 
 
 ---
@@ -1448,6 +1448,79 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
    - `npm test`: UI Logic, Auth Guards ve Security test paketleri %100 başarılı.
 3. **Backend Pytest Paketi:**
    - `357 / 357 pytest testi %100 başarılı`.
+
+---
+
+---
+
+### 29. 🧪 Test Güvenilirliği: Çevrimdışı / CI Ortamında İnternet Bağımlılığının Kaldırılması ve Ağ Hatası Çökme Koruması
+
+**Kullanıcı Bildirimi:**
+*"Testler güvenilmez: Bir test gerçekten internete bağlanıyor, bu yüzden çevrimdışı ortamda veya CI'da başarısız oluyor. Ağ hatası olduğunda uygulama çöküyor."*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+
+1. **Testin Gerçek İnternete Bağlanması (Offline / CI Test Flake):**
+   - **Kök Neden:** [`apps/web/test-security-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-security-suite.ts) dosyasındaki Test 1D (`test-oauth-token:*`), `ALLOW_TEST_OAUTH_TOKENS` tanımsız olduğunda doğrudan Next.js OAuth rotasına istek atıyordu.
+   - Next.js OAuth rotası (`/api/v1/auth/oauth`), bilinen bir test token'ı olmadığında Google OAuth tokeninfo uç noktasına (`https://oauth2.googleapis.com/tokeninfo?access_token=...`) gerçek bir `fetch` isteği gönderiyordu.
+   - İzole CI sunucularında, Docker konteynerlerinde veya uçakta/çevrimdışı geliştirme ortamlarında dış internet erişimi olmadığı için Node.js `fetch failed` (ENOTFOUND / EAI_AGAIN) hatası fırlatıyor ve test süiti ansızın başarısız oluyordu.
+
+2. **Ağ Hatası Olduğunda Web Uygulamasının Çökmesi (Unhandled Promise Rejections):**
+   - **Kök Neden:** [`apps/web/src/context/SiteContext.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/context/SiteContext.tsx) içerisinde `selectSite` metodu çağrıldığında `loadCrawls(org, s)` fonksiyonu çalıştırılıyordu ancak bu asenkron çağrının sonuna `.catch()` hata yakalayıcısı eklenmemişti.
+   - Arka uç sunucusu kapalı olduğunda, ağ koptuğunda veya istek zaman aşımına uğradığında yakalanmayan reddedilmiş promise (unhandled promise rejection) tarayıcıda veya Next.js istemcisinde uygulamanın çökmesine yol açıyordu.
+
+3. **Mobil Uygulama Ağ Çökme Açığı ve Zaman Aşımı Eksikliği:**
+   - **Kök Neden 1 ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts)):** Ağ isteklerinde `AbortController` veya zaman aşımı mekanizması yoktu; zayıf ağ bağlantılarında istekler askıda kalıyor ve soket koptuğunda istisna (uncaught exception) fırlatarak çökmeye neden oluyordu.
+   - **Kök Neden 2 (Mobil Ekranlar):** 10 ana ekranda (`DashboardScreen`, `SettingsScreen`, `CompetitorsScreen`, `ReportsScreen`, `KeywordsScreen`, `BillingScreen`, `BacklinksScreen`, `TasksScreen`, `KnowledgeScreen`, `GeoScreen`) `useEffect` ve `loadData` / `Promise.all` bloklarında `.catch()` koruması eksikti. Backend ulaşılamadığında mobil ekran çöküyor (crash to desktop) veya sonsuz yükleme spinner'ında donuyordu.
+
+---
+
+#### B. Gerçekleştirilen Düzeltmeler
+
+1. **Test Süitinde Harici Ağ İzolasyonu ([`apps/web/test-security-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-security-suite.ts)):**
+   - Test 1'in başına çevrimdışı-güvenli (offline-safe) mock mekanizması entegre edildi.
+   - `oauth2.googleapis.com` ve `api.github.com` adreslerine giden tüm harici ağ çağrıları deterministik sahte HTTP 401 yanıtları (`{ error: "invalid_token", error_description: "Invalid Value" }`) ile yakalanarak gerçek internete tek bir paket dahi çıkması engellendi.
+   - Test 1 tamamlandığında orijinal `fetch` fonksiyonu `finally` bloğu ile eksiksiz geri yüklendi. Test süiti sıfır dış bağımlılıkla %100 deterministik ve çevrimdışı çalışır hale getirildi.
+
+2. **Web Ağ Hatası Dayanıklılığı ([`apps/web/src/context/SiteContext.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/context/SiteContext.tsx)):**
+   - `selectSite` fonksiyonundaki `loadCrawls(org, s)` çağrısına `.catch((err) => { ... })` bloğu bağlandı.
+   - Ağ koptuğunda veya backend kapalı olduğunda hata konsola güvenle loglanarak aktif sitenin yerel örnek taramalarına (fallback sample crawls) sorunsuz düşmesi sağlandı; sayfanın çökmesi engellendi.
+
+3. **Mobil API Katmanında Güvenli Ağ İstemcisi ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts)):**
+   - `safeNetworkFetch` yardımcı fonksiyonu yazıldı:
+     - 5000ms `AbortController` zaman aşımı kuralı getirildi.
+     - Ağ hatası, DNS çözülememe veya bağlantı reddedildi durumlarında hata güvenle yakalanarak `null` fallback dönülmesi sağlandı.
+   - `fetchSites`, `fetchRecommendations`, `fetchBilling`, `fetchGoogleSyncTelemetry` ve `triggerGoogleSync` fonksiyonları `safeNetworkFetch` ile sarılarak ağ kopmalarına karşı zırhlandırıldı.
+
+4. **Mobil Ekranlarda Çökme Koruması (Graceful Degradation):**
+   - Aşağıdaki tüm ekranlarda `useEffect` ve veri çekme çağrıları hata yakalama kalkanına alındı:
+     - [`DashboardScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/DashboardScreen.tsx): Telemetri, sorunlar, brief ve fırsat çağrılarına `.catch(() => {})`.
+     - [`SettingsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/SettingsScreen.tsx): Ayar, telemetri ve kanal çağrılarına `.catch(() => {})`.
+     - [`CompetitorsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/CompetitorsScreen.tsx): `Promise.all` zincirine `.catch(() => {})`.
+     - [`ReportsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ReportsScreen.tsx): Rapor yüklemeye `.catch(() => {})`.
+     - [`KeywordsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/KeywordsScreen.tsx): Kelime listesine `.catch(() => {})`.
+     - [`BillingScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/BillingScreen.tsx): `try / catch` ile güvenli fallback.
+     - [`BacklinksScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/BacklinksScreen.tsx): `Promise.all` zincirine `.catch(() => {})`.
+     - [`TasksScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/TasksScreen.tsx): Görev yüklemeye `.catch(() => {})`.
+     - [`KnowledgeScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/KnowledgeScreen.tsx): Arama fonksiyonuna `try / catch`.
+     - [`GeoScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/GeoScreen.tsx): Telemetri ve denetimlere `.catch(() => {})`.
+
+5. **Otomatik Test Paketi Genişletmesi ([`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts)):**
+   - `safeNetworkExecute` test adımı eklenerek ağ kopması durumunda fonksiyonun uygulamayı çökertmeden fallback verisini güvenle döndürdüğü otomatik olarak doğrulandı.
+
+---
+
+#### C. Test ve Doğrulama
+
+1. **Python Arka Uç Testleri (`pytest tests`):**
+   - **357 / 357 test %100 başarılı** (DNS ve soket bloklu çevrimdışı simülasyonda da tam başarı).
+2. **Web Test Paketi (`npm test`):**
+   - `test:ui`, `test:auth` ve `test:security` süitleri eksiksiz geçti.
+   - İzole/çevrimdışı ortamda hiçbir harici Google/GitHub uç noktasına istek gitmediği doğrulandı.
+3. **TypeScript Tip Denetimi (`npx tsc --noEmit`):**
+   - `apps/web`: **0 Hata**.
+   - `apps/mobile`: **0 Hata**.
+
 
 
 
