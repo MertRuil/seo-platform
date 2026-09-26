@@ -59,6 +59,13 @@ import {
   type UkComplianceViolation,
   type UkComplianceSector,
 } from "@/lib/compliance-uk";
+import {
+  scanTextForMenaCompliance,
+  getMenaSectorName,
+  type MenaComplianceViolation,
+  type MenaComplianceSector,
+} from "@/lib/compliance-mena";
+
 
 const SAMPLE_TEXTS_TR = [
   {
@@ -240,6 +247,44 @@ const SAMPLE_TEXTS_UK = [
   },
 ];
 
+const SAMPLE_TEXTS_MENA = [
+  {
+    title: "🎰 Kumar & Bahis (BAE 55/2023 & TDRA)",
+    content: "Join the best online casino and play poker for real money with instant liquor delivery in Dubai and sports betting.",
+    keyword: "online casino dubai",
+  },
+  {
+    title: "🏥 Tıbbi Şifa & Mucizevi İddialar (MOHAP / SFDA)",
+    content: "خلطة سحرية لعلاج السكري بشكل نهائي وشفاء تام من السرطان مع تخسيس 10 كيلو في أسبوع مضمون.",
+    keyword: "علاج السكري دبي",
+  },
+  {
+    title: "💊 Reçeteli İlaç (POM) Satışı (MOHAP 1983/4)",
+    content: "Fast express delivery: buy ozempic without prescription in dubai or order xanax online today with cash on delivery.",
+    keyword: "buy ozempic online uae",
+  },
+  {
+    title: "⭐ Gizli Reklam & Mawthooq (NMC & GAMR)",
+    content: "تجربة شخصية غير مدفوعة وأفضل متجر عطور بدون إعلان، زوروا الرابط للشراء فوراً.",
+    keyword: "عطور الرياض",
+  },
+  {
+    title: "💰 Kripto & Garanti Getiri (VARA & SAMA)",
+    content: "Invest in our fund for guaranteed monthly returns of 50% with zero risk investment dubai crypto trading.",
+    keyword: "crypto investment uae",
+  },
+  {
+    title: "🏡 Lisanssız Emlak (Suudi Fal / Dubai RERA)",
+    content: "عقارات للبيع بدون ترخيص فال وشقق فندقية فاخرة بدون تصريح إعلاني مباشر من المالك.",
+    keyword: "عقارات للبيع الرياض",
+  },
+  {
+    title: "✅ Tam Uyumlu BAE / Körfez Örneği",
+    content: "Welcome to our licensed executive hotel in Dubai. Official DTCM tourism license DTCM-12345. Enjoy our signature restaurant.",
+    keyword: "hotel dubai downtown",
+  },
+];
+
 export default function ContentOptimizerPage() {
   const [data, setData] = useState<ContentOptimizationData>(DEMO_CONTENT);
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
@@ -247,7 +292,7 @@ export default function ContentOptimizerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Content Draft & Compliance Shield state
-  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "UK" | "ASIA">("TR");
+  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "UK" | "ASIA" | "MENA">("TR");
   const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS_TR[0].content);
   const [selectedComplianceSector, setSelectedComplianceSector] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"nlp" | "compliance" | "generator">("nlp");
@@ -278,11 +323,15 @@ export default function ContentOptimizerPage() {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as UkComplianceSector);
       const res = scanTextForUkCompliance(contentDraft);
       return sectorFilter ? res.filter((r) => r.sector === sectorFilter) : res;
-    } else {
+    } else if (complianceRegion === "ASIA") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as AsiaComplianceSector);
       return scanAsiaCompliance(contentDraft, sectorFilter);
+    } else {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as MenaComplianceSector);
+      return scanTextForMenaCompliance(contentDraft, sectorFilter);
     }
   }, [complianceRegion, contentDraft, selectedComplianceSector]);
+
 
   const criticalViolations = complianceViolations.filter((v) => v.severity === "CRITICAL");
 
@@ -472,7 +521,7 @@ export default function ContentOptimizerPage() {
           }`}
         >
           <Scale className="w-4 h-4 text-accent" />
-          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : "🇺🇸 US"})
+          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : complianceRegion === "US" ? "🇺🇸 US" : complianceRegion === "UK" ? "🇬🇧 UK" : complianceRegion === "ASIA" ? "🌏 ASIA" : "🇦🇪 MENA"})
           {complianceViolations.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-2xs">
               {complianceViolations.length}
@@ -496,7 +545,7 @@ export default function ContentOptimizerPage() {
 
       {activeTab === "compliance" ? (
         /* =========================================================
-           TAB 2: TÜRKİYE, AVRUPA BİRLİĞİ & ABD MEVZUAT UYUM KALKANI
+           TAB 2: TÜRKİYE, AVRUPA BİRLİĞİ, ABD, UK & MENA MEVZUAT UYUM KALKANI
            ========================================================= */
         <div className="space-y-6">
           {/* Jurisdiction / Region Switcher */}
@@ -507,7 +556,7 @@ export default function ContentOptimizerPage() {
                 Denetlenecek Yargı Alanı ve Mevzuat Rejimi
               </h3>
               <p className="text-xs text-muted">
-                Hedef pazarınıza göre Türkiye Reklam Kurulu/TİTCK, Avrupa Birliği (Directives/EFSA/MiCA) veya ABD (FTC/FDA/SEC) kurallarını seçin.
+                Hedef pazarınıza göre Türkiye Reklam Kurulu/TİTCK, Avrupa Birliği, ABD, Birleşik Krallık, Asya veya BAE/Körfez (MENA) kurallarını seçin.
               </p>
             </div>
 
@@ -570,7 +619,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇬🇧</span> Birleşik Krallık (UK - ASA/CMA/FCA)
+                <span>🇬🇧</span> Birleşik Krallık (UK)
               </button>
               <button
                 type="button"
@@ -585,10 +634,26 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🌏</span> Asya / APAC (JCAA / SAMR / MAS)
+                <span>🌏</span> Asya / APAC
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setComplianceRegion("MENA");
+                  setContentDraft(SAMPLE_TEXTS_MENA[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "MENA"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🇦🇪</span> BAE & Körfez (MENA)
               </button>
             </div>
           </div>
+
 
           {/* Quick Sample Selector */}
           <Panel
@@ -601,7 +666,9 @@ export default function ContentOptimizerPage() {
                 ? "United States (US) Prohibited Claims & Federal Simulator"
                 : complianceRegion === "UK"
                 ? "United Kingdom (UK) Post-Brexit Advertising & Regulatory Simulator"
-                : "Asia & Pacific (APAC) Prohibited Claims & Regulatory Simulator"
+                : complianceRegion === "ASIA"
+                ? "Asia & Pacific (APAC) Prohibited Claims & Regulatory Simulator"
+                : "Orta Doğu & Körfez (MENA - BAE / Suudi Arabistan) Simülatörü"
             }
             sub={
               complianceRegion === "TR"
@@ -612,7 +679,9 @@ export default function ContentOptimizerPage() {
                 ? "Test violations under FTC Act Section 5, FDA FD&C Act / DSHEA, SEC Rule 10b-5, FTC Green Guides, and ABA Model Rules"
                 : complianceRegion === "UK"
                 ? "Test violations under ASA CAP Code Rule 12 (POMs & Botox), CMA Green Claims Code & DMCC Act 2024, and FCA PS23/6 Crypto Rules"
-                : "Test violations under Japan PMD Act (Yakki-ho), JCAA Stealth Marketing, China SAMR Art. 9, Singapore MAS/HSA, and Korea KFTC"
+                : complianceRegion === "ASIA"
+                ? "Test violations under Japan PMD Act (Yakki-ho), JCAA Stealth Marketing, China SAMR Art. 9, Singapore MAS/HSA, and Korea KFTC"
+                : "Test violations under UAE Media Council (55/2023), Saudi SFDA Health Rules, GAMR Mawthooq (#إعلان), VARA, and REGA Fal Laws"
             }
           >
             <div className="flex flex-wrap gap-2">
@@ -624,7 +693,9 @@ export default function ContentOptimizerPage() {
                 ? SAMPLE_TEXTS_US
                 : complianceRegion === "UK"
                 ? SAMPLE_TEXTS_UK
-                : SAMPLE_TEXTS_ASIA
+                : complianceRegion === "ASIA"
+                ? SAMPLE_TEXTS_ASIA
+                : SAMPLE_TEXTS_MENA
               ).map((sample, idx) => (
                 <button
                   key={idx}
@@ -657,7 +728,9 @@ export default function ContentOptimizerPage() {
                     ? "Paste or type your US marketing copy, landing page or ad text here..."
                     : complianceRegion === "UK"
                     ? "Paste or type your UK marketing copy, Harley Street clinic page, or British ad copy here..."
-                    : "Paste or type your Asian (English, Japanese, Chinese, or Korean) marketing copy here..."
+                    : complianceRegion === "ASIA"
+                    ? "Paste or type your Asian (English, Japanese, Chinese, or Korean) marketing copy here..."
+                    : "Paste or type your Middle Eastern / Gulf (Arabic or English) copy here..."
                 }
               />
             </div>
@@ -677,7 +750,9 @@ export default function ContentOptimizerPage() {
                     ? `US Federal Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under FTC/FDA/SEC Rules!`
                     : complianceRegion === "UK"
                     ? `UK Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under ASA/CMA/FCA Rules!`
-                    : `Asia / APAC Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under Asian Laws!`}
+                    : complianceRegion === "ASIA"
+                    ? `Asia / APAC Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under Asian Laws!`
+                    : `Orta Doğu & Körfez (MENA) İkazı: ${complianceViolations.length} İfade BAE / Suudi Arabistan Reklam Kanunlarına Aykırı!`}
                 </span>
               </div>
               <p className="text-xs text-rose-600 leading-relaxed">
@@ -702,10 +777,15 @@ export default function ContentOptimizerPage() {
                     Under UK Post-Brexit Marketing Codes (ASA CAP Code Rule 12, CMA DMCC Act 2024, FCA PS23/6), these claims carry severe risk of{" "}
                     <strong>direct CMA statutory fines up to 10% of global annual turnover</strong>, MHRA sanctions for POM/Botox advertising, and criminal prosecution under FSMA Section 21.
                   </>
-                ) : (
+                ) : complianceRegion === "ASIA" ? (
                   <>
                     Under Asian Regulatory Frameworks (Japan Yakki-ho / Keihyo-ho, China SAMR Advertising Law Art. 9, Singapore MAS / HSA, Korea KFTC), these claims carry severe risk of{" "}
                     <strong>surcharges up to 4.5% of total sales in Japan</strong>, <strong>up to 2,000,000 RMB fines in China</strong>, or criminal penalties and site bans in Singapore.
+                  </>
+                ) : (
+                  <>
+                    BAE Medya Konseyi (55/2023), Suudi SFDA ve GAMR Mawthooq mevzuatları uyarınca bu ifadeler{" "}
+                    <strong>1.000.000 AED / SAR'a kadar para cezası</strong>, VARA tarafından <strong>10.000.000 AED yaptırım</strong>, TDRA tarafından siteye erişim engeli ve adli kovuşturma riski taşır.
                   </>
                 )}
               </p>
@@ -723,7 +803,9 @@ export default function ContentOptimizerPage() {
                     ? "Fully Compliant with US Federal Regulations"
                     : complianceRegion === "UK"
                     ? "Fully Compliant with UK Regulations (ASA / CMA / FCA)"
-                    : "Fully Compliant with Asia & Pacific (APAC) Regulations"}
+                    : complianceRegion === "ASIA"
+                    ? "Fully Compliant with Asia & Pacific (APAC) Regulations"
+                    : "Orta Doğu & Körfez (MENA) Mevzuatına Tam Uyumlu"}
                 </h4>
                 <p className="text-xs text-emerald-700">
                   {complianceRegion === "TR"
@@ -734,7 +816,9 @@ export default function ContentOptimizerPage() {
                     ? "No prohibited disease claims (FDA), deceptive advertising or fake reviews (FTC), SEC guaranteed returns, or PACT Act violations found."
                     : complianceRegion === "UK"
                     ? "No prescription medicine / Botox advertising (Human Medicines Regs), unproven health claims (ASA CAP 12), FCA crypto promotion violations, or CMA greenwashing found."
-                    : "No unapproved medical claims (Japan PMD Act), stealth marketing (JCAA / KFTC), absolute superlatives (China SAMR Art. 9), or MAS crypto promises found."}
+                    : complianceRegion === "ASIA"
+                    ? "No unapproved medical claims (Japan PMD Act), stealth marketing (JCAA / KFTC), absolute superlatives (China SAMR Art. 9), or MAS crypto promises found."
+                    : "İçerikte BAE/Suudi kumar/alkol yasağı, SFDA/MOHAP izinsiz sağlık iddiaları, gizli reklam veya lisanssız kripto/emlak vaatleri tespit edilmedi."}
                 </p>
               </div>
             </div>
@@ -786,7 +870,8 @@ export default function ContentOptimizerPage() {
                   { id: "CONSUMER_CMA_ASA", label: "⏱️ Dark Patterns & Scarcity (DMCC)" },
                   { id: "VAPING_TOBACCO_ASA", label: "🚭 Nicotine Vaping (CAP 22)" },
                 ]
-              : [
+              : complianceRegion === "ASIA"
+              ? [
                   { id: "ALL", label: "All Asia / APAC Sectors" },
                   { id: "COSMETICS_HEALTH_PMDA", label: "🏥 Health & Cosmetics (PMD Act/HSA)" },
                   { id: "STEALTH_MARKETING_JCAA_KFTC", label: "⭐ Stealth Marketing (JCAA/KFTC)" },
@@ -795,6 +880,15 @@ export default function ContentOptimizerPage() {
                   { id: "FINANCIAL_CRYPTO_MAS", label: "💳 Crypto & Loans (MAS DPT)" },
                   { id: "GREEN_CLAIMS_APAC", label: "🌿 Green Claims (CCCS)" },
                   { id: "VAPING_GAMBLING_BAN_APAC", label: "🚭 Vaping & Gambling Ban" },
+                ]
+              : [
+                  { id: "ALL", label: "Tüm MENA Sektörleri" },
+                  { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "🕌 İslami Değerler & Kumar (TDRA)" },
+                  { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "🏥 Tıbbi İddialar (MOHAP/SFDA)" },
+                  { id: "INFLUENCER_MAWTHOOQ_NMC", label: "⭐ Mawthooq & Gizli Reklam" },
+                  { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "🪙 Kripto & Garanti Getiri (VARA)" },
+                  { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "🏡 Emlak Lisansı (Fal/RERA)" },
+                  { id: "VAPING_TOBACCO_BAN_MENA", label: "🚭 Tütün & Elektronik Sigara" },
                 ]
             ).map((sec) => (
               <button
@@ -824,7 +918,9 @@ export default function ContentOptimizerPage() {
                   ? "Detected US Regulatory Violations & Compliant Alternatives"
                   : complianceRegion === "UK"
                   ? "Detected UK Regulatory Violations & Compliant Alternatives"
-                  : "Detected Asia / APAC Regulatory Violations & Compliant Alternatives"
+                  : complianceRegion === "ASIA"
+                  ? "Detected Asia / APAC Regulatory Violations & Compliant Alternatives"
+                  : "Tespit Edilen BAE & Körfez (MENA) İhlalleri ve Uyumlu Alternatifleri"
               }
               flush
             >
@@ -843,7 +939,9 @@ export default function ContentOptimizerPage() {
                           ? "US Legal Basis"
                           : complianceRegion === "UK"
                           ? "UK Legal Basis (ASA/CMA/FCA)"
-                          : "Asia/APAC Legal Basis"}
+                          : complianceRegion === "ASIA"
+                          ? "Asia/APAC Legal Basis"
+                          : "MENA Yasal Dayanak (NMC/SFDA/VARA)"}
                       </th>
                       <th className="py-3 px-3">{complianceRegion === "TR" ? "Ceza Riski" : "Penalty / Liability"}</th>
                       <th className="py-3 px-4">
@@ -855,7 +953,9 @@ export default function ContentOptimizerPage() {
                           ? "Compliant US Recommendation"
                           : complianceRegion === "UK"
                           ? "Compliant UK Recommendation"
-                          : "Compliant APAC Recommendation"}
+                          : complianceRegion === "ASIA"
+                          ? "Compliant APAC Recommendation"
+                          : "Önerilen Uyumlu İfade"}
                       </th>
                       <th className="py-3 px-3 text-right">{complianceRegion === "TR" ? "Eylem" : "Action"}</th>
                     </tr>
@@ -882,9 +982,12 @@ export default function ContentOptimizerPage() {
                               ? getUsSectorName(v.sector as any)
                               : complianceRegion === "UK"
                               ? getUkSectorName(v.sector as any)
-                              : getAsiaSectorName(v.sector as any)}
+                              : complianceRegion === "ASIA"
+                              ? getAsiaSectorName(v.sector as any)
+                              : getMenaSectorName(v.sector as any)}
                           </Badge>
                         </td>
+
 
                         <td className="py-3.5 px-3 text-xs text-muted max-w-[200px]">
                           {v.legalBasis}

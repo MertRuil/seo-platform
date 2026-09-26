@@ -33,6 +33,8 @@ import { scanTurkishCompliance } from "@/lib/compliance-tr";
 import { scanEuCompliance } from "@/lib/compliance-eu";
 import { scanUsCompliance } from "@/lib/compliance-us";
 import { scanAsiaCompliance } from "@/lib/compliance-asia";
+import { scanTextForUkCompliance } from "@/lib/compliance-uk";
+import { scanTextForMenaCompliance } from "@/lib/compliance-mena";
 
 function getIntentTone(intent: string): Tone {
   switch (intent) {
@@ -263,6 +265,8 @@ export default function KeywordsPage() {
                   const euViolations = scanEuCompliance(item.keyword);
                   const usViolations = scanUsCompliance(item.keyword);
                   const asiaViolations = scanAsiaCompliance(item.keyword);
+                  const ukViolations = scanTextForUkCompliance(item.keyword);
+                  const menaViolations = scanTextForMenaCompliance(item.keyword);
                   return (
                     <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       {/* Keyword + Intent */}
@@ -297,6 +301,15 @@ export default function KeywordsPage() {
                                 🇺🇸 US Violation: {usViolations[0].title}
                               </span>
                             )}
+                            {ukViolations.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                title={`UK: ${ukViolations[0].title} (${ukViolations[0].legalBasis})`}
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                                🇬🇧 UK Violation: {ukViolations[0].title}
+                              </span>
+                            )}
                             {asiaViolations.length > 0 && (
                               <span
                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-purple-50 text-purple-700 border border-purple-200"
@@ -306,7 +319,17 @@ export default function KeywordsPage() {
                                 🌏 Asia Violation: {asiaViolations[0].title}
                               </span>
                             )}
+                            {menaViolations.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                title={`MENA: ${menaViolations[0].title} (${menaViolations[0].legalBasis})`}
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                🇦🇪 MENA İhlali: {menaViolations[0].title}
+                              </span>
+                            )}
                           </div>
+
                           <div>
                             <Badge tone={getIntentTone(item.intent)} mono>
                               {getIntentLabel(item.intent)}
@@ -454,6 +477,8 @@ export default function KeywordsPage() {
                   const expEu = scanEuCompliance(item.keyword);
                   const expUs = scanUsCompliance(item.keyword);
                   const expAsia = scanAsiaCompliance(item.keyword);
+                  const expUk = scanTextForUkCompliance(item.keyword);
+                  const expMena = scanTextForMenaCompliance(item.keyword);
                   return (
                     <div key={idx} className="p-4 bg-surface hover:bg-surface-2 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="space-y-1">
@@ -493,6 +518,24 @@ export default function KeywordsPage() {
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-purple-600 shrink-0" />
                               🌏 Asia Prohibited: {expAsia[0].title}
+                            </span>
+                          )}
+                          {expUk.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              title={`UK: ${expUk[0].title} (${expUk[0].legalBasis})`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                              🇬🇧 UK Prohibited: {expUk[0].title}
+                            </span>
+                          )}
+                          {expMena.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              title={`MENA: ${expMena[0].title} (${expMena[0].legalBasis})`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                              🇦🇪 MENA Yasaklı: {expMena[0].title}
                             </span>
                           )}
                           {item.has_ai_overview && (
@@ -608,6 +651,34 @@ export default function KeywordsPage() {
                 </p>
                 <p className="text-2xs text-emerald-700 font-semibold">
                   Compliant Asia Recommendation: {scanAsiaCompliance(newKeyword)[0].suggestedFix}
+                </p>
+              </div>
+            )}
+            {scanTextForUkCompliance(newKeyword).length > 0 && (
+              <div className="mt-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-sm space-y-1">
+                <div className="flex items-center gap-1.5 text-indigo-800 font-bold text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span>🇬🇧 UK Regulatory Compliance Warning: {scanTextForUkCompliance(newKeyword)[0].title}</span>
+                </div>
+                <p className="text-2xs text-indigo-700 leading-relaxed">
+                  "{scanTextForUkCompliance(newKeyword)[0].matchedPattern}" violates {scanTextForUkCompliance(newKeyword)[0].legalBasis} ({scanTextForUkCompliance(newKeyword)[0].penaltyRisk}).
+                </p>
+                <p className="text-2xs text-emerald-700 font-semibold">
+                  Compliant UK Recommendation: {scanTextForUkCompliance(newKeyword)[0].suggestedFix}
+                </p>
+              </div>
+            )}
+            {scanTextForMenaCompliance(newKeyword).length > 0 && (
+              <div className="mt-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-sm space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>🇦🇪 Orta Doğu & Körfez (MENA) Mevzuat Uyarısı: {scanTextForMenaCompliance(newKeyword)[0].title}</span>
+                </div>
+                <p className="text-2xs text-emerald-700 leading-relaxed">
+                  "{scanTextForMenaCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTextForMenaCompliance(newKeyword)[0].legalBasis} ({scanTextForMenaCompliance(newKeyword)[0].penaltyRisk}) ile çelişmektedir.
+                </p>
+                <p className="text-2xs text-emerald-800 font-semibold">
+                  Önerilen Uyumlu Alternatif: {scanTextForMenaCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
             )}

@@ -394,7 +394,7 @@ export interface EuComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
-export type ComplianceJurisdiction = "TR" | "EU" | "US" | "UK" | "ASIA";
+export type ComplianceJurisdiction = "TR" | "EU" | "US" | "UK" | "ASIA" | "MENA";
 
 export type UsComplianceSector =
   | "HEALTH_FDA"
@@ -471,6 +471,32 @@ export interface UkComplianceViolation {
   suggested_replacement?: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
+
+export type MenaComplianceSector =
+  | "ISLAMIC_VALUES_PUBLIC_MORALS"
+  | "HEALTH_MEDICAL_MOHAP_SFDA"
+  | "INFLUENCER_MAWTHOOQ_NMC"
+  | "FINANCIAL_CRYPTO_VARA_SAMA"
+  | "ECOMMERCE_REAL_ESTATE_FAL"
+  | "VAPING_TOBACCO_BAN_MENA";
+
+export interface MenaComplianceViolation {
+  rule_id: string;
+  sector: MenaComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
 
 export interface GoogleSyncTelemetry {
   status: "HEALTHY" | "SYNCING" | "ERROR";

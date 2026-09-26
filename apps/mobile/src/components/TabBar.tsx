@@ -31,7 +31,8 @@ export const TabBar: React.FC = () => {
     "content_optimizer", 
     "recommendations", 
     "knowledge", 
-    "billing"
+    "billing",
+    "backlinks"
   ].includes(activeTab);
 
   return (

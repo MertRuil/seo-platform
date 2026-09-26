@@ -36,8 +36,11 @@ import {
   GoogleSyncTelemetry,
   AlertChannelConfig,
   UkComplianceSector,
-  UkComplianceViolation
+  UkComplianceViolation,
+  MenaComplianceSector,
+  MenaComplianceViolation
 } from "../types";
+
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
 let API_BASE_URL = 
@@ -1225,6 +1228,34 @@ export async function sendAiAssistantMessage(
     };
   }
 
+  if (lower.includes("mena") || lower.includes("bae") || lower.includes("uae") || lower.includes("dubai") || lower.includes("saudi") || lower.includes("suudi") || lower.includes("sfda") || lower.includes("mohap") || lower.includes("mawthooq") || lower.includes("vara")) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `🇦🇪 **Orta Doğu & Körfez (MENA / GCC) Reklam ve SEO Mevzuat Kalkanı:**\n\n• **1. BAE Medya Konseyi (55/2023) & İslami Değerler:** Online kumar, spor bahisleri ve izinsiz alkol teslimatı reklamları kesinlikle yasaktır (1.000.000 AED para cezası ve TDRA site engeli).\n• **2. MOHAP & Suudi SFDA Tıbbi İddialar:** 'Diyabete kesin son', 'mucizevi zayıflama' iddiaları resmi izin numarası olmadan suçtur.\n• **3. Suudi Mawthooq (موثوق) & Gizli Reklam:** Ticari paylaşımlarda #إعلان veya #Ad zorunludur. Ruhsatsız tanıtıma 500.000 SAR ceza verilir.\n• **4. Dubai VARA Kripto Yönetmeliği:** 'Sıfır risk', 'garanti getiri' vaatleri katı şekilde yasaklanmıştır (10.000.000 AED ceza).\n• **5. Suudi Fal & Dubai RERA Emlak:** Yetki numarası olmayan emlak tanıtımları portallardan kaldırılır.`,
+      timestamp: new Date().toISOString(),
+      sources: ["UAE Media Council (55/2023)", "Saudi SFDA Advertising Guidelines", "Dubai VARA Marketing Rules", "Saudi GAMR Mawthooq License"],
+      suggested_actions: [
+        { label: "MENA Kalkanını Aç", action_type: "GENERATE_CONTENT" },
+        { label: "MENA Uyumlu Görev Aç", action_type: "CREATE_TASK" }
+      ]
+    };
+  }
+
+  if (lower.includes("uk") || lower.includes("ingiltere") || lower.includes("asa") || lower.includes("cma") || lower.includes("fca") || lower.includes("botox") || lower.includes("dmcc")) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `🇬🇧 **Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Kalkanı:**\n\n• **1. ASA CAP Code 12 (POMs & Botox Yasağı):** Reçeteli ilaçların ve Botox reklamı kesinlikle yasaktır (Human Medicines Regs 2012 Reg 284).\n• **2. CMA Green Claims & DMCC Act 2024:** Kanıtlanamayan yeşil iddialara doğrudan küresel cironun %10'una kadar para cezası kesilebilir.\n• **3. FCA PS23/6 Kripto Uyarısı:** Kripto reklamlarında 'Don't invest unless you're prepared to lose all the money...' zorunlu risk uyarısı ve 24h cayma süresi şarttır.\n• **4. Sahte Kıtlık (Dark Patterns):** Yapay sayaçlar ve gizli damla fiyatlandırma (drip pricing) yasaktır.`,
+      timestamp: new Date().toISOString(),
+      sources: ["UK Advertising Standards Authority (CAP Code Rule 12)", "CMA DMCC Act 2024", "Financial Conduct Authority (FCA PS23/6)"],
+      suggested_actions: [
+        { label: "UK Kalkanını Aç", action_type: "GENERATE_CONTENT" },
+        { label: "UK Uyumlu Görev Aç", action_type: "CREATE_TASK" }
+      ]
+    };
+  }
+
   if (lower.includes("asya") || lower.includes("apac") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas")) {
     return {
       id: `ai-${Date.now()}`,
@@ -1238,6 +1269,7 @@ export async function sendAiAssistantMessage(
       ]
     };
   }
+
 
   // Default intelligent assistant response
   return {
@@ -3004,3 +3036,142 @@ export function checkUkCompliance(text: string): UkComplianceViolation[] {
 
   return violations;
 }
+
+export const scanUkCompliance = checkUkCompliance;
+
+interface MenaComplianceRuleDefinition {
+  rule_id: string;
+  sector: MenaComplianceSector;
+  title: string;
+  pattern: RegExp;
+  legal_basis: string;
+  legal_reference: string;
+  penalty_risk: string;
+  fine_risk: string;
+  suggested_fix: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
+export const MENA_COMPLIANCE_DATABASE: MenaComplianceRuleDefinition[] = [
+  {
+    rule_id: "MENA_ISLAMIC_MORALS_GAMBLING_ALCOHOL",
+    sector: "ISLAMIC_VALUES_PUBLIC_MORALS",
+    title: "Kumar, Bahis ve Ruhsatsız Alkol Tanıtımı Yasağı",
+    pattern: /(?:online\s*casino|sports\s*betting|poker\s*for\s*real\s*money|كازينو\s*أونلاين|مراهنات\s*رياضية|ألعاب\s*قمار|شراء\s*خمور|توصيل\s*كحول)/i,
+    legal_basis: "BAE 55/2023 Sayılı Medya Kanunu & Suudi M/17 Siber Suçlar",
+    legal_reference: "UAE Media Council Decree-Law No. 55/2023",
+    penalty_risk: "1.000.000 AED / SAR ceza ve TDRA/CITC erişim engeli",
+    fine_risk: "1.000.000 AED / SAR",
+    suggested_fix: "Kumar, bahis ve kamu ahlakına aykırı tüm tanıtımları kaldırın.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "MENA_MOHAP_SFDA_MIRACLE_CURES",
+    sector: "HEALTH_MEDICAL_MOHAP_SFDA",
+    title: "MOHAP / SFDA Onaysız Mucizevi Şifa ve Tedavi İddiaları",
+    pattern: /(?:guaranteed\s*cure|100%\s*cancer\s*cure|lose\s*10kg\s*in\s*7\s*days|علاج\s*نهائي\s*للسكري|شفاء\s*تام|خلطة\s*سحرية|تخسيس\s*10\s*كيلو)/i,
+    legal_basis: "BAE MOHAP 430/2007 & Suudi SFDA Sağlık Reklamları",
+    legal_reference: "MOHAP Ministerial Decision 430/2007",
+    penalty_risk: "500.000 AED / SAR para cezası ve lisans iptali",
+    fine_risk: "500.000 AED / SAR",
+    suggested_fix: "Mutlak şifa iddialarını kaldırın ve MOHAP/SFDA izin numarasını ekleyin.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "MENA_MOHAP_SFDA_PRESCRIPTION_DRUGS",
+    sector: "HEALTH_MEDICAL_MOHAP_SFDA",
+    title: "Reçeteli İlaçların (POM) Kamuya Açık Online Satışı Yasağı",
+    pattern: /(?:buy\s*ozempic|xanax\s*online|botox\s*injections\s*for\s*sale|شراء\s*أوزمبيك|حبوب\s*إجهاض|شراء\s*ترامادول)/i,
+    legal_basis: "BAE 1983/4 İlaç Kanunu & Suudi M/31 Eczacılık Kanunu",
+    legal_reference: "UAE Federal Law No. 4 of 1983",
+    penalty_risk: "1.000.000 SAR / AED ceza ve hapis yaptırımı",
+    fine_risk: "1.000.000 SAR / AED",
+    suggested_fix: "Reçeteli ilaçların online satış ve tanıtımını durdurun.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "MENA_INFLUENCER_MAWTHOOQ_NMC_DISCLOSURE",
+    sector: "INFLUENCER_MAWTHOOQ_NMC",
+    title: "Gizli Reklam ve Mawthooq (موثوق) Lisans Eksikliği",
+    pattern: /(?:unbiased\s*review\s*not\s*an\s*ad|تجربة\s*شخصية\s*غير\s*مدفوعة|تقييم\s*صادق\s*ليس\s*إعلاناً|إعلان\s*بدون\s*ترخيص\s*موثوق)/i,
+    legal_basis: "BAE Medya Konseyi 2017/23 & Suudi GAMR Mawthooq",
+    legal_reference: "KSA Mawthooq Regulatory Guide 2023",
+    penalty_risk: "500.000 SAR / AED para cezası ve hesap askıya alma",
+    fine_risk: "500.000 SAR / AED",
+    suggested_fix: "Açıkça #إعلان veya #Ad ibaresi ekleyin ve lisans numaranızı yazın.",
+    severity: "HIGH",
+  },
+  {
+    rule_id: "MENA_VARA_SAMA_CRYPTO_UNAUTHORIZED_RETURNS",
+    sector: "FINANCIAL_CRYPTO_VARA_SAMA",
+    title: "Yetkisiz Kripto / Forex Reklamı ve Garanti Getiri Vaatleri",
+    pattern: /(?:guaranteed\s*returns?|zero\s*risk\s*investment|عائد\s*استثماري\s*مضمون|أرباح\s*يومية\s*مؤكدة|استثمار\s*بدون\s*أي\s*مخاطرة|ثراء\s*سريع)/i,
+    legal_basis: "Dubai VARA 2023 & Suudi SAMA Tüketici Koruma İlkeleri",
+    legal_reference: "Dubai VARA Marketing Regulations 2023",
+    penalty_risk: "10.000.000 AED para cezası ve varlık dondurma",
+    fine_risk: "10.000.000 AED",
+    suggested_fix: "Zorunlu yasal risk uyarısını ekleyin ve lisans numarasını belirtin.",
+    severity: "CRITICAL",
+  },
+  {
+    rule_id: "MENA_REGA_FAL_RERA_UNLICENSED_REAL_ESTATE",
+    sector: "ECOMMERCE_REAL_ESTATE_FAL",
+    title: "Lisanssız Emlak Reklamı (Suudi Fal / Dubai RERA Trakheesi)",
+    pattern: /(?:luxury\s*villa.*no\s*license|عقارات\s*للبيع\s*بدون\s*ترخيص\s*فال|فيلا.*بدون\s*تصريح\s*إعلاني|تسويق\s*عقاري\s*بدون\s*رخصة\s*فال)/i,
+    legal_basis: "Suudi REGA Fal Kanunu & Dubai RERA Trakheesi",
+    legal_reference: "KSA Real Estate General Authority (REGA)",
+    penalty_risk: "200.000 SAR / AED para cezası ve portaldan kaldırma",
+    fine_risk: "200.000 SAR / AED",
+    suggested_fix: "Suudi Fal Yetki Numarasını veya Dubai Trakheesi İznini ekleyin.",
+    severity: "HIGH",
+  },
+  {
+    rule_id: "MENA_TOBACCO_VAPING_PROMOTION",
+    sector: "VAPING_TOBACCO_BAN_MENA",
+    title: "Ruhsatsız Tütün ve Elektronik Sigara (Vape) Pazarlaması Yasağı",
+    pattern: /(?:buy\s*disposable\s*vape|vape\s*delivery|توصيل\s*فيب|شراء\s*سحبة\s*سيجارة|سجائر\s*إلكترونية)/i,
+    legal_basis: "BAE ESMA Teknik Düzenlemeleri & Suudi SFDA Tütün Kontrolü",
+    legal_reference: "UAE ESMA Technical Regulations & SFDA",
+    penalty_risk: "500.000 AED / SAR ceza ve ürünlere el koyma",
+    fine_risk: "500.000 AED / SAR",
+    suggested_fix: "Tütün ve elektronik sigara ürünlerinin doğrudan online tanıtımını kaldırın.",
+    severity: "CRITICAL",
+  },
+];
+
+export function checkMenaCompliance(text: string, sector?: MenaComplianceSector): MenaComplianceViolation[] {
+  if (!text || text.trim().length === 0) return [];
+
+  const violations: MenaComplianceViolation[] = [];
+
+  for (const rule of MENA_COMPLIANCE_DATABASE) {
+    if (sector && rule.sector !== sector) continue;
+    const match = text.match(rule.pattern);
+    if (match) {
+      const matchIndex = match.index || 0;
+      const start = Math.max(0, matchIndex - 30);
+      const end = Math.min(text.length, matchIndex + match[0].length + 30);
+      const snippet = `...${text.substring(start, end).trim()}...`;
+
+      violations.push({
+        rule_id: rule.rule_id,
+        sector: rule.sector,
+        title: rule.title,
+        matched_pattern: rule.pattern.toString(),
+        matched_term: match[0],
+        context_snippet: snippet,
+        legal_basis: rule.legal_basis,
+        legal_reference: rule.legal_reference,
+        penalty_risk: rule.penalty_risk,
+        fine_risk: rule.fine_risk,
+        suggested_fix: rule.suggested_fix,
+        severity: rule.severity,
+      });
+    }
+  }
+
+  return violations;
+}
+
+export const scanMenaCompliance = checkMenaCompliance;
+

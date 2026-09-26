@@ -39,8 +39,16 @@ const PRESET_PROMPTS = [
     prompt: "Sitemizi ABD Federal Mevzuatına göre denetle: FTC Act Section 5, FDA (FD&C Act / DSHEA), SEC Rule 10b-5 ve FTC Green Guides uyumunu analiz et.",
   },
   {
+    title: "🇬🇧 UK Mevzuat & ASA/CMA Denetimi",
+    prompt: "Sitemizi Birleşik Krallık (UK) mevzuatına göre tara: ASA CAP Code Rule 12 (POMs & Botox), CMA Green Claims & DMCC Act 2024 ve FCA PS23/6 Kripto kurallarına uyumu incele.",
+  },
+  {
     title: "🌏 Asya / APAC Mevzuat & PMDA/SAMR",
     prompt: "Sitemizi Asya ve Pasifik (APAC) mevzuatına göre tara: Japonya Yakki-ho / Keihyo-ho (Stealth Marketing), Çin SAMR Reklam Kanunu (Art. 9) ve Singapur MAS kripto kurallarına uyumu incele.",
+  },
+  {
+    title: "🇦🇪 BAE & Körfez / MENA Mevzuat Denetimi",
+    prompt: "Sitemizi Orta Doğu / Körfez (BAE & Suudi Arabistan) mevzuatına göre denetle: BAE Medya Konseyi (55/2023), Suudi SFDA sağlık kuralları, GAMR Mawthooq (#إعلان) ve VARA/SAMA düzenlemelerini tara.",
   },
   {
     title: "Trafik Düşüşünü Analiz Et",
@@ -92,7 +100,31 @@ export default function AiCopilotPage() {
       const lower = text.toLowerCase();
       let reply: AiCopilotMessage;
 
-      if (lower.includes("asia") || lower.includes("asya") || lower.includes("apac") || lower.includes("jcaa") || lower.includes("yakki") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas") || lower.includes("kftc")) {
+      if (lower.includes("mena") || lower.includes("bae") || lower.includes("uae") || lower.includes("dubai") || lower.includes("saudi") || lower.includes("suudi") || lower.includes("sfda") || lower.includes("mohap") || lower.includes("mawthooq") || lower.includes("vara")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `🇦🇪 **Orta Doğu & Körfez (MENA / GCC) Bölgesi Mevzuat ve Reklam Denetimi:**\n\n1. **Kamu Ahlakı, İslami Değerler & Kumar/Alkol Yasağı (BAE 55/2023 & KSA M/17):** Online kumar, spor bahisleri ve izinsiz alkol teslimatı reklamları kesinlikle yasaktır (1.000.000 AED / SAR ceza ve TDRA/CITC erişim engeli).\n2. **MOHAP & Suudi SFDA Sağlık Beyanları:** "100% kesin kanser tedavisi", "diyabete son", "haftada 10 kilo garantili zayıflama" gibi tıbbi ve sağlık vaatleri resmi reklam lisans numarası olmaksızın suçtur.\n3. **Gizli Reklam & Mawthooq (موثوق) Lisansı:** Ücretli veya ticari menfaat sağlanan tüm tanıtımlarda açıkça Arapça/İngilizce #إعلان veya #Ad ibaresi zorunludur. Ruhsatsız tanıtımlara 500.000 SAR/AED para cezası uygulanır.\n4. **Kripto & Sanal Varlıklar (Dubai VARA & SAMA):** "Sıfır riskli yatırım", "günlük garantili getiri" vaatleri katı şekilde yasaklanmıştır (VARA tarafından 10.000.000 AED ceza).\n5. **Emlak Pazarlaması (Suudi Fal / Dubai RERA Trakheesi):** Emlak ilanlarında Suudi Fal Yetki Numarası veya Dubai Trakheesi İzin Numarası belirtilmeyen tanıtımlar portallardan ve arama motorlarından derhal kaldırılır.\n\nÖnerim: İçerik sekmesindeki **BAE & Körfez (MENA) Uyum Kalkanı** simülatörünü kullanarak Arapça ve İngilizce metinlerinizi güvenle denetleyin.`,
+          timestamp: "Şimdi",
+          sources: ["UAE Media Council (Federal Decree-Law 55/2023)", "Saudi SFDA Advertising Guidelines", "Dubai VARA Marketing Regulations", "Saudi GAMR Mawthooq License", "Dubai RERA Trakheesi"],
+          actions: [
+            { label: "MENA Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "MENA Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("uk") || lower.includes("ingiltere") || lower.includes("asa") || lower.includes("cma") || lower.includes("fca") || lower.includes("botox") || lower.includes("dmcc")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `🇬🇧 **Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Denetimi:**\n\n1. **ASA CAP Code Rule 12 & Human Medicines Regulations 2012 (Reg 284):** Reçeteli ilaçların (POM) ve Botox gibi enjeksiyonların halka açık doğrudan veya dolaylı reklamı kesinlikle yasaktır.\n2. **CMA Green Claims Code & DMCC Act 2024:** Kanıtlanamayan çevreci iddialar için CMA, doğrudan mahkemesiz **küresel yıllık cironun %10'una kadar** idari para cezası kesme yetkisine sahiptir.\n3. **FCA PS23/6 Kripto Promosyonları:** Kripto para ve finansal reklamlarda zorunlu yasal risk uyarısı (*"Don't invest unless you're prepared to lose all the money you invest..."*) ve ilk alıcılar için 24 saatlik cayma süresi zorunludur.\n4. **DMCC Act & Sahte Kıtlık (Dark Patterns):** "Son 1 ürün kaldı acele edin" gibi yapay geri sayım sayaçları ve gizli damla fiyatlandırma (drip pricing) yasaktır.\n\nÖnerim: İçerik sekmesindeki **Birleşik Krallık (UK) Uyum Kalkanı** simülatörünü kullanarak İngiltere pazarına yönelik sayfalarınızı denetleyin.`,
+          timestamp: "Şimdi",
+          sources: ["UK Advertising Standards Authority (CAP Code Rule 12)", "CMA Digital Markets, Competition and Consumers Act 2024", "Financial Conduct Authority (FCA PS23/6)"],
+          actions: [
+            { label: "UK Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "UK Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("asia") || lower.includes("asya") || lower.includes("apac") || lower.includes("jcaa") || lower.includes("yakki") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas") || lower.includes("kftc")) {
         reply = {
           id: `ai-${Date.now()}`,
           sender: "assistant",
@@ -104,6 +136,7 @@ export default function AiCopilotPage() {
             { label: "Asya Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
           ],
         };
+
       } else if (lower.includes("us") || lower.includes("abd") || lower.includes("ftc") || lower.includes("fda") || lower.includes("sec") || lower.includes("dshea") || lower.includes("ryan haight")) {
         reply = {
           id: `ai-${Date.now()}`,

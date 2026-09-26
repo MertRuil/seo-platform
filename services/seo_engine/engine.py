@@ -55,6 +55,7 @@ from services.seo_engine.rules.eu_compliance import EuRegulatoryComplianceRule
 from services.seo_engine.rules.us_compliance import UsRegulatoryComplianceRule
 from services.seo_engine.rules.asia_compliance import AsiaRegulatoryComplianceRule
 from services.seo_engine.rules.uk_compliance import UkRegulatoryComplianceRule
+from services.seo_engine.rules.mena_compliance import MenaRegulatoryComplianceRule
 
 class SeoRuleEngine:
     def __init__(self):
@@ -111,6 +112,7 @@ class SeoRuleEngine:
             UsRegulatoryComplianceRule(),
             AsiaRegulatoryComplianceRule(),
             UkRegulatoryComplianceRule(),
+            MenaRegulatoryComplianceRule(),
         ]
 
     def register_rule(self, rule: SeoRule):

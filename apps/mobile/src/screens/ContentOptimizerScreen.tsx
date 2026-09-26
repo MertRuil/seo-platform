@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, checkUkCompliance } from "../services/api";
+import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, checkUkCompliance, scanMenaCompliance } from "../services/api";
 import { 
   ContentOptimizationResult, 
   GeneratedContentResult, 
@@ -29,6 +29,8 @@ import {
   AsiaComplianceViolation,
   UkComplianceSector,
   UkComplianceViolation,
+  MenaComplianceSector,
+  MenaComplianceViolation,
   ComplianceJurisdiction
 } from "../types";
 
@@ -59,6 +61,7 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [usComplianceSector, setUsComplianceSector] = useState<UsComplianceSector | "ALL">("ALL");
   const [ukComplianceSector, setUkComplianceSector] = useState<UkComplianceSector | "ALL">("ALL");
   const [asiaComplianceSector, setAsiaComplianceSector] = useState<AsiaComplianceSector | "ALL">("ALL");
+  const [menaComplianceSector, setMenaComplianceSector] = useState<MenaComplianceSector | "ALL">("ALL");
 
   const complianceViolations = useMemo(() => {
     if (complianceJurisdiction === "TR") {
@@ -79,13 +82,18 @@ export const ContentOptimizerScreen: React.FC = () => {
     } else if (complianceJurisdiction === "UK") {
       const res = checkUkCompliance(complianceDraft);
       return ukComplianceSector === "ALL" ? res : res.filter((r) => r.sector === ukComplianceSector);
-    } else {
+    } else if (complianceJurisdiction === "ASIA") {
       return scanAsiaCompliance(
         complianceDraft,
         asiaComplianceSector === "ALL" ? undefined : asiaComplianceSector
       );
+    } else {
+      return scanMenaCompliance(
+        complianceDraft,
+        menaComplianceSector === "ALL" ? undefined : menaComplianceSector
+      );
     }
-  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector, usComplianceSector, ukComplianceSector, asiaComplianceSector]);
+  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector, usComplianceSector, ukComplianceSector, asiaComplianceSector, menaComplianceSector]);
 
   const handleSelectJurisdiction = (j: ComplianceJurisdiction) => {
     setComplianceJurisdiction(j);
@@ -105,6 +113,10 @@ export const ContentOptimizerScreen: React.FC = () => {
       setComplianceDraft(
         "Tokyo's No. 1 cosmetic cream that cures cancer and permanently removes all wrinkles! Buy Ozempic online without doctor prescription. Guaranteed 100% crypto yield and instant loans in Singapore. ステマ代行 service."
       );
+    } else if (j === "MENA") {
+      setComplianceDraft(
+        "احصل على عوائد مضمونة 100% في الكريبتو بدون أي مخاطر! علاج نهائي لمرض السكري بالأعشاب الطبيعية، اطلب أوزيمبيك وفاليوم الآن توصيل فوري في دبي والرياض بدون وصفة طبية. عقارات فاخرة للبيع بدون ترخيص فال. #إعلان"
+      );
     } else {
       setComplianceDraft(
         "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
@@ -112,7 +124,7 @@ export const ContentOptimizerScreen: React.FC = () => {
     }
   };
 
-  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation | UsComplianceViolation | AsiaComplianceViolation | UkComplianceViolation) => {
+  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation | UsComplianceViolation | AsiaComplianceViolation | UkComplianceViolation | MenaComplianceViolation) => {
     const term = v.matched_term || v.matched_pattern;
     const fix = v.suggested_replacement || v.suggested_fix;
     if (!term || !fix) return;
@@ -300,6 +312,25 @@ export const ContentOptimizerScreen: React.FC = () => {
                   Asya
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.jurisdictionBtn,
+                  complianceJurisdiction === "MENA" && styles.jurisdictionBtnActive,
+                ]}
+                onPress={() => handleSelectJurisdiction("MENA")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.jurisdictionFlag}>🇦🇪</Text>
+                <Text
+                  style={[
+                    styles.jurisdictionBtnText,
+                    complianceJurisdiction === "MENA" && styles.jurisdictionBtnTextActive,
+                  ]}
+                >
+                  MENA
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Header info */}
@@ -315,7 +346,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                     ? "ABD Federal Mevzuat Kalkanı (FTC / FDA / SEC)"
                     : complianceJurisdiction === "UK"
                     ? "Birleşik Krallık (UK) Reklam Kalkanı (ASA / CMA / FCA)"
-                    : "Asya & Pasifik (APAC) Mevzuat Kalkanı (PMDA / SAMR / MAS)"}
+                    : complianceJurisdiction === "ASIA"
+                    ? "Asya & Pasifik (APAC) Mevzuat Kalkanı (PMDA / SAMR / MAS)"
+                    : "Orta Doğu & Körfez (MENA) Mevzuat Kalkanı (BAE NMC / Suudi SFDA / VARA)"}
                 </Text>
               </View>
               <Text style={styles.complianceIntroText}>
@@ -327,7 +360,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                   ? "FTC Act Section 5, 16 CFR Part 464 (Fake Reviews Rule), FDA FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides ve PACT Act uyarınca ihlal başına 51.744 $'a varan federal cezaları önler."
                   : complianceJurisdiction === "UK"
                   ? "ASA CAP Code Rule 12 (Reçeteli İlaç & Botox yasağı), CMA Green Claims Code & DMCC Act 2024 (%10 ciro cezası) ve FCA PS23/6 Kripto Promosyon kurallarına göre ihlalleri anlık tarar."
-                  : "Japonya Yakki-ho (PMD Act) & JCAA (Stealth Marketing / Keihyo-ho), Çin Reklam Kanunu Md. 9 (SAMR Süperlatif Yasağı), Singapur MAS DPT Kripto Yönergeleri & HSA, ve Kore KFTC (뒷광고) uyarınca ceza ve kısıtlamaları önler."}
+                  : complianceJurisdiction === "ASIA"
+                  ? "Japonya Yakki-ho (PMD Act) & JCAA (Stealth Marketing / Keihyo-ho), Çin Reklam Kanunu Md. 9 (SAMR Süperlatif Yasağı), Singapur MAS DPT Kripto Yönergeleri & HSA, ve Kore KFTC (뒷광고) uyarınca ceza ve kısıtlamaları önler."
+                  : "BAE Ulusal Medya Konseyi (NMC), Suudi Arabistan SFDA & GCAM (Mawthooq Lisansı), Dubai VARA (10M AED ceza) ve Fal Gayrimenkul reklam kurallarına göre ihlalleri anlık tarar."}
               </Text>
             </GlassCard>
 
@@ -339,7 +374,11 @@ export const ContentOptimizerScreen: React.FC = () => {
                 ? "AB Mevzuat Test Senaryoları"
                 : complianceJurisdiction === "US"
                 ? "ABD Federal Mevzuat Test Senaryoları"
-                : "Asya/APAC Mevzuat Test Senaryoları"}
+                : complianceJurisdiction === "UK"
+                ? "UK Mevzuat Test Senaryoları"
+                : complianceJurisdiction === "ASIA"
+                ? "Asya/APAC Mevzuat Test Senaryoları"
+                : "MENA / Körfez Mevzuat Test Senaryoları"}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
               {complianceJurisdiction === "TR" ? (
@@ -624,7 +663,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                     <Text style={styles.presetChipText}>✅ UK Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
-              ) : (
+              ) : complianceJurisdiction === "ASIA" ? (
                 <>
                   <TouchableOpacity
                     style={styles.presetChip}
@@ -715,6 +754,69 @@ export const ContentOptimizerScreen: React.FC = () => {
                     }
                   >
                     <Text style={styles.presetChipText}>✅ Asya Uyumlu</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "اشترِ أفضل نبيذ ومشروبات كحولية أونلاين في الرياض! كازينو أونلاين وقمار مباشر في دبي بأرباح فورية ومضمونة."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🍷 Alkol & Kumar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "علاج نهائي لمرض السرطان والسكري بنسبة 100% بدون جراحة! اشترِ أوزيمبيك وفاليوم بدون وصفة طبية دبي."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏥 SFDA Sağlık & İlaç</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "جرّب هذا المنتج السحري المفضل لدي شخصياً، اطلبه الآن قبل نفاد الكمية! #تجارب #جمال (بدون ترخيص موثوق وبدون وسم إعلان)."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>📱 Mawthooq / Fenomen</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "استثمر في الكريبتو واحصل على أرباح مضمونة 100% خالية من المخاطر! تداول العملات الرقمية بدون ترخيص في دبي."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🪙 VARA/SAMA Finans</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "شقق وفلل فاخرة للبيع بالتقسيط في الرياض بدون وسيط وبدون ترخيص فال العقاري. فرصة استثمارية حصرية."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏘️ Fal / RERA Emlak</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "عيادة تجميل مرخصة من وزارة الصحة، استشارات طبية معتمدة من استشاريين مرخصين. مرخص من هيئة الصحة بدبي. #إعلان #ترخيص_موثوق"
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>✅ MENA Uyumlu</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -816,7 +918,8 @@ export const ContentOptimizerScreen: React.FC = () => {
                       </TouchableOpacity>
                     );
                   })
-                : [
+                : complianceJurisdiction === "ASIA"
+                ? [
                     { id: "ALL", label: "Tüm Asya Sektörleri" },
                     { id: "COSMETICS_HEALTH_PMDA", label: "🏥 PMDA Sağlık & Kozmetik" },
                     { id: "STEALTH_MARKETING_JCAA_KFTC", label: "⭐ JCAA/KFTC Gizli Reklam" },
@@ -832,6 +935,28 @@ export const ContentOptimizerScreen: React.FC = () => {
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setAsiaComplianceSector(s.id as any)}
+                      >
+                        <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                : [
+                    { id: "ALL", label: "Tüm Körfez Sektörleri" },
+                    { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "🕌 Kamu Ahlakı & Değerler" },
+                    { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "🏥 SFDA/MOHAP Sağlık" },
+                    { id: "INFLUENCER_MAWTHOOQ_NMC", label: "📱 Mawthooq / NMC Reklam" },
+                    { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "🪙 VARA / SAMA Finans" },
+                    { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "🏘️ Fal / RERA Emlak & Ticaret" },
+                    { id: "VAPING_TOBACCO_BAN_MENA", label: "🚭 Tütün & Vaping Yasağı" },
+                  ].map((s) => {
+                    const isAct = menaComplianceSector === s.id;
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[styles.typeChip, isAct && styles.typeChipActive]}
+                        onPress={() => setMenaComplianceSector(s.id as any)}
                       >
                         <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
                           {s.label}
@@ -883,7 +1008,11 @@ export const ContentOptimizerScreen: React.FC = () => {
                       ? "Metninizde Avrupa Birliği Direktifleri (EmpCo, EFSA, MiCA, Omnibus) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."
                       : complianceJurisdiction === "US"
                       ? "Metninizde ABD federal mevzuatı (FTC, FDA, SEC, CFPB, EPA) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."
-                      : "Metninizde Asya & Pasifik mevzuatı (PMDA, JCAA, SAMR, MAS, KFTC) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."}
+                      : complianceJurisdiction === "UK"
+                      ? "Metninizde Birleşik Krallık mevzuatı (ASA CAP Code, CMA Green Claims, DMCC Act, FCA) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."
+                      : complianceJurisdiction === "ASIA"
+                      ? "Metninizde Asya & Pasifik mevzuatı (PMDA, JCAA, SAMR, MAS, KFTC) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."
+                      : "Metninizde BAE Ulusal Medya Konseyi (NMC), Suudi SFDA/GCAM veya VARA tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."}
                   </Text>
                 </View>
               </GlassCard>
@@ -901,7 +1030,11 @@ export const ContentOptimizerScreen: React.FC = () => {
                       ? "Aşağıdaki ifadeler Avrupa Birliği tüketici, sağlık ve yeşil dönüşüm direktiflerine aykırıdır; yüksek idari para cezaları riski taşır."
                       : complianceJurisdiction === "US"
                       ? "Aşağıdaki ifadeler ABD federal mevzuatına (FTC Act, FD&C Act, SEC Rule 10b-5) aykırıdır; ihlal başına 51.744 $'a varan federal cezalar riski taşır."
-                      : "Aşağıdaki ifadeler Asya mevzuatına (Japonya PMD Act/Keihyo-ho, Çin SAMR Reklam Kanunu, Singapur MAS/HSA) aykırıdır; ağır ciro kesintileri ve cezai yaptırımlar riski taşır."}
+                      : complianceJurisdiction === "UK"
+                      ? "Aşağıdaki ifadeler Birleşik Krallık mevzuatına (ASA CAP Code, DMCC Act %10 ciro cezası, FCA Kripto) aykırıdır; ağır cezai yaptırımlar riski taşır."
+                      : complianceJurisdiction === "ASIA"
+                      ? "Aşağıdaki ifadeler Asya mevzuatına (Japonya PMD Act/Keihyo-ho, Çin SAMR Reklam Kanunu, Singapur MAS/HSA) aykırıdır; ağır ciro kesintileri ve cezai yaptırımlar riski taşır."
+                      : "Aşağıdaki ifadeler Körfez/MENA mevzuatına (BAE NMC, Suudi SFDA/GCAM, Dubai VARA) aykırıdır; 1.000.000 AED/SAR ve 10.000.000 AED'ye varan ağır para cezaları ve lisans iptali riski taşır."}
                   </Text>
                 </View>
               </GlassCard>

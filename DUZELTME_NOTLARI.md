@@ -976,3 +976,54 @@ Platformun canlıya (production) alınabilmesi için eksik kalan ilk 5 ana iş p
   4. *Mobil Platform Uyumluluğu:* React Native `Platform.OS` kontrollerinde eksik importlar giderilerek hem iOS hem Android için native paylaşım ve bildirim güvenliği sağlandı.
 
 Sistem, 6. madde (dağıtım/deployment) haricinde planlanan tüm özellikleriyle eksiksiz, güvenli ve canlıya almaya hazır durumdadır.
+
+---
+
+### 20. 🇦🇪 Orta Doğu & Körfez (MENA / GCC) Dijital Reklam Kalkanı ve UK 360° Parite Tamamlama
+
+Kullanıcı talebi doğrultusunda Orta Doğu ve Körfez bölgesinin katı reklam mevzuatları sisteme kazandırılmış, ayrıca UK (Birleşik Krallık) ve MENA uyum korumaları tüm ekranlara (Keywords, AI Asistan, Content Optimizer) ve mobil TabBar mimarisine 360 derece entegre edilmiştir.
+
+#### A. Bölgesel Mevzuat Kapsamı (BAE & Suudi Arabistan / GCC)
+1. **BAE Ulusal Medya Konseyi (NMC / MBRSC) & Suudi Arabistan Genel Medya Düzenleme Kurumu (GCAM / Mawthooq):**
+   - Fenomen ve influencer reklamlarında zorunlu lisanslama (Suudi Mawthooq Lisansı ve BAE NMC Reklam Lisansı).
+   - Gizli reklam yasağı ve zorunlu Arapça/İngilizce etiketleme (`#إعلان`, `#Ad`, `#Sponsored`, `#ترخيص_موثوق`).
+   - Cezai risk: 500.000 SAR / 1.000.000 AED para cezası, hesap kapatma ve sınır dışı.
+2. **Kamu Ahlakı ve İslami Değerler Kalkanı:**
+   - Suudi Arabistan ve Körfez ülkelerinde alkol, domuz eti, kumar, bahis, eskort ve kamu ahlakına aykırı dijital pazarlama faaliyetlerinin mutlak yasağı.
+3. **Sağlık & Tıbbi İddialar (Suudi SFDA & BAE MOHAP/DHA):**
+   - %100 kesin tedavi, kanser/diyabet mucize kür iddiaları yasağı.
+   - Reçeteli ilaçların (Ozempic, Wegovy, Valium, Xanax) hekim reçetesi olmaksızın doğrudan halka satışı/tanıtımı yasağı.
+4. **Finans & Kripto Varlıklar (Dubai VARA & Suudi SAMA):**
+   - Dubai Sanal Varlıklar Düzenleme Kurumu (VARA) lisansı olmaksızın kripto para alım-satım ve yield/getiri reklamları yasağı.
+   - İhlal riski: 10.000.000 AED'ye varan ceza.
+5. **Gayrimenkul ve E-Ticaret (Suudi Fal / REGA & Dubai RERA Trakheesi):**
+   - Lisanssız emlak ilanı verme yasağı (Suudi REGA Fal yetki belgesi ve Dubai Trakheesi onay numarası zorunluluğu).
+   - Tütün ve e-sigara (vape) doğrudan online pazarlama yasakları (ESMA/SFDA).
+
+#### B. Mimari Uygulama & Parite
+- **Backend Kural Motoru (`services/seo_engine/rules/mena_compliance.py`):**
+  - `MenaComplianceSector` enum (`ISLAMIC_VALUES_PUBLIC_MORALS`, `HEALTH_MEDICAL_MOHAP_SFDA`, `INFLUENCER_MAWTHOOQ_NMC`, `FINANCIAL_CRYPTO_VARA_SAMA`, `ECOMMERCE_REAL_ESTATE_FAL`, `VAPING_TOBACCO_BAN_MENA`).
+  - Çift dilli (Arapça & İngilizce) regex ve Arapça harekeli/harekesiz normalizasyon fonksiyonu (`normalize_mena_text`).
+  - `MenaRegulatoryComplianceRule(SeoRule)` sınıfı ve `services/seo_engine/engine.py` entegrasyonu.
+- **Python Birim Testleri (`tests/unit/test_mena_compliance.py`):**
+  - 8 yeni birim test ile alkol/kumar, mucize tıp, reçeteli ilaç, Mawthooq/NMC lisanssız reklam, VARA kripto, Fal gayrimenkul, temiz metin ve motor entegrasyonu test edildi (8/8 Başarılı).
+  - Genel Pytest Test Paketi: **317 / 317 Test Başarılı** (%100 Başarı Oranı).
+- **Web Uygulaması (`apps/web`):**
+  - `compliance-mena.ts`: BAE ve Suudi Arabistan kuralları motoru.
+  - `content/page.tsx`: 6'lı yargı alanı seçici `[ 🇦🇪 BAE & Körfez / MENA (NMC / SFDA / GCAM) ]`, hazır test senaryoları, sektör filtreleri ve ceza uyarıları.
+  - `keywords/page.tsx`: UK ve MENA anahtar kelime ihlal taramaları, `🇬🇧 UK Violation` ve `🇦🇪 MENA İhlali` rozetleri, yeni kelime ekleme modalinde anlık mevzuat uyarısı ve güvenli kelime önerisi.
+  - `ai/page.tsx`: UK ve MENA hızlı danışmanlık butonları ve mevzuat asistanı zekası.
+- **Mobil Uygulama (`apps/mobile`):**
+  - `types/index.ts` & `services/api.ts`: MENA sektör ve ihlal tipleri, MENA veritabanı kural seti, `checkMenaCompliance` ve `scanMenaCompliance` servisleri.
+  - `ContentOptimizerScreen.tsx`: 6'lı yargı alanı butonları, Arapça/İngilizce MENA test senaryoları, sektör filtreleme ve tek tıkla otomatik metin düzeltme.
+  - `KeywordsScreen.tsx`: UK (`🇬🇧 UK Uyum Riski`) ve MENA (`🇦🇪 MENA Riski`) rozetleri, modal içinde canlı uyarı kutuları ve alternatif kelimeye geçiş aksiyonu.
+  - `AiAssistantScreen.tsx`: `"🇬🇧 UK / ASA & CMA Kuralları"` ve `"🇦🇪 BAE & Körfez / MENA Mevzuatı"` hızlı promptları.
+  - `components/TabBar.tsx`: Hub alt sekmesi olan `"backlinks"` rotası `isHubChild` listesine eklenerek sekmeler arası aktif ikon vurgulama hatası giderildi.
+
+#### C. Doğrulama ve Test İstatistikleri
+- **Python Testleri:** `317 / 317 geçti` (0 hata, 0 uyarı, 9.56 saniye).
+- **TypeScript Derlemesi:**
+  - `apps/web`: **0 hata** (`npx tsc --noEmit` başarılı).
+  - `apps/mobile`: **0 hata** (`npx tsc --noEmit` başarılı).
+- **Git Takibi:** Tüm backend, web, mobil ve test dosyaları commit edilerek GitHub ana dalına (`origin/main`) aktarılmıştır.
+
