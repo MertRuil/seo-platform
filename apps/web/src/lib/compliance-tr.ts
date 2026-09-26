@@ -246,6 +246,25 @@ export const TURKISH_COMPLIANCE_RULES: RuleDefinition[] = [
     suggestedFix: "'Yasal cayma hakkı kapsamında 14 gün içinde kolay iade imkanı'",
     severity: "MEDIUM",
   },
+  {
+    id: "TR_COMMERCIAL_FAKE_SCARCITY",
+    sector: "SUPERLATIVE_COMMERCIAL",
+    title: "Sahte Stok Kıtlığı ve Aciliyet Baskısı (Dark Patterns)",
+    patterns: [
+      /\b(?:yalnizca\s+|sadece\s+)?(?:stokta\s+)?son\s+\d+(?:\s+(?:adet|urun|parca|paket|kisiye))?\s+kald[ıi]\b/i,
+      /\b(?:sadece|yalnizca)\s+son\s+\d+\s+(?:adet|urun)\b/i,
+      /\bhemen\s+almazsan[ıi]z\s+tuken(?:ir|iyor)\b/i,
+      /\bstoklar\s+tukenmek\s+uzere\b/i,
+      /\bacele\s+edin\s+tukeniyor\b/i,
+      /\bf[ıi]rsat\s+bitmek\s+uzere\b/i,
+      /\btukenmeden\s+al[ıi]n\b/i,
+      /\b(?:yalnizca|sadece)\s+\d+\s+dakikan[ıi]z\s+kald[ıi]\b/i,
+    ],
+    legalBasis: "6502 sayılı Tüketicinin Korunması Hakkında Kanun md. 61 & Ticari Reklam Yönetmeliği md. 28 (Dark Patterns)",
+    penaltyRisk: "Reklam Kurulu tarafından 2.158.950 TL'den 8.635.800 TL'ye varan idari para cezası ve reklam durdurma yaptırımı.",
+    suggestedFix: "Yapay kıtlık baskısı oluşturmayın; stok miktarını envanterle teyitli veya 'Stokta var' şeklinde nesnel belirtin.",
+    severity: "HIGH",
+  },
 
   // 6. Yasadışı Bahis ve Tütün
   {

@@ -80,8 +80,10 @@ export const ContentOptimizerScreen: React.FC = () => {
         usComplianceSector === "ALL" ? undefined : usComplianceSector
       );
     } else if (complianceJurisdiction === "UK") {
-      const res = checkUkCompliance(complianceDraft);
-      return ukComplianceSector === "ALL" ? res : res.filter((r) => r.sector === ukComplianceSector);
+      return checkUkCompliance(
+        complianceDraft,
+        ukComplianceSector === "ALL" ? undefined : ukComplianceSector
+      );
     } else if (complianceJurisdiction === "ASIA") {
       return scanAsiaCompliance(
         complianceDraft,
@@ -121,6 +123,36 @@ export const ContentOptimizerScreen: React.FC = () => {
       setComplianceDraft(
         "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
       );
+    }
+  };
+
+  const formatSectorBadge = (sector: string): string => {
+    const clean = sector.replace(/^UK_/, "");
+    switch (clean) {
+      case "HEALTH_ASA_CAP":
+        return "🏥 ASA Sağlık / POM";
+      case "FINANCIAL_FCA":
+        return "🪙 FCA Kripto & Finans";
+      case "GREEN_CLAIMS_CMA":
+        return "🌿 CMA Yeşil İddialar";
+      case "CONSUMER_CMA_ASA":
+        return "⏱️ DMCC Sahte Kıtlık";
+      case "VAPING_TOBACCO_ASA":
+        return "🚭 ASA Vaping Yasağı";
+      case "SUPERLATIVE_COMMERCIAL":
+        return "🛒 E-Ticaret & Kıtlık";
+      case "HEALTH_MEDICAL":
+        return "🏥 Sağlık & Klinik";
+      case "FOOD_SUPPLEMENT":
+        return "💊 Gıda & Zayıflama";
+      case "LEGAL_SERVICES":
+        return "⚖️ Hukuk & Avukatlık";
+      case "FINANCIAL_SERVICES":
+        return "💳 Finans & Kredi";
+      case "ILLEGAL_BETTING_TOBACCO":
+        return "🚭 Bahis & Tütün";
+      default:
+        return clean;
     }
   };
 
@@ -1045,7 +1077,7 @@ export const ContentOptimizerScreen: React.FC = () => {
               <GlassCard key={i} style={styles.violationItemCard}>
                 <View style={styles.violationCardHeader}>
                   <View style={styles.sectorBadge}>
-                    <Text style={styles.sectorBadgeText}>{v.sector}</Text>
+                    <Text style={styles.sectorBadgeText}>{formatSectorBadge(v.sector)}</Text>
                   </View>
                   <View
                     style={[

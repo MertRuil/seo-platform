@@ -238,6 +238,25 @@ TURKISH_REGULATORY_RULES = [
         "suggested_fix": "'Yasal cayma hakkı kapsamında 14 gün içinde kolay iade imkanı'",
         "severity": IssueSeverity.MEDIUM,
     },
+    {
+        "id": "TR_COMMERCIAL_FAKE_SCARCITY",
+        "sector": TurkishComplianceSector.SUPERLATIVE_COMMERCIAL,
+        "title": "Sahte Stok Kıtlığı ve Aciliyet Baskısı (Dark Patterns)",
+        "patterns": [
+            r"\b(?:yalnizca\s+|sadece\s+)?(?:stokta\s+)?son\s+\d+(?:\s+(?:adet|urun|parca|paket|kisiye))?\s+kaldi\b",
+            r"\b(?:sadece|yalnizca)\s+son\s+\d+\s+(?:adet|urun)\b",
+            r"\bhemen\s+almazsaniz\s+tuken(?:ir|iyor)\b",
+            r"\bstoklar\s+tukenmek\s+uzere\b",
+            r"\bacele\s+edin\s+tukeniyor\b",
+            r"\bfirsat\s+bitmek\s+uzere\b",
+            r"\btukenmeden\s+alin\b",
+            r"\b(?:yalnizca|sadece)\s+\d+\s+dakikaniz\s+kaldi\b",
+        ],
+        "legal_basis": "6502 sayılı Tüketici Kanunu md. 61 & Ticari Reklam Yönetmeliği md. 28 / Haksız Ticari Uygulamalar (Dark Patterns)",
+        "penalty_risk": "Reklam Kurulu tarafından 2.158.950 TL'den 8.635.800 TL'ye varan idari para cezası ve reklam durdurma.",
+        "suggested_fix": "Yapay aciliyet ve kıtlık baskısı oluşturmayın; stok miktarını ERP/envanterle teyitli veya nesnel olarak 'Stokta var' şeklinde belirtin.",
+        "severity": IssueSeverity.HIGH,
+    },
 
     # -------------------------------------------------------------
     # 6. YASADIŞI BAHİS, TÜTÜN VE ELEKTRONİK SİGARA

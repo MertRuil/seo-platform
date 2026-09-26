@@ -62,6 +62,28 @@ def test_commercial_unproven_superlative_detected():
     assert any(v["rule_id"] == "TR_COMMERCIAL_UNPROVEN_SUPERLATIVE" for v in violations)
     assert any(v["sector"] == TurkishComplianceSector.SUPERLATIVE_COMMERCIAL.value for v in violations)
 
+def test_commercial_fake_scarcity_detected():
+    # 1. "son 3 adet kaldı"
+    text1 = "Acele edin, bu fiyata son 3 adet kaldı!"
+    violations1 = scan_text_for_turkish_compliance(text1)
+    assert any(v["rule_id"] == "TR_COMMERCIAL_FAKE_SCARCITY" for v in violations1)
+    assert any(v["sector"] == TurkishComplianceSector.SUPERLATIVE_COMMERCIAL.value for v in violations1)
+
+    # 2. "stokta son 1 ürün kaldı"
+    text2 = "Stokta son 1 ürün kaldı hemen sipariş verin."
+    violations2 = scan_text_for_turkish_compliance(text2)
+    assert any(v["rule_id"] == "TR_COMMERCIAL_FAKE_SCARCITY" for v in violations2)
+
+    # 3. "yalnızca son 5 adet kaldı"
+    text3 = "Depomuzda yalnızca son 5 adet kaldı tükenmeden alın."
+    violations3 = scan_text_for_turkish_compliance(text3)
+    assert any(v["rule_id"] == "TR_COMMERCIAL_FAKE_SCARCITY" for v in violations3)
+
+    # 4. "hemen almazsanız tükeniyor"
+    text4 = "Kampanya süresi doluyor, hemen almazsanız tükeniyor!"
+    violations4 = scan_text_for_turkish_compliance(text4)
+    assert any(v["rule_id"] == "TR_COMMERCIAL_FAKE_SCARCITY" for v in violations4)
+
 def test_illegal_betting_and_vape_detected():
     text = "Canlı bahis oyna ve elektronik sigara satın al."
     violations = scan_text_for_turkish_compliance(text)

@@ -1780,6 +1780,38 @@ export const TURKISH_MOBILE_COMPLIANCE_RULES = [
     severity: "HIGH" as const,
   },
   {
+    rule_id: "TR_COMMERCIAL_FAKE_SCARCITY",
+    sector: "SUPERLATIVE_COMMERCIAL" as ComplianceSector,
+    title: "Sahte Stok Kıtlığı ve Aciliyet Baskısı (Dark Patterns)",
+    patterns: [
+      /\b(?:yalnizca\s+|sadece\s+)?(?:stokta\s+)?son\s+\d+(?:\s+(?:adet|urun|parca|paket|kisiye))?\s+kald[ıi]\b/i,
+      /\b(?:sadece|yalnizca)\s+son\s+\d+\s+(?:adet|urun)\b/i,
+      /\bhemen\s+almazsan[ıi]z\s+tuken(?:ir|iyor)\b/i,
+      /\bstoklar\s+tukenmek\s+uzere\b/i,
+      /\bacele\s+edin\s+tukeniyor\b/i,
+      /\bf[ıi]rsat\s+bitmek\s+uzere\b/i,
+      /\btukenmeden\s+al[ıi]n\b/i,
+      /\b(?:yalnizca|sadece)\s+\d+\s+dakikan[ıi]z\s+kald[ıi]\b/i,
+    ],
+    legal_basis: "6502 S.K. md. 61 & Ticari Reklam Yönetmeliği md. 28 (Dark Patterns)",
+    penalty_risk: "Reklam Kurulu tarafından 2.158.950 TL'den 8.635.800 TL'ye varan idari para cezası ve reklam durdurma.",
+    suggested_fix: "Yapay aciliyet ve kıtlık baskısı oluşturmayın; stok miktarını envanterle teyitli veya 'Stokta var' şeklinde nesnel belirtin.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "TR_COMMERCIAL_RETURN",
+    sector: "SUPERLATIVE_COMMERCIAL" as ComplianceSector,
+    title: "Koşulsuz Şartsız İade Yanıltmacası",
+    patterns: [
+      /\bkosulsuz\s+sartsiz\s+iade\b/i,
+      /\bsartsiz\s+iade\s+garantisi\b/i,
+    ],
+    legal_basis: "Mesafeli Sözleşmeler Yönetmeliği md. 15 (Cayma hakkı istisnaları)",
+    penalty_risk: "Tüketiciyi cayma hakkı konusunda yanıltmaktan dolayı idari yaptırım.",
+    suggested_fix: "'Yasal cayma hakkı kapsamında 14 gün içinde kolay iade imkanı'",
+    severity: "MEDIUM" as const,
+  },
+  {
     rule_id: "TR_ILLEGAL_BETTING",
     sector: "ILLEGAL_BETTING_TOBACCO" as ComplianceSector,
     title: "Yasadışı Bahis ve Tütün Satışı Yasağı",
@@ -1805,6 +1837,7 @@ export function scanTurkishCompliance(text: string, sector?: ComplianceSector): 
         const start = match.index;
         const end = start + match[0].length;
         const snippet = text.slice(Math.max(0, start - 20), Math.min(text.length, end + 20));
+        const matchedTerm = text.slice(start, end) || match[0];
 
         violations.push({
           rule_id: rule.rule_id,
@@ -1812,7 +1845,7 @@ export function scanTurkishCompliance(text: string, sector?: ComplianceSector): 
           title: rule.title,
           explanation: rule.title,
           matched_pattern: match[0],
-          matched_term: match[0],
+          matched_term: matchedTerm,
           context_snippet: snippet.trim(),
           legal_basis: rule.legal_basis,
           legal_reference: rule.legal_basis,
@@ -3279,7 +3312,7 @@ interface UkComplianceRuleDefinition {
 export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   {
     rule_id: "UK-ASA-12-1-BOTOX",
-    sector: "UK_HEALTH_ASA_CAP",
+    sector: "HEALTH_ASA_CAP",
     title: "Reçeteli İlaç (Botox / POM) Reklam Yasağı İhlali",
     pattern: /\b(botox|botulinum toxin|dysport|azzalure|prescription medicine|reçeteli enjeksiyon)\b/i,
     legal_basis: "UK ASA CAP Code Rule 12.12 & Human Medicines Regulations 2012 (Regulation 284)",
@@ -3291,7 +3324,7 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
   {
     rule_id: "UK-ASA-12-1-CURE",
-    sector: "UK_HEALTH_ASA_CAP",
+    sector: "HEALTH_ASA_CAP",
     title: "Kanıtlanmamış Tıbbi Tedavi & Mucizevi İyileşme İddiası",
     pattern: /\b(cures? cancer|miracle cure|100% cure|guaranteed weight loss|hastalığı tamamen iyileştirir|mucize tedavi|garantili zayıflama)\b/i,
     legal_basis: "UK ASA CAP Code Rule 12.1 (Objective claims must be backed by robust scientific evidence)",
@@ -3303,7 +3336,7 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
   {
     rule_id: "UK-FCA-PS23-CRYPTO",
-    sector: "UK_FINANCIAL_FCA",
+    sector: "FINANCIAL_FCA",
     title: "FCA Kripto ve Finansal Promosyon Kuralı (Risk Uyarısı Yok)",
     pattern: /\b(crypto investment|guaranteed crypto returns|zero risk investment|kripto para garantili getiri|risksiz yatırım|100% profit crypto)\b/i,
     legal_basis: "FCA Financial Promotions Regime for Cryptoassets (PS23/6 & FSMA 2000 Section 21)",
@@ -3315,7 +3348,7 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
   {
     rule_id: "UK-CMA-GREEN-CLAIMS",
-    sector: "UK_GREEN_CLAIMS_CMA",
+    sector: "GREEN_CLAIMS_CMA",
     title: "CMA Yeşil Aklama (Greenwashing) ve Kanıtsız Eko İddiası",
     pattern: /\b(100% eco-friendly|100% green|carbon neutral|net zero product|tamamen çevre dostu|sıfır karbonlu ürün)\b/i,
     legal_basis: "UK CMA Green Claims Code & Digital Markets, Competition and Consumers (DMCC) Act 2024",
@@ -3327,9 +3360,9 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
   {
     rule_id: "UK-CMA-FAKE-SCARCITY",
-    sector: "UK_CONSUMER_CMA_ASA",
+    sector: "CONSUMER_CMA_ASA",
     title: "Sahte Kıtlık ve Aciliyet Baskısı (Dark Patterns)",
-    pattern: /\b(only \d+ left in stock|offer ends in \d+ minutes|hemen almazsanız tükeniyor|yalnızca son \d+ adet kaldı)\b/i,
+    pattern: /\b(only \d+ left in stock|offer ends in \d+ minutes|hemen almazsanız tükeniyor|(?:yalnızca\s+|sadece\s+)?son \d+ (?:adet|ürün) kaldı)\b/i,
     legal_basis: "CMA Online Choice Architecture Guidance & ASA CAP Code Rule 3.1",
     legal_reference: "DMCC Act 2024 Banned Unfair Commercial Practices (Schedule 20)",
     penalty_risk: "CMA ve Trading Standards tüketiciyi aldatıcı ticari uygulama cezası",
@@ -3339,7 +3372,7 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
   {
     rule_id: "UK-ASA-22-VAPING",
-    sector: "UK_VAPING_TOBACCO_ASA",
+    sector: "VAPING_TOBACCO_ASA",
     title: "Elektronik Sigara ve Vaping Promosyon Yasağı",
     pattern: /\b(disposable vape|elf bar|geek bar|nicotine vape|elektronik sigara satın al|likit dolum)\b/i,
     legal_basis: "UK ASA CAP Code Rule 22.12 & Tobacco and Related Products Regulations 2016 (TRPR)",
@@ -3351,12 +3384,18 @@ export const UK_COMPLIANCE_DATABASE: UkComplianceRuleDefinition[] = [
   },
 ];
 
-export function checkUkCompliance(text: string): UkComplianceViolation[] {
+export function checkUkCompliance(text: string, sector?: UkComplianceSector | "ALL"): UkComplianceViolation[] {
   if (!text || text.trim().length === 0) return [];
 
   const violations: UkComplianceViolation[] = [];
+  const normalizedTargetSector = sector && sector !== "ALL" ? sector.replace(/^UK_/, "") : undefined;
 
   for (const rule of UK_COMPLIANCE_DATABASE) {
+    const ruleSector = rule.sector.replace(/^UK_/, "");
+    if (normalizedTargetSector && ruleSector !== normalizedTargetSector) {
+      continue;
+    }
+
     const match = text.match(rule.pattern);
     if (match) {
       const matchIndex = match.index || 0;

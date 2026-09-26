@@ -23,8 +23,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`fc00dbb`** | `feat(compliance-asia): asya pasifik apac mevzuati jcaa samr mas pmda kalkani (web, mobil, backend)` | PMD Act 2024, JCAA/KFTC Stealth Marketing, SAMR Süperlatifler, MAS Kripto/Finans, Singapur CCCS Greenwashing |
 | **`cb80c7d`** | `feat(production-ready): 5 ana modülün tamamlanması (backlinks, raporlama, google hub, alarmlar, uk kalkanı)` | Backlink Engine & Google Disavow, Whitelabel Export Suite, Google GSC+GA4 Live Sync Hub, Çok Kanallı Alarm Dispatcher, UK ASA/CMA/FCA Mevzuat Kalkanı |
 | **`30181a0`** | `fix(google-sync): sahte veri yerine dogru hata durumu ve engelleme kalkanı` | Google Search Console & GA4 bağlantı hatası durumunda sahte metriklerin engellenmesi, doğru hata durumu ve kalkan banner'ları |
-| **`836c628`** | `fix(notifications): webhook adres filtreleme ve telegram html entity guvenligi` | Webhook URL substring eşleşme hatası onarımı, SSRF doğrulaması ve Telegram `<, >, &` HTML entity güvenli kaçırma altyapısı |
-| **`(güncel)`** | `fix(backlinks): site bazli backlink izolasyonu ve yanlis disavow sizintisi onarimi` | Farklı sitelerde Acme verisinin gösterilmesi ve yabancı spam sitelerin Google Disavow dosyasına sızması engellendi; site bazlı veri izolasyonu |
+| **`59bc383`** | `fix(backlinks): site bazli backlink izolasyonu ve yanlis disavow sizintisi onarimi` | Farklı sitelerde Acme verisinin gösterilmesi ve yabancı spam sitelerin Google Disavow dosyasına sızması engellendi; site bazlı veri izolasyonu |
+| **`(güncel)`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
 
 
 ---
@@ -1183,6 +1183,46 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
   - `test_generate_google_disavow_file_site_scoped_prevents_leakage`: `analyticshub.com` için disavow istendiğinde Acme'nin spam linklerinin asla yer almadığı ve `domain:` direktifi üretilmediği doğrulandı.
   - `test_site_isolated_backlinks_retrieval`: Site 1 (Acme), Site 2 (AnalyticsHub) ve Özel Sitelerin link ve toksisite izolasyonu doğrulandı.
 - **Sonuç:** `328 / 328 pytest testi başarılı` (%100 Başarı). TypeScript: Web ve Mobil 0 Hata.
+
+---
+
+### 24. 🛡️ UK Sektör Filtresi Eşleşme Onarımı ve Türkçe "Son 3 Adet Kaldı" (Dark Patterns / Aciliyet Baskısı) Kuralı
+
+**Kullanıcı Bildirimi:**
+*"Uyumluluk kontrolü yanıltıyor: Mobilde UK sektör filtreleri hiçbir sonuçla eşleşmiyor, bu yüzden kural ihlali içeren bir metin 'tam uyumlu' görünüyor. Türkçe 'son 3 adet kaldı' kuralı da hiç çalışmıyor. kontrol sağla hataları düzelt"*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+1. **UK Sektör Enum Prefix Uyumsuzluğu (False Compliant Durumu):**
+   - [`apps/mobile/src/screens/ContentOptimizerScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ContentOptimizerScreen.tsx) üzerindeki UK sektör çipleri (chips) `"HEALTH_ASA_CAP"`, `"FINANCIAL_FCA"`, `"GREEN_CLAIMS_CMA"`, `"CONSUMER_CMA_ASA"`, `"VAPING_TOBACCO_ASA"` ID'lerine sahipti.
+   - Ancak [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts) içerisindeki `UK_COMPLIANCE_DATABASE` kuralları `"UK_HEALTH_ASA_CAP"` gibi `"UK_"` ön ekiyle tanımlanmıştı.
+   - Ekran üzerindeki sektör filtresi `res.filter((r) => r.sector === ukComplianceSector)` kontrolü yaptığında, `"UK_HEALTH_ASA_CAP" === "HEALTH_ASA_CAP"` eşleşmesi hiçbir zaman sağlanamıyor ve sonuç boş dizi (`[]`) dönüyordu.
+   - Bu durum, metin içerisinde açıkça Botox, sahte kıtlık veya kripto ihlalleri olmasına rağmen kullanıcı sektöre tıkladığında sistemin yanıltıcı şekilde **"0 İhlal Tespit Edildi — İçerik seçili standartlarla tam uyumlu"** göstermesine neden oluyordu.
+2. **Türkçe Mevzuatta Sahte Kıtlık (Dark Patterns / "Son 3 Adet Kaldı") Kuralının Bulunmaması:**
+   - 6502 sayılı Tüketicinin Korunması Hakkında Kanun (md. 61 & 62) ve Ticari Reklam ve Haksız Ticari Uygulamalar Yönetmeliği (md. 28) uyarınca; gerçek bir stok kısıtı olmaksızın tüketicide aciliyet hissi uyandırarak satın alma kararını manipüle eden "Son 3 adet kaldı", "Stoklar tükeniyor", "Hemen almazsanız tükeniyor" gibi karanlık arayüz tasarımları (Dark Patterns) Reklam Kurulu tarafından cezalandırılan aldatıcı ticari uygulamalardır.
+   - Ancak bu kural Türkçe kurallar veri tabanında (`TURKISH_MOBILE_COMPLIANCE_RULES`, `compliance-tr.ts`, `turkish_compliance.py`) hiç tanımlanmamıştı. Dahası, sadece UK kuralları içerisine hatalı şekilde `yalnızca son \d+ adet kaldı` olarak yerleştirilmiş; kullanıcı "son 3 adet kaldı" yazdığında hiçbir denetim motoru tarafından yakalanamıyordu.
+
+#### B. Gerçekleştirilen Düzeltmeler
+1. **UK Sektör Standartlaşması ve Dayanıklı Filtreleme:**
+   - [`apps/mobile/src/types/index.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/types/index.ts) dosyasında `UkComplianceSector` tipi standartlaştırılarak hem ön eksiz (`HEALTH_ASA_CAP`) hem de ön ekli (`UK_HEALTH_ASA_CAP`) değerleri kapsayacak şekilde genişletildi.
+   - [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts) dosyasındaki `UK_COMPLIANCE_DATABASE` sektörleri standart (`HEALTH_ASA_CAP`, `FINANCIAL_FCA`, `GREEN_CLAIMS_CMA`, `CONSUMER_CMA_ASA`, `VAPING_TOBACCO_ASA`) formata getirildi.
+   - `checkUkCompliance(text, sector?)` fonksiyonuna doğrudan sektör filtresi desteği eklendi ve `replace(/^UK_/, "")` normalizasyonu ile ön ek uyuşmazlıklarına karşı %100 dayanıklı hale getirildi.
+   - [`apps/mobile/src/screens/ContentOptimizerScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ContentOptimizerScreen.tsx) içerisindeki sektör filtresi doğrudan `checkUkCompliance(complianceDraft, ukComplianceSector === "ALL" ? undefined : ukComplianceSector)` çağrısına bağlandı ve rozetlerde anlaşılır başlıklar (`formatSectorBadge`) gösterildi.
+2. **Türkçe Sahte Stok Kıtlığı ve Aciliyet Baskısı (Dark Patterns) Kuralı:**
+   - **Kural ID:** `TR_COMMERCIAL_FAKE_SCARCITY` (Sektör: `SUPERLATIVE_COMMERCIAL`).
+   - **Kapsam:** "Son 3 adet kaldı", "Son 1 ürün kaldı", "Stokta son 2 adet kaldı", "Yalnızca son 5 adet kaldı", "Hemen almazsanız tükeniyor", "Stoklar tükenmek üzere", "Acele edin tükeniyor", "Tükenmeden alın".
+   - **Uygulanan Katmanlar:**
+     - Mobil Servis Katmanı: [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts) (`TURKISH_MOBILE_COMPLIANCE_RULES` ve `scanTurkishCompliance` orijinal harf koruması).
+     - Web Kütüphanesi: [`apps/web/src/lib/compliance-tr.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/lib/compliance-tr.ts) (`TURKISH_COMPLIANCE_RULES`).
+     - Backend SEO Motoru: [`services/seo_engine/rules/turkish_compliance.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/seo_engine/rules/turkish_compliance.py) (`TURKISH_REGULATORY_RULES`).
+     - UK Kural Güncellemesi: UK'deki `UK-CMA-FAKE-SCARCITY` kuralı da `(?:yalnızca\s+|sadece\s+)?son \d+ (?:adet|ürün) kaldı` varyasyonlarını destekleyecek şekilde güncellendi.
+
+#### C. Test ve Doğrulama
+- **Eklenen Birim Testleri:**
+  - [`tests/unit/test_turkish_compliance.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_turkish_compliance.py): `test_commercial_fake_scarcity_detected` testi eklenerek "son 3 adet kaldı", "stokta son 1 ürün kaldı", "yalnızca son 5 adet kaldı" ve "hemen almazsanız tükeniyor" ifadelerinin Reklam Kurulu `TR_COMMERCIAL_FAKE_SCARCITY` kuralıyla başarıyla yakalandığı doğrulandı.
+  - [`tests/unit/test_uk_compliance.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_uk_compliance.py): `test_uk_compliance_dark_patterns_scarcity` testi ile UK DMCC Act 2024 kapsamındaki kıtlık ihlallerinin tespiti doğrulandı.
+- **Test Sonuçları:**
+  - Python Birim Testleri: `330 / 330 başarılı` (%100 Geçti).
+  - TypeScript Derleme: Hem `apps/mobile` hem de `apps/web` **0 Hata** ile doğrulandı.
 
 
 

@@ -78,3 +78,16 @@ def test_uk_compliance_vaping_promotion():
     assert result.passed is False
     violations = result.evidence["violations"]
     assert any(v["rule_id"] == "UK_ASA_VAPING_PROMOTION" for v in violations)
+
+def test_uk_compliance_dark_patterns_scarcity():
+    rule = UkRegulatoryComplianceRule()
+    page_context = {
+        "title": "Exclusive Watch Deals UK",
+        "content": "Hurry! Only 2 left in stock! Offer expires in 10 minutes, countdown timer hurry."
+    }
+    result = rule.check(page_context)
+    assert result is not None
+    assert result.passed is False
+    violations = result.evidence["violations"]
+    assert any(v["rule_id"] == "UK_CMA_DARK_PATTERNS" for v in violations)
+    assert any(v["sector"] == UkComplianceSector.CONSUMER_CMA_ASA.value for v in violations)

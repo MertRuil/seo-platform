@@ -449,6 +449,11 @@ export interface AsiaComplianceViolation {
 }
 
 export type UkComplianceSector =
+  | "HEALTH_ASA_CAP"
+  | "FINANCIAL_FCA"
+  | "GREEN_CLAIMS_CMA"
+  | "CONSUMER_CMA_ASA"
+  | "VAPING_TOBACCO_ASA"
   | "UK_HEALTH_ASA_CAP"
   | "UK_FINANCIAL_FCA"
   | "UK_GREEN_CLAIMS_CMA"
