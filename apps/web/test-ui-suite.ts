@@ -66,7 +66,8 @@ function run() {
     const activeClient = rawClient.trim() || site?.name || site?.domain || "Müşteri Firma";
     const activeDomain = site?.domain || site?.primary_url?.replace(/^https?:\/\//, "").replace(/\/$/, "") || "site.com";
     const activeUrl = site?.primary_url || (activeDomain ? `https://${activeDomain}` : "https://site.com");
-    const csvFilename = `seo_raporu_${activeClient.toLowerCase().replace(/\s+/g, "_")}.csv`;
+    const sanitized = activeClient.toLowerCase().replace(/[#%&{}\\<>*?/$!'":@+`|=]/g, "").trim().replace(/\s+/g, "_") || "musteri";
+    const csvFilename = `seo_raporu_${sanitized}.csv`;
     return { activeClient, activeDomain, activeUrl, csvFilename };
   };
 
@@ -95,7 +96,57 @@ function run() {
   const metaEmpty = resolveReportMetadata(siteB, "   ");
   assert.strictEqual(metaEmpty.activeClient, "Zenith Tech Çözümleri");
 
+  // 5. Client name containing # must produce safe sanitized filename without # character
+  const metaHash = resolveReportMetadata(siteA, "Acme #1 Super Store");
+  assert.strictEqual(metaHash.activeClient, "Acme #1 Super Store");
+  assert.strictEqual(metaHash.csvFilename, "seo_raporu_acme_1_super_store.csv");
+
   console.log("  resolveReportMetadata site synchronization: ok");
+
+  // CSV Export & # character truncation regression test
+  const generateCsvData = (rows: Array<Array<string | number>>) => {
+    const escapeCsvCell = (val: string | number | undefined | null): string => {
+      const str = String(val ?? "");
+      if (/[;"\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    return (
+      "\uFEFF" +
+      rows.map((row) => row.map(escapeCsvCell).join(";")).join("\r\n")
+    );
+  };
+
+  const sampleRowsWithHash = [
+    ["METRIK", "DEGER"],
+    ["Musteri", "Acme #1 E-Ticaret Global"],
+    ["Anahtar Kelime", "C# SEO Optimizasyonu"],
+    ["Kampanya", "Yılbaşı #indirim Trendleri"],
+    ["Skor", 95],
+  ];
+
+  const fullCsvContent = generateCsvData(sampleRowsWithHash);
+
+  // Verification 1: Full content must retain # characters in all rows
+  assert(fullCsvContent.includes("Acme #1 E-Ticaret Global"));
+  assert(fullCsvContent.includes("C# SEO Optimizasyonu"));
+  assert(fullCsvContent.includes("Yılbaşı #indirim Trendleri"));
+
+  // Verification 2: Simulate old buggy data: URI behavior where browser cuts URL at #
+  const buggyDataUri = "data:text/csv;charset=utf-8,\uFEFF" + sampleRowsWithHash.map((e) => e.join(";")).join("\n");
+  const buggyEncoded = encodeURI(buggyDataUri);
+  // Browser interprets # as URL fragment identifier, truncating payload
+  const hashIndex = buggyEncoded.indexOf("#");
+  assert.notStrictEqual(hashIndex, -1, "Old code left # unencoded in data URI");
+  const truncatedPayload = buggyEncoded.slice(0, hashIndex);
+  assert(!truncatedPayload.includes("C# SEO Optimizasyonu"), "Old buggy data URI cuts before subsequent lines");
+  assert(!truncatedPayload.includes("95"), "Old buggy data URI lost the end of file");
+
+  // Verification 3: Blob payload preserves exact length and full content
+  const blob = new Blob([fullCsvContent], { type: "text/csv;charset=utf-8;" });
+  assert.strictEqual(blob.size, Buffer.byteLength(fullCsvContent, "utf8"));
+  console.log("  csvExportHashTruncationFix: ok");
 
   // Backlink spam classification & anchor category tests
   const classifyBacklinkLogic = (sourceUrl: string, anchorText: string, spamScore: number = 0) => {

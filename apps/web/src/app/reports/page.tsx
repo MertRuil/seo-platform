@@ -85,20 +85,37 @@ export default function ReportsPage() {
       ["teknik seo denetimi nasil yapilir", "14", "-5", "3200", "9.8"],
     ];
 
-    const csvContent =
-      "data:text/csv;charset=utf-8,\uFEFF" +
-      csvRows.map((e) => e.join(";")).join("\n");
+    const escapeCsvCell = (val: string | number | undefined | null): string => {
+      const str = String(val ?? "");
+      if (/[;"\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
 
-    const encodedUri = encodeURI(csvContent);
+    const csvContent =
+      "\uFEFF" +
+      csvRows
+        .map((row) => row.map(escapeCsvCell).join(";"))
+        .join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.href = url;
+    const sanitizedClientName = activeClient
+      .toLowerCase()
+      .replace(/[#%&{}\\<>*?/$!'":@+`|=]/g, "")
+      .trim()
+      .replace(/\s+/g, "_") || "musteri";
     link.setAttribute(
       "download",
-      `seo_raporu_${activeClient.toLowerCase().replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.csv`
+      `seo_raporu_${sanitizedClientName}_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopySummary = () => {

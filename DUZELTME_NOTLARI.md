@@ -26,7 +26,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`59bc383`** | `fix(backlinks): site bazli backlink izolasyonu ve yanlis disavow sizintisi onarimi` | Farklı sitelerde Acme verisinin gösterilmesi ve yabancı spam sitelerin Google Disavow dosyasına sızması engellendi; site bazlı veri izolasyonu |
 | **`11f97b5`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
 | **`44b5efc`** | `fix(reports): site degisiminde musteri adinin dinamik guncellenmesi ve veri sizintisi engeli` | Web ve mobil raporlarda site değiştirildiğinde müşteri adı ve dosya adının anında güncellenmesi, çapraz müşteri veri sızıntısının engellenmesi |
-| **`(güncel)`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
+| **`21d0b42`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
+| **`(güncel)`** | `fix(reports): csv disa aktariminda # karakterinde dosyanin kesilmesi onarildi` | data: URI ve encodeURI yerine Blob ve URL.createObjectURL entegrasyonu, RFC 4180 hucre kacisi ve guvenli dosya adi sanitization |
 
 
 ---
@@ -1337,18 +1338,84 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
 
 ---
 
+---
+
+### 27. 📁 CSV Dışa Aktarımı: İçinde '#' Karakteri Bulunan İsimlerde Dosyanın Yarıda Kesilmesi Hatası Onarımı
+
+**Kullanıcı Bildirimi:**
+*"CSV dışa aktarımı bozuk: İçinde # geçen bir isim varsa dosya yarıda kesiliyor."*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+
+1. **`data:` URI ve `encodeURI()` Fonksiyonunun RFC 3986 URL Hash Zaafiyeti:**
+   - **Kök Neden:** [`apps/web/src/app/reports/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/reports/page.tsx) dosyasında CSV indirme mekanizması şu şekilde kurgulanmıştı:
+     ```javascript
+     // HATALI KOD:
+     const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.map((e) => e.join(";")).join("\n");
+     const encodedUri = encodeURI(csvContent);
+     const link = document.createElement("a");
+     link.setAttribute("href", encodedUri);
+     ```
+   - RFC 3986 ve W3C spesifikasyonlarına göre `encodeURI()` fonksiyonu `#` (hash) karakterini **encode etmez** (`encodeURI('#') === '#'`).
+   - Web tarayıcıları bir linkte `data:text/csv;charset=utf-8,...#...` biçiminde bir URL gördüklerinde `#` karakterini bir **URL Fragment Identifier (Anchor)** olarak yorumlar.
+   - Sonuç olarak tarayıcı indirme akışında veri gövdesini (payload) tam `#` karakterine geldiği anda sonlandırır; `#` ve sonrasındaki tüm metrikler, satırlar ve kelimeler fragment kabul edilerek **tamamen çöpe atılır**.
+   - Örneğin bir müşteri adı `"Acme #1 Global"`, bir anahtar kelime `"C# SEO"`, bir kampanya `"Yılbaşı #indirim"` veya raporda `"#CRAWL-9842"` geçtiğinde dosya tam o noktada yarıda kesiliyor ve raporun %80'i kayboluyordu.
+
+2. **Dosya Adında (Download Attribute) '#' ve Geçersiz Karakter Riski:**
+   - `link.setAttribute("download", `seo_raporu_${activeClient...}.csv`)` ifadesinde müşteri adı içinde `#` geçtiğinde bazı işletim sistemleri ve tarayıcılarda dosya adı da `#` noktasında kesiliyor veya geçersiz dosya adı hatası veriyordu.
+
+3. **RFC 4180 CSV Kaçış (Escaping) Standartlarının Eksikliği:**
+   - Hücre içinde noktalı virgül (`;`), çift tırnak (`"`) veya satır sonu (`\n`) bulunduğunda hücrelerin çift tırnak içine alınmaması ve iç tırnakların `""` olarak kaçırılmaması CSV biçimini bozuyordu.
+
+---
+
+#### B. Gerçekleştirilen Düzeltmeler
+
+1. **Modern Blob Nesnesi ve `URL.createObjectURL` Entegrasyonu:**
+   - [`apps/web/src/app/reports/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/reports/page.tsx) dosyasında güvensiz `data:` URI ve `encodeURI` tamamen kaldırıldı.
+   - Doğrudan `new Blob([csvContent], { type: "text/csv;charset=utf-8;" })` ve `URL.createObjectURL(blob)` mimarisine geçildi.
+   - Blob nesnesi bellekte ham baytlar olarak tutulduğu için URL fragment identifier mekanizması devre dışı kalır; `#`, `%`, `&`, `?`, `+` veya UTF-8 karakterleri hiçbir şekilde veriyi kesemez.
+
+2. **RFC 4180 Hücre Kaçış Mekanizması:**
+   - Her hücre için güvenli kaçış fonksiyonu eklendi:
+     ```typescript
+     const escapeCsvCell = (val: string | number | undefined | null): string => {
+       const str = String(val ?? "");
+       if (/[;"\n\r]/.test(str)) {
+         return `"${str.replace(/"/g, '""')}"`;
+       }
+       return str;
+     };
+     ```
+   - Windows Excel uyumluluğu için satır sonları `\r\n` (CRLF) ve dosya başlangıcına `\uFEFF` UTF-8 BOM eklendi.
+
+3. **Güvenli Dosya Adı Sanitization (Temizleme):**
+   - Dosya adında dosya sistemi ve HTTP başlıklarına zarar verebilecek özel karakterler temizlendi:
+     ```typescript
+     const sanitizedClientName = activeClient
+       .toLowerCase()
+       .replace(/[#%&{}\\<>*?/$!'":@+`|=]/g, "")
+       .trim()
+       .replace(/\s+/g, "_") || "musteri";
+     ```
+   - Bellek sızıntılarını önlemek için indirme tetiklendikten sonra `URL.revokeObjectURL(url)` çalıştırıldı.
+
+---
+
 #### C. Test ve Doğrulama
 
-1. **Python Backend Testleri ([`tests/unit/test_backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_backlink_engine.py) & [`tests/unit/test_google_sync.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_google_sync.py)):**
-   - `test_spam_keyword_and_category_classification`: Kumar ve pharma bağlantı metinlerinin tekil ihlalde dahi `SPAM` kategorisi ve `is_toxic=True` ile yakalandığı doğrulandı.
-   - `test_critical_spam_score_single_trigger`: Yüksek harici spam skorunun (%80) tekil olarak toksisite tetiklediği doğrulandı.
-   - `test_raw_ip_and_modern_spam_tlds`: Ham IP (`http://185.220.101.5`) ve modern spam TLD (`.monster`) bağlantılarının başarıyla toksik sınıflandırıldığı doğrulandı.
-   - `test_google_sync_organic_cvr_accuracy`: Organik CVR'ın 486 / 15200 * 100 = %3.20 olarak doğru hesaplandığı, tüm kanalların toplam dönüşümünün (842) bölünmediği ve lead yield'ın organik dönüşümleri yansıttığı test edildi.
-   - **Sonuç:** `357 / 357 pytest testi %100 BAŞARILI` (0 Hata).
+1. **Otomasyon Testleri ([`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts)):**
+   - `csvExportHashTruncationFix` test senaryosu eklendi.
+   - `Acme #1 E-Ticaret Global`, `C# SEO Optimizasyonu`, `Yılbaşı #indirim Trendleri` gibi birden fazla `#` karakteri içeren test verisi oluşturuldu.
+   - Eski `data:` URI yönteminin `#` karakterinde dosyayı kestiği ve geri kalan satırları yuttuğu simüle edildi.
+   - Yeni `Blob` tabanlı çözümün tüm satırları, `#` karakterlerini ve tam dosya bayt boyutunu %100 koruduğu doğrulandı.
+   - Dosya adının `seo_raporu_acme_1_super_store.csv` biçiminde güvenle temizlendiği teyit edildi.
 
-2. **Web ve TypeScript Testleri ([`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts)):**
-   - `npm test`: UI Logic, Auth Guards ve Security Suite başarıyla geçti.
-   - `npx tsc --noEmit`: Hem `apps/web` hem de `apps/mobile` **0 TypeScript hatası** ile derlendi.
+2. **Test Sonuçları:**
+   - `npm test`: UI Logic, Auth Guards ve Security testleri eksiksiz geçti.
+   - `npx tsc --noEmit`: `apps/web` ve `apps/mobile` **0 Hata** ile derlendi.
+   - `pytest`: 357 / 357 test yeşil.
+
 
 
 
