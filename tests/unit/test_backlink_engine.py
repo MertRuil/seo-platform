@@ -189,3 +189,57 @@ def test_site_isolated_backlinks_retrieval():
     assert not any(b.is_toxic for b in custom_links)
     assert all("brandstore.com.tr" in b.target_url for b in custom_links)
 
+
+def test_spam_keyword_and_category_classification():
+    # Anchor category SPAM for explicit spam keywords
+    assert classify_anchor_text("online casino slots", "Acme Store", "https://acmestore.io") == AnchorCategory.SPAM
+    assert classify_anchor_text("canlı bahis giriş", "Acme Store", "https://acmestore.io") == AnchorCategory.SPAM
+    assert classify_anchor_text("buy viagra overnight", "Acme Store", "https://acmestore.io") == AnchorCategory.SPAM
+
+    # Single severe spam keyword on normal .com domain with low spam score MUST be detected as toxic
+    is_toxic, risk, score, reasons = evaluate_backlink_toxicity(
+        source_url="https://normal-looking-blog.com/article",
+        anchor_text="en iyi kaçak bahis siteleri",
+        source_da=35,
+        source_spam_score=5
+    )
+    assert is_toxic is True
+    assert risk in (ToxicityRisk.HIGH, ToxicityRisk.CRITICAL)
+    assert any("bahis" in r for r in reasons)
+
+
+def test_critical_spam_score_single_trigger():
+    # Single trigger with critical external spam score (>=60%) must be detected as toxic even on generic anchors
+    is_toxic, risk, score, reasons = evaluate_backlink_toxicity(
+        source_url="https://high-spam-domain.com/directory",
+        anchor_text="tıklayın",
+        source_da=25,
+        source_spam_score=78
+    )
+    assert is_toxic is True
+    assert risk in (ToxicityRisk.HIGH, ToxicityRisk.CRITICAL)
+    assert any("Kritik alan adı spam skoru" in r for r in reasons)
+
+
+def test_raw_ip_and_modern_spam_tlds():
+    # Raw IP host
+    is_toxic_ip, risk_ip, _, reasons_ip = evaluate_backlink_toxicity(
+        source_url="http://185.220.101.5/pbn-links",
+        anchor_text="web sitesi",
+        source_da=5,
+        source_spam_score=20
+    )
+    assert is_toxic_ip is True
+    assert any("Ham IP adresi" in r for r in reasons_ip)
+
+    # Modern spam TLD (.monster, .icu, .cfd) with low DA
+    is_toxic_tld, risk_tld, _, reasons_tld = evaluate_backlink_toxicity(
+        source_url="https://blackhat-network.monster/scrape",
+        anchor_text="kaynak link",
+        source_da=8,
+        source_spam_score=25
+    )
+    assert is_toxic_tld is True
+    assert any(".monster" in r for r in reasons_tld)
+
+

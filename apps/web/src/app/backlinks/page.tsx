@@ -30,7 +30,7 @@ export interface WebBacklinkItem {
   source_domain: string;
   target_url: string;
   anchor_text: string;
-  anchor_category: "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL";
+  anchor_category: "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL" | "SPAM";
   is_dofollow: boolean;
   domain_authority: number; // 1-100 DR
   page_authority: number;   // 1-100 UR
@@ -112,7 +112,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     source_domain: "free-crypto-casino-bonus.xyz",
     target_url: "https://acmestore.io",
     anchor_text: "online casino baccarat win free",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 4,
     page_authority: 6,
@@ -132,7 +132,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     source_domain: "auto-traffic-pbn.top",
     target_url: "https://acmestore.io/products",
     anchor_text: "cheap replica watches payday",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 3,
     page_authority: 5,
@@ -168,7 +168,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     source_domain: "spambot-linkfarm.click",
     target_url: "https://acmestore.io",
     anchor_text: "buy viagra online overnight",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 2,
     page_authority: 3,
@@ -413,8 +413,31 @@ export default function BacklinksPage() {
       domain = newSourceUrl.trim().replace(/^https?:\/\//, "").split("/")[0];
     }
 
-    const isSuspicious = domain.endsWith(".xyz") || domain.endsWith(".top") || domain.endsWith(".click") || (newAnchor.toLowerCase().includes("casino") || newAnchor.toLowerCase().includes("viagra"));
+    const SPAM_TLDS = [
+      ".xyz", ".top", ".click", ".link", ".buzz", ".work", ".bar", ".rest",
+      ".monster", ".icu", ".cfd", ".sbs", ".cam", ".beauty", ".hair", ".skin",
+      ".quest", ".boats", ".cyou", ".pw", ".cc", ".press",
+    ];
+    const SPAM_KEYWORDS = [
+      "casino", "viagra", "cialis", "betting", "bahis", "kumar", "slot", "rulet",
+      "porn", "escort", "replica", "payday", "pbn", "hack", "crack", "pharmacy",
+    ];
+
+    const isSpamTld = SPAM_TLDS.some((tld) => domain.toLowerCase().endsWith(tld));
+    const anchorLower = (newAnchor || "").toLowerCase();
+    const hasSpamKeyword = SPAM_KEYWORDS.some((kw) => anchorLower.includes(kw));
+    const isRawIp = /^https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/i.test(newSourceUrl.trim()) || /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(domain);
+
+    const isSuspicious = isSpamTld || hasSpamKeyword || isRawIp;
     const spamScore = isSuspicious ? Math.floor(Math.random() * 20) + 75 : Math.floor(Math.random() * 8) + 1;
+
+    const toxicityReasons: string[] = [];
+    if (isSpamTld) toxicityReasons.push("Yüksek riskli spam TLD uzantısı");
+    if (hasSpamKeyword) toxicityReasons.push("Yasaklı spam / kumar anahtar kelimesi");
+    if (isRawIp) toxicityReasons.push("Ham IP adresi üzerinden güvensiz bağlantı");
+    if (isSuspicious && toxicityReasons.length === 0) {
+      toxicityReasons.push("Şüpheli link profili");
+    }
 
     const newItem: WebBacklinkItem = {
       id: `bl-${Date.now()}`,
@@ -422,13 +445,13 @@ export default function BacklinksPage() {
       source_domain: domain,
       target_url: site?.primary_url || "https://acmestore.io",
       anchor_text: newAnchor.trim() || domain,
-      anchor_category: "BRAND",
+      anchor_category: hasSpamKeyword ? "SPAM" : "BRAND",
       is_dofollow: true,
       domain_authority: isSuspicious ? Math.floor(Math.random() * 10) + 2 : Math.floor(Math.random() * 40) + 40,
       page_authority: isSuspicious ? 5 : 35,
       spam_score: spamScore,
       is_toxic: isSuspicious,
-      toxicity_reasons: isSuspicious ? ["Kullanıcı tarafından eklenen şüpheli link", "Yüksek riskli TLD / spam profili"] : [],
+      toxicity_reasons: toxicityReasons,
       first_seen: new Date().toISOString().slice(0, 10),
       status: "ACTIVE",
     };
@@ -633,7 +656,13 @@ export default function BacklinksPage() {
                         "{item.anchor_text}"
                       </div>
                       <div className="mt-1">
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface border border-line text-muted">
+                        <span
+                          className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border ${
+                            item.anchor_category === "SPAM"
+                              ? "bg-warn/20 border-warn/40 text-warn font-semibold"
+                              : "bg-surface border-line text-muted"
+                          }`}
+                        >
                           {item.anchor_category}
                         </span>
                       </div>

@@ -56,6 +56,11 @@ async def test_google_sync_hub_synchronize():
     assert result["ga4"]["organic_sessions"] > 0
     assert result["ga4"]["conversions"] > 0
     assert result["ga4"]["organic_conversion_rate"] >= 0.0
+    # Strict validation: organic conversion rate must be based on organic conversions, not total conversions
+    assert result["ga4"]["organic_conversions"] == 127.0
+    assert result["ga4"]["conversions"] == 139.0  # includes 12 direct conversions
+    assert result["ga4"]["organic_conversion_rate"] == round(127.0 / 3730 * 100, 2)
+    assert result["correlation"]["organic_lead_yield"] == 127.0
 
     assert "correlation" in result
     assert "insights" in result

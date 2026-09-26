@@ -212,8 +212,14 @@ export const BacklinksScreen: React.FC = () => {
                   <View style={styles.anchorBox}>
                     <Text style={styles.anchorLabel}>Anchor:</Text>
                     <Text style={styles.anchorValue} numberOfLines={1}>"{item.anchor_text}"</Text>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryBadgeText}>{item.anchor_category}</Text>
+                    <View style={[
+                      styles.categoryBadge,
+                      item.anchor_category === "SPAM" && { backgroundColor: "rgba(239, 68, 68, 0.15)", borderColor: "rgba(239, 68, 68, 0.35)" }
+                    ]}>
+                      <Text style={[
+                        styles.categoryBadgeText,
+                        item.anchor_category === "SPAM" && { color: Colors.danger, fontWeight: "700" }
+                      ]}>{item.anchor_category}</Text>
                     </View>
                   </View>
 

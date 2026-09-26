@@ -723,10 +723,10 @@ export default function BaglayicilarPage() {
               },
               {
                 label: "GA4 Organik Dönüşüm Oranı",
-                value: googleIntegrationStatus === "HEALTHY" ? "%5.54" : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+1.2 puan", direction: "up" } : undefined,
+                value: googleIntegrationStatus === "HEALTHY" ? "%3.20" : "—",
+                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+0.4 puan", direction: "up" } : undefined,
                 tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : "muted",
-                hint: googleIntegrationStatus === "HEALTHY" ? "842 adet tamamlanan işlem" : "Veri Akışı Yok",
+                hint: googleIntegrationStatus === "HEALTHY" ? "486 organik işlem (toplam 842)" : "Veri Akışı Yok",
               },
             ]}
           />

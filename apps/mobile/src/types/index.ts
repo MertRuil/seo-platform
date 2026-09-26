@@ -193,7 +193,7 @@ export interface CompetitorGapItem {
   opportunity_score: number;
 }
 
-export type AnchorCategory = "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL";
+export type AnchorCategory = "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL" | "SPAM";
 
 export interface BacklinkItem {
   id: string;
@@ -537,7 +537,9 @@ export interface GoogleSyncTelemetry {
     engagement_rate_percent: number;
     bounce_rate_percent: number;
     conversions: number;
+    organic_conversions?: number;
     organic_conversion_rate: number;
+    overall_conversion_rate?: number;
     top_pages: Array<{
       path: string;
       sessions: number;

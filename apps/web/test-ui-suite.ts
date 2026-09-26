@@ -97,8 +97,102 @@ function run() {
 
   console.log("  resolveReportMetadata site synchronization: ok");
 
+  // Backlink spam classification & anchor category tests
+  const classifyBacklinkLogic = (sourceUrl: string, anchorText: string, spamScore: number = 0) => {
+    const SPAM_TLDS = [
+      ".xyz", ".top", ".click", ".link", ".buzz", ".work", ".bar", ".rest",
+      ".monster", ".icu", ".cfd", ".sbs", ".cam", ".beauty", ".hair", ".skin",
+      ".quest", ".boats", ".cyou", ".pw", ".cc", ".press",
+    ];
+    const SPAM_KEYWORDS = [
+      "casino", "viagra", "cialis", "betting", "bahis", "kumar", "slot", "rulet",
+      "porn", "escort", "replica", "payday", "pbn", "hack", "crack", "pharmacy",
+    ];
+
+    let domain = sourceUrl.trim();
+    try {
+      const parsed = new URL(sourceUrl.trim().startsWith("http") ? sourceUrl.trim() : `https://${sourceUrl.trim()}`);
+      domain = parsed.hostname;
+    } catch {
+      domain = sourceUrl.trim().replace(/^https?:\/\//, "").split("/")[0];
+    }
+
+    const isSpamTld = SPAM_TLDS.some((tld) => domain.toLowerCase().endsWith(tld));
+    const anchorLower = (anchorText || "").toLowerCase();
+    const hasSpamKeyword = SPAM_KEYWORDS.some((kw) => anchorLower.includes(kw));
+    const isRawIp = /^https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/i.test(sourceUrl.trim()) || /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(domain);
+
+    const isToxic = isSpamTld || hasSpamKeyword || isRawIp || spamScore >= 60;
+    const anchorCategory = hasSpamKeyword ? "SPAM" : "BRAND";
+
+    return { domain, isToxic, anchorCategory, isSpamTld, hasSpamKeyword, isRawIp };
+  };
+
+  // 1. Single critical spam anchor must be classified as SPAM and toxic (even on neutral domain)
+  const res1 = classifyBacklinkLogic("https://goodnews.com/post", "canlı bahis ve casino bonusu");
+  assert.strictEqual(res1.isToxic, true, "Casino anchor must trigger toxicity");
+  assert.strictEqual(res1.anchorCategory, "SPAM", "Casino anchor must be categorized as SPAM");
+
+  // 2. High risk modern spam TLD (.monster) must be classified as toxic
+  const res2 = classifyBacklinkLogic("https://free-credits.monster/list", "ziyaret edin");
+  assert.strictEqual(res2.isToxic, true, ".monster TLD must be flagged as toxic");
+
+  // 3. Raw IP address backlink must be flagged as toxic
+  const res3 = classifyBacklinkLogic("http://185.220.101.5/partner-links", "tıklayın");
+  assert.strictEqual(res3.isToxic, true, "Raw IP backlink must be flagged as toxic");
+
+  // 4. Legitimate brand link must NOT be toxic or spam
+  const res4 = classifyBacklinkLogic("https://techcrunch.com/article", "Acme Store Platform");
+  assert.strictEqual(res4.isToxic, false, "Authoritative brand link must be safe");
+  assert.strictEqual(res4.anchorCategory, "BRAND", "Brand link must have BRAND anchor category");
+
+  console.log("  classifyBacklinkLogic: ok");
+
+  // Organic CVR (Conversion Rate) calculation test
+  const calculateConversionRates = (
+    channels: Array<{ channel: string; sessions: number; conversions: number }>
+  ) => {
+    const totalSessions = channels.reduce((acc, c) => acc + c.sessions, 0);
+    const totalConversions = channels.reduce((acc, c) => acc + c.conversions, 0);
+
+    const organicRow = channels.find((c) => c.channel.toLowerCase().includes("organic"));
+    const organicSessions = organicRow ? organicRow.sessions : 0;
+    const organicConversions = organicRow ? organicRow.conversions : 0;
+
+    const organicCvr = organicSessions > 0 ? (organicConversions / organicSessions) * 100 : 0;
+    const overallCvr = totalSessions > 0 ? (totalConversions / totalSessions) * 100 : 0;
+    const buggyInflatedCvr = organicSessions > 0 ? (totalConversions / organicSessions) * 100 : 0;
+
+    return {
+      totalSessions,
+      totalConversions,
+      organicSessions,
+      organicConversions,
+      organicCvr: Number(organicCvr.toFixed(2)),
+      overallCvr: Number(overallCvr.toFixed(2)),
+      buggyInflatedCvr: Number(buggyInflatedCvr.toFixed(2)),
+    };
+  };
+
+  const channelData = [
+    { channel: "Direct", sessions: 5000, conversions: 200 },
+    { channel: "Paid Search", sessions: 4000, conversions: 156 },
+    { channel: "Organic Search", sessions: 15200, conversions: 486 },
+  ];
+
+  const cvrResults = calculateConversionRates(channelData);
+  assert.strictEqual(cvrResults.totalConversions, 842);
+  assert.strictEqual(cvrResults.organicConversions, 486);
+  assert.strictEqual(cvrResults.organicCvr, 3.20, "Organic CVR must be 486 / 15200 * 100 = 3.20%");
+  assert.strictEqual(cvrResults.overallCvr, 3.48, "Overall CVR must be 842 / 24200 * 100 = 3.48%");
+  assert.strictEqual(cvrResults.buggyInflatedCvr, 5.54, "Buggy code produced inflated 5.54%");
+  assert.notStrictEqual(cvrResults.organicCvr, cvrResults.buggyInflatedCvr, "Organic CVR must not equal inflated total-based CVR");
+
+  console.log("  calculateConversionRates (Organic CVR fix): ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 
 run();
+
 

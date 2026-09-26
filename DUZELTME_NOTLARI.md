@@ -24,7 +24,9 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`cb80c7d`** | `feat(production-ready): 5 ana modülün tamamlanması (backlinks, raporlama, google hub, alarmlar, uk kalkanı)` | Backlink Engine & Google Disavow, Whitelabel Export Suite, Google GSC+GA4 Live Sync Hub, Çok Kanallı Alarm Dispatcher, UK ASA/CMA/FCA Mevzuat Kalkanı |
 | **`30181a0`** | `fix(google-sync): sahte veri yerine dogru hata durumu ve engelleme kalkanı` | Google Search Console & GA4 bağlantı hatası durumunda sahte metriklerin engellenmesi, doğru hata durumu ve kalkan banner'ları |
 | **`59bc383`** | `fix(backlinks): site bazli backlink izolasyonu ve yanlis disavow sizintisi onarimi` | Farklı sitelerde Acme verisinin gösterilmesi ve yabancı spam sitelerin Google Disavow dosyasına sızması engellendi; site bazlı veri izolasyonu |
-| **`(güncel)`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
+| **`11f97b5`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
+| **`44b5efc`** | `fix(reports): site degisiminde musteri adinin dinamik guncellenmesi ve veri sizintisi engeli` | Web ve mobil raporlarda site değiştirildiğinde müşteri adı ve dosya adının anında güncellenmesi, çapraz müşteri veri sızıntısının engellenmesi |
+| **`(güncel)`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
 
 
 ---
@@ -1267,10 +1269,87 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
    - [`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts):
      - Site A'dan Site B'ye geçildiğinde müşteri adının ve CSV dosya adının anında Site B'ye dönüştüğünü, eski müşteri adının sızmadığını ve özel ad girişlerinin desteklendiğini test eden senaryolar eklendi.
 
+---
+
+### 26. 📈 Yanlış Hesaplamalar: Organik Dönüşüm Oranı Enflasyonu ve Backlink Spam Sınıflandırma Zaafiyeti Onarımı
+
+**Kullanıcı Bildirimi:**
+*"Yanlış hesaplamalar: Organik dönüşüm oranı olduğundan yüksek çıkıyor. Backlink sınıflandırması da bazı spam linkleri gözden kaçırıyor. kontrol sağla hataları düzelt"*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+
+1. **Organik Dönüşüm Oranının (CVR) Şişirilmesi (Artificially Inflated Organic CVR):**
+   - **Kök Neden:** [`services/integrations/google_sync_hub.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_sync_hub.py) dosyasında `organic_cvr` hesaplanırken Direct, Paid, Referral gibi tüm kanallardan gelen toplam dönüşümler (`total_conversions = sum(r.conversions for r in ga4_rows)`) alınıp yalnızca organik oturumlara (`organic_sessions`) bölünüyordu:
+     ```python
+     # HATALI KOD:
+     organic_cvr = round((total_conversions / organic_sessions) * 100, 2)
+     ```
+   - Bu durum organik dönüşüm oranını yapay ve aşırı yüksek gösteriyordu (Örn: 842 toplam dönüşüm / 15.200 organik oturum = %5.54). Halbuki 842 dönüşümün yalnızca 486'sı organik kanaldan gelmekteydi ve gerçek organik CVR %3.20 (486 / 15.200) olmalıydı.
+   - Ayrıca `correlation.organic_lead_yield` metriğine de `organic_conversions` yerine yanlışlıkla tüm kanalların `total_conversions` değeri atanıyordu.
+   - Aynı şişirilmiş veri arayüzlerde de (`apps/web/src/app/integrations/page.tsx` ve `apps/mobile/src/services/api.ts`) %5.54 ve "842 adet işlem" olarak yanıltıcı şekilde gösteriliyordu.
+
+2. **Backlink Sınıflandırmasının Spam Linkleri Gözden Kaçırması (Missed Toxic/Spam Backlinks):**
+   - **Kök Neden 1 (Tek Sebep Toleransı Zaafiyeti):** [`services/seo_engine/backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/seo_engine/backlink_engine.py) içerisindeki `evaluate_backlink_toxicity` fonksiyonunda şu kural yer alıyordu:
+     ```python
+     # HATALI KOD:
+     elif len(reasons) == 1:
+         is_toxic = False  # Tek ihlal doğrudan aklanıyordu!
+     ```
+     Bu sebeple metninde açıkça "canlı bahis", "casino", "viagra" geçen veya harici Moz/Ahrefs spam skoru %80 olan bir link, eğer domain neutral bir uzantıdaysa sadece 1 kural ihlali ürettiği için doğrudan `is_toxic = False` (güvenli) sayılıyordu!
+   - **Kök Neden 2 (Eksik Spam Sözlüğü & TLD Listesi):** `SPAM_TRIGGER_PATTERNS` içerisinde Türkçe ve güncel İngilizce kumar/bahis/pharma terimleri ("bahis", "canlı bahis", "kumar", "slot", "rulet", "betting", "porn", "escort", "levitra", "crack", "pbn links") bulunmuyordu. Modern spam dalgasında kullanılan TLD'ler (`.monster`, `.icu`, `.cfd`, `.sbs`, `.cam`, `.beauty`, `.hair`, `.skin`, `.quest`, `.rest`, `.boats`, `.cyou`, `.pw`, `.cc`, `.press`) denetlenmiyordu.
+   - **Kök Neden 3 (Ham IP ve Port Denetimi Yokluğu):** Ham IP adresleri (`http://185.220.101.5/...`) ve standart dışı portlar kontrol edilmediği için bot ağları tespit edilemiyordu.
+   - **Kök Neden 4 (Anchor Sınıflandırmasında SPAM Kategorisinin Olmaması):** `AnchorCategory` enum'ında `SPAM` bulunmadığı için açıkça bahis/ilaç spam'i olan bağlantı metinleri `AnchorCategory.EXACT_MATCH` olarak etiketleniyordu.
+
+---
+
+#### B. Gerçekleştirilen Düzeltmeler
+
+1. **Backend Entegrasyon & Analitik Motoru ([`services/integrations/google_sync_hub.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_sync_hub.py)):**
+   - `organic_conversions` metriği ayrıştırıldı:
+     ```python
+     organic_conversions = sum(r.conversions for r in ga4_rows if "organic" in r.channel.lower())
+     organic_cvr = round((organic_conversions / organic_sessions) * 100, 2)
+     overall_cvr = round((total_conversions / total_sessions) * 100, 2)
+     ```
+   - `GoogleSyncTelemetry` modeline `organic_conversions` ve `overall_conversion_rate` eklendi.
+   - `correlation.organic_lead_yield` doğru şekilde `organic_conversions` metriğine bağlandı.
+
+2. **Backend Backlink & Toksik Link Motoru ([`services/seo_engine/backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/seo_engine/backlink_engine.py)):**
+   - `AnchorCategory` enum'ına `SPAM = "SPAM"` eklendi.
+   - `SUSPICIOUS_TLDS` listesi modern spam TLD'lerini kapsayacak şekilde 31 uzantıya genişletildi.
+   - `SPAM_TRIGGER_PATTERNS` regex kümesi Türkçe ve İngilizce kumar, bahis, canlı casino, escort, porn, pharma, hack ve link farm anahtar kelimelerini kapsayacak şekilde güçlendirildi.
+   - `classify_anchor_text` fonksiyonu spam kalıbı eşleştiğinde doğrudan `AnchorCategory.SPAM` dönecek şekilde güncellendi.
+   - Ham IPv4 adresi ve standart dışı şüpheli port (`:8080`, `:8888`, vb.) tespiti eklendi.
+   - **Kritik Tekil İhlal (Single Critical Trigger) Mantığı:** Tek bir kritik ihlal dahi olsa (`is_severe_single`: spam anahtar kelime, kritik spam skoru >=60, ham IP, düşük DA + şüpheli TLD) bağlantı derhal `is_toxic = True` ve `ToxicityRisk.HIGH` olarak sınıflandırıldı.
+
+3. **Mobil Katmanı ([`apps/mobile/src/types/index.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/types/index.ts), [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts), [`apps/mobile/src/screens/BacklinksScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/BacklinksScreen.tsx)):**
+   - Mobil tiplerine `AnchorCategory` için `"SPAM"`, telemetriye `organic_conversions` eklendi.
+   - Mock veride `bl-5`, `bl-6`, `bl-8` bağlantılarının `anchor_category` değeri `SPAM` olarak düzeltildi.
+   - Mobil GA4 telemetrisindeki organik dönüşüm oranı %3.20 (486 / 15.200) olarak ayarlandı.
+   - `BacklinksScreen` üzerinde `SPAM` kategori rozeti danger/kırmızı stil ile vurgulandı.
+
+4. **Web Arayüzü ([`apps/web/src/app/backlinks/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/backlinks/page.tsx) & [`apps/web/src/app/integrations/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/integrations/page.tsx)):**
+   - `WebBacklinkItem.anchor_category` tipine `"SPAM"` eklendi.
+   - `INITIAL_BACKLINKS` toksik linklerinin anchor_category'si `SPAM` olarak güncellendi.
+   - Kullanıcı yeni backlink taradığında (`handleAddBacklink`) modern TLD'ler, spam anahtar kelimeleri ve ham IP'ler anında taranarak toksik olarak işaretlenecek ve kategori `SPAM` atanacak şekilde geliştirildi.
+   - Tabloda `SPAM` rozeti kırmızı risk çerçevesiyle öne çıkarıldı.
+   - Google Entegrasyonları sayfasında GA4 Organik Dönüşüm Oranı metriği %3.20 ve "486 organik işlem (toplam 842)" olarak düzeltildi.
+
+---
+
 #### C. Test ve Doğrulama
-- **Web Test Paketi:** `npm test` başarıyla tamamlandı (UI Logic, Auth Guards, Security Suite passed).
-- **Backend Test Paketi:** `354 / 354 pytest testi başarılı` (%100 Başarı).
-- **TypeScript Derlemesi:** `apps/mobile` ve `apps/web` **0 Hata** (`npx tsc --noEmit` başarılı).
+
+1. **Python Backend Testleri ([`tests/unit/test_backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_backlink_engine.py) & [`tests/unit/test_google_sync.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_google_sync.py)):**
+   - `test_spam_keyword_and_category_classification`: Kumar ve pharma bağlantı metinlerinin tekil ihlalde dahi `SPAM` kategorisi ve `is_toxic=True` ile yakalandığı doğrulandı.
+   - `test_critical_spam_score_single_trigger`: Yüksek harici spam skorunun (%80) tekil olarak toksisite tetiklediği doğrulandı.
+   - `test_raw_ip_and_modern_spam_tlds`: Ham IP (`http://185.220.101.5`) ve modern spam TLD (`.monster`) bağlantılarının başarıyla toksik sınıflandırıldığı doğrulandı.
+   - `test_google_sync_organic_cvr_accuracy`: Organik CVR'ın 486 / 15200 * 100 = %3.20 olarak doğru hesaplandığı, tüm kanalların toplam dönüşümünün (842) bölünmediği ve lead yield'ın organik dönüşümleri yansıttığı test edildi.
+   - **Sonuç:** `357 / 357 pytest testi %100 BAŞARILI` (0 Hata).
+
+2. **Web ve TypeScript Testleri ([`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts)):**
+   - `npm test`: UI Logic, Auth Guards ve Security Suite başarıyla geçti.
+   - `npx tsc --noEmit`: Hem `apps/web` hem de `apps/mobile` **0 TypeScript hatası** ile derlendi.
+
 
 
 

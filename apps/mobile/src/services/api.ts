@@ -2690,7 +2690,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     source_domain: "free-crypto-casino-bonus.xyz",
     target_url: "https://acmestore.io",
     anchor_text: "online casino baccarat win free",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 4,
     page_authority: 6,
@@ -2710,7 +2710,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     source_domain: "auto-traffic-pbn.top",
     target_url: "https://acmestore.io/products",
     anchor_text: "cheap replica watches payday",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 3,
     page_authority: 5,
@@ -2746,7 +2746,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     source_domain: "spambot-linkfarm.click",
     target_url: "https://acmestore.io",
     anchor_text: "buy viagra online overnight",
-    anchor_category: "EXACT_MATCH",
+    anchor_category: "SPAM",
     is_dofollow: true,
     domain_authority: 2,
     page_authority: 3,
@@ -3010,7 +3010,9 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
     engagement_rate_percent: 72.4,
     bounce_rate_percent: 27.6,
     conversions: 842,
-    organic_conversion_rate: 5.54,
+    organic_conversions: 486,
+    organic_conversion_rate: 3.20,
+    overall_conversion_rate: 3.42,
     top_pages: [
       { path: "/", sessions: 8400, bounce_rate: 22.4 },
       { path: "/kategori/organik", sessions: 4200, bounce_rate: 28.1 },
@@ -3020,13 +3022,13 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   },
   correlation: {
     search_traffic_attainment_percent: 102.3,
-    organic_lead_yield: 842,
+    organic_lead_yield: 486,
   },
   insights: [
     {
       type: "HIGH_PERFORMANCE",
       severity: "SUCCESS",
-      message: "Organik oturum dönüşüm oranı %5.54 ile e-ticaret ortalamasının (%2.1) oldukça üzerinde.",
+      message: "Organik oturum dönüşüm oranı %3.20 ile e-ticaret ortalamasının (%2.1) üzerinde.",
     },
     {
       type: "CTR_OPPORTUNITY",

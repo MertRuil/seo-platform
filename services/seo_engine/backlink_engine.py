@@ -4,6 +4,7 @@ Provides comprehensive link profile auditing, toxicity scoring based on Google S
 and automatic Google Disavow tool (.txt) file generation.
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
@@ -17,6 +18,7 @@ class AnchorCategory(str, Enum):
     PARTIAL_MATCH = "PARTIAL_MATCH"
     GENERIC = "GENERIC"
     NAKED_URL = "NAKED_URL"
+    SPAM = "SPAM"
 
 
 class ToxicityRisk(str, Enum):
@@ -30,14 +32,32 @@ class ToxicityRisk(str, Enum):
 # Known suspicious or high-spam TLDs commonly used by PBNs and automated link farms
 SUSPICIOUS_TLDS = {
     ".xyz", ".top", ".click", ".win", ".fit", ".kim", ".loan", ".buzz",
-    ".surf", ".work", ".gq", ".cf", ".ml", ".ga", ".tk", ".link", ".party"
+    ".surf", ".work", ".gq", ".cf", ".ml", ".ga", ".tk", ".link", ".party",
+    ".icu", ".monster", ".cfd", ".sbs", ".cam", ".beauty", ".hair", ".skin",
+    ".quest", ".rest", ".boats", ".cyou", ".pw", ".cc", ".press"
 }
 
-# Spam trigger words in anchor texts or domain names
+# Spam trigger words in anchor texts or domain names (English & Turkish)
 SPAM_TRIGGER_PATTERNS = [
-    "casino", "gambling", "poker", "viagra", "cialis", "payday loans",
-    "crypto yield", "free bitcoin", "replica watches", "adult", "dating hookup",
-    "cheap essay", "buy followers", "hack tool", "warez", "torrent download"
+    # Gambling & Betting
+    "casino", "gambling", "poker", "betting", "sportsbook", "blackjack",
+    "slots", "roulette", "baccarat", "bet365", "bahis", "canlı bahis",
+    "kaçak bahis", "kumar", "bet", "slot", "rulet", "deneme bonusu",
+    "canlı casino", "iddaa", "güvenilir bahis",
+    # Pharma & Illicit Drugs
+    "viagra", "cialis", "levitra", "kamagra", "pharmacy", "payday loans",
+    "cheap pills", "weight loss pill",
+    # Adult & Dating
+    "adult", "dating hookup", "escort", "porn", "porno", "sex", "xxx",
+    "cam girls", "onlyfans",
+    # Counterfeits & Scams
+    "replica watches", "cheap essay", "buy followers", "free followers",
+    "crypto yield", "free bitcoin", "free crypto", "crypto doubler", "airdrop claim",
+    # Blackhat SEO & Link Farms
+    "buy backlinks", "cheap backlinks", "pbn links", "seo link farm",
+    "guest post service",
+    # Warez & Piracy
+    "hack tool", "warez", "torrent download", "crack", "keygen", "serial key"
 ]
 
 
@@ -83,19 +103,24 @@ def classify_anchor_text(anchor: str, brand_name: str, target_url: str) -> Ancho
     
     clean_anchor = anchor.strip().lower()
     clean_brand = brand_name.strip().lower() if brand_name else ""
+
+    # 1. Spam trigger check in anchor text
+    for trigger in SPAM_TRIGGER_PATTERNS:
+        if trigger in clean_anchor:
+            return AnchorCategory.SPAM
     
-    # Naked URL check
+    # 2. Naked URL check
     if clean_anchor.startswith("http://") or clean_anchor.startswith("https://") or clean_anchor.startswith("www."):
         return AnchorCategory.NAKED_URL
     if "/" in clean_anchor and "." in clean_anchor:
         return AnchorCategory.NAKED_URL
     
-    # Generic anchors
+    # 3. Generic anchors
     generic_words = {"click here", "here", "website", "tıklayın", "buraya tıklayın", "web sitesi", "link", "read more", "source", "kaynak"}
     if clean_anchor in generic_words:
         return AnchorCategory.GENERIC
     
-    # Brand check
+    # 4. Brand check
     if clean_brand and clean_brand in clean_anchor:
         if clean_anchor == clean_brand:
             return AnchorCategory.BRAND
@@ -116,42 +141,82 @@ def evaluate_backlink_toxicity(
     """
     reasons: List[str] = []
     parsed = urlparse(source_url)
-    domain = parsed.netloc.lower()
-    
-    # 1. Suspicious TLD check
+    raw_host = (parsed.netloc or "").lower()
+    domain = raw_host.split(":")[0]
+
+    # 1. Raw IP address or non-standard port check (classic botnet/PBN signature)
+    is_ip = bool(re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", domain))
+    if is_ip:
+        reasons.append("Ham IP adresi üzerinden şüpheli botnet/scraper bağlantısı")
+    elif ":" in raw_host:
+        port = raw_host.split(":")[1]
+        if port not in ("80", "443"):
+            reasons.append(f"Standart dışı port üzerinden şüpheli bağlantı (:{port})")
+
+    # 2. Suspicious TLD check
+    is_suspicious_tld = False
     for tld in SUSPICIOUS_TLDS:
         if domain.endswith(tld):
             reasons.append(f"Yüksek riskli/şüpheli spam uzantısı ({tld})")
+            is_suspicious_tld = True
             break
 
-    # 2. Spam keyword check in anchor and domain
+    # 3. Spam keyword check in anchor and domain
     lower_anchor = (anchor_text or "").lower()
+    has_spam_keyword = False
     for trigger in SPAM_TRIGGER_PATTERNS:
         if trigger in lower_anchor:
             reasons.append(f"Yasaklı/Spam anahtar kelime içeren bağlantı metni ('{trigger}')")
+            has_spam_keyword = True
             break
         if trigger in domain:
             reasons.append(f"Şüpheli spam sektörüne ait alan adı ('{trigger}')")
+            has_spam_keyword = True
             break
 
-    # 3. High external spam score (>50)
+    # 4. High external spam score signals
+    has_critical_spam_score = False
     if source_spam_score >= 60:
         reasons.append(f"Kritik alan adı spam skoru (%{source_spam_score})")
+        has_critical_spam_score = True
     elif source_spam_score >= 35:
         reasons.append(f"Yüksek spam sinyali (%{source_spam_score})")
 
-    # 4. Low authority combined with high spam
+    # 5. Low authority combined with high spam or suspicious TLD
+    has_pbn_signature = False
     if source_da < 10 and source_spam_score > 30:
         reasons.append("Çok düşük domain otoritesi (DR < 10) ve şüpheli link profili")
+        has_pbn_signature = True
+    elif source_da < 10 and is_suspicious_tld:
+        reasons.append("Çok düşük domain otoritesi (DR < 10) ve şüpheli alan adı uzantısı")
+        has_pbn_signature = True
 
     # Calculate final spam score & risk
     score = source_spam_score
+
+    # Definitive toxic conditions (even if len(reasons) == 1):
+    # - Inbound link with explicit spam keywords (casino, bahis, porn, pharma, scams)
+    # - Critical external spam score (>= 60)
+    # - Raw IP host link
+    # - Suspicious TLD with low DA (< 30) or elevated spam score (>= 20)
+    is_severe_single = (
+        has_spam_keyword
+        or has_critical_spam_score
+        or is_ip
+        or has_pbn_signature
+        or (is_suspicious_tld and (source_da < 30 or source_spam_score >= 20))
+    )
+
     if len(reasons) >= 3:
         score = max(score, 85)
         risk = ToxicityRisk.CRITICAL
         is_toxic = True
     elif len(reasons) == 2:
         score = max(score, 65)
+        risk = ToxicityRisk.HIGH
+        is_toxic = True
+    elif is_severe_single:
+        score = max(score, 70 if (has_spam_keyword or has_critical_spam_score) else 55)
         risk = ToxicityRisk.HIGH
         is_toxic = True
     elif len(reasons) == 1:
@@ -197,7 +262,8 @@ def analyze_backlinks(backlinks: List[BacklinkItem]) -> BacklinkSummary:
         AnchorCategory.EXACT_MATCH.value: 0,
         AnchorCategory.PARTIAL_MATCH.value: 0,
         AnchorCategory.GENERIC.value: 0,
-        AnchorCategory.NAKED_URL.value: 0
+        AnchorCategory.NAKED_URL.value: 0,
+        AnchorCategory.SPAM.value: 0,
     }
 
     for b in backlinks:

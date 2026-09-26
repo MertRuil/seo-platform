@@ -103,6 +103,7 @@ class GoogleSyncHub:
         total_sessions = sum(r.sessions for r in ga4_rows) if ga4_connected else 0
         organic_sessions = sum(r.sessions for r in ga4_rows if "organic" in r.channel.lower()) if ga4_connected else 0
         total_conversions = sum(r.conversions for r in ga4_rows) if ga4_connected else 0
+        organic_conversions = sum(r.conversions for r in ga4_rows if "organic" in r.channel.lower()) if ga4_connected else 0.0
         weighted_bounce = (
             sum(r.bounce_rate * r.sessions for r in ga4_rows) / total_sessions
         ) if total_sessions > 0 and ga4_connected else 0.0
@@ -111,8 +112,12 @@ class GoogleSyncHub:
         ) if total_sessions > 0 and ga4_connected else 0.0
 
         # 3. Correlation & Strategic Insights
+        # Organic CVR must strictly use organic conversions divided by organic sessions
         organic_cvr = (
-            (total_conversions / organic_sessions * 100) if organic_sessions > 0 else 0.0
+            (organic_conversions / organic_sessions * 100) if organic_sessions > 0 else 0.0
+        )
+        overall_cvr = (
+            (total_conversions / total_sessions * 100) if total_sessions > 0 else 0.0
         )
         search_attainment_pct = (
             (organic_sessions / total_clicks * 100) if total_clicks > 0 else 0.0
@@ -174,7 +179,9 @@ class GoogleSyncHub:
                 "engagement_rate_percent": round(weighted_engagement * 100, 1),
                 "bounce_rate_percent": round(weighted_bounce * 100, 1),
                 "conversions": total_conversions,
+                "organic_conversions": round(organic_conversions, 1),
                 "organic_conversion_rate": round(organic_cvr, 2),
+                "overall_conversion_rate": round(overall_cvr, 2),
                 "top_pages": [
                     {"path": r.page_path, "sessions": r.sessions, "bounce_rate": round(r.bounce_rate * 100, 1)}
                     for r in ga4_rows[:5]
@@ -182,7 +189,7 @@ class GoogleSyncHub:
             },
             "correlation": {
                 "search_traffic_attainment_percent": round(search_attainment_pct, 1),
-                "organic_lead_yield": round(total_conversions, 1)
+                "organic_lead_yield": round(organic_conversions, 1)
             },
             "insights": insights
         }
