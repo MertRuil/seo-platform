@@ -121,11 +121,37 @@ export const SettingsScreen: React.FC = () => {
 
   const handleToggleIntegration = async (intId: string) => {
     if (!settings) return;
-    const updatedList = settings.connected_integrations.map(i =>
-      i.id === intId ? { ...i, is_connected: !i.is_connected } : i
-    );
-    const updated = await updateAppSettings({ connected_integrations: updatedList });
-    setSettings(updated);
+    const target = settings.connected_integrations.find((i) => i.id === intId);
+    if (!target) return;
+
+    if (target.is_connected) {
+      Alert.alert(
+        "Bağlantıyı Kes",
+        `${target.name} entegrasyonunun bağlantısını kesmek istediğinize emin misiniz? Otomatik veri senkronizasyonu durdurulacaktır.`,
+        [
+          { text: "Vazgeç", style: "cancel" },
+          {
+            text: "Bağlantıyı Kes",
+            style: "destructive",
+            onPress: async () => {
+              const updatedList = settings.connected_integrations.map((i) =>
+                i.id === intId ? { ...i, is_connected: false, last_synced: undefined } : i
+              );
+              const updated = await updateAppSettings({ connected_integrations: updatedList });
+              setSettings(updated);
+              Alert.alert("Bilgi", `${target.name} bağlantısı başarıyla kesildi.`);
+            },
+          },
+        ]
+      );
+    } else {
+      const updatedList = settings.connected_integrations.map((i) =>
+        i.id === intId ? { ...i, is_connected: true, last_synced: "Şimdi" } : i
+      );
+      const updated = await updateAppSettings({ connected_integrations: updatedList });
+      setSettings(updated);
+      Alert.alert("Başarılı", `${target.name} entegrasyonu başarıyla bağlandı ve senkronize edildi.`);
+    }
   };
 
   return (
@@ -375,6 +401,106 @@ export const SettingsScreen: React.FC = () => {
           )}
         </GlassCard>
 
+        {/* CMS & Platform Entegrasyonları (WordPress, Shopify, Slack) */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>CMS & Platform Entegrasyonları</Text>
+        </View>
+        <GlassCard style={styles.groupCard}>
+          {settings?.connected_integrations
+            .filter((i) => !["gsc", "ga4"].includes(i.id))
+            .map((item, index) => {
+              const iconName =
+                item.id === "wp"
+                  ? "globe-outline"
+                  : item.id === "shopify"
+                  ? "cart-outline"
+                  : item.id === "slack"
+                  ? "logo-slack"
+                  : "location-outline";
+              const iconColor =
+                item.id === "wp"
+                  ? "#21759B"
+                  : item.id === "shopify"
+                  ? "#96BF48"
+                  : item.id === "slack"
+                  ? "#E01E5A"
+                  : "#4285F4";
+              const subText =
+                item.id === "wp"
+                  ? item.is_connected
+                    ? `Bağlı • Son eşitleme: ${item.last_synced || "Bugün"}`
+                    : "Otomatik içerik ve sitemap senkronizasyonu"
+                  : item.id === "shopify"
+                  ? item.is_connected
+                    ? `Bağlı • Son eşitleme: ${item.last_synced || "Bugün"}`
+                    : "E-ticaret ürün şeması ve katalog senkronizasyonu"
+                  : item.id === "slack"
+                  ? item.is_connected
+                    ? `Bağlı • Son bildirim: ${item.last_synced || "Canlı"}`
+                    : "Kritik SEO uyarıları ve anlık bildirim botu"
+                  : item.is_connected
+                  ? `Bağlı • Son eşitleme: ${item.last_synced || "Bugün"}`
+                  : "Google Haritalar ve yerel arama yönetimi";
+
+              return (
+                <React.Fragment key={item.id}>
+                  {index > 0 && <View style={styles.divider} />}
+                  <View style={styles.settingRow}>
+                    <View style={styles.settingLeft}>
+                      <View
+                        style={[
+                          styles.integrationIconBox,
+                          { backgroundColor: `${iconColor}1A` },
+                        ]}
+                      >
+                        <Ionicons name={iconName as any} size={20} color={iconColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={styles.settingTitle}>{item.name}</Text>
+                          {item.is_connected && (
+                            <View style={styles.miniActiveBadge}>
+                              <Text style={styles.miniActiveBadgeText}>Bağlı</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.settingSub} numberOfLines={2}>
+                          {subText}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.intBtn,
+                        item.is_connected ? styles.intBtnActive : styles.intBtnInactive,
+                        { flexDirection: "row", alignItems: "center", gap: 4 },
+                      ]}
+                      onPress={() => handleToggleIntegration(item.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={item.is_connected ? "close-circle-outline" : "link-outline"}
+                        size={13}
+                        color={item.is_connected ? Colors.danger : Colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.intBtnText,
+                          item.is_connected
+                            ? { color: Colors.danger }
+                            : { color: Colors.primary },
+                        ]}
+                      >
+                        {item.is_connected ? "Bağlantıyı Kes" : "Bağla"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </React.Fragment>
+              );
+            })}
+        </GlassCard>
+
         {/* Anlık Alarm Kanalları (Slack, Telegram, Discord, Webhook) */}
         <Text style={styles.sectionTitle}>Anlık Alarm Kanalları</Text>
         <GlassCard style={styles.groupCard}>
@@ -570,6 +696,24 @@ const styles = StyleSheet.create({
   },
   intBtnTextInactive: {
     color: Colors.textMuted,
+  },
+  integrationIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniActiveBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  miniActiveBadgeText: {
+    color: Colors.success,
+    fontSize: 9,
+    fontWeight: "700",
   },
   actionRow: {
     flexDirection: "row",

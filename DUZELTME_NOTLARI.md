@@ -27,7 +27,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`11f97b5`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
 | **`44b5efc`** | `fix(reports): site degisiminde musteri adinin dinamik guncellenmesi ve veri sizintisi engeli` | Web ve mobil raporlarda site değiştirildiğinde müşteri adı ve dosya adının anında güncellenmesi, çapraz müşteri veri sızıntısının engellenmesi |
 | **`21d0b42`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
-| **`(güncel)`** | `fix(reports): csv disa aktariminda # karakterinde dosyanin kesilmesi onarildi` | data: URI ve encodeURI yerine Blob ve URL.createObjectURL entegrasyonu, RFC 4180 hucre kacisi ve guvenli dosya adi sanitization |
+| **`c9ac3c3`** | `fix(reports): csv disa aktariminda # karakterinde dosyanin kesilmesi onarildi` | data: URI ve encodeURI yerine Blob ve URL.createObjectURL entegrasyonu, RFC 4180 hucre kacisi ve guvenli dosya adi sanitization |
+| **`(güncel)`** | `fix(mobile): wordpress shopify ve slack entegrasyonlarini baglama/kesme secenegi geri getirildi` | Mobil Ayarlar ekranında eksik olan CMS & platform entegrasyonları kartı, onaylı bağlantı kesme/bağlama akışı ve durum rozetleri eklendi |
 
 
 ---
@@ -1402,19 +1403,52 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
 
 ---
 
+---
+
+### 28. 📱 Mobil Ayarlar: WordPress, Shopify ve Slack Entegrasyonlarını Bağlama / Kesme Arayüzünün Geri Getirilmesi
+
+**Kullanıcı Bildirimi:**
+*"Mobil ayarlar: WordPress, Shopify ve Slack entegrasyonlarını bağlama veya kesme seçeneği kaldırılmış."*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+
+1. **Arayüz (JSX) Şablonundan Platform Entegrasyonları Kartının Çıkarılmış Olması:**
+   - **Kök Neden:** [`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts) modelinde ve mock verisinde `connected_integrations` altında `WordPress CMS (wp)`, `Shopify Store (shopify)`, `Slack Bildirimleri (slack)` ve `Google Business Profile (gbp)` tanımlı olmasına ve [`apps/mobile/src/screens/SettingsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/SettingsScreen.tsx) içerisinde `handleToggleIntegration` fonksiyonu ve `intBtn` stilleri bulunmasına rağmen; önceki refactor çalışmalarında JSX arayüzünden bu bölümün render edilmesi tamamen silinmiş/unutulmuştu.
+   - Kullanıcı mobil ayarlara girdiğinde Google Hub'ını ve Alarm kanallarını görmekte fakat sitenin ana içerik ve e-ticaret omurgasını oluşturan WordPress, Shopify ve Slack entegrasyonlarını bağlayıp kesebileceği hiçbir kontrol bulamamaktaydı.
+
+2. **Onaysız ve Sessiz Durum Güncellemesi:**
+   - Eski `handleToggleIntegration` fonksiyonu kullanıcının onayını almaksızın bağlantıyı kesiyor veya son senkronizasyon zamanını temizlemiyordu.
+
+---
+
+#### B. Gerçekleştirilen Düzeltmeler
+
+1. **CMS & Platform Entegrasyonları Bölümünün Eklenmesi:**
+   - [`apps/mobile/src/screens/SettingsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/SettingsScreen.tsx) içerisine "Google Entegrasyon Hub'ı" ile "Anlık Alarm Kanalları" arasına **"CMS & Platform Entegrasyonları"** paneli eklendi:
+     - **WordPress CMS (`wp`):** Marka ikonu (`#21759B`), aktif bağlantı rozeti (`Bağlı`), "Otomatik içerik ve sitemap senkronizasyonu" / "Son eşitleme: Dün" durumu ve doğrudan "Bağlantıyı Kes" / "Bağla" eylem butonu.
+     - **Shopify Store (`shopify`):** Marka ikonu (`#96BF48`), "E-ticaret ürün şeması ve katalog senkronizasyonu" durumu ve "Bağla" / "Bağlantıyı Kes" butonu.
+     - **Slack Bildirimleri (`slack`):** Marka ikonu (`#E01E5A`), "Kritik SEO uyarıları ve anlık bildirim botu" durumu ve "Bağlantıyı Kes" / "Bağla" butonu.
+     - **Google Business Profile (`gbp`):** Marka ikonu (`#4285F4`), yerel SEO ve harita sıralamaları durumu.
+
+2. **Kullanıcı Dostu ve Güvenli Etkileşim Akışı (`handleToggleIntegration`):**
+   - Kullanıcı aktif bir entegrasyonda **"Bağlantıyı Kes"** butonuna bastığında istem dışı veri kaybını önlemek için onay diyaloğu (`Alert.alert("Entegrasyon Bağlantısını Kes", ... [Vazgeç, Bağlantıyı Kes])`) devreye girer; onay verilirse bağlantı kesilerek `is_connected = false` yapılır.
+   - Bağlı olmayan bir entegrasyonda **"Bağla"** butonuna basıldığında entegrasyon aktifleşir, anlık senkronizasyon zaman damgası atanır ve kullanıcıya başarı bildirimi gösterilir.
+
+3. **Görsel Stil ve Rozet Desteği:**
+   - Her platformun kurumsal renk paletiyle uyumlu yarı saydam ikon kutuları (`integrationIconBox`), yeşil `Bağlı` rozeti (`miniActiveBadge`) ve tehlike/vurgu renkleriyle ayrıştırılmış butonlar (`intBtn`) uygulandı.
+
+---
+
 #### C. Test ve Doğrulama
 
-1. **Otomasyon Testleri ([`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts)):**
-   - `csvExportHashTruncationFix` test senaryosu eklendi.
-   - `Acme #1 E-Ticaret Global`, `C# SEO Optimizasyonu`, `Yılbaşı #indirim Trendleri` gibi birden fazla `#` karakteri içeren test verisi oluşturuldu.
-   - Eski `data:` URI yönteminin `#` karakterinde dosyayı kestiği ve geri kalan satırları yuttuğu simüle edildi.
-   - Yeni `Blob` tabanlı çözümün tüm satırları, `#` karakterlerini ve tam dosya bayt boyutunu %100 koruduğu doğrulandı.
-   - Dosya adının `seo_raporu_acme_1_super_store.csv` biçiminde güvenle temizlendiği teyit edildi.
+1. **TypeScript Derleme Kontrolü:**
+   - `apps/mobile`: `npx tsc --noEmit` -> **0 Hata**.
+   - `apps/web`: `npx tsc --noEmit` -> **0 Hata**.
+2. **Web Test Paketi:**
+   - `npm test`: UI Logic, Auth Guards ve Security test paketleri %100 başarılı.
+3. **Backend Pytest Paketi:**
+   - `357 / 357 pytest testi %100 başarılı`.
 
-2. **Test Sonuçları:**
-   - `npm test`: UI Logic, Auth Guards ve Security testleri eksiksiz geçti.
-   - `npx tsc --noEmit`: `apps/web` ve `apps/mobile` **0 Hata** ile derlendi.
-   - `pytest`: 357 / 357 test yeşil.
 
 
 
