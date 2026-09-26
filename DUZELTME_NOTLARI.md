@@ -17,7 +17,9 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`7adad18`** | `fix(auth): isolate failed attempts per email, handle unregistered users and add code preview` | E-posta bazlı bağımsız hatalı giriş sayacı, kayıtlı olmayan hesap ayrımı, SMTP e-posta servisi ve dev simülasyon kod önizlemesi |
 | **`9aeaa54`** | `feat(mvp): evrensel serverless api katmanı, canlı tarama motoru ve 1-tıkla onboarding` | Dışarıdan doğrudan kullanım için sıfır bağımlılıklı serverless API, canlı çok sayfalı polite crawler, PageRank iç link grafı, 1-tıkla demo onboarding, canlı site ekleme ve PDF yazdırma |
 | **`3ffade2`** | `feat(modules): 5 yeni ana modül ve canlı backend dağıtım hazırlığı (render, railway, supabase)` | Keywords rank tracker, competitors gap analizi, content optimizer, ai copilot, geo ai visibility ve supabase/render/railway yapılandırması |
-| **`(güncel)`** | `feat(compliance-tr): turkiye reklam kurulu, titck ve tbb mevzuatina ozel yasakli kelime kalkani (web & mobil)` | Sağlık (TİTCK), Hukuk (TBB), Finans (SPK/BDDK), E-Ticaret (Reklam Kurulu) ve Bahis/Tütün yasaklı kelime kalkanı, otomatik metin düzeltici ve anahtar kelime denetimi |
+| **`018a1a9`** | `feat(compliance-tr): turkiye reklam kurulu, titck ve tbb mevzuatina ozel yasakli kelime kalkani` | Sağlık (TİTCK), Hukuk (TBB), Finans (SPK/BDDK), E-Ticaret (Reklam Kurulu) ve Bahis/Tütün yasaklı kelime kalkanı |
+| **`e26b57b`** | `feat(compliance-eu): avrupa birligi mevzuati ve greenwashing kalkani (web, mobil, backend)` | EmpCo (EU) 2024/825, EFSA 1924/2006, MiCA (EU) 2023/1114, Omnibus (EU) 2019/2161, 2001/83/EC |
+| **`(güncel)`** | `feat(compliance-us): abd federal mevzuati ftc fda sec uyum kalkani (web, mobil, backend)` | FTC Act Section 5, 16 CFR Part 464 (Fake Reviews), FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides |
 
 ---
 
@@ -651,5 +653,105 @@ Avrupa Birliği (AB) pazarına açılan veya AB vatandaşlarına e-ticaret, sağ
   - Anahtar kelime araştırma listesinde `🇪🇺 EU Mevzuat Riski` etiketi.
   - "Hedef Anahtar Kelime Ekle" modalında canlı AB direktif uyarısı ve önerilen güvenli alternatife otomatik geçiş butonu.
 - Derleme: `npx tsc --noEmit` 0 hata.
+
+---
+
+## 20. Amerika Birleşik Devletleri (ABD) Federal Mevzuatı & FTC / FDA / SEC Reklam Kalkanı (Web, Mobil, Engine)
+
+ABD pazarına giren, ABD'de ikamet eden tüketicilere ürün/hizmet sunan veya ABD merkezli arama motorlarında sıralama hedefleyen web siteleri ve e-ticaret markaları için ABD Federal Hükümeti'nin resmi düzenleyici kurumları (**FTC**, **FDA**, **SEC**, **CFPB**, **EPA**, **ABA**) tarafından yayımlanan yürürlükteki kanunlar, tüzükler ve bağlayıcı kılavuzlar araştırılarak eksiksiz bir uyum kalkanı devreye alınmıştır.
+
+### 1. Araştırılan ve Doğrulanan Resmi ABD Federal Mevzuatı & Yasaklı İfadeler
+
+1. **Ticari Aldatıcı Uygulamalar & Sahte İnceleme Yasağı (FTC Act & 16 CFR Part 464):**
+   - **Mevzuat:** **Federal Trade Commission Act Section 5 (15 U.S.C. § 45 - Unfair or Deceptive Acts/Practices)**, **FTC Final Rule on Fake Reviews and Testimonials (16 CFR Part 464)**, **Restore Online Shoppers' Confidence Act (ROSCA, 15 U.S.C. § 8401)**, **FTC "Made in USA" Labeling Rule (16 CFR Part 323)**.
+   - **Yasaklanan İfadeler:**
+     - Sahte veya satın alınmış kullanıcı değerlendirmeleri (`"buy google reviews"`, `"buy 5 star yelp reviews"`, `"purchase trustpilot reviews"`).
+     - Gizli/aldatıcı negatif opsiyon abonelikler ve otomatik kart çekimleri (`"free trial automatically renews"`, `"free trial automatic monthly billing"`, `"risk free trial billed monthly"`).
+     - Bağımsız yerli üretim yüzdesi kanıtlanmadan kullanılan aldatıcı `"100% made in usa"`, `"proudly made in america"` menşe iddiaları.
+   - **Yaptırım Riski:** 16 CFR Part 464 uyarınca ihlal başına **51.744 $ federal idari para cezası**, kalıcı ihtiyati tedbir ve FTC tazminat davaları.
+   - **Güvenli Alternatif:** `"Doğrulanmış gerçek müşteri deneyimlerine web sitemizden ulaşabilirsiniz"`, `"Şeffaf aylık abonelik; dilediğiniz an iptal edebilirsiniz"`.
+
+2. **Gıda, İlaç, Tedavi ve Reçetesiz Satış Yasakları (FDA FD&C Act & Ryan Haight Act):**
+   - **Mevzuat:** **Federal Food, Drug, and Cosmetic Act (FD&C Act, 21 U.S.C. § 321 et seq.)**, **Direct-to-Consumer (DTC) Prescription Drug Rules (21 CFR 202.1)**, **Ryan Haight Online Pharmacy Consumer Protection Act (21 U.S.C. § 829)**.
+   - **Yasaklanan İfadeler:**
+     - FDA onayı olmadan reçeteli ilaçların internetten reçetesiz satışı veya sevkiyatı (`"buy adderall online no prescription"`, `"buy ozempic online without rx"`, `"order xanax online legally"`, `"cialis online no doctor visit"`).
+     - Gıdalar, takviyeler veya tıbbi cihazlar için kesin iyileşme vaatleri (`"guaranteed cure for cancer"`, `"cure for diabetes"`, `"proven treatment for arthritis"`, `"eliminates chronic disease"`).
+   - **Yaptırım Riski:** FDA Uyarı Mektubu (Warning Letter), federal mahkemelerce ürünlere el koyma (seizure), ithalat kısıtlaması (Import Alert) ve Adalet Bakanlığı (DOJ) cezai kovuşturması.
+   - **Güvenli Alternatif:** `"Hekim reçetesiyle lisanslı eczanelerden temin edilir"`, `"Genel sağlık ve zindelik fonksiyonlarını desteklemeye yardımcı olur"`.
+
+3. **Gıda Takviyeleri & Agresif Kilo Verme Vaatleri (DSHEA 1994 & FTC Gut Check):**
+   - **Mevzuat:** **Dietary Supplement Health and Education Act of 1994 (DSHEA, 21 U.S.C. § 343(r)(6))**, Zorunlu FDA Uyarısı (**21 CFR 101.93**), **FTC "Gut Check: A Reference Guide for Media on Fake Weight-Loss Claims"**.
+   - **Yasaklanan İfadeler:**
+     - Diyet veya spor yapmaksızın hızlı ve çabasız kilo verme vaatleri (`"lose 30 lbs in 2 weeks"`, `"lose weight without diet or exercise"`, `"burn belly fat while you sleep"`, `"permanent weight loss guaranteed"`, `"miracle fat burner"`).
+     - DSHEA uyarısı bulunmaksızın hastalık önleme/tedavi iddiası sunulması.
+   - **Yaptırım Riski:** Tüketici iade fonu kurulması, milyonlarca dolarlık FTC cezaları ve ürün toplatma kararları.
+   - **Güvenli Alternatif:** Zorunlu DSHEA Uyarısı: *"These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease. Use alongside balanced caloric intake and physical exercise under medical supervision."*
+
+4. **Finansal Getiri, Kripto Para & Tüketici Kredisi (SEC & CFTC & CFPB):**
+   - **Mevzuat:** **Securities Act § 17(a)**, **Securities Exchange Act Rule 10b-5 (17 CFR § 240.10b-5)**, **SEC Marketing Rule for Investment Advisers (17 CFR § 275.206(4)-1)**, **Truth in Lending Act (TILA, 15 U.S.C. § 1601 / Regulation Z)**, **Consumer Financial Protection Bureau (CFPB) Payday Lending Rules**.
+   - **Yasaklanan İfadeler:**
+     - Yatırımda ve kripto varlıklarda garanti kâr veya risksiz kazanç vaatleri (`"guaranteed crypto yield"`, `"guaranteed investment return"`, `"100% risk free trading"`, `"guaranteed 10x returns"`, `"risk-free crypto arbitrage"`).
+     - Kredi geçmişi veya ödeme kabiliyeti araştırmaksızın garanti kredi vaatleri (`"guaranteed approval payday loans"`, `"no credit check instant cash advance"`, `"bad credit guaranteed loan"`).
+   - **Yaptırım Riski:** SEC ve CFTC tarafından hesapların dondurulması, haksız kazancın faiziyle iadesi (disgorgement) ve lisans iptali; CFPB tarafından tefecilik/yıkıcı borçlandırma cezaları.
+   - **Güvenli Alternatif:** `"Investing involves risk, including possible loss of principal. Past performance is no guarantee of future results. Loans subject to credit approval and income verification."`
+
+5. **Çevre ve Sürdürülebilirlik İddiaları (FTC Green Guides 16 CFR Part 260):**
+   - **Mevzuat:** **FTC Guides for the Use of Environmental Marketing Claims ("Green Guides", 16 CFR Part 260)**.
+   - **Yasaklanan İfadeler:** Somut ve üçüncü tarafça doğrulanmış sertifikası bulunmayan jenerik yeşil iddialar (`"100% eco friendly"`, `"certified carbon neutral"`, `"net zero product"`, `"completely green and non-toxic"`).
+   - **Yaptırım Riski:** FTC Act Section 5 kapsamında aldatıcı çevresel beyan yaptırımları ve tazminat cezaları.
+   - **Güvenli Alternatif:** Spesifik ve doğrulanabilir bilgi: `"Manufactured with 70% post-consumer recycled plastic"`.
+
+6. **Hukuki Danışmanlık ve Avukatlık (ABA Model Rules of Professional Conduct):**
+   - **Mevzuat:** **ABA Model Rule 7.1 (Communications Concerning a Lawyer's Services)** & Eyalet Barosu Meslek Kuralları (State Bar Ethics Rules).
+   - **Yasaklanan İfadeler:** Dava sonucunu garanti etme (`"guaranteed court win"`, `"guaranteed full acquittal"`, `"100% success rate lawyer"`), kanıtlanamaz süperlatifler (`"best trial lawyer in the state"`, `"we never lose a case"`).
+   - **Yaptırım Riski:** Eyalet Barosu Disiplin Kurulu soruşturması, baro levhasından silinme/askıya alınma yaptırımı.
+   - **Güvenli Alternatif:** `"Experienced litigation counsel dedicated to protecting your legal rights. Prior results do not guarantee a similar outcome."`
+
+7. **Tütün & Elektronik Sigara Posta Satışı (PACT Act):**
+   - **Mevzuat:** **Prevent All Cigarette Trafficking Act (PACT Act, 15 U.S.C. § 375 et seq.)** & **USPS Kargo Yasağı**.
+   - **Yasaklanan İfadeler:** Elektronik sigara, puff bar ve likitlerin son tüketiciye posta/kargo ile online satışı (`"buy vapes online cheap"`, `"order puff bars online"`, `"disposable vapes free shipping"`, `"mail order cigarettes"`).
+   - **Yaptırım Riski:** ATF (Alkol, Tütün, Ateşli Silahlar Bürosu) baskınları, 3 yıla kadar federal hapis cezası ve ihlal başına 5.000 $ para cezası.
+
+---
+
+### 2. Üç Katmanlı Mimari Uygulama
+
+#### A. Backend Kural Motoru (`services/seo_engine/`)
+- `services/seo_engine/rules/us_compliance.py` oluşturuldu:
+  - `UsComplianceSector` enum'ı (HEALTH_FDA, SUPPLEMENTS_WEIGHTLOSS, FTC_COMMERCIAL_DECEPTIVE, FINANCIAL_SEC_CFPB, GREEN_GUIDES_FTC, LEGAL_ABA, TOBACCO_PACT).
+  - `US_REGULATORY_RULES` kapsamlı regex veri tabanı.
+  - `scan_text_for_us_compliance()` tarama fonksiyonu.
+  - `UsRegulatoryComplianceRule(SeoRule)` sınıfı implementasyonu.
+- `services/seo_engine/engine.py` motoruna kural tescil edildi.
+- `tests/unit/test_us_compliance.py`: 15 birim test ile tüm sektörler, ceza metinleri, temiz metinler ve `SeoRuleEngine` entegrasyonu doğrulandı.
+- Tüm test paketi: **277 test %100 yeşil/başarılı**.
+
+#### B. Web Uygulaması (`apps/web/`)
+- `apps/web/src/lib/compliance-us.ts`: ABD Uyum Kütüphanesi (Regex kuralları, federal yasal dayanaklar, yaptırım riskleri ve düzeltme önerileri).
+- `apps/web/src/app/content/page.tsx`:
+  - **3 Yönlü Yargı Alanı Seçici:** `[ 🇹🇷 Türkiye (TR) ]`, `[ 🇪🇺 Avrupa Birliği (EU) ]`, `[ 🇺🇸 ABD (FTC / FDA / SEC) ]`.
+  - ABD'ye özel 7 test senaryosu (FDA Hastalık & Reçete, FDA/FTC Kilo Verme, FTC Sahte İnceleme & ROSCA, SEC & Kripto, FTC Green Guides, ABA Hukuk, ABD Uyumlu Metin).
+  - ABD sektör filtreleri ve anlık kural ihlali tespit tablosu.
+- `apps/web/src/app/keywords/page.tsx`:
+  - Sıralama takibinde ve anahtar kelime araştırmasında `🇺🇸 US Violation` / `🇺🇸 US Prohibited` etiketleri.
+  - Kelime ekleme modalında FTC/FDA kurallarına dayalı anlık federal uyarı kutusu ve güvenli alternatife otomatik geçiş butonu.
+- `apps/web/src/app/ai/page.tsx`:
+  - **"🇺🇸 US Mevzuat & FTC/FDA Denetimi"** hızlı istemi ve federal mevzuata atıfta bulunan yapay zeka denetim yanıtı.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
+#### C. Mobil Uygulama (`apps/mobile/`)
+- `apps/mobile/src/types/index.ts`: `UsComplianceSector`, `UsComplianceViolation` ve `ComplianceJurisdiction = "TR" | "EU" | "US"`.
+- `apps/mobile/src/services/api.ts`: `US_MOBILE_COMPLIANCE_RULES` ve `scanUsCompliance()` fonksiyonu.
+- `apps/mobile/src/screens/ContentOptimizerScreen.tsx`:
+  - Üstte 3 butonlu segment anahtarı: `[ 🇹🇷 Türkiye ]`, `[ 🇪🇺 Avrupa (EU) ]`, `[ 🇺🇸 ABD (US) ]`.
+  - ABD hazır test çipleri (🏥 FDA Hastalık & Rx, 🥗 FTC/FDA Kilo Verme, ⭐ FTC Sahte Yorum, 💳 SEC Kripto & Kredi, 🌿 FTC Green Guides, ⚖️ ABA Avukatlık Garantisi, 🚬 PACT Act Tütün, ✅ FTC/FDA Uyumlu Metin).
+  - ABD sektör filtreleme butonları.
+  - Canlı denetim, ihlal kartları, yaptırım uyarısı ve tek tıkla **"Metinde Düzelt"** aksiyonu.
+- `apps/mobile/src/screens/KeywordsScreen.tsx`:
+  - Takip listesinde `🇺🇸 US Uyum Riski` rozeti ve federal yasal dayanak açıklaması.
+  - Anahtar kelime araştırma listesinde `🇺🇸 US Mevzuat Riski` etiketi.
+  - "Hedef Anahtar Kelime Ekle" modalında canlı FTC / FDA / SEC federal uyarı kutusu ve önerilen güvenli alternatife otomatik geçiş butonu.
+- Derleme: `npx tsc --noEmit` 0 hata.
+
 
 

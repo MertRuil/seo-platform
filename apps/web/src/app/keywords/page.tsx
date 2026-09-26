@@ -31,6 +31,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { scanTurkishCompliance } from "@/lib/compliance-tr";
 import { scanEuCompliance } from "@/lib/compliance-eu";
+import { scanUsCompliance } from "@/lib/compliance-us";
 
 function getIntentTone(intent: string): Tone {
   switch (intent) {
@@ -259,6 +260,7 @@ export default function KeywordsPage() {
                   const kdInfo = getKdColor(item.difficulty);
                   const trViolations = scanTurkishCompliance(item.keyword);
                   const euViolations = scanEuCompliance(item.keyword);
+                  const usViolations = scanUsCompliance(item.keyword);
                   return (
                     <tr key={item.id} className="hover:bg-surface-2 transition-colors">
                       {/* Keyword + Intent */}
@@ -282,6 +284,15 @@ export default function KeywordsPage() {
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                                 🇪🇺 EU Violation: {euViolations[0].title}
+                              </span>
+                            )}
+                            {usViolations.length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                                title={`US: ${usViolations[0].title} (${usViolations[0].legalBasis})`}
+                              >
+                                <AlertTriangle className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                                🇺🇸 US Violation: {usViolations[0].title}
                               </span>
                             )}
                           </div>
@@ -430,6 +441,7 @@ export default function KeywordsPage() {
                   const kd = getKdColor(item.difficulty);
                   const expTr = scanTurkishCompliance(item.keyword);
                   const expEu = scanEuCompliance(item.keyword);
+                  const expUs = scanUsCompliance(item.keyword);
                   return (
                     <div key={idx} className="p-4 bg-surface hover:bg-surface-2 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="space-y-1">
@@ -451,6 +463,15 @@ export default function KeywordsPage() {
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                               🇪🇺 EU Prohibited: {expEu[0].title}
+                            </span>
+                          )}
+                          {expUs.length > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                              title={`US: ${expUs[0].title} (${expUs[0].legalBasis})`}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                              🇺🇸 US Prohibited: {expUs[0].title}
                             </span>
                           )}
                           {item.has_ai_overview && (
@@ -538,6 +559,20 @@ export default function KeywordsPage() {
                 </p>
                 <p className="text-2xs text-emerald-700 font-semibold">
                   Compliant EU Recommendation: {scanEuCompliance(newKeyword)[0].suggestedFix}
+                </p>
+              </div>
+            )}
+            {scanUsCompliance(newKeyword).length > 0 && (
+              <div className="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-sm space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-800 font-bold text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span>🇺🇸 US Federal Compliance Warning: {scanUsCompliance(newKeyword)[0].title}</span>
+                </div>
+                <p className="text-2xs text-blue-700 leading-relaxed">
+                  "{scanUsCompliance(newKeyword)[0].matchedPattern}" violates {scanUsCompliance(newKeyword)[0].legalBasis} (FTC/FDA penalty risk).
+                </p>
+                <p className="text-2xs text-emerald-700 font-semibold">
+                  Compliant US Recommendation: {scanUsCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
             )}

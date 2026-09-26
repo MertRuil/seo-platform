@@ -52,6 +52,7 @@ from services.seo_engine.rules.rules_impl import (
 )
 from services.seo_engine.rules.turkish_compliance import TurkishRegulatoryComplianceRule
 from services.seo_engine.rules.eu_compliance import EuRegulatoryComplianceRule
+from services.seo_engine.rules.us_compliance import UsRegulatoryComplianceRule
 
 class SeoRuleEngine:
     def __init__(self):
@@ -105,6 +106,7 @@ class SeoRuleEngine:
             HreflangNoReturnLinkRule(),
             TurkishRegulatoryComplianceRule(),
             EuRegulatoryComplianceRule(),
+            UsRegulatoryComplianceRule(),
         ]
 
     def register_rule(self, rule: SeoRule):

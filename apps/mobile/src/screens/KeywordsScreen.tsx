@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { fetchKeywords, addKeyword, researchKeywords, scanTurkishCompliance, scanEuCompliance } from "../services/api";
+import { fetchKeywords, addKeyword, researchKeywords, scanTurkishCompliance, scanEuCompliance, scanUsCompliance } from "../services/api";
 import { KeywordItem, KeywordResearchItem } from "../types";
 
 export const KeywordsScreen: React.FC = () => {
@@ -195,6 +195,7 @@ export const KeywordsScreen: React.FC = () => {
               const isDown = kw.change < 0;
               const compIssues = scanTurkishCompliance(kw.keyword);
               const euIssues = scanEuCompliance(kw.keyword);
+              const usIssues = scanUsCompliance(kw.keyword);
 
               return (
                 <GlassCard key={kw.id} style={styles.kwCard}>
@@ -214,6 +215,12 @@ export const KeywordsScreen: React.FC = () => {
                             <Text style={[styles.complianceWarnText, { color: "#3B82F6" }]}>🇪🇺 EU Uyum Riski</Text>
                           </View>
                         )}
+                        {usIssues.length > 0 && (
+                          <View style={[styles.complianceWarnBadge, { backgroundColor: "rgba(168, 85, 247, 0.15)", borderColor: "rgba(168, 85, 247, 0.3)" }]}>
+                            <Ionicons name="flag-outline" size={10} color="#C084FC" />
+                            <Text style={[styles.complianceWarnText, { color: "#C084FC" }]}>🇺🇸 US Uyum Riski</Text>
+                          </View>
+                        )}
                       </View>
                       
                       {compIssues.length > 0 && (
@@ -228,6 +235,14 @@ export const KeywordsScreen: React.FC = () => {
                         <View style={[styles.complianceMiniNote, { backgroundColor: "rgba(59, 130, 246, 0.08)", borderColor: "rgba(59, 130, 246, 0.2)" }]}>
                           <Text style={[styles.complianceMiniNoteText, { color: "#93C5FD" }]}>
                             🇪🇺 {euIssues[0].legal_reference || euIssues[0].legal_basis}: AB Direktiflerine aykırı iddia veya kısıtlı kelime.
+                          </Text>
+                        </View>
+                      )}
+
+                      {usIssues.length > 0 && (
+                        <View style={[styles.complianceMiniNote, { backgroundColor: "rgba(168, 85, 247, 0.08)", borderColor: "rgba(168, 85, 247, 0.2)" }]}>
+                          <Text style={[styles.complianceMiniNoteText, { color: "#E9D5FF" }]}>
+                            🇺🇸 {usIssues[0].legal_reference || usIssues[0].legal_basis}: FTC / FDA / SEC federal kısıtlamalarına tabidir.
                           </Text>
                         </View>
                       )}
@@ -318,6 +333,7 @@ export const KeywordsScreen: React.FC = () => {
           {researchResults.map((r, idx) => {
             const rComp = scanTurkishCompliance(r.keyword);
             const rEuComp = scanEuCompliance(r.keyword);
+            const rUsComp = scanUsCompliance(r.keyword);
             return (
               <GlassCard key={idx} style={styles.kwCard}>
                 <View style={styles.kwRow}>
@@ -340,6 +356,12 @@ export const KeywordsScreen: React.FC = () => {
                         <View style={[styles.complianceWarnBadge, { backgroundColor: "rgba(59, 130, 246, 0.15)", borderColor: "rgba(59, 130, 246, 0.3)" }]}>
                           <Ionicons name="shield-outline" size={10} color="#3B82F6" />
                           <Text style={[styles.complianceWarnText, { color: "#3B82F6" }]}>🇪🇺 EU Mevzuat Riski</Text>
+                        </View>
+                      )}
+                      {rUsComp.length > 0 && (
+                        <View style={[styles.complianceWarnBadge, { backgroundColor: "rgba(168, 85, 247, 0.15)", borderColor: "rgba(168, 85, 247, 0.3)" }]}>
+                          <Ionicons name="flag-outline" size={10} color="#C084FC" />
+                          <Text style={[styles.complianceWarnText, { color: "#C084FC" }]}>🇺🇸 US Mevzuat Riski</Text>
                         </View>
                       )}
                     </View>
@@ -400,8 +422,9 @@ export const KeywordsScreen: React.FC = () => {
               if (!trimmed) return null;
               const modalIssues = scanTurkishCompliance(trimmed);
               const modalEuIssues = scanEuCompliance(trimmed);
+              const modalUsIssues = scanUsCompliance(trimmed);
 
-              if (modalIssues.length === 0 && modalEuIssues.length === 0) return null;
+              if (modalIssues.length === 0 && modalEuIssues.length === 0 && modalUsIssues.length === 0) return null;
 
               if (modalIssues.length > 0) {
                 return (
@@ -429,26 +452,55 @@ export const KeywordsScreen: React.FC = () => {
                 );
               }
 
-              const euIssue = modalEuIssues[0];
+              if (modalEuIssues.length > 0) {
+                const euIssue = modalEuIssues[0];
+                return (
+                  <View style={[styles.modalAlertBox, { borderColor: "rgba(59, 130, 246, 0.4)", backgroundColor: "rgba(59, 130, 246, 0.08)" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Ionicons name="shield-half" size={16} color="#3B82F6" />
+                      <Text style={[styles.modalAlertTitle, { color: "#60A5FA" }]}>
+                        🇪🇺 AB Mevzuat Uyarısı ({euIssue.sector})
+                      </Text>
+                    </View>
+                    <Text style={styles.modalAlertDesc}>{euIssue.title || euIssue.explanation}</Text>
+                    <Text style={[styles.modalAlertLegal, { color: "#93C5FD" }]}>
+                      Direktif: {euIssue.legal_basis || euIssue.legal_reference}
+                    </Text>
+                    {(euIssue.suggested_fix || euIssue.suggested_replacement) && (
+                      <TouchableOpacity
+                        style={[styles.modalAlertFixBtn, { borderColor: "rgba(59, 130, 246, 0.4)" }]}
+                        onPress={() => setNewKeywordInput(euIssue.suggested_fix || euIssue.suggested_replacement || "")}
+                      >
+                        <Ionicons name="sparkles" size={12} color="#60A5FA" />
+                        <Text style={[styles.modalAlertFixText, { color: "#60A5FA" }]}>
+                          Önerilen alternatifi kullan
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              }
+
+              const usIssue = modalUsIssues[0];
               return (
-                <View style={[styles.modalAlertBox, { borderColor: "rgba(59, 130, 246, 0.4)", backgroundColor: "rgba(59, 130, 246, 0.08)" }]}>
+                <View style={[styles.modalAlertBox, { borderColor: "rgba(168, 85, 247, 0.4)", backgroundColor: "rgba(168, 85, 247, 0.08)" }]}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Ionicons name="shield-half" size={16} color="#3B82F6" />
-                    <Text style={[styles.modalAlertTitle, { color: "#60A5FA" }]}>
-                      🇪🇺 AB Mevzuat Uyarısı ({euIssue.sector})
+                    <Ionicons name="flag" size={16} color="#C084FC" />
+                    <Text style={[styles.modalAlertTitle, { color: "#E9D5FF" }]}>
+                      🇺🇸 ABD Federal Mevzuat Uyarısı ({usIssue.sector})
                     </Text>
                   </View>
-                  <Text style={styles.modalAlertDesc}>{euIssue.title || euIssue.explanation}</Text>
-                  <Text style={[styles.modalAlertLegal, { color: "#93C5FD" }]}>
-                    Direktif: {euIssue.legal_basis || euIssue.legal_reference}
+                  <Text style={styles.modalAlertDesc}>{usIssue.title || usIssue.explanation}</Text>
+                  <Text style={[styles.modalAlertLegal, { color: "#E9D5FF" }]}>
+                    Yasal Dayanak: {usIssue.legal_basis || usIssue.legal_reference}
                   </Text>
-                  {(euIssue.suggested_fix || euIssue.suggested_replacement) && (
+                  {(usIssue.suggested_fix || usIssue.suggested_replacement) && (
                     <TouchableOpacity
-                      style={[styles.modalAlertFixBtn, { borderColor: "rgba(59, 130, 246, 0.4)" }]}
-                      onPress={() => setNewKeywordInput(euIssue.suggested_fix || euIssue.suggested_replacement || "")}
+                      style={[styles.modalAlertFixBtn, { borderColor: "rgba(168, 85, 247, 0.4)" }]}
+                      onPress={() => setNewKeywordInput(usIssue.suggested_fix || usIssue.suggested_replacement || "")}
                     >
-                      <Ionicons name="sparkles" size={12} color="#60A5FA" />
-                      <Text style={[styles.modalAlertFixText, { color: "#60A5FA" }]}>
+                      <Ionicons name="sparkles" size={12} color="#C084FC" />
+                      <Text style={[styles.modalAlertFixText, { color: "#C084FC" }]}>
                         Önerilen alternatifi kullan
                       </Text>
                     </TouchableOpacity>

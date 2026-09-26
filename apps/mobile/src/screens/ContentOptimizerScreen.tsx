@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance } from "../services/api";
+import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance } from "../services/api";
 import { 
   ContentOptimizationResult, 
   GeneratedContentResult, 
@@ -23,6 +23,8 @@ import {
   ComplianceViolation,
   EuComplianceSector,
   EuComplianceViolation,
+  UsComplianceSector,
+  UsComplianceViolation,
   ComplianceJurisdiction
 } from "../types";
 
@@ -43,13 +45,14 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [genResult, setGenResult] = useState<GeneratedContentResult | null>(null);
 
-  // Compliance state (TR & EU)
+  // Compliance state (TR, EU & US)
   const [complianceJurisdiction, setComplianceJurisdiction] = useState<ComplianceJurisdiction>("TR");
   const [complianceDraft, setComplianceDraft] = useState(
     "Kliniğimizde en iyi doktor kadromuzla kesin tedavi garantisi sunuyoruz. Öncesi sonrası fotoğraflarımızı inceleyin, sıfır risk ile şifa bulun."
   );
   const [complianceSector, setComplianceSector] = useState<ComplianceSector | "ALL">("ALL");
   const [euComplianceSector, setEuComplianceSector] = useState<EuComplianceSector | "ALL">("ALL");
+  const [usComplianceSector, setUsComplianceSector] = useState<UsComplianceSector | "ALL">("ALL");
 
   const complianceViolations = useMemo(() => {
     if (complianceJurisdiction === "TR") {
@@ -57,19 +60,28 @@ export const ContentOptimizerScreen: React.FC = () => {
         complianceDraft,
         complianceSector === "ALL" ? undefined : complianceSector
       );
-    } else {
+    } else if (complianceJurisdiction === "EU") {
       return scanEuCompliance(
         complianceDraft,
         euComplianceSector === "ALL" ? undefined : euComplianceSector
       );
+    } else {
+      return scanUsCompliance(
+        complianceDraft,
+        usComplianceSector === "ALL" ? undefined : usComplianceSector
+      );
     }
-  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector]);
+  }, [complianceJurisdiction, complianceDraft, complianceSector, euComplianceSector, usComplianceSector]);
 
   const handleSelectJurisdiction = (j: ComplianceJurisdiction) => {
     setComplianceJurisdiction(j);
     if (j === "EU") {
       setComplianceDraft(
         "Our revolutionary sneaker is 100% eco-friendly and climate neutral through carbon offset investments. Lose 10 kg in 2 weeks with our guaranteed rapid fat burn formula, cheapest in Europe!"
+      );
+    } else if (j === "US") {
+      setComplianceDraft(
+        "Guaranteed cure for diabetes and chronic arthritis with our all-natural supplement! Earn 100% guaranteed return on crypto, buy prescription Adderall online no rx required. Lose 30 lbs in 2 weeks without diet or exercise!"
       );
     } else {
       setComplianceDraft(
@@ -78,7 +90,7 @@ export const ContentOptimizerScreen: React.FC = () => {
     }
   };
 
-  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation) => {
+  const handleFixViolation = (v: ComplianceViolation | EuComplianceViolation | UsComplianceViolation) => {
     const term = v.matched_term || v.matched_pattern;
     const fix = v.suggested_replacement || v.suggested_fix;
     if (!term || !fix) return;
@@ -167,7 +179,7 @@ export const ContentOptimizerScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* TAB 3: TR & EU COMPLIANCE SHIELD */}
+        {/* TAB 3: TR, EU & US COMPLIANCE SHIELD */}
         {activeTabSub === "COMPLIANCE" && (
           <>
             {/* Jurisdiction Switcher */}
@@ -187,7 +199,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                     complianceJurisdiction === "TR" && styles.jurisdictionBtnTextActive,
                   ]}
                 >
-                  Türkiye Mevzuatı
+                  Türkiye
                 </Text>
               </TouchableOpacity>
 
@@ -206,7 +218,26 @@ export const ContentOptimizerScreen: React.FC = () => {
                     complianceJurisdiction === "EU" && styles.jurisdictionBtnTextActive,
                   ]}
                 >
-                  Avrupa Birliği (EU)
+                  Avrupa (EU)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.jurisdictionBtn,
+                  complianceJurisdiction === "US" && styles.jurisdictionBtnActive,
+                ]}
+                onPress={() => handleSelectJurisdiction("US")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.jurisdictionFlag}>🇺🇸</Text>
+                <Text
+                  style={[
+                    styles.jurisdictionBtnText,
+                    complianceJurisdiction === "US" && styles.jurisdictionBtnTextActive,
+                  ]}
+                >
+                  ABD (US)
                 </Text>
               </TouchableOpacity>
             </View>
@@ -218,19 +249,27 @@ export const ContentOptimizerScreen: React.FC = () => {
                 <Text style={styles.complianceIntroTitle}>
                   {complianceJurisdiction === "TR"
                     ? "Türkiye Mevzuat Denetim Kalkanı"
-                    : "Avrupa Birliği (AB) Mevzuat & Greenwashing Kalkanı"}
+                    : complianceJurisdiction === "EU"
+                    ? "Avrupa Birliği (AB) Mevzuat & Greenwashing Kalkanı"
+                    : "ABD Federal Mevzuat Kalkanı (FTC / FDA / SEC)"}
                 </Text>
               </View>
               <Text style={styles.complianceIntroText}>
                 {complianceJurisdiction === "TR"
                   ? "Ticaret Bakanlığı Reklam Kurulu, TİTCK (Sağlık Bakanlığı), TBB ve SPK/BDDK mevzuatına göre kullanımı yasak olan veya idari para cezası ve erişim engeline yol açabilecek kelimeleri anlık tarar."
-                  : "Directive (EU) 2024/825 (EmpCo / Greenwashing), Directive 2001/83/EC, EFSA Reg 1924/2006, MiCA (EU) 2023/1114 ve Omnibus direktiflerine göre yasaklı iddia ve yanıltıcı beyanları anlık tarar."}
+                  : complianceJurisdiction === "EU"
+                  ? "Directive (EU) 2024/825 (EmpCo / Greenwashing), Directive 2001/83/EC, EFSA Reg 1924/2006, MiCA (EU) 2023/1114 ve Omnibus direktiflerine göre yasaklı iddia ve yanıltıcı beyanları anlık tarar."
+                  : "FTC Act Section 5, 16 CFR Part 464 (Fake Reviews Rule), FDA FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides ve PACT Act uyarınca ihlal başına 51.744 $'a varan federal cezaları önler."}
               </Text>
             </GlassCard>
 
             {/* Quick Presets */}
             <Text style={styles.fieldLabel}>
-              {complianceJurisdiction === "TR" ? "Hazır Test Senaryoları" : "AB Mevzuat Test Senaryoları"}
+              {complianceJurisdiction === "TR"
+                ? "Hazır Test Senaryoları"
+                : complianceJurisdiction === "EU"
+                ? "AB Mevzuat Test Senaryoları"
+                : "ABD Federal Mevzuat Test Senaryoları"}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
               {complianceJurisdiction === "TR" ? (
@@ -286,7 +325,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                     <Text style={styles.presetChipText}>✅ Temiz Metin</Text>
                   </TouchableOpacity>
                 </>
-              ) : (
+              ) : complianceJurisdiction === "EU" ? (
                 <>
                   <TouchableOpacity
                     style={styles.presetChip}
@@ -359,6 +398,89 @@ export const ContentOptimizerScreen: React.FC = () => {
                     <Text style={styles.presetChipText}>✅ AB Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Guaranteed cure for diabetes and chronic cancer with our clinically proven herbal supplement. Buy Adderall online no prescription required."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🏥 FDA Hastalık & Rx</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Lose 30 lbs in 2 weeks without diet or exercise! Fast fat burner guaranteed results for belly fat."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🥗 FTC/FDA Kilo Verme</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Buy 500 real 5-star Google and Yelp reviews for your business to rank number one guaranteed. Claim your free trial with automatic monthly renewal billing."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>⭐ FTC Sahte Yorum</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Guaranteed crypto yield and 100% risk-free return on automated Bitcoin algorithmic bot trading! Guaranteed approval payday loans with no credit check."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>💳 SEC Kripto & Kredi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Our apparel is 100% eco-friendly, completely green, and certified carbon neutral through offset credits."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🌿 FTC Green Guides</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Best trial lawyer in California with 100% success rate. Guaranteed court win in federal criminal defense litigation."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>⚖️ ABA Avukatlık Garantisi</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "Buy cheap vapes and puff bars online with free USPS shipping anywhere in the USA."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>🚬 PACT Act Tütün</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() =>
+                      setComplianceDraft(
+                        "These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease. Consult your physician before starting any diet program."
+                      )
+                    }
+                  >
+                    <Text style={styles.presetChipText}>✅ FTC/FDA Uyumlu Metin</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </ScrollView>
 
@@ -388,7 +510,8 @@ export const ContentOptimizerScreen: React.FC = () => {
                       </TouchableOpacity>
                     );
                   })
-                : [
+                : complianceJurisdiction === "EU"
+                ? [
                     { id: "ALL", label: "Tüm AB Sektörleri" },
                     { id: "GREEN_CLAIMS", label: "🌿 Green Claims & EmpCo" },
                     { id: "HEALTH_PHARMA", label: "🏥 Sağlık & POM" },
@@ -404,6 +527,29 @@ export const ContentOptimizerScreen: React.FC = () => {
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setEuComplianceSector(s.id as any)}
+                      >
+                        <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
+                          {s.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                : [
+                    { id: "ALL", label: "Tüm ABD Sektörleri" },
+                    { id: "HEALTH_FDA", label: "🏥 FDA Sağlık & İlaç" },
+                    { id: "SUPPLEMENTS_WEIGHTLOSS", label: "🥗 DSHEA & Kilo Verme" },
+                    { id: "FTC_COMMERCIAL_DECEPTIVE", label: "⭐ FTC Sahte Yorum" },
+                    { id: "FINANCIAL_SEC_CFPB", label: "💳 SEC Finans & Kredi" },
+                    { id: "GREEN_GUIDES_FTC", label: "🌿 EPA Green Guides" },
+                    { id: "LEGAL_ABA", label: "⚖️ ABA Hukuk" },
+                    { id: "TOBACCO_PACT", label: "🚬 PACT Act Tütün" },
+                  ].map((s) => {
+                    const isAct = usComplianceSector === s.id;
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[styles.typeChip, isAct && styles.typeChipActive]}
+                        onPress={() => setUsComplianceSector(s.id as any)}
                       >
                         <Text style={[styles.typeChipText, isAct && styles.typeChipTextActive]}>
                           {s.label}
@@ -451,7 +597,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                   <Text style={styles.cleanStatusDesc}>
                     {complianceJurisdiction === "TR"
                       ? "Metninizde Türkiye Reklam Kurulu, TİTCK veya TBB mevzuatınca yasaklanmış herhangi bir kural ihlali bulunamadı."
-                      : "Metninizde Avrupa Birliği Direktifleri (EmpCo, EFSA, MiCA, Omnibus) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."}
+                      : complianceJurisdiction === "EU"
+                      ? "Metninizde Avrupa Birliği Direktifleri (EmpCo, EFSA, MiCA, Omnibus) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."
+                      : "Metninizde ABD federal mevzuatı (FTC, FDA, SEC, CFPB, EPA) tarafından yasaklanmış herhangi bir kural ihlali bulunamadı."}
                   </Text>
                 </View>
               </GlassCard>
@@ -465,7 +613,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                   <Text style={styles.violationSummaryDesc}>
                     {complianceJurisdiction === "TR"
                       ? "Aşağıdaki ifadeler reklam ve içerik mevzuatına aykırıdır; idari para cezası ve içerik engeli riski taşır."
-                      : "Aşağıdaki ifadeler Avrupa Birliği tüketici, sağlık ve yeşil dönüşüm direktiflerine aykırıdır; yüksek idari para cezaları riski taşır."}
+                      : complianceJurisdiction === "EU"
+                      ? "Aşağıdaki ifadeler Avrupa Birliği tüketici, sağlık ve yeşil dönüşüm direktiflerine aykırıdır; yüksek idari para cezaları riski taşır."
+                      : "Aşağıdaki ifadeler ABD federal mevzuatına (FTC Act, FD&C Act, SEC Rule 10b-5) aykırıdır; ihlal başına 51.744 $'a varan federal cezalar riski taşır."}
                   </Text>
                 </View>
               </GlassCard>

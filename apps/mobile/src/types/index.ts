@@ -361,7 +361,33 @@ export interface EuComplianceViolation {
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
 }
 
-export type ComplianceJurisdiction = "TR" | "EU";
+export type ComplianceJurisdiction = "TR" | "EU" | "US";
+
+export type UsComplianceSector =
+  | "HEALTH_FDA"
+  | "SUPPLEMENTS_WEIGHTLOSS"
+  | "FTC_COMMERCIAL_DECEPTIVE"
+  | "FINANCIAL_SEC_CFPB"
+  | "GREEN_GUIDES_FTC"
+  | "LEGAL_ABA"
+  | "TOBACCO_PACT";
+
+export interface UsComplianceViolation {
+  rule_id: string;
+  sector: UsComplianceSector;
+  title: string;
+  explanation?: string;
+  matched_pattern: string;
+  matched_term?: string;
+  context_snippet: string;
+  legal_basis: string;
+  legal_reference?: string;
+  penalty_risk: string;
+  fine_risk?: string;
+  suggested_fix: string;
+  suggested_replacement?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM";
+}
 
 
 

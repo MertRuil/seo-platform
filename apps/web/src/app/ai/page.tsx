@@ -35,6 +35,10 @@ const PRESET_PROMPTS = [
     prompt: "Sitemizi Avrupa Birliği Direktiflerine göre tara: Directive 2024/825 (EmpCo greenwashing), EFSA Regulation 1924/2006 ve MiCA kurallarına uyumu incele.",
   },
   {
+    title: "🇺🇸 US Mevzuat & FTC/FDA Denetimi",
+    prompt: "Sitemizi ABD Federal Mevzuatına göre denetle: FTC Act Section 5, FDA (FD&C Act / DSHEA), SEC Rule 10b-5 ve FTC Green Guides uyumunu analiz et.",
+  },
+  {
     title: "Trafik Düşüşünü Analiz Et",
     prompt: "Son 14 gündeki organik trafik değişimini analiz et ve nedenlerini açıkla.",
   },
@@ -84,7 +88,19 @@ export default function AiCopilotPage() {
       const lower = text.toLowerCase();
       let reply: AiCopilotMessage;
 
-      if (lower.includes("eu") || lower.includes("avrupa") || lower.includes("greenwashing") || lower.includes("empco") || lower.includes("efsa") || lower.includes("mica")) {
+      if (lower.includes("us") || lower.includes("abd") || lower.includes("ftc") || lower.includes("fda") || lower.includes("sec") || lower.includes("dshea") || lower.includes("ryan haight")) {
+        reply = {
+          id: `ai-${Date.now()}`,
+          sender: "assistant",
+          text: `🇺🇸 **Amerika Birleşik Devletleri Federal Mevzuat ve Reklam Denetimi:**\n\n1. **FTC Act Section 5 & Sahte Yorumlar (16 CFR Part 464):** Tüketiciyi aldatıcı ticari uygulamalar ve teşvik edilmiş/sahte kullanıcı yorumları ihlal başına 51.744 $'a varan doğrudan hukuki para cezasına tabidir.\n2. **FTC Made in USA Kuralı (16 CFR Part 323):** Ürünün tamamı veya neredeyse tamamı ABD'de üretilmedikçe niteliksiz "Made in USA" demek yasaktır.\n3. **FDA & DSHEA (21 U.S.C. § 343(r)(6)):** Gıda takviyelerinde hastalık tedavi/önleme iddiaları yasaktır ve zorunlu FDA feragatnamesi (*"These statements have not been evaluated by the FDA..."*) gereklidir.\n4. **Reçeteli İlaçlar & Ryan Haight Act (21 U.S.C. § 829):** Reçetesiz Ozempic, Xanax gibi ilaçların internetten satışı/reklamı federal suçtur (20 yıla kadar hapis).\n5. **SEC Rule 10b-5 & Kripto:** Kripto ve sermaye piyasalarında "guaranteed returns" ve risksiz kazanç vaatleri menkul kıymet dolandırıcılığı kapsamında kovuşturulur.\n6. **FTC Green Guides:** Karbon ofsetine dayalı asılsız "carbon neutral" iddiaları aldatıcı pazarlama sayılır.\n\nÖnerim: İçerik sekmesindeki **ABD Mevzuat Kalkanı** simülatörünü kullanarak metinlerinizi FTC ve FDA kurallarına uygun hale getirin.`,
+          timestamp: "Şimdi",
+          sources: ["Federal Trade Commission (16 CFR Part 464)", "FDA FD&C Act / DSHEA", "SEC Rule 10b-5", "CFPB Regulation Z"],
+          actions: [
+            { label: "US Mevzuat Kalkanını Aç", actionType: "GENERATE_CONTENT", href: "/content" },
+            { label: "US Kelimeleri Denetle", actionType: "APPLY_FIX", href: "/keywords" },
+          ],
+        };
+      } else if (lower.includes("eu") || lower.includes("avrupa") || lower.includes("greenwashing") || lower.includes("empco") || lower.includes("efsa") || lower.includes("mica")) {
         reply = {
           id: `ai-${Date.now()}`,
           sender: "assistant",

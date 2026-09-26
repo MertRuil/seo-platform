@@ -26,7 +26,9 @@ import {
   ComplianceViolation,
   ComplianceSector,
   EuComplianceViolation,
-  EuComplianceSector
+  EuComplianceSector,
+  UsComplianceViolation,
+  UsComplianceSector
 } from "../types";
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
@@ -2067,5 +2069,269 @@ export function scanEuCompliance(text: string, sector?: EuComplianceSector): EuC
 
   return violations;
 }
+
+// -------------------------------------------------------------
+// 20. Amerika Birleşik Devletleri (US) Federal Reklam & Mevzuat Kalkanı
+// -------------------------------------------------------------
+export const US_MOBILE_COMPLIANCE_RULES = [
+  // 1. Health, Pharmaceuticals & Medical Devices (FDA / FD&C Act)
+  {
+    rule_id: "US_FDA_DISEASE_CURE",
+    sector: "HEALTH_FDA" as UsComplianceSector,
+    title: "Onaysız Tıbbi Hastalık Tedavisi ve Kesin Şifa İddiası",
+    patterns: [
+      /\bguaranteed\s+(?:cure|healing)\b/i,
+      /\bcures?\s+(?:cancer|diabetes|alzheimer'?s|arthritis|heart\s+disease|autism)\b/i,
+      /\bmiracle\s+(?:cure|treatment|remedy|healing)\b/i,
+      /\beradicate\s+(?:disease|tumor|infection)\s+completely\b/i,
+      /\b100%\s+guaranteed\s+recovery\b/i,
+      /\brevitalize\s+and\s+reverse\s+aging\s+disease\b/i,
+    ],
+    legal_basis: "FD&C Act (21 U.S.C. § 321(g)(1)) & 21 CFR Part 310",
+    penalty_risk: "FDA Uyarı Mektubu, ürün toplatma, federal tedbir ve 21 U.S.C. § 333 cezai kovuşturması.",
+    suggested_fix: "Hastalık teşhis veya tedavi iddiası yerine 'doktor gözetiminde genel sağlığı destekler' ifadesini kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "US_FDA_ZERO_RISK",
+    sector: "HEALTH_FDA" as UsComplianceSector,
+    title: "Cerrahi Operasyonlarda Sıfır Risk ve Yan Etkisizlik Vaadi",
+    patterns: [
+      /\bzero\s+risk\s+(?:surgery|operation|procedure)\b/i,
+      /\brisk[\s-]free\s+(?:surgery|procedure|implant|lasik)\b/i,
+      /\b100%\s+safe\s+(?:surgery|procedure|treatment)\b/i,
+      /\bno\s+possible\s+side\s+effects?\b/i,
+      /\bcompletely\s+painless\s+and\s+risk[\s-]free\b/i,
+    ],
+    legal_basis: "FDA Medical Device Regulations (21 CFR Part 801) & FTC Act Section 5",
+    penalty_risk: "FTC aldatıcı reklam davası, ihlal başına 51.744 $ para cezası ve malpraktis tazminatları.",
+    suggested_fix: "Tüm cerrahi işlemlerin risk barındırdığını belirtin ve uzman hekime danışılmasını önerin.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "US_FDA_POM_NO_PRESCRIPTION",
+    sector: "HEALTH_FDA" as UsComplianceSector,
+    title: "Reçetesiz Online Reçeteli İlaç Satışı ve Reklamı",
+    patterns: [
+      /\b(?:buy|order)\s+(?:ozempic|wegovy|mounjaro|adderall|xanax|oxycodone|antibiotics)\s+without\s+prescription\b/i,
+      /\bno\s+prescription\s+(?:needed|required)\s+for\s+(?:ozempic|adderall|xanax)\b/i,
+      /\bovernight\s+(?:ozempic|wegovy)\s+no\s+rx\b/i,
+    ],
+    legal_basis: "Ryan Haight Online Pharmacy Consumer Protection Act (21 U.S.C. § 829(e))",
+    penalty_risk: "Federal ağır ceza davası (20 yıla kadar hapis), DEA baskını ve anında web sitesine el koyma.",
+    suggested_fix: "Reçeteli ilaçlar yalnızca lisanslı bir hekimin geçerli reçetesiyle eczanelerce verilebilir.",
+    severity: "CRITICAL" as const,
+  },
+
+  // 2. Dietary Supplements & Weight Loss (FDA DSHEA / FTC)
+  {
+    rule_id: "US_SUPPLEMENT_WEIGHTLOSS_RAPID",
+    sector: "SUPPLEMENTS_WEIGHTLOSS" as UsComplianceSector,
+    title: "Yanıltıcı Hızlı Kilo Verme ve Zahmetsiz Zayıflama İddiası",
+    patterns: [
+      /\blose\s+\d+\s*(?:lbs?|pounds|kg)\s+in\s+\d+\s*(?:days?|weeks?)\b/i,
+      /\blose\s+weight\s+without\s+diet\s+or\s+exercise\b/i,
+      /\brapid\s+fat\s+melting\s+guarantee\b/i,
+      /\bburn\s+belly\s+fat\s+overnight\b/i,
+      /\bguaranteed\s+weight\s+loss\s+miracle\b/i,
+      /\beat\s+anything\s+and\s+lose\s+weight\b/i,
+    ],
+    legal_basis: "FTC Act Section 5 & FTC 'Gut Check' Reference Guide",
+    penalty_risk: "FTC federal tazminat emri, tüm satış gelirlerine el koyma ve ihlal başına 51.744 $ ceza.",
+    suggested_fix: "'Dengeli beslenme ve düzenli egzersiz ile birlikte kilo kontrolünü destekleyebilir' ifadesini kullanın.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "US_SUPPLEMENT_UNAPPROVED_STRUCTURE",
+    sector: "SUPPLEMENTS_WEIGHTLOSS" as UsComplianceSector,
+    title: "DSHEA Feragatnamesi Olmayan Gıda Takviyesi Hastalık İddiası",
+    patterns: [
+      /\bprevents?\s+(?:diabetes|heart\s+disease|cancer|dementia)\b/i,
+      /\breverses?\s+(?:high\s+blood\s+pressure|hypertension)\b/i,
+      /\bnatural\s+alternative\s+to\s+(?:insulin|metformin|statins?)\b/i,
+      /\bclinically\s+proven\s+to\s+cure\b/i,
+    ],
+    legal_basis: "DSHEA 21 U.S.C. § 343(r)(6) & 21 CFR 101.93 (Zorunlu FDA Feragatnamesi)",
+    penalty_risk: "FDA İthalat Engeli (Import Alert), ürünlerin gümrükte bağlanması ve FTC aldatıcı beyan cezası.",
+    suggested_fix: "Yalnızca yapı/fonksiyon beyanı kullanın ve zorunlu 'These statements have not been evaluated by the FDA' uyarısını ekleyin.",
+    severity: "HIGH" as const,
+  },
+
+  // 3. FTC Commercial Deceptive Practices, Fake Reviews & Made in USA
+  {
+    rule_id: "US_FTC_FAKE_REVIEWS",
+    sector: "FTC_COMMERCIAL_DECEPTIVE" as UsComplianceSector,
+    title: "Sahte veya Satın Alınmış Kullanıcı Yorumları ve İncelemeler",
+    patterns: [
+      /\bpay\s+for\s+5[\s-]star\s+reviews?\b/i,
+      /\bbuy\s+(?:positive\s+google|yelp|trustpilot)\s+reviews?\b/i,
+      /\bguaranteed\s+5[\s-]star\s+ratings?\b/i,
+      /\bremove\s+all\s+negative\s+reviews?\s+guaranteed\b/i,
+    ],
+    legal_basis: "FTC Final Rule on Fake Reviews and Testimonials (16 CFR Part 464)",
+    penalty_risk: "İhlal başına 51.744 $ doğrudan medeni para cezası ve kalıcı federal mahkeme yasağı.",
+    suggested_fix: "Yalnızca organik müşteri yorumlarını yayınlayın ve teşvikli içeriklerde sponsorluğu (#ad) açıkça belirtin.",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "US_FTC_MADE_IN_USA",
+    sector: "FTC_COMMERCIAL_DECEPTIVE" as UsComplianceSector,
+    title: "Kanıtlanamayan Niteliksiz 'Made in USA' (Amerikan Malı) İddiası",
+    patterns: [
+      /\b100%\s+made\s+in\s+the\s+usa\b/i,
+      /\b100%\s+american\s+made\b/i,
+      /\ball[\s-]american\s+manufactured\b/i,
+      /\bproudly\s+made\s+in\s+america\b/i,
+    ],
+    legal_basis: "FTC Made in USA Labeling Rule (16 CFR Part 323) & 15 U.S.C. § 45a",
+    penalty_risk: "Her bir ürün ve reklam başına 51.744 $ para cezası ve zorunlu düzeltici reklam emri.",
+    suggested_fix: "Bileşenlerin tamamı yerli değilse 'Assembled in USA from imported parts' niteleyici ifadesini kullanın.",
+    severity: "HIGH" as const,
+  },
+  {
+    rule_id: "US_FTC_DECEPTIVE_FREE_TRIAL",
+    sector: "FTC_COMMERCIAL_DECEPTIVE" as UsComplianceSector,
+    title: "Gizli Otomatik Faturalandırmalı Aldatıcı 'Free Trial' Vaadi",
+    patterns: [
+      /\b100%\s+free\s+trial\s+no\s+risk\b/i,
+      /\bcompletely\s+free\s+trial\s+keep\s+it\s+forever\b/i,
+      /\bfree\s+sample\s+just\s+pay\s+\$(?:1|2|3|4|5)\s+s&h\b/i,
+    ],
+    legal_basis: "Restore Online Shoppers' Confidence Act (ROSCA, 15 U.S.C. § 8401) & FTC Negative Option Rule",
+    penalty_risk: "Milyonlarca dolarlık FTC iade kararları ve kredi kartı pos hesaplarının dondurulması.",
+    suggested_fix: "Ödeme almadan önce abonelik süresini, aylık yenileme bedelini ve tek tıkla iptal seçeneğini açıkça gösterin.",
+    severity: "HIGH" as const,
+  },
+
+  // 4. Financial Services, Crypto & Consumer Credit (SEC, CFTC, CFPB)
+  {
+    rule_id: "US_FINANCE_GUARANTEED_RETURNS",
+    sector: "FINANCIAL_SEC_CFPB" as UsComplianceSector,
+    title: "Finans ve Kriptoda Garantili Getiri ve Risksiz Kazanç Vaadi",
+    patterns: [
+      /\bguaranteed\s+(?:returns?|profits?|yield)\b/i,
+      /\brisk[\s-]free\s+(?:investing|investment|stock|trading)\b/i,
+      /\b100%\s+guaranteed\s+financial\s+gain\b/i,
+      /\bguaranteed\s+crypto\s+(?:yield|passive\s+income|profits?)\b/i,
+      /\bguaranteed\s+\d+%\s+(?:daily|weekly|annual)\s+(?:roi|returns?)\b/i,
+      /\b100%\s+win\s+rate\s+(?:trading\s+bot|options\s+signals?)\b/i,
+    ],
+    legal_basis: "Securities Act Section 17(a) & Exchange Act Rule 10b-5 (17 CFR § 240.10b-5)",
+    penalty_risk: "SEC/CFTC menkul kıymet dolandırıcılığı soruşturması, tüm karların iadesi ve 1.000.000 $+ idari ceza.",
+    suggested_fix: "Zorunlu risk uyarısı ekleyin: 'Investments involve risk, including loss of principal. Past performance is no guarantee of future results.'",
+    severity: "CRITICAL" as const,
+  },
+  {
+    rule_id: "US_FINANCE_PREDATORY_LOANS",
+    sector: "FINANCIAL_SEC_CFPB" as UsComplianceSector,
+    title: "Kredi Notu Önemsiz / Anında Garantili Kredi Reklamı",
+    patterns: [
+      /\binstant\s+loans?\s+no\s+credit\s+check\b/i,
+      /\bbad\s+credit\s+loans?\s+guaranteed\s+approval\b/i,
+      /\bno\s+credit\s+check\s+guaranteed\s+cash\b/i,
+      /\bcredit\s+score\s+does(?:n't|\s+not)\s+matter\s+guaranteed\b/i,
+    ],
+    legal_basis: "Truth in Lending Act (TILA, 15 U.S.C. § 1601, Regulation Z) & CFPB Section 1036",
+    penalty_risk: "CFPB tarafından günlük 1.000.000 $'a varan idari yaptırım ve eyalet başsavcılık davaları.",
+    suggested_fix: "Örnek APR maliyet tablosu sunun ve kredinin gelir ve kredi değerliliği onayına tabi olduğunu belirtin.",
+    severity: "CRITICAL" as const,
+  },
+
+  // 5. FTC Green Guides (Environmental Claims)
+  {
+    rule_id: "US_GREEN_CARBON_NEUTRAL",
+    sector: "GREEN_GUIDES_FTC" as UsComplianceSector,
+    title: "Kanıtlanamayan Karbon Nötr ve Jenerik Çevre Dostu İddiaları",
+    patterns: [
+      /\bcarbon\s+neutral\s+product\b/i,
+      /\bclimate\s+neutral\s+guarantee\b/i,
+      /\bnet[\s-]zero\s+emissions?\s+guarantee\b/i,
+      /\b100%\s+carbon\s+offset\s+verified\b/i,
+      /\b100%\s+eco[\s-]friendly\b/i,
+      /\bcompletely\s+environmentally\s+safe\b/i,
+      /\bzero\s+environmental\s+impact\b/i,
+    ],
+    legal_basis: "FTC Guides for the Use of Environmental Marketing Claims ('Green Guides', 16 CFR Part 260)",
+    penalty_risk: "FTC aldatıcı pazarlama davaları ve California FAL tüketici toplu davaları (class action).",
+    suggested_fix: "Jenerik iddialar yerine 'Ürünümüz %75 geri dönüştürülmüş PET materyalden üretilmiştir' gibi somut kanıt sunun.",
+    severity: "HIGH" as const,
+  },
+
+  // 6. Legal Advertising (American Bar Association Model Rules)
+  {
+    rule_id: "US_LEGAL_OUTCOME_GUARANTEE",
+    sector: "LEGAL_ABA" as UsComplianceSector,
+    title: "Dava Kazanma Garantisi ve Yanıltıcı Avukatlık Süperlatifleri",
+    patterns: [
+      /\bguaranteed\s+(?:court\s+victory|case\s+win|verdict|settlement)\b/i,
+      /\b100%\s+success\s+rate\s+(?:lawyer|attorney|law\s+firm)\b/i,
+      /\bbest\s+lawyer\s+in\s+(?:america|the\s+us|new\s+york|california|texas|florida)\b/i,
+      /\bwe\s+never\s+lose\s+a\s+case\b/i,
+      /\bguaranteed\s+million\s+dollar\s+settlement\b/i,
+    ],
+    legal_basis: "ABA Model Rules of Professional Conduct (Rule 7.1) & Eyalet Barosu Reklam Kuralları",
+    penalty_risk: "Eyalet Barosu Disiplin Kurulu soruşturması, kınama, meslekten men ve haksız rekabet tazminatı.",
+    suggested_fix: "Sonuç garantisi vermeden 'Prior results do not guarantee a similar outcome' uyarısı ekleyin.",
+    severity: "CRITICAL" as const,
+  },
+
+  // 7. Tobacco & Vaping Online Sales (PACT Act & FDA PMTA)
+  {
+    rule_id: "US_TOBACCO_ONLINE_SALES",
+    sector: "TOBACCO_PACT" as UsComplianceSector,
+    title: "Elektronik Sigara ve Puff Bar Posta ile Satış/Reklam Yasağı",
+    patterns: [
+      /\bbuy\s+vapes?\s+online\s+cheap\b/i,
+      /\border\s+puff\s+bars?\s+online\b/i,
+      /\bdisposable\s+vapes?\s+free\s+shipping\b/i,
+      /\bbuy\s+nicotine\s+e[\s-]liquid\s+online\b/i,
+      /\bmail\s+order\s+cigarettes\b/i,
+    ],
+    legal_basis: "Prevent All Cigarette Trafficking Act (PACT Act, 15 U.S.C. § 375 et seq.) & USPS Posta Yasağı",
+    penalty_risk: "3 yıla kadar federal hapis cezası, ihlal başına 5.000 $ para cezası ve ATF el koyma yaptırımı.",
+    suggested_fix: "Elektronik sigara ve nikotin ürünlerinin tüketicilere online satışı ve kargo ile teslimatı federal yasalarla kısıtlanmıştır.",
+    severity: "CRITICAL" as const,
+  },
+];
+
+export function scanUsCompliance(text: string, sector?: UsComplianceSector): UsComplianceViolation[] {
+  if (!text) return [];
+  const normalized = text.toLowerCase();
+  const violations: UsComplianceViolation[] = [];
+
+  for (const rule of US_MOBILE_COMPLIANCE_RULES) {
+    if (sector && rule.sector !== sector) continue;
+
+    for (const pat of rule.patterns) {
+      const match = pat.exec(normalized);
+      if (match) {
+        const start = match.index;
+        const end = start + match[0].length;
+        const snippet = text.slice(Math.max(0, start - 20), Math.min(text.length, end + 20));
+
+        violations.push({
+          rule_id: rule.rule_id,
+          sector: rule.sector,
+          title: rule.title,
+          explanation: rule.title,
+          matched_pattern: match[0],
+          matched_term: match[0],
+          context_snippet: snippet.trim(),
+          legal_basis: rule.legal_basis,
+          legal_reference: rule.legal_basis,
+          penalty_risk: rule.penalty_risk,
+          fine_risk: rule.penalty_risk,
+          suggested_fix: rule.suggested_fix,
+          suggested_replacement: rule.suggested_fix,
+          severity: rule.severity,
+        });
+        break;
+      }
+    }
+  }
+
+  return violations;
+}
+
 
 

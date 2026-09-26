@@ -41,6 +41,12 @@ import {
   type EuComplianceViolation,
   type EuComplianceSector,
 } from "@/lib/compliance-eu";
+import {
+  scanUsCompliance,
+  getUsSectorName,
+  type UsComplianceViolation,
+  type UsComplianceSector,
+} from "@/lib/compliance-us";
 
 const SAMPLE_TEXTS_TR = [
   {
@@ -103,6 +109,44 @@ const SAMPLE_TEXTS_EU = [
   },
 ];
 
+const SAMPLE_TEXTS_US = [
+  {
+    title: "🏥 FDA Unapproved Disease Cure & POM (FD&C Act)",
+    content: "Order Ozempic without prescription online! Our clinical formula cures cancer and provides a guaranteed cure for diabetes with zero risk surgery options.",
+    keyword: "online pharmacy us",
+  },
+  {
+    title: "🥗 Dietary Supplements & Rapid Weight Loss (DSHEA / FTC)",
+    content: "Lose 30 lbs in 2 weeks with our rapid fat melting guarantee and lose weight without diet or exercise! Proven botanical drops prevent diabetes and heart disease.",
+    keyword: "fat burner supplement us",
+  },
+  {
+    title: "⭐ FTC Deceptive Practices, Fake Reviews & Made in USA",
+    content: "Engineered globally and 100% made in the USA! Pay for 5-star reviews on Google and Yelp with guaranteed ratings. Claim your 100% free trial no risk today.",
+    keyword: "reputation management us",
+  },
+  {
+    title: "📈 SEC / CFTC Guaranteed Crypto Yield & Predatory Loans",
+    content: "Invest in our algorithm for guaranteed returns and risk-free investing with guaranteed crypto yield. Instant loans no credit check with bad credit guaranteed approval.",
+    keyword: "crypto investment us",
+  },
+  {
+    title: "🌿 FTC Green Guides (Environmental Claims)",
+    content: "Buy our certified carbon neutral product with 100% eco-friendly and zero environmental impact design. Completely environmentally safe guaranteed.",
+    keyword: "sustainable products us",
+  },
+  {
+    title: "⚖️ ABA Legal Outcome Guarantee (Model Rule 7.1)",
+    content: "The best lawyer in New York with 100% success rate attorney and guaranteed court victory in commercial litigation. Guaranteed million dollar settlement.",
+    keyword: "personal injury lawyer ny",
+  },
+  {
+    title: "✅ Fully Compliant US Standard Copy",
+    content: "Our certified clinical team provides diagnostic evaluations and physician consultations. Dietary supplement statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease. Investments involve risk, including loss of principal. Prior results do not guarantee a similar outcome.",
+    keyword: "wellness healthcare us",
+  },
+];
+
 export default function ContentOptimizerPage() {
   const [data, setData] = useState<ContentOptimizationData>(DEMO_CONTENT);
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
@@ -110,7 +154,7 @@ export default function ContentOptimizerPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Content Draft & Compliance Shield state
-  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU">("TR");
+  const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US">("TR");
   const [contentDraft, setContentDraft] = useState(SAMPLE_TEXTS_TR[0].content);
   const [selectedComplianceSector, setSelectedComplianceSector] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"nlp" | "compliance" | "generator">("nlp");
@@ -131,9 +175,12 @@ export default function ContentOptimizerPage() {
     if (complianceRegion === "TR") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as TrComplianceSector);
       return scanTurkishCompliance(contentDraft, sectorFilter);
-    } else {
+    } else if (complianceRegion === "EU") {
       const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as EuComplianceSector);
       return scanEuCompliance(contentDraft, sectorFilter);
+    } else {
+      const sectorFilter = selectedComplianceSector === "ALL" ? undefined : (selectedComplianceSector as UsComplianceSector);
+      return scanUsCompliance(contentDraft, sectorFilter);
     }
   }, [complianceRegion, contentDraft, selectedComplianceSector]);
 
@@ -325,7 +372,7 @@ export default function ContentOptimizerPage() {
           }`}
         >
           <Scale className="w-4 h-4 text-accent" />
-          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : "🇪🇺 EU"})
+          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : "🇺🇸 US"})
           {complianceViolations.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-2xs">
               {complianceViolations.length}
@@ -349,7 +396,7 @@ export default function ContentOptimizerPage() {
 
       {activeTab === "compliance" ? (
         /* =========================================================
-           TAB 2: TÜRKİYE & AVRUPA BİRLİĞİ MEVZUAT UYUM KALKANI
+           TAB 2: TÜRKİYE, AVRUPA BİRLİĞİ & ABD MEVZUAT UYUM KALKANI
            ========================================================= */
         <div className="space-y-6">
           {/* Jurisdiction / Region Switcher */}
@@ -360,11 +407,11 @@ export default function ContentOptimizerPage() {
                 Denetlenecek Yargı Alanı ve Mevzuat Rejimi
               </h3>
               <p className="text-xs text-muted">
-                Hedef pazarınıza göre Türkiye Reklam Kurulu ve TİTCK veya Avrupa Birliği (EU Directives, EFSA, MiCA) kurallarını seçin.
+                Hedef pazarınıza göre Türkiye Reklam Kurulu/TİTCK, Avrupa Birliği (Directives/EFSA/MiCA) veya ABD (FTC/FDA/SEC) kurallarını seçin.
               </p>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-surface border border-line-strong rounded-sm shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-surface border border-line-strong rounded-sm shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -372,13 +419,13 @@ export default function ContentOptimizerPage() {
                   setContentDraft(SAMPLE_TEXTS_TR[0].content);
                   setSelectedComplianceSector("ALL");
                 }}
-                className={`text-xs px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "TR"
                     ? "bg-accent-fill text-white shadow-xs"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇹🇷</span> Türkiye (Reklam Kurulu / TİTCK)
+                <span>🇹🇷</span> Türkiye (TR)
               </button>
               <button
                 type="button"
@@ -387,13 +434,28 @@ export default function ContentOptimizerPage() {
                   setContentDraft(SAMPLE_TEXTS_EU[0].content);
                   setSelectedComplianceSector("ALL");
                 }}
-                className={`text-xs px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "EU"
                     ? "bg-accent-fill text-white shadow-xs"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇪🇺</span> Avrupa Birliği (Directives / EFSA / MiCA)
+                <span>🇪🇺</span> Avrupa Birliği (EU)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setComplianceRegion("US");
+                  setContentDraft(SAMPLE_TEXTS_US[0].content);
+                  setSelectedComplianceSector("ALL");
+                }}
+                className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  complianceRegion === "US"
+                    ? "bg-accent-fill text-white shadow-xs"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                <span>🇺🇸</span> ABD (FTC / FDA / SEC)
               </button>
             </div>
           </div>
@@ -403,16 +465,25 @@ export default function ContentOptimizerPage() {
             title={
               complianceRegion === "TR"
                 ? "Türkiye Sektörel Yasaklı Kalıp Test Simülatörü"
-                : "European Union Prohibited Claims & Directives Simulator"
+                : complianceRegion === "EU"
+                ? "European Union Prohibited Claims & Directives Simulator"
+                : "United States (US) Prohibited Claims & Federal Simulator"
             }
             sub={
               complianceRegion === "TR"
                 ? "Farklı sektörlerde Türkiye Reklam Kurulu ve TİTCK tarafından yasaklanan örnek metinleri anında test edin"
-                : "Test real-world violations of Directive (EU) 2024/825 (Greenwashing), EFSA Regulation 1924/2006, MiCA and Directive 2001/83/EC"
+                : complianceRegion === "EU"
+                ? "Test real-world violations of Directive (EU) 2024/825 (Greenwashing), EFSA Regulation 1924/2006, MiCA and Directive 2001/83/EC"
+                : "Test violations under FTC Act Section 5, FDA FD&C Act / DSHEA, SEC Rule 10b-5, FTC Green Guides, and ABA Model Rules"
             }
           >
             <div className="flex flex-wrap gap-2">
-              {(complianceRegion === "TR" ? SAMPLE_TEXTS_TR : SAMPLE_TEXTS_EU).map((sample, idx) => (
+              {(complianceRegion === "TR"
+                ? SAMPLE_TEXTS_TR
+                : complianceRegion === "EU"
+                ? SAMPLE_TEXTS_EU
+                : SAMPLE_TEXTS_US
+              ).map((sample, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -438,7 +509,9 @@ export default function ContentOptimizerPage() {
                 placeholder={
                   complianceRegion === "TR"
                     ? "İçeriğinizi buraya yapıştırın veya yazın..."
-                    : "Paste or type your English, German or French marketing copy here..."
+                    : complianceRegion === "EU"
+                    ? "Paste or type your English, German or French marketing copy here..."
+                    : "Paste or type your US marketing copy, landing page or ad text here..."
                 }
               />
             </div>
@@ -452,7 +525,9 @@ export default function ContentOptimizerPage() {
                 <span>
                   {complianceRegion === "TR"
                     ? `Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı ${complianceViolations.length} İfade Tespit Edildi!`
-                    : `EU Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under European Directives!`}
+                    : complianceRegion === "EU"
+                    ? `EU Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under European Directives!`
+                    : `US Federal Regulatory Alert: ${complianceViolations.length} Prohibited Claim(s) Detected Under FTC/FDA/SEC Rules!`}
                 </span>
               </div>
               <p className="text-xs text-rose-600 leading-relaxed">
@@ -462,10 +537,15 @@ export default function ContentOptimizerPage() {
                     <strong>Ticaret Bakanlığı Reklam Kurulu tarafından 8.635.800 TL'ye varan idari para cezası</strong>, reklam durdurma veya{" "}
                     <strong>BTK erişim engeli</strong> getirilmesine yol açabilir.
                   </>
-                ) : (
+                ) : complianceRegion === "EU" ? (
                   <>
                     Under EU Directives (EmpCo 2024/825, EFSA Reg 1924/2006, MiCA 2023/1114, Directive 2001/83/EC), these claims carry risk of{" "}
                     <strong>fines up to 4% of annual turnover under EU consumer law</strong>, product recalls, or national regulatory bans by EU member state authorities.
+                  </>
+                ) : (
+                  <>
+                    Under US Federal Law (FTC Act Section 5, 21 U.S.C. FD&C Act, 16 CFR Part 464, SEC Rule 10b-5), these claims carry severe risk of{" "}
+                    <strong>FTC civil penalties up to $51,744 per violation</strong>, FDA Warning Letters and product seizures, or SEC enforcement actions for fraudulent claims.
                   </>
                 )}
               </p>
@@ -475,12 +555,18 @@ export default function ContentOptimizerPage() {
               <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
               <div>
                 <h4 className="text-sm font-bold text-emerald-800">
-                  {complianceRegion === "TR" ? "Mevzuata Tam Uyumlu" : "Fully Compliant with EU Regulations"}
+                  {complianceRegion === "TR"
+                    ? "Mevzuata Tam Uyumlu"
+                    : complianceRegion === "EU"
+                    ? "Fully Compliant with EU Regulations"
+                    : "Fully Compliant with US Federal Regulations"}
                 </h4>
                 <p className="text-xs text-emerald-700">
                   {complianceRegion === "TR"
                     ? "İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır."
-                    : "No prohibited health claims (EFSA), greenwashing claims (EmpCo Dir 2024/825), MiCA guaranteed returns or unverified market superlatives found."}
+                    : complianceRegion === "EU"
+                    ? "No prohibited health claims (EFSA), greenwashing claims (EmpCo Dir 2024/825), MiCA guaranteed returns or unverified market superlatives found."
+                    : "No prohibited disease claims (FDA), deceptive advertising or fake reviews (FTC), SEC guaranteed returns, or PACT Act violations found."}
                 </p>
               </div>
             </div>
@@ -501,7 +587,8 @@ export default function ContentOptimizerPage() {
                   { id: "SUPERLATIVE_COMMERCIAL", label: "E-Ticaret & Reklam" },
                   { id: "ILLEGAL_BETTING_TOBACCO", label: "Bahis & Tütün" },
                 ]
-              : [
+              : complianceRegion === "EU"
+              ? [
                   { id: "ALL", label: "All EU Sectors" },
                   { id: "HEALTH_PHARMA", label: "Health & Pharma (Dir 2001/83)" },
                   { id: "FOOD_SUPPLEMENT", label: "Food & Weight Loss (EFSA)" },
@@ -510,6 +597,16 @@ export default function ContentOptimizerPage() {
                   { id: "FINANCIAL_SERVICES", label: "Finance & Crypto (MiCA)" },
                   { id: "LEGAL_SERVICES", label: "Legal Services (CCBE)" },
                   { id: "TOBACCO_NICOTINE", label: "Tobacco & Vaping (TPD)" },
+                ]
+              : [
+                  { id: "ALL", label: "All US Sectors" },
+                  { id: "HEALTH_FDA", label: "Health & FDA (FD&C Act)" },
+                  { id: "SUPPLEMENTS_WEIGHTLOSS", label: "Supplements & Weight Loss (DSHEA)" },
+                  { id: "FTC_COMMERCIAL_DECEPTIVE", label: "FTC Deceptive & Reviews (16 CFR)" },
+                  { id: "FINANCIAL_SEC_CFPB", label: "Finance & Crypto (SEC 10b-5)" },
+                  { id: "GREEN_GUIDES_FTC", label: "Environmental (FTC Green Guides)" },
+                  { id: "LEGAL_ABA", label: "Legal Services (ABA 7.1)" },
+                  { id: "TOBACCO_PACT", label: "Tobacco & Vapes (PACT Act)" },
                 ]
             ).map((sec) => (
               <button
@@ -533,7 +630,9 @@ export default function ContentOptimizerPage() {
               title={
                 complianceRegion === "TR"
                   ? "Tespit Edilen Mevzuat İhlalleri ve Uyumlu Alternatifleri"
-                  : "Detected EU Regulatory Violations & Compliant Alternatives"
+                  : complianceRegion === "EU"
+                  ? "Detected EU Regulatory Violations & Compliant Alternatives"
+                  : "Detected US Regulatory Violations & Compliant Alternatives"
               }
               flush
             >
@@ -543,9 +642,21 @@ export default function ContentOptimizerPage() {
                     <tr>
                       <th className="py-3 px-4">{complianceRegion === "TR" ? "Yasaklı İfade" : "Prohibited Phrase"}</th>
                       <th className="py-3 px-3">{complianceRegion === "TR" ? "Sektör" : "Sector"}</th>
-                      <th className="py-3 px-3">{complianceRegion === "TR" ? "İhlal Edilen Mevzuat" : "EU Legal Basis"}</th>
+                      <th className="py-3 px-3">
+                        {complianceRegion === "TR"
+                          ? "İhlal Edilen Mevzuat"
+                          : complianceRegion === "EU"
+                          ? "EU Legal Basis"
+                          : "US Legal Basis"}
+                      </th>
                       <th className="py-3 px-3">{complianceRegion === "TR" ? "Ceza Riski" : "Penalty / Liability"}</th>
-                      <th className="py-3 px-4">{complianceRegion === "TR" ? "Tavsiye Edilen Uyumlu Alternatif" : "Compliant EU Recommendation"}</th>
+                      <th className="py-3 px-4">
+                        {complianceRegion === "TR"
+                          ? "Tavsiye Edilen Uyumlu Alternatif"
+                          : complianceRegion === "EU"
+                          ? "Compliant EU Recommendation"
+                          : "Compliant US Recommendation"}
+                      </th>
                       <th className="py-3 px-3 text-right">{complianceRegion === "TR" ? "Eylem" : "Action"}</th>
                     </tr>
                   </thead>
@@ -565,7 +676,9 @@ export default function ContentOptimizerPage() {
                           <Badge tone={v.severity === "CRITICAL" ? "critical" : "warn"} mono>
                             {complianceRegion === "TR"
                               ? getTrSectorName(v.sector as any)
-                              : getEuSectorName(v.sector as any)}
+                              : complianceRegion === "EU"
+                              ? getEuSectorName(v.sector as any)
+                              : getUsSectorName(v.sector as any)}
                           </Badge>
                         </td>
 
