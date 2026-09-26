@@ -18,7 +18,8 @@ from apps.api.routes import (
     quick_audit,
     knowledge,
     connectors,
-    billing
+    billing,
+    backlinks
 )
 
 @asynccontextmanager
@@ -188,6 +189,7 @@ app.include_router(quick_audit.router, prefix="/api/v1")
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(connectors.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
+app.include_router(backlinks.router, prefix="/api/v1")
 
 @app.get("/api/v1/notifications")
 async def get_notifications():

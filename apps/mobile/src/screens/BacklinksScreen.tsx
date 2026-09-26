@@ -29,15 +29,15 @@ export const BacklinksScreen: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetchBacklinks(selectedSite?.id),
-      fetchBacklinkSummary(selectedSite?.id),
+      fetchBacklinks(selectedSite?.id, selectedSite?.domain),
+      fetchBacklinkSummary(selectedSite?.id, selectedSite?.domain),
     ])
       .then(([links, sum]) => {
         setBacklinks(links);
         setSummary(sum);
       })
       .finally(() => setLoading(false));
-  }, [selectedSite?.id]);
+  }, [selectedSite?.id, selectedSite?.domain]);
 
   const filteredLinks = useMemo(() => {
     return backlinks.filter((b) => {
@@ -58,13 +58,16 @@ export const BacklinksScreen: React.FC = () => {
   }, [backlinks, filter, searchQuery]);
 
   const handleShareDisavow = async () => {
-    const toxicLinks = backlinks.filter((b) => b.is_toxic);
+    const domain = (selectedSite?.domain || "acmestore.io").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+    const toxicLinks = backlinks.filter((b) => b.is_toxic && b.target_url.toLowerCase().includes(domain));
     if (toxicLinks.length === 0) {
-      Alert.alert("Bilgi", "Disavow edilecek toksik/zararlı backlink bulunmuyor.");
+      Alert.alert(
+        "Temiz Profil - Disavow Gerekli Değil",
+        `"${domain}" sitesi için tespit edilen toksik ya da zararlı backlink bulunmuyor.\n\nSitenize link vermemiş yabancı alan adlarını disavow dosyasına eklemek Google arama sıralamalarınıza zarar verebilir.`
+      );
       return;
     }
 
-    const domain = selectedSite?.domain || "acmestore.io";
     const disavowText = generateMobileDisavowText(toxicLinks, domain);
 
     try {

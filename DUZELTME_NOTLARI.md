@@ -21,7 +21,10 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`e26b57b`** | `feat(compliance-eu): avrupa birligi mevzuati ve greenwashing kalkani (web, mobil, backend)` | EmpCo (EU) 2024/825, EFSA 1924/2006, MiCA (EU) 2023/1114, Omnibus (EU) 2019/2161, 2001/83/EC |
 | **`8a51f5a`** | `feat(compliance-us): abd federal mevzuati ftc fda sec uyum kalkani (web, mobil, backend)` | FTC Act Section 5, 16 CFR Part 464 (Fake Reviews), FD&C Act, DSHEA Act 1994, SEC Rule 10b-5, EPA Green Guides |
 | **`fc00dbb`** | `feat(compliance-asia): asya pasifik apac mevzuati jcaa samr mas pmda kalkani (web, mobil, backend)` | PMD Act 2024, JCAA/KFTC Stealth Marketing, SAMR Süperlatifler, MAS Kripto/Finans, Singapur CCCS Greenwashing |
-| **`(güncel)`** | `feat(production-ready): 5 ana modülün tamamlanması (backlinks, raporlama, google hub, alarmlar, uk kalkanı)` | Backlink Engine & Google Disavow, Whitelabel Export Suite, Google GSC+GA4 Live Sync Hub, Çok Kanallı Alarm Dispatcher, UK ASA/CMA/FCA Mevzuat Kalkanı |
+| **`cb80c7d`** | `feat(production-ready): 5 ana modülün tamamlanması (backlinks, raporlama, google hub, alarmlar, uk kalkanı)` | Backlink Engine & Google Disavow, Whitelabel Export Suite, Google GSC+GA4 Live Sync Hub, Çok Kanallı Alarm Dispatcher, UK ASA/CMA/FCA Mevzuat Kalkanı |
+| **`30181a0`** | `fix(google-sync): sahte veri yerine dogru hata durumu ve engelleme kalkanı` | Google Search Console & GA4 bağlantı hatası durumunda sahte metriklerin engellenmesi, doğru hata durumu ve kalkan banner'ları |
+| **`836c628`** | `fix(notifications): webhook adres filtreleme ve telegram html entity guvenligi` | Webhook URL substring eşleşme hatası onarımı, SSRF doğrulaması ve Telegram `<, >, &` HTML entity güvenli kaçırma altyapısı |
+| **`(güncel)`** | `fix(backlinks): site bazli backlink izolasyonu ve yanlis disavow sizintisi onarimi` | Farklı sitelerde Acme verisinin gösterilmesi ve yabancı spam sitelerin Google Disavow dosyasına sızması engellendi; site bazlı veri izolasyonu |
 
 
 ---
@@ -1131,6 +1134,55 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
   - `test_telegram_alert_escapes_payload_in_http_call`: Telegram API çağrısında giden metnin güvenli entity'lerle iletildiğini doğrular.
   - `test_telegram_alert_fallback_to_plain_text_on_entity_error`: Telegram entity hatası aldığında otomatik plain-text tekrar denemesi ile bildirimin ulaştığını doğrular.
 - **Sonuç:** `326 / 326 pytest testi başarılı` (%100 Başarı). TypeScript: Web ve Mobil 0 Hata.
+
+---
+
+### 23. 🛡️ Yanlış Disavow Dosyası & Site Bazlı Backlink İzolasyonu (Çapraz Site Veri Sızıntısı Onarımı)
+
+**Kullanıcı Bildirimi:**
+*"Yanlış disavow dosyası. Backlink ekranı hangi site seçilirse seçilsin hep aynı örnek (Acme) verisini gösteriyor. Kullanıcının 'disavow' dosyası, sitesine hiç link vermemiş alan adlarıyla dolu çıkıyor. Kullanıcı bu dosyayı Google'a yüklerse sorun çıkar. kontrol sağla"*
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+1. **Frontend Veri Bağlantısı Eksikliği:**
+   - Web arayüzünde ([`apps/web/src/app/backlinks/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/backlinks/page.tsx)), `backlinks` durumu `useState<WebBacklinkItem[]>(INITIAL_BACKLINKS)` ile başlatılmıştı. `useSite()` ile aktif seçili site değiştiğinde hiçbir `useEffect` tetiklenmiyordu. Bu sebeple kullanıcı `analyticshub.com` veya başka bir site seçse bile ekranda sürekli `acmestore.io`'nun verileri kalıyordu.
+2. **Çapraz Site Toksik Domain Sızıntısı (Disavow Dosyası Kirlenmesi):**
+   - Web arayüzünde `handleDownloadDisavow` fonksiyonu, `site?.domain` bilgisini sadece dosya başlığındaki yorum satırına yazıyor; disavow edilecek alan adlarını ise `INITIAL_BACKLINKS.filter(b => b.is_toxic)` üzerinden alıyordu. Sonuç olarak `analyticshub.com` için indirilen disavow dosyasının içi `free-crypto-casino-bonus.xyz`, `auto-traffic-pbn.top` ve `spambot-linkfarm.click` gibi Acme'ye ait spam siteleriyle doluyordu.
+3. **Mobil Uygulama İzolasyon Yokluğu:**
+   - Mobil tarafta ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts)), `fetchBacklinks(siteId)` ve `fetchBacklinkSummary(siteId)` fonksiyonları gelen `siteId` parametresini tamamen yok sayarak koşulsuz şartsız `[...MOCK_BACKLINKS]` (Acme) dönüyordu. `generateMobileDisavowText` ise gelen backlink'leri alan adına göre filtrelemeden disavow metnine ekliyordu.
+4. **Google Search Central Yönergesi İhlali ve Ağır SEO Cezası Riski:**
+   - Google Arama Merkezi resmi kılavuzlarına göre; bir sitenin bağlantı profilinde bulunmayan veya siteye hiç link vermemiş alan adlarını disavow dosyasına eklemek son derece tehlikelidir. Yanlış disavow dosyaları Google botlarının sitenin organik bağlantı grafını yanlış yorumlamasına, sitenin algoritmik cezalara maruz kalmasına veya ileride gelebilecek meşru yönlendirmelerin engellenmesine yol açabilir.
+
+#### B. Gerçekleştirilen Kapsamlı Düzeltmeler
+1. **Backend Katmanı ([`services/seo_engine/backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/seo_engine/backlink_engine.py)):**
+   - `generate_google_disavow_file` fonksiyonuna `target_domain: Optional[str] = None` parametresi eklendi.
+   - Toksik linkler `target_domain`'e göre katı bir şekilde filtrelendi: Yalnızca hedef domain'e doğrudan işaret eden zararlı linkler disavow dosyasına dahil edilebilir.
+   - Sitede toksik link bulunmuyorsa (örneğin temiz profillerde), dosya içine rastgele `domain:` direktifleri basılması engellendi; bunun yerine bilgilendirici ve güvenli bir Google Search Console yönerge uyarısı döndürüldü.
+2. **API Yönlendirici Katmanı ([`apps/api/routes/backlinks.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/api/routes/backlinks.py)):**
+   - `/organizations/{org_id}/sites/{site_id}/backlinks` rotası oluşturuldu ve [`apps/api/main.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/api/main.py) üzerine kaydedildi.
+   - `_get_or_init_site_backlinks`: Site bazlı bellek içi yalıtım sağlandı:
+     - `site-1` (`acmestore.io`): Test amacıyla 3 adet toksik spam backlink içeren e-ticaret profili.
+     - `site-2` (`analyticshub.com`): %100 temiz, sıfır toksik linkli SaaS profili (GitHub, ProductHunt, TechRadar vb.).
+     - Müşteriye özel diğer siteler: Sitenin kendi alan adına yönelik temiz backlink profili.
+   - `GET /disavow`: Sitenin gerçek toksik link sayısı 0 ise kullanıcıyı uyaran ve yabancı domain basmayan güvenli yanıt döner (`download=true` seçeneği desteklenir).
+3. **Web Arayüzü ([`apps/web/src/app/backlinks/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/backlinks/page.tsx)):**
+   - `ANALYTICSHUB_BACKLINKS` ve `getSiteBacklinks(site)` yardımcı fonksiyonu eklendi.
+   - `useEffect` ile aktif seçili site değiştiğinde backlink tablosu ve metriklerin anlık olarak ilgili siteye geçmesi sağlandı (`[site?.id, site?.domain]`).
+   - `handleDownloadDisavow`: Yalnızca aktif sitenin URL'sine yönelik toksik bağlantıları filtreler (`b.is_toxic && b.target_url.includes(domain)`).
+   - Sitede toksik link yoksa (`toxicCount === 0`):
+     - Disavow indirme butonuna tıklandığında sahte disavow dosyası üretilmesi engellendi.
+     - Kullanıcıya açıklayıcı bir bilgilendirme modalı (`cleanDisavowNotice`) ve Google Search Central tavsiyesi gösterilir.
+     - Tablo üzerinde yeşil renkli **"Temiz Backlink Profili — Sıfır Toksik Link (%100 Güvenli Profil)"** başarı bandı gösterilir.
+4. **Mobil Arayüzü ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts) & [`BacklinksScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/BacklinksScreen.tsx)):**
+   - `fetchBacklinks(siteId, domain)` ve `fetchBacklinkSummary(siteId, domain)` fonksiyonları siteye duyarlı hale getirildi.
+   - `generateMobileDisavowText`: Toksik bağlantıları `domainName` ile kesin olarak eşleştirdi; eşleşmeyen bağlantılar disavow'a asla sızdırılmaz.
+   - `handleShareDisavow`: Toksik link yoksa kullanıcıya uyarı `Alert` penceresi açarak alakasız alan adlarının Google'a gönderilmesini engeller.
+   - Mobil ekranda yeşil `cleanStatusCard` ("Toksik veya zararlı backlink tespit edilmedi") bileşeni dinamik olarak devreye girer.
+
+#### C. Test ve Doğrulama
+- **Eklenen Testler ([`tests/unit/test_backlink_engine.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_backlink_engine.py)):**
+  - `test_generate_google_disavow_file_site_scoped_prevents_leakage`: `analyticshub.com` için disavow istendiğinde Acme'nin spam linklerinin asla yer almadığı ve `domain:` direktifi üretilmediği doğrulandı.
+  - `test_site_isolated_backlinks_retrieval`: Site 1 (Acme), Site 2 (AnalyticsHub) ve Özel Sitelerin link ve toksisite izolasyonu doğrulandı.
+- **Sonuç:** `328 / 328 pytest testi başarılı` (%100 Başarı). TypeScript: Web ve Mobil 0 Hata.
 
 
 

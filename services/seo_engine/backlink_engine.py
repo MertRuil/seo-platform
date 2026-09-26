@@ -248,7 +248,8 @@ def analyze_backlinks(backlinks: List[BacklinkItem]) -> BacklinkSummary:
 
 def generate_google_disavow_file(
     backlinks: List[BacklinkItem],
-    mode: str = "domain"
+    mode: str = "domain",
+    target_domain: Optional[str] = None
 ) -> str:
     """
     Generates standard Google Search Console Disavow Links file format (.txt).
@@ -256,19 +257,35 @@ def generate_google_disavow_file(
     - Lines starting with '#' are comments
     - 'domain:example.com' disavows all links from that domain
     - Plain URL disavows only that specific URL
+    - Strictly prevents cross-site leakage by filtering backlinks targeting 'target_domain'.
     """
-    toxic_links = [b for b in backlinks if b.is_toxic or b.toxicity_risk in (ToxicityRisk.HIGH, ToxicityRisk.CRITICAL)]
+    clean_target = target_domain.strip().lower().replace("https://", "").replace("http://", "").split("/")[0] if target_domain else None
+    
+    # Filter toxic links: must be toxic AND if target_domain is given, must actually target target_domain!
+    toxic_links = [
+        b for b in backlinks 
+        if (b.is_toxic or b.toxicity_risk in (ToxicityRisk.HIGH, ToxicityRisk.CRITICAL))
+        and (clean_target is None or clean_target in b.target_url.lower())
+    ]
     
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     lines = [
         "# -------------------------------------------------------------",
         "# Google Disavow Links File",
         f"# Generated autonomously by SEO Platform on {now_str}",
+        f"# Target Site: {clean_target or 'All Sites'}",
         f"# Total Toxic Items Identified: {len(toxic_links)}",
         "# Format: domain:example.com or specific URL",
         "# -------------------------------------------------------------",
         ""
     ]
+
+    if not toxic_links:
+        lines.append("# [BILGI] Bu site icin disavow edilecek toksik/zararli baglanti bulunmuyor.")
+        lines.append("# Sitenize baglanti vermemis alan adlarini disavow dosyasina eklemeyiniz.")
+        lines.append("")
+        lines.append("# End of Google Disavow File")
+        return "\n".join(lines)
 
     disavowed_domains = set()
     disavowed_urls = set()

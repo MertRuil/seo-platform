@@ -140,3 +140,52 @@ def test_empty_backlinks_summary():
     assert empty_summary.total_backlinks == 0
     assert empty_summary.dofollow_ratio == 0.0
     assert empty_summary.overall_toxicity_risk == ToxicityRisk.CLEAN
+
+
+def test_generate_google_disavow_file_site_scoped_prevents_leakage():
+    acme_toxic_item = BacklinkItem(
+        id="tox-acme-1",
+        source_url="https://spammy-network.win/directory-list",
+        source_domain="spammy-network.win",
+        target_url="https://acmestore.io",
+        anchor_text="crypto yield bot",
+        anchor_category=AnchorCategory.EXACT_MATCH,
+        is_dofollow=True,
+        domain_authority=3,
+        page_authority=5,
+        spam_score=90,
+        is_toxic=True,
+        toxicity_risk=ToxicityRisk.CRITICAL,
+        toxicity_reasons=["Kritik spam TLD (.win)"]
+    )
+
+    # 1. When requested for acmestore.io -> includes spammy-network.win
+    acme_disavow = generate_google_disavow_file([acme_toxic_item], mode="domain", target_domain="acmestore.io")
+    assert "domain:spammy-network.win" in acme_disavow
+    assert "Target Site: acmestore.io" in acme_disavow
+
+    # 2. When requested for analyticshub.com -> STRICT PROTECTION: Acme's spam domain MUST NOT appear
+    ah_disavow = generate_google_disavow_file([acme_toxic_item], mode="domain", target_domain="analyticshub.com")
+    assert "domain:spammy-network.win" not in ah_disavow
+    assert "Bu site icin disavow edilecek toksik/zararli baglanti bulunmuyor" in ah_disavow
+    assert not any(line.strip().startswith("domain:") for line in ah_disavow.splitlines())
+
+
+def test_site_isolated_backlinks_retrieval():
+    from apps.api.routes.backlinks import _get_or_init_site_backlinks
+
+    # Acme Store profile: contains toxic links
+    acme_links = _get_or_init_site_backlinks("site-1", "acmestore.io")
+    assert any(b.is_toxic for b in acme_links)
+    assert all("acmestore.io" in b.target_url for b in acme_links)
+
+    # AnalyticsHub profile: completely clean, ZERO toxic links
+    ah_links = _get_or_init_site_backlinks("site-2", "analyticshub.com")
+    assert not any(b.is_toxic for b in ah_links)
+    assert all("analyticshub.com" in b.target_url for b in ah_links)
+
+    # Custom site profile: completely clean, domain-tailored, ZERO toxic links
+    custom_links = _get_or_init_site_backlinks("site-custom-99", "brandstore.com.tr", "https://brandstore.com.tr")
+    assert not any(b.is_toxic for b in custom_links)
+    assert all("brandstore.com.tr" in b.target_url for b in custom_links)
+

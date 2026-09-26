@@ -2725,24 +2725,153 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
   },
 ];
 
-export async function fetchBacklinks(siteId?: string): Promise<BacklinkItem[]> {
-  return [...MOCK_BACKLINKS];
+export const MOCK_BACKLINKS_ANALYTICSHUB: BacklinkItem[] = [
+  {
+    id: "bl-ah-1",
+    source_url: "https://github.com/topics/saas-analytics",
+    source_domain: "github.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "SaaS Analytics Hub Platform",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 96,
+    page_authority: 82,
+    spam_score: 1,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-01-15",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-2",
+    source_url: "https://producthunt.com/products/analytics-hub",
+    source_domain: "producthunt.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "Analytics Hub",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 91,
+    page_authority: 76,
+    spam_score: 1,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-01",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-3",
+    source_url: "https://techradar.com/pro/best-business-intelligence-tools",
+    source_domain: "techradar.com",
+    target_url: "https://analyticshub.com/features",
+    anchor_text: "veri analitiği ve dashboard çözümleri",
+    anchor_category: "PARTIAL_MATCH",
+    is_dofollow: true,
+    domain_authority: 89,
+    page_authority: 70,
+    spam_score: 2,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-18",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-4",
+    source_url: "https://capterra.com/p/analyticshub/reviews",
+    source_domain: "capterra.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "https://analyticshub.com",
+    anchor_category: "NAKED_URL",
+    is_dofollow: false,
+    domain_authority: 84,
+    page_authority: 58,
+    spam_score: 2,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-05",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-5",
+    source_url: "https://dev.to/dataarchitect/modern-analytics-architecture-2026",
+    source_domain: "dev.to",
+    target_url: "https://analyticshub.com/integrations",
+    anchor_text: "Analytics Hub REST API",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 79,
+    page_authority: 61,
+    spam_score: 3,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-12",
+    status: "ACTIVE",
+  },
+];
+
+export function getBacklinksForSite(siteId?: string, domain?: string): BacklinkItem[] {
+  const cleanDomain = (domain || "").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+  if (cleanDomain === "analyticshub.com" || siteId === "site-2") {
+    return [...MOCK_BACKLINKS_ANALYTICSHUB];
+  }
+  if (cleanDomain === "acmestore.io" || siteId === "site-1" || !cleanDomain) {
+    return [...MOCK_BACKLINKS];
+  }
+  // Custom user domain: generate clean backlinks targeting their actual domain
+  return [
+    {
+      id: `bl-${siteId || "custom"}-1`,
+      source_url: "https://google.com/search",
+      source_domain: "google.com",
+      target_url: `https://${cleanDomain}`,
+      anchor_text: cleanDomain,
+      anchor_category: "BRAND",
+      is_dofollow: true,
+      domain_authority: 98,
+      page_authority: 85,
+      spam_score: 1,
+      is_toxic: false,
+      toxicity_reasons: [],
+      first_seen: "2026-03-01",
+      status: "ACTIVE",
+    },
+    {
+      id: `bl-${siteId || "custom"}-2`,
+      source_url: "https://webdirectory-clean.org/listing",
+      source_domain: "webdirectory-clean.org",
+      target_url: `https://${cleanDomain}`,
+      anchor_text: `${cleanDomain} ana sayfa`,
+      anchor_category: "PARTIAL_MATCH",
+      is_dofollow: true,
+      domain_authority: 45,
+      page_authority: 38,
+      spam_score: 4,
+      is_toxic: false,
+      toxicity_reasons: [],
+      first_seen: "2026-03-10",
+      status: "ACTIVE",
+    },
+  ];
 }
 
-export async function fetchBacklinkSummary(siteId?: string): Promise<BacklinkSummary> {
-  const toxicCount = MOCK_BACKLINKS.filter(b => b.is_toxic).length;
-  const dofollowCount = MOCK_BACKLINKS.filter(b => b.is_dofollow).length;
-  const uniqueDomains = new Set(MOCK_BACKLINKS.map(b => b.source_domain)).size;
-  const avgDa = Math.round(MOCK_BACKLINKS.reduce((acc, b) => acc + b.domain_authority, 0) / (MOCK_BACKLINKS.length || 1));
-  const dofollowRatio = Math.round((dofollowCount / (MOCK_BACKLINKS.length || 1)) * 100);
-  const toxicPct = Math.round((toxicCount / (MOCK_BACKLINKS.length || 1)) * 100);
-  const toxicDomains = Array.from(new Set(MOCK_BACKLINKS.filter(b => b.is_toxic).map(b => b.source_domain)));
+export async function fetchBacklinks(siteId?: string, domain?: string): Promise<BacklinkItem[]> {
+  return getBacklinksForSite(siteId, domain);
+}
+
+export async function fetchBacklinkSummary(siteId?: string, domain?: string): Promise<BacklinkSummary> {
+  const links = getBacklinksForSite(siteId, domain);
+  const toxicCount = links.filter((b) => b.is_toxic).length;
+  const dofollowCount = links.filter((b) => b.is_dofollow).length;
+  const uniqueDomains = new Set(links.map((b) => b.source_domain)).size;
+  const avgDa = Math.round(links.reduce((acc, b) => acc + b.domain_authority, 0) / (links.length || 1));
+  const dofollowRatio = Math.round((dofollowCount / (links.length || 1)) * 100);
+  const toxicPct = Math.round((toxicCount / (links.length || 1)) * 100);
+  const toxicDomains = Array.from(new Set(links.filter((b) => b.is_toxic).map((b) => b.source_domain)));
 
   return {
-    total_backlinks: MOCK_BACKLINKS.length,
+    total_backlinks: links.length,
     referring_domains: uniqueDomains,
     dofollow_count: dofollowCount,
-    nofollow_count: MOCK_BACKLINKS.length - dofollowCount,
+    nofollow_count: links.length - dofollowCount,
     dofollow_ratio: dofollowRatio,
     avg_domain_authority: avgDa,
     toxic_backlinks_count: toxicCount,
@@ -2754,21 +2883,40 @@ export async function fetchBacklinkSummary(siteId?: string): Promise<BacklinkSum
 }
 
 export function generateMobileDisavowText(backlinks: BacklinkItem[], domainName: string = "acmestore.io"): string {
-  const toxicItems = backlinks.filter(b => b.is_toxic);
+  const cleanDomain = domainName.toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+  // Strictly filter toxic links that actually target domainName
+  const toxicItems = backlinks.filter((b) => {
+    if (!b.is_toxic) return false;
+    const target = b.target_url.toLowerCase();
+    return target.includes(cleanDomain);
+  });
   const nowStr = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+  if (toxicItems.length === 0) {
+    return [
+      "# -------------------------------------------------------------",
+      "# Google Search Console - Disavow Links File",
+      `# Domain: ${cleanDomain}`,
+      `# Exported: ${nowStr} UTC`,
+      `# Status: Clean Profile - 0 Toxic Backlinks Detected`,
+      "# Notice: Google explicitly advises against disavowing links that",
+      "# have never linked to your domain. This file contains no domain directives.",
+      "# -------------------------------------------------------------",
+    ].join("\n");
+  }
 
   const lines = [
     "# -------------------------------------------------------------",
     "# Google Search Console - Disavow Links File",
-    `# Domain: ${domainName}`,
+    `# Domain: ${cleanDomain}`,
     `# Exported: ${nowStr} UTC`,
     `# Identified Toxic Links: ${toxicItems.length}`,
     "# -------------------------------------------------------------",
-    ""
+    "",
   ];
 
   const domains = new Set<string>();
-  toxicItems.forEach(item => {
+  toxicItems.forEach((item) => {
     if (!domains.has(item.source_domain)) {
       lines.push(`# Reason: ${item.toxicity_reasons.join(" | ")}`);
       lines.push(`domain:${item.source_domain}`);

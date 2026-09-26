@@ -184,14 +184,149 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
   },
 ];
 
+export const ANALYTICSHUB_BACKLINKS: WebBacklinkItem[] = [
+  {
+    id: "bl-ah-1",
+    source_url: "https://github.com/topics/saas-analytics",
+    source_domain: "github.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "SaaS Analytics Hub Platform",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 96,
+    page_authority: 82,
+    spam_score: 1,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-01-15",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-2",
+    source_url: "https://producthunt.com/products/analytics-hub",
+    source_domain: "producthunt.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "Analytics Hub",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 91,
+    page_authority: 76,
+    spam_score: 1,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-01",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-3",
+    source_url: "https://techradar.com/pro/best-business-intelligence-tools",
+    source_domain: "techradar.com",
+    target_url: "https://analyticshub.com/features",
+    anchor_text: "veri analitiği ve dashboard çözümleri",
+    anchor_category: "PARTIAL_MATCH",
+    is_dofollow: true,
+    domain_authority: 89,
+    page_authority: 70,
+    spam_score: 2,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-02-18",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-4",
+    source_url: "https://capterra.com/p/analyticshub/reviews",
+    source_domain: "capterra.com",
+    target_url: "https://analyticshub.com",
+    anchor_text: "https://analyticshub.com",
+    anchor_category: "NAKED_URL",
+    is_dofollow: false,
+    domain_authority: 84,
+    page_authority: 58,
+    spam_score: 2,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-05",
+    status: "ACTIVE",
+  },
+  {
+    id: "bl-ah-5",
+    source_url: "https://dev.to/dataarchitect/modern-analytics-architecture-2026",
+    source_domain: "dev.to",
+    target_url: "https://analyticshub.com/integrations",
+    anchor_text: "Analytics Hub REST API",
+    anchor_category: "BRAND",
+    is_dofollow: true,
+    domain_authority: 79,
+    page_authority: 61,
+    spam_score: 3,
+    is_toxic: false,
+    toxicity_reasons: [],
+    first_seen: "2026-03-12",
+    status: "ACTIVE",
+  },
+];
+
+export function getSiteBacklinks(site?: { id?: string; domain?: string; primary_url?: string } | null): WebBacklinkItem[] {
+  const domain = (site?.domain || "").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+  const siteId = site?.id;
+  if (domain === "analyticshub.com" || siteId === "site-2") {
+    return ANALYTICSHUB_BACKLINKS;
+  }
+  if (domain === "acmestore.io" || siteId === "site-1" || !domain) {
+    return INITIAL_BACKLINKS;
+  }
+  const baseUrl = site?.primary_url || `https://${domain}`;
+  return [
+    {
+      id: `bl-${siteId || "custom"}-1`,
+      source_url: "https://google.com/search",
+      source_domain: "google.com",
+      target_url: baseUrl,
+      anchor_text: domain,
+      anchor_category: "BRAND",
+      is_dofollow: true,
+      domain_authority: 98,
+      page_authority: 85,
+      spam_score: 1,
+      is_toxic: false,
+      toxicity_reasons: [],
+      first_seen: "2026-03-01",
+      status: "ACTIVE",
+    },
+    {
+      id: `bl-${siteId || "custom"}-2`,
+      source_url: "https://webdirectory-clean.org/listing",
+      source_domain: "webdirectory-clean.org",
+      target_url: baseUrl,
+      anchor_text: `${domain} ana sayfa`,
+      anchor_category: "PARTIAL_MATCH",
+      is_dofollow: true,
+      domain_authority: 45,
+      page_authority: 38,
+      spam_score: 4,
+      is_toxic: false,
+      toxicity_reasons: [],
+      first_seen: "2026-03-10",
+      status: "ACTIVE",
+    },
+  ];
+}
+
 export default function BacklinksPage() {
   const { site } = useSite();
-  const [backlinks, setBacklinks] = useState<WebBacklinkItem[]>(INITIAL_BACKLINKS);
+  const [backlinks, setBacklinks] = useState<WebBacklinkItem[]>(() => getSiteBacklinks(site));
+  const [cleanDisavowNotice, setCleanDisavowNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | "TOXIC" | "DOFOLLOW" | "NOFOLLOW" | "HIGH_DR">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newAnchor, setNewAnchor] = useState("");
+
+  React.useEffect(() => {
+    setBacklinks(getSiteBacklinks(site));
+    setCleanDisavowNotice(null);
+  }, [site?.id, site?.domain]);
 
   const toxicCount = backlinks.filter((b) => b.is_toxic).length;
   const dofollowCount = backlinks.filter((b) => b.is_dofollow).length;
@@ -219,13 +354,23 @@ export default function BacklinksPage() {
   }, [backlinks, filter, searchQuery]);
 
   const handleDownloadDisavow = () => {
-    const toxicItems = backlinks.filter((b) => b.is_toxic);
+    const domain = (site?.domain || "acmestore.io").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+    // CRITICAL: Strictly filter toxic links that actually target domain!
+    const toxicItems = backlinks.filter((b) => b.is_toxic && b.target_url.toLowerCase().includes(domain));
+    
+    if (toxicItems.length === 0) {
+      setCleanDisavowNotice(
+        `"${domain}" alan adı için tespit edilen herhangi bir zararlı veya toksik link bulunmuyor. Sitenize link vermemiş alan adlarını Google Disavow aracına yüklemek sitenizin SEO görünürlüğüne zarar verebilir. Güvenliğiniz için alakasız alan adlarını içeren sahte disavow dosyası oluşturulması engellendi.`
+      );
+      return;
+    }
+
     const dateStr = new Date().toISOString().slice(0, 19).replace("T", " ");
     
     const lines = [
       "# ----------------------------------------------------------------",
       "# Google Search Console - Disavow Links File",
-      `# Generated for domain: ${site?.domain || "acmestore.io"}`,
+      `# Generated for domain: ${domain}`,
       `# Generated At: ${dateStr} UTC`,
       `# Total Toxic Domains Identified: ${new Set(toxicItems.map((b) => b.source_domain)).size}`,
       "# Submit this file at: https://search.google.com/search-console/disavow-links",
@@ -249,7 +394,7 @@ export default function BacklinksPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `google_disavow_${site?.domain || "acmestore"}_${new Date().toISOString().slice(0, 10)}.txt`;
+    link.download = `google_disavow_${domain}_${new Date().toISOString().slice(0, 10)}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -360,8 +505,8 @@ export default function BacklinksPage() {
         ]}
       />
 
-      {/* Toxic Alert Banner */}
-      {toxicCount > 0 && (
+      {/* Toxic Alert or Clean Profile Banner */}
+      {toxicCount > 0 ? (
         <div className="p-4 rounded-xl border border-warn/30 bg-warn/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <ShieldAlert className="w-5 h-5 text-warn shrink-0 mt-0.5" />
@@ -383,6 +528,23 @@ export default function BacklinksPage() {
           >
             Disavow Dosyası Oluştur (.txt)
           </Button>
+        </div>
+      ) : (
+        <div className="p-4 rounded-xl border border-evidence/30 bg-evidence/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-semibold text-ink">
+                Temiz Backlink Profili — Sıfır Toksik Link
+              </h4>
+              <p className="text-xs text-muted mt-0.5">
+                {site?.name || site?.domain || "Bu site"} için herhangi bir zararlı PBN, kumar veya spam link çiftliği tespit edilmedi. Google Search Console disavow dosyası oluşturmanıza gerek yoktur.
+              </p>
+            </div>
+          </div>
+          <Badge tone="evidence" className="shrink-0 text-xs px-2.5 py-1">
+            %100 Güvenli Profil
+          </Badge>
         </div>
       )}
 
@@ -570,6 +732,33 @@ export default function BacklinksPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Clean Disavow Notice Modal */}
+      <Modal
+        open={Boolean(cleanDisavowNotice)}
+        onClose={() => setCleanDisavowNotice(null)}
+        title="Disavow Dosyası Gerekli Değil"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-evidence/10 border border-evidence/30 rounded-xl">
+            <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
+            <p className="text-xs text-ink leading-relaxed">
+              {cleanDisavowNotice}
+            </p>
+          </div>
+          <div className="p-3 bg-surface-subtle border border-line rounded-xl text-[11px] text-muted space-y-1">
+            <div className="font-semibold text-ink">Google Arama Merkezi (Search Central) Uyarısı:</div>
+            <p>
+              "Disavow aracı yalnızca sitenize yönelik yapay, yanıltıcı veya manipülatif bağlantılar için kullanılmalıdır. Sitenize link vermemiş alan adlarını disavow etmek faydasız olduğu gibi, geçerli yönlendirmeleri yanlışlıkla engelleme riski taşır."
+            </p>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button variant="primary" onClick={() => setCleanDisavowNotice(null)}>
+              Anladım
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
