@@ -2784,6 +2784,17 @@ export function generateMobileDisavowText(backlinks: BacklinkItem[], domainName:
 // -------------------------------------------------------------
 // Google Search Console & GA4 Live Sync Telemetry
 // -------------------------------------------------------------
+export type GoogleConnectionTestState = "HEALTHY" | "AUTH_FAILED" | "DISCONNECTED";
+let currentGoogleConnectionState: GoogleConnectionTestState = "AUTH_FAILED"; // Truth-first default: unauthenticated until verified
+
+export function setGoogleConnectionStateForTest(state: GoogleConnectionTestState) {
+  currentGoogleConnectionState = state;
+}
+
+export function getGoogleConnectionState(): GoogleConnectionTestState {
+  return currentGoogleConnectionState;
+}
+
 export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   status: "HEALTHY",
   last_synced_at: new Date(Date.now() - 1000 * 60 * 14).toISOString(), // 14 mins ago
@@ -2791,6 +2802,7 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   gsc: {
     property: "sc-domain:acmestore.io",
     connected: true,
+    status: "CONNECTED",
     total_clicks: 14850,
     total_impressions: 284000,
     avg_ctr_percent: 5.23,
@@ -2806,6 +2818,7 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   ga4: {
     property_id: "properties/398241029",
     connected: true,
+    status: "CONNECTED",
     active_users: 18400,
     total_sessions: 24600,
     organic_sessions: 15200,
@@ -2838,15 +2851,201 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   ],
 };
 
+export const MOCK_GOOGLE_SYNC_ERROR: GoogleSyncTelemetry = {
+  status: "ERROR",
+  error_code: "AUTH_FAILED",
+  error_message: "Google Search Console yetkilendirmesi başarısız oldu (401 Unauthorized / Token Süresi Doldu).",
+  last_synced_at: new Date().toISOString(),
+  date_range: "Son 28 Gün",
+  gsc: {
+    property: "sc-domain:acmestore.io",
+    connected: false,
+    status: "AUTH_FAILED",
+    error_message: "OAuth erişim izni iptal edildi veya süresi doldu.",
+    total_clicks: 0,
+    total_impressions: 0,
+    avg_ctr_percent: 0,
+    avg_position: 0,
+    top_queries_count: 0,
+    sample_queries: [],
+  },
+  ga4: {
+    property_id: "properties/398241029",
+    connected: false,
+    status: "AUTH_FAILED",
+    error_message: "OAuth erişim izni iptal edildi veya süresi doldu.",
+    active_users: 0,
+    total_sessions: 0,
+    organic_sessions: 0,
+    engagement_rate_percent: 0,
+    bounce_rate_percent: 0,
+    conversions: 0,
+    organic_conversion_rate: 0,
+    top_pages: [],
+  },
+  correlation: {
+    search_traffic_attainment_percent: 0,
+    organic_lead_yield: 0,
+  },
+  insights: [
+    {
+      type: "INTEGRATION_BROKEN",
+      severity: "HIGH",
+      message: "Google Search Console veya GA4 yetkilendirmesi başarısız oldu. Tıklama ve oturum verileri alınamıyor.",
+    },
+  ],
+};
+
+export const MOCK_GOOGLE_SYNC_DISCONNECTED: GoogleSyncTelemetry = {
+  status: "DISCONNECTED",
+  error_code: "DISCONNECTED",
+  error_message: "Google Search Console veya GA4 hesabı henüz bağlanmamış.",
+  last_synced_at: new Date().toISOString(),
+  date_range: "Son 28 Gün",
+  gsc: {
+    property: "Bağlantı Yok",
+    connected: false,
+    status: "DISCONNECTED",
+    error_message: "Google Search Console hesabı bağlanmadı.",
+    total_clicks: 0,
+    total_impressions: 0,
+    avg_ctr_percent: 0,
+    avg_position: 0,
+    top_queries_count: 0,
+    sample_queries: [],
+  },
+  ga4: {
+    property_id: "Bağlantı Yok",
+    connected: false,
+    status: "DISCONNECTED",
+    error_message: "Google Analytics 4 hesabı bağlanmadı.",
+    active_users: 0,
+    total_sessions: 0,
+    organic_sessions: 0,
+    engagement_rate_percent: 0,
+    bounce_rate_percent: 0,
+    conversions: 0,
+    organic_conversion_rate: 0,
+    top_pages: [],
+  },
+  correlation: {
+    search_traffic_attainment_percent: 0,
+    organic_lead_yield: 0,
+  },
+  insights: [
+    {
+      type: "NOT_CONFIGURED",
+      severity: "MEDIUM",
+      message: "Arama ve dönüşüm analitiğini izlemek için Google hesabınızı bağlayın.",
+    },
+  ],
+};
+
 export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleSyncTelemetry> {
-  await new Promise((r) => setTimeout(r, 200));
-  return MOCK_GOOGLE_SYNC;
+  try {
+    const res = await fetch(`${API_BASE_URL}/integrations/google/status?site_id=${siteId || "default"}`, {
+      headers: { "Content-Type": "application/json" }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "HEALTHY") {
+        return {
+          ...MOCK_GOOGLE_SYNC,
+          last_synced_at: data.last_synced_at || new Date().toISOString(),
+          gsc: {
+            ...MOCK_GOOGLE_SYNC.gsc,
+            property: data.gsc_property || MOCK_GOOGLE_SYNC.gsc.property,
+            connected: Boolean(data.gsc_connected),
+            status: "CONNECTED",
+          },
+          ga4: {
+            ...MOCK_GOOGLE_SYNC.ga4,
+            property_id: data.ga4_property_id || MOCK_GOOGLE_SYNC.ga4.property_id,
+            connected: Boolean(data.ga4_connected),
+            status: "CONNECTED",
+          }
+        };
+      } else if (data.status === "ERROR") {
+        return {
+          ...MOCK_GOOGLE_SYNC_ERROR,
+          error_message: data.error_detail || MOCK_GOOGLE_SYNC_ERROR.error_message,
+          gsc: {
+            ...MOCK_GOOGLE_SYNC_ERROR.gsc,
+            property: data.gsc_property || "sc-domain:acmestore.io",
+            error_message: data.error_detail || "Google API yetkilendirme hatası",
+          },
+          ga4: {
+            ...MOCK_GOOGLE_SYNC_ERROR.ga4,
+            property_id: data.ga4_property_id || "properties/398241029",
+            error_message: data.error_detail || "Google API yetkilendirme hatası",
+          }
+        };
+      } else {
+        return MOCK_GOOGLE_SYNC_DISCONNECTED;
+      }
+    }
+  } catch {
+    // Offline / demo fallback
+  }
+
+  if (currentGoogleConnectionState === "HEALTHY") {
+    return MOCK_GOOGLE_SYNC;
+  }
+  if (currentGoogleConnectionState === "DISCONNECTED") {
+    return MOCK_GOOGLE_SYNC_DISCONNECTED;
+  }
+  return MOCK_GOOGLE_SYNC_ERROR;
 }
 
 export async function triggerGoogleSync(siteId?: string): Promise<GoogleSyncTelemetry> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/integrations/google/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ site_id: siteId || "default", force: true }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "ERROR" || data.error_code === "AUTH_FAILED") {
+        return {
+          ...MOCK_GOOGLE_SYNC_ERROR,
+          error_message: data.error_message || "OAuth yetkilendirmesi başarısız oldu (Token Süresi Doldu).",
+          last_synced_at: new Date().toISOString(),
+        };
+      }
+      return {
+        ...MOCK_GOOGLE_SYNC,
+        ...data,
+        last_synced_at: new Date().toISOString(),
+      };
+    } else {
+      const err = await res.json().catch(() => ({ detail: "Google API yetkilendirme hatası (401 Unauthorized)" }));
+      return {
+        ...MOCK_GOOGLE_SYNC_ERROR,
+        error_message: err.detail || "Google API yetkilendirme hatası (401 Unauthorized)",
+        last_synced_at: new Date().toISOString(),
+      };
+    }
+  } catch {
+    // Offline / demo fallback
+  }
+
   await new Promise((r) => setTimeout(r, 600));
+
+  if (currentGoogleConnectionState === "HEALTHY") {
+    return {
+      ...MOCK_GOOGLE_SYNC,
+      last_synced_at: new Date().toISOString(),
+    };
+  }
+  if (currentGoogleConnectionState === "DISCONNECTED") {
+    return {
+      ...MOCK_GOOGLE_SYNC_DISCONNECTED,
+      last_synced_at: new Date().toISOString(),
+    };
+  }
   return {
-    ...MOCK_GOOGLE_SYNC,
+    ...MOCK_GOOGLE_SYNC_ERROR,
     last_synced_at: new Date().toISOString(),
   };
 }

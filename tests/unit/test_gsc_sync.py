@@ -58,6 +58,24 @@ async def test_google_oauth_and_gsc_sync_flow():
         assert "webmasters.readonly" in auth_data["auth_url"]
         state = auth_data["state"]
 
+        # 3b. Verify /google/status and sync return DISCONNECTED before OAuth credentials exist
+        status_res = await client.get(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/integrations/google/status",
+            headers=headers
+        )
+        assert status_res.status_code == 200
+        assert status_res.json()["connected"] is False
+        assert status_res.json()["status"] == "DISCONNECTED"
+
+        pre_sync_res = await client.post(
+            f"/api/v1/organizations/{org_id}/sites/{site_id}/integrations/sync",
+            headers=headers
+        )
+        assert pre_sync_res.status_code == 200
+        assert pre_sync_res.json()["success"] is False
+        assert pre_sync_res.json()["status"] == "DISCONNECTED"
+        assert pre_sync_res.json()["error_code"] == "NO_CREDENTIALS"
+
         # 4. Simulate OAuth Callback
         cb_res = await client.get(
             f"/api/v1/integrations/google/callback?code=mock_code_abc123&state={state}"

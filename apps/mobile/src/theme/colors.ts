@@ -34,6 +34,9 @@ export const Colors = {
   danger: "#EF4444", // Coral Red
   dangerSurface: "rgba(239, 68, 68, 0.12)",
   dangerBorder: "rgba(239, 68, 68, 0.25)",
+  error: "#EF4444",
+  errorSurface: "rgba(239, 68, 68, 0.12)",
+  errorBorder: "rgba(239, 68, 68, 0.25)",
 
   info: "#38BDF8", // Cyan
   infoSurface: "rgba(56, 189, 248, 0.12)",

@@ -39,27 +39,41 @@ async def sync_gsc_and_crux_for_site(site: Site, db: AsyncSession) -> Dict[str, 
 
     gsc_rows: List[GscSearchRow] = []
 
-    if cred:
-        try:
-            client = GoogleSearchConsoleClient(cred.encrypted_access_token)
-            # In test/mock environment where access token is a mock token:
-            raw_token = decrypt_secret(cred.encrypted_access_token)
-            if "mock" in raw_token.lower() or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
-                gsc_rows = _generate_mock_gsc_data(site)
-            else:
-                site_url = f"sc-domain:{site.normalized_domain}"
-                gsc_rows = await client.get_search_analytics(
-                    site_url=site_url,
-                    start_date=start_date,
-                    end_date=end_date,
-                    row_limit=500
-                )
-        except Exception as e:
-            logger.error(f"GSC fetch failed for site {site.id}: {e}")
-    else:
-        # If no OAuth credentials yet configured, populate realistic seed data in dev/test
-        if settings.ENVIRONMENT in ("development", "test"):
+    if not cred:
+        return {
+            "success": False,
+            "status": "DISCONNECTED",
+            "error_code": "NO_CREDENTIALS",
+            "gsc_metrics_synced": 0,
+            "crux_metrics_synced": 0,
+            "opportunities_found": 0,
+            "message": "Google Search Console hesabı bağlı değil. Arama ve tıklama verilerini eşitlemek için önce Google OAuth ile yetkilendirme yapmalısınız."
+        }
+
+    try:
+        client = GoogleSearchConsoleClient(cred.encrypted_access_token)
+        raw_token = decrypt_secret(cred.encrypted_access_token)
+        if "mock" in raw_token.lower() or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
             gsc_rows = _generate_mock_gsc_data(site)
+        else:
+            site_url = f"sc-domain:{site.normalized_domain}"
+            gsc_rows = await client.get_search_analytics(
+                site_url=site_url,
+                start_date=start_date,
+                end_date=end_date,
+                row_limit=500
+            )
+    except Exception as e:
+        logger.error(f"GSC fetch failed for site {site.id}: {e}")
+        return {
+            "success": False,
+            "status": "ERROR",
+            "error_code": "AUTH_FAILED",
+            "gsc_metrics_synced": 0,
+            "crux_metrics_synced": 0,
+            "opportunities_found": 0,
+            "message": f"Google Search Console yetkilendirme hatası: {str(e)}. Erişim anahtarınızın süresi dolmuş olabilir."
+        }
 
     # 2. Persist GSC metrics to DB
     for row in gsc_rows:
@@ -122,6 +136,8 @@ async def sync_gsc_and_crux_for_site(site: Site, db: AsyncSession) -> Dict[str, 
 
     return {
         "success": True,
+        "status": "HEALTHY",
+        "error_code": None,
         "gsc_metrics_synced": gsc_count,
         "crux_metrics_synced": crux_count,
         "opportunities_found": len(opps),

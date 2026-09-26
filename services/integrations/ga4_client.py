@@ -45,6 +45,12 @@ class Ga4TrafficRow:
             "avg_session_duration_sec": round(self.avg_session_duration_sec, 1)
         }
 
+class Ga4IntegrationError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(f"GA4 API Error ({status_code}): {detail}")
+
 class GoogleAnalytics4Client:
     """
     Google Analytics Data API (GA4) v1beta Client.
@@ -99,16 +105,25 @@ class GoogleAnalytics4Client:
             "Content-Type": "application/json"
         }
 
-        # If running in mock/offline mode or token is a test string:
-        if "mock" in self.access_token.lower() or "test" in self.access_token.lower() or not self.access_token:
+        # If running specifically in offline unit tests with mock fixture token:
+        if self.access_token in ("mock_token_123", "mock_token"):
             return self._generate_mock_ga4_rows(start_date, end_date)
+
+        if not self.access_token:
+            raise Ga4IntegrationError(401, "Google Analytics 4 yetkilendirme anahtarı bulunamadı.")
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(endpoint, headers=headers, json=payload)
-                if resp.status_code != 200:
+                if resp.status_code == 401:
+                    raise Ga4IntegrationError(401, "Google Analytics 4 yetkilendirme hatası (401 Unauthorized): OAuth anahtarının süresi dolmuş veya geçersiz.")
+                elif resp.status_code == 403:
+                    raise Ga4IntegrationError(403, "Google Analytics 4 erişim izni reddedildi (403 Forbidden): Mülke okuma izniniz bulunmuyor.")
+                elif resp.status_code == 404:
+                    raise Ga4IntegrationError(404, "Google Analytics 4 mülkü bulunamadı (404 Not Found).")
+                elif resp.status_code != 200:
                     logger.warning(f"GA4 runReport returned status {resp.status_code}: {resp.text}")
-                    return self._generate_mock_ga4_rows(start_date, end_date)
+                    raise Ga4IntegrationError(resp.status_code, f"GA4 API çağrısı başarısız oldu: HTTP {resp.status_code}")
 
                 data = resp.json()
                 rows: List[Ga4TrafficRow] = []

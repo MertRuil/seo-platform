@@ -12,6 +12,12 @@ class GscSearchRow:
         self.ctr = ctr
         self.position = position
 
+class GscIntegrationError(Exception):
+    def __init__(self, status_code: int, detail: str):
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(f"GSC API Error ({status_code}): {detail}")
+
 class GoogleSearchConsoleClient:
     API_BASE = "https://www.googleapis.com/webmasters/v3"
 
@@ -44,9 +50,14 @@ class GoogleSearchConsoleClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(endpoint, headers=headers, json=payload)
-            if resp.status_code != 200:
-                # Return empty list or raise custom integration error
-                return []
+            if resp.status_code == 401:
+                raise GscIntegrationError(401, "Google Search Console yetkilendirme hatası (401 Unauthorized): OAuth erişim anahtarının süresi dolmuş veya geçersiz.")
+            elif resp.status_code == 403:
+                raise GscIntegrationError(403, "Google Search Console erişim yetkisi reddedildi (403 Forbidden): Mülk sahipliği veya API yetkisi bulunamadı.")
+            elif resp.status_code == 404:
+                raise GscIntegrationError(404, "Google Search Console mülkü bulunamadı (404 Not Found).")
+            elif resp.status_code != 200:
+                raise GscIntegrationError(resp.status_code, f"GSC API çağrısı başarısız oldu: HTTP {resp.status_code}")
 
             data = resp.json()
             rows = []

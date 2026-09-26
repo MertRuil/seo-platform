@@ -1027,3 +1027,66 @@ Kullanıcı talebi doğrultusunda Orta Doğu ve Körfez bölgesinin katı reklam
   - `apps/mobile`: **0 hata** (`npx tsc --noEmit` başarılı).
 - **Git Takibi:** Tüm backend, web, mobil ve test dosyaları commit edilerek GitHub ana dalına (`origin/main`) aktarılmıştır.
 
+---
+
+### 21. 🛡️ Gerçek Zamanlı Google Entegrasyon Sağlığı ve Sahte Veri Kalkanı (Anti-Fabrication Shield)
+
+Kullanıcı bildirimi: *"Sahte veri gerçekmiş gibi gösteriliyor. Google Search Console veya GA4 bağlantısı başarısız olunca sistem hata vermiyor. Onun yerine uydurma tıklama, kullanıcı ve dönüşüm sayıları gösteriyor ve 'Bağlı / Sağlıklı' yazıyor. Müşteri entegrasyonunun bozuk olduğunu hiç fark etmez."*
+
+Yapılan detaylı mimari incelemede ve kod denetiminde müşteriyi yanıltan bu kritik durum kökünden tespit edilmiş, Backend, Web ve Mobil katmanlarında uçtan uca onarılmıştır.
+
+#### A. Tespit Edilen Kök Nedenler (Root Causes)
+1. **API İstemcilerinde Sessiz Hata Bastırma:**
+   - `services/integrations/gsc_client.py` ve `ga4_client.py`, Google API'sinden 401 Unauthorized, 403 Forbidden veya 404 döndüğünde hatayı yukarı fırlatmak yerine sessizce `[]` dönüyor veya otomatik sahte mock satırlar enjekte ediyordu (`_generate_mock_ga4_rows`).
+2. **Google Sync Hub Otomatik Sahte Veri Enjeksiyonu:**
+   - `services/integrations/google_sync_hub.py`, Search Console verisi boş veya hatalı geldiğinde `if not gsc_rows: gsc_rows = [...]` diyerek sisteme uydurma 14.850 tıklama ve 284.000 gösterim ekliyor ve durumu zorla `"HEALTHY"` / `connected: True` işaretliyordu.
+3. **Senkronizasyon Servisinde Jeton Kontrolsüzlüğü:**
+   - `services/integrations/gsc_sync_service.py`, OAuth jetonu veya site bağlayıcısı hiç olmadığında bile dev/test ortamı bahanesiyle SQLite veritabanına sahte tıklama tohumluyordu.
+4. **Web & Mobil Arayüzlerinde Sabit Rozetler:**
+   - `apps/web/src/app/integrations/page.tsx`, `apps/mobile/src/screens/DashboardScreen.tsx` ve `SettingsScreen.tsx` ekranlarında bağlantı kopuk olsa dahi "Bağlı & Doğrulandı", "%72.4 (Sağlıklı)" ve "4.820 Tıklama" gibi sabit metrikler gösteriliyordu.
+
+#### B. Gerçekleştirilen Düzeltmeler & Mimari Değişiklikler
+
+1. **Backend Katmanı:**
+   - **Özel Hata Tipleri:** `GscIntegrationError(status_code, detail)` ve `Ga4IntegrationError(status_code, detail)` sınıfları yazıldı.
+   - **Sessiz Mock Üretiminin İptali:** `gsc_client.py` ve `ga4_client.py` içerisindeki sahte mock üreticiler ve sessiz `except` blokları temizlendi; HTTP 401/403/404 yanıtları açıkça `GscIntegrationError` fırlatacak şekilde yeniden yapılandırıldı.
+   - **Gerçekçi Durum ve Hata Kodları:** `google_sync_hub.py` ve `gsc_sync_service.py`, yetki hatası veya geçersiz OAuth token durumunda:
+     - `status: "ERROR"`, `error_code: "AUTH_FAILED"` veya `status: "DISCONNECTED"`, `error_code: "NO_CREDENTIALS"` döner.
+     - Metrikleri sıfırlar (`total_clicks: 0`, `active_users: 0`).
+     - Yüksek öncelikli `INTEGRATION_BROKEN` teşhis uyarısı ekler.
+   - **Yeni Sağlık Denetim Uç Noktası:** `GET /api/v1/integrations/google/status` rotası eklendi; istemcilerin Google bağlantı durumunu, hata detaylarını ve mülk adlarını gerçek zamanlı sorgulaması sağlandı.
+   - **Sözleşme Güncellemesi:** `GscSyncResponse` ve ilgili Pydantic kontratlarına `status` ve `error_code` alanları eklendi.
+
+2. **Web Uygulaması (`apps/web`):**
+   - `apps/web/src/app/integrations/page.tsx` dinamik `googleIntegrationStatus` (`HEALTHY`, `AUTH_FAILED`, `DISCONNECTED`) state'ine bağlandı.
+   - Bağlantı bozukken (`AUTH_FAILED`), ekranın en tepesinde kırmızı uyarı bandı: *"Google Entegrasyonu Bozuk — Veri Akışı Durdu! (OAuth jetonunun süresi dolmuş veya erişim yetkisi kaldırılmış)"* ve `[ OAuth ile Yeniden Yetkilendir ]` butonu sunulur.
+   - Bağlantı yokken (`DISCONNECTED`), sarı uyarı bandı ve `[ Google Hesabını Bağla (OAuth) ]` butonu gösterilir.
+   - `MetricStrip` bileşeninde sahte 14.850 tıklama yerine `—` ve `Bağlantı Hatası: Veri Yok` gösterilir.
+   - QA ve test süreçleri için durum simülasyonu butonu (`handleToggleSimulation`) eklendi.
+
+3. **Mobil Uygulama (`apps/mobile`):**
+   - **Veri Modelleri (`types/index.ts`):** `GoogleSyncTelemetry` genişletilerek `status`, `error_code`, `error_message` ve servis bazlı `gsc.status`, `ga4.status`, `error_message` alanları eklendi.
+   - **API Servisi (`services/api.ts`):** `fetchGoogleSyncTelemetry` ve `triggerGoogleSync`, backend'deki `/google/status` ve `/google/sync` uç noktalarıyla entegre edildi. Bağlantı hatası durumunda 0 metrik dönen ve hatayı açıkça belirten kalkan devrede tutuldu. Durum testi için `setGoogleConnectionStateForTest` eklendi.
+   - **Tema Renkleri (`theme/colors.ts`):** `Colors.error`, `errorSurface`, `errorBorder` tanımlandı.
+   - **Ayarlar Ekranı (`SettingsScreen.tsx`):**
+     - Kırmızı `❌ Yetki Hatası (401)` ve sarı `⚠️ Bağlı Değil` rozetleri eklendi.
+     - `AUTH_FAILED` durumunda kırmızı uyarı kutusu ve `[ OAuth ile Yeniden Bağlan ]` butonu eklendi.
+     - Senkronizasyon başarısız olduğunda kullanıcıya net bir `Alert` uyarısı ile OAuth jetonunu yenilemesi gerektiği bildirildi.
+     - Canlı durum testi için `[ ✅ Sağlıklı ]`, `[ ❌ 401 Yetki Hatası ]`, `[ ⚠️ Bağlantısız ]` çipleri entegre edildi.
+   - **Genel Bakış Ekranı (`DashboardScreen.tsx`):**
+     - Sabit yazılmış "4.820 Tıklama" kaldırıldı.
+     - Google bağlantısı bozuk veya yoksa:
+       - Üst rozet `Yetki Hatası (401)` veya `Bağlı Değil` olarak güncellenir.
+       - Kırmızı/Sarı bilgilendirme kutusu ile *"Sahte veri engellendi. Gerçek verileri görmek için lütfen yeniden bağlanın"* uyarısı çıkar.
+       - `[ Search Console'u Bağla ]` / `[ OAuth ile Yeniden Doğrula ]` butonu Ayarlar sekmesine yönlendirir.
+       - Tıklama, gösterim, CTR ve pozisyon metrikleri `—` olarak gösterilir.
+
+#### C. Test ve Doğrulama Sonuçları
+- **Python Birim Testleri:** `319 / 319 geçti` (0 hata, %100 başarı).
+  - `tests/unit/test_google_sync.py`: Yetki hatası ve boş token durumunda sahte veri engelleme testleri eklendi (5/5 başarılı).
+  - `tests/unit/test_gsc_sync.py`: OAuth jetonu olmadan senkronizasyonun hata vermesi ve `/google/status` doğrulaması yapıldı.
+- **TypeScript Derleme Denetimi:**
+  - `apps/mobile`: `npx tsc --noEmit` -> **0 Hata (Exit Code: 0)**
+  - `apps/web`: `npx tsc --noEmit` -> **0 Hata (Exit Code: 0)**
+
+

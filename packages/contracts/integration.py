@@ -39,6 +39,8 @@ class OpportunityResponse(BaseModel):
 
 class GscSyncResponse(BaseModel):
     success: bool
+    status: Optional[str] = "HEALTHY"
+    error_code: Optional[str] = None
     gsc_metrics_synced: int
     crux_metrics_synced: int
     opportunities_found: int

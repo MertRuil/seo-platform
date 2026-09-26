@@ -20,7 +20,10 @@ import {
   fetchGoogleSyncTelemetry, 
   triggerGoogleSync, 
   fetchAlertChannels, 
-  sendTestAlert 
+  sendTestAlert,
+  setGoogleConnectionStateForTest,
+  getGoogleConnectionState,
+  GoogleConnectionTestState
 } from "../services/api";
 import { AppSettings, GoogleSyncTelemetry, AlertChannelConfig } from "../types";
 
@@ -38,6 +41,7 @@ export const SettingsScreen: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [googleSync, setGoogleSync] = useState<GoogleSyncTelemetry | null>(null);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
+  const [testState, setTestState] = useState<GoogleConnectionTestState>(getGoogleConnectionState());
   const [alertChannels, setAlertChannels] = useState<AlertChannelConfig[]>([]);
   const [testingChan, setTestingChan] = useState<string | null>(null);
 
@@ -47,14 +51,33 @@ export const SettingsScreen: React.FC = () => {
     fetchAlertChannels().then(setAlertChannels);
   }, []);
 
+  const handleSetTestState = async (state: GoogleConnectionTestState) => {
+    setGoogleConnectionStateForTest(state);
+    setTestState(state);
+    const updated = await fetchGoogleSyncTelemetry();
+    setGoogleSync(updated);
+  };
+
   const handleSyncGoogle = async () => {
     setSyncingGoogle(true);
     try {
       const res = await triggerGoogleSync();
       setGoogleSync(res);
-      Alert.alert("Başarılı", "Google Search Console ve GA4 verileri başarıyla eşitlendi!");
-    } catch {
-      Alert.alert("Hata", "Google senkronizasyonu yapılamadı.");
+      if (res.status === "ERROR" || res.error_code === "AUTH_FAILED") {
+        Alert.alert(
+          "Entegrasyon Hatası (401)",
+          res.error_message || "Google API yetkilendirmesi başarısız oldu: OAuth jetonunun süresi dolmuş veya erişim izni iptal edilmiş. Müşteri güvenliği için sahte veri gösterilmez."
+        );
+      } else if (res.status === "DISCONNECTED") {
+        Alert.alert(
+          "Entegrasyon Bağlı Değil",
+          "Aktif bir Google Search Console veya GA4 hesabı bulunamadı. Lütfen önce hesabınızı bağlayın."
+        );
+      } else {
+        Alert.alert("Başarılı", "Google Search Console ve GA4 verileri başarıyla eşitlendi!");
+      }
+    } catch (e: any) {
+      Alert.alert("Hata", e?.message || "Google senkronizasyonu yapılamadı.");
     } finally {
       setSyncingGoogle(false);
     }
@@ -216,33 +239,134 @@ export const SettingsScreen: React.FC = () => {
         <GlassCard style={styles.groupCard}>
           {googleSync && (
             <View style={styles.googleSyncBox}>
+              {/* Status Alert Banner if Error or Disconnected */}
+              {googleSync.status === "ERROR" && (
+                <View style={styles.integrationAlertBoxError}>
+                  <View style={styles.integrationAlertHeader}>
+                    <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                    <Text style={styles.integrationAlertTitleError}>Yetkilendirme Hatası (401)</Text>
+                  </View>
+                  <Text style={styles.integrationAlertText}>
+                    {googleSync.error_message || "OAuth jetonunun süresi doldu veya erişim izni bulunmuyor. Gerçek veri çekilemiyor; sahte veriler kalkan tarafından engellendi."}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.reconnectBtn}
+                    onPress={() => Alert.alert("OAuth Yeniden Doğrulama", "Google OAuth yetkilendirme sayfası açılıyor...")}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="key-outline" size={14} color="#FFFFFF" />
+                    <Text style={styles.reconnectBtnText}>OAuth ile Yeniden Bağlan</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {googleSync.status === "DISCONNECTED" && (
+                <View style={styles.integrationAlertBoxWarn}>
+                  <View style={styles.integrationAlertHeader}>
+                    <Ionicons name="warning-outline" size={16} color={Colors.accent} />
+                    <Text style={styles.integrationAlertTitleWarn}>Google Entegrasyonu Bağlı Değil</Text>
+                  </View>
+                  <Text style={styles.integrationAlertText}>
+                    Google Search Console veya GA4 mülkü henüz yapılandırılmamış. Canlı arama ve dönüşüm analitiğini izlemek için bağlayın.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.reconnectBtn, { backgroundColor: Colors.accent }]}
+                    onPress={() => Alert.alert("Google Bağlantısı", "Google hesabı bağlama sihirbazı başlatılıyor...")}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="link-outline" size={14} color="#FFFFFF" />
+                    <Text style={styles.reconnectBtnText}>Google Hesabını Bağla</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* GSC Row */}
               <View style={styles.googleServiceRow}>
                 <View style={styles.serviceHeaderLeft}>
                   <Ionicons name="logo-google" size={18} color="#EA4335" />
                   <Text style={styles.serviceName}>Google Search Console (GSC)</Text>
                 </View>
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>Bağlı</Text>
-                </View>
+                {googleSync.gsc.connected && googleSync.status === "HEALTHY" ? (
+                  <View style={styles.activeTag}>
+                    <Text style={styles.activeTagText}>Bağlı & Doğrulandı</Text>
+                  </View>
+                ) : googleSync.gsc.status === "AUTH_FAILED" || googleSync.status === "ERROR" ? (
+                  <View style={styles.errorTag}>
+                    <Text style={styles.errorTagText}>Yetki Hatası</Text>
+                  </View>
+                ) : (
+                  <View style={styles.warnTag}>
+                    <Text style={styles.warnTagText}>Bağlı Değil</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.serviceDetailText}>
-                {googleSync.gsc.property} • {googleSync.gsc.total_clicks.toLocaleString()} Tıklama (%{googleSync.gsc.avg_ctr_percent} CTR)
+                {googleSync.gsc.connected && googleSync.status === "HEALTHY"
+                  ? `${googleSync.gsc.property} • ${googleSync.gsc.total_clicks.toLocaleString()} Tıklama (%${googleSync.gsc.avg_ctr_percent} CTR)`
+                  : `${googleSync.gsc.property} • — Tıklama (Bağlantı Hatası: Veri Yok)`}
               </Text>
 
               <View style={styles.divider} />
 
+              {/* GA4 Row */}
               <View style={styles.googleServiceRow}>
                 <View style={styles.serviceHeaderLeft}>
                   <Ionicons name="analytics-outline" size={18} color="#FBBC04" />
                   <Text style={styles.serviceName}>Google Analytics 4 (GA4)</Text>
                 </View>
-                <View style={styles.activeTag}>
-                  <Text style={styles.activeTagText}>Aktif</Text>
-                </View>
+                {googleSync.ga4.connected && googleSync.status === "HEALTHY" ? (
+                  <View style={styles.activeTag}>
+                    <Text style={styles.activeTagText}>Aktif & Doğrulandı</Text>
+                  </View>
+                ) : googleSync.ga4.status === "AUTH_FAILED" || googleSync.status === "ERROR" ? (
+                  <View style={styles.errorTag}>
+                    <Text style={styles.errorTagText}>Yetki Hatası</Text>
+                  </View>
+                ) : (
+                  <View style={styles.warnTag}>
+                    <Text style={styles.warnTagText}>Bağlı Değil</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.serviceDetailText}>
-                {googleSync.ga4.property_id} • {googleSync.ga4.active_users.toLocaleString()} Kullanıcı (%{googleSync.ga4.organic_conversion_rate} Dönüşüm)
+                {googleSync.ga4.connected && googleSync.status === "HEALTHY"
+                  ? `${googleSync.ga4.property_id} • ${googleSync.ga4.active_users.toLocaleString()} Kullanıcı (%${googleSync.ga4.organic_conversion_rate} Dönüşüm)`
+                  : `${googleSync.ga4.property_id} • — Kullanıcı (Bağlantı Hatası: Veri Yok)`}
               </Text>
+
+              {/* Simulation Mode Switcher for Testing */}
+              <View style={styles.divider} />
+              <View style={styles.testSwitcherBox}>
+                <Text style={styles.testSwitcherLabel}>Simülasyon / Test Durumu:</Text>
+                <View style={styles.testChipsRow}>
+                  <TouchableOpacity
+                    style={[styles.testChip, testState === "HEALTHY" && styles.testChipActive]}
+                    onPress={() => handleSetTestState("HEALTHY")}
+                  >
+                    <Text style={[styles.testChipText, testState === "HEALTHY" && styles.testChipTextActive]}>
+                      ✅ Sağlıklı
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.testChip, testState === "AUTH_FAILED" && styles.testChipActiveError]}
+                    onPress={() => handleSetTestState("AUTH_FAILED")}
+                  >
+                    <Text style={[styles.testChipText, testState === "AUTH_FAILED" && styles.testChipTextActiveError]}>
+                      ❌ 401 Yetki Hatası
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.testChip, testState === "DISCONNECTED" && styles.testChipActiveWarn]}
+                    onPress={() => handleSetTestState("DISCONNECTED")}
+                  >
+                    <Text style={[styles.testChipText, testState === "DISCONNECTED" && styles.testChipTextActiveWarn]}>
+                      ⚠️ Bağlantısız
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
               
               <Text style={styles.lastSyncMuted}>
                 Son Eşitleme: {new Date(googleSync.last_synced_at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
@@ -507,6 +631,139 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "700",
     color: Colors.success,
+  },
+  errorTag: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  errorTagText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.error,
+  },
+  warnTag: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+  },
+  warnTagText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  integrationAlertBoxError: {
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 6,
+    marginBottom: 6,
+  },
+  integrationAlertBoxWarn: {
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    borderColor: "rgba(245, 158, 11, 0.3)",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 6,
+    marginBottom: 6,
+  },
+  integrationAlertHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  integrationAlertTitleError: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.error,
+  },
+  integrationAlertTitleWarn: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  integrationAlertText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  reconnectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.error,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  reconnectBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  testSwitcherBox: {
+    marginTop: 4,
+    gap: 6,
+  },
+  testSwitcherLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  testChipsRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  testChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  testChipActive: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    borderColor: Colors.success,
+  },
+  testChipActiveError: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderColor: Colors.error,
+  },
+  testChipActiveWarn: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderColor: Colors.accent,
+  },
+  testChipText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  testChipTextActive: {
+    color: Colors.success,
+    fontWeight: "700",
+  },
+  testChipTextActiveError: {
+    color: Colors.error,
+    fontWeight: "700",
+  },
+  testChipTextActiveWarn: {
+    color: Colors.accent,
+    fontWeight: "700",
   },
   serviceDetailText: {
     fontSize: 11,

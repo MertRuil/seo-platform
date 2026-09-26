@@ -499,12 +499,16 @@ export interface MenaComplianceViolation {
 
 
 export interface GoogleSyncTelemetry {
-  status: "HEALTHY" | "SYNCING" | "ERROR";
+  status: "HEALTHY" | "SYNCING" | "ERROR" | "DISCONNECTED";
+  error_code?: "AUTH_FAILED" | "DISCONNECTED" | "TOKEN_EXPIRED" | "RATE_LIMITED";
+  error_message?: string;
   last_synced_at: string;
   date_range: string;
   gsc: {
     property: string;
     connected: boolean;
+    status?: "CONNECTED" | "DISCONNECTED" | "AUTH_FAILED";
+    error_message?: string;
     total_clicks: number;
     total_impressions: number;
     avg_ctr_percent: number;
@@ -520,6 +524,8 @@ export interface GoogleSyncTelemetry {
   ga4: {
     property_id: string;
     connected: boolean;
+    status?: "CONNECTED" | "DISCONNECTED" | "AUTH_FAILED";
+    error_message?: string;
     active_users: number;
     total_sessions: number;
     organic_sessions: number;

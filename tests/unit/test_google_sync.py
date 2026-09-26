@@ -60,3 +60,37 @@ async def test_google_sync_hub_synchronize():
     assert "correlation" in result
     assert "insights" in result
     assert isinstance(result["insights"], list)
+
+@pytest.mark.asyncio
+async def test_google_sync_hub_auth_failure():
+    # If access token is invalid, it must NOT return fake healthy metrics
+    result = await GoogleSyncHub.synchronize_site_telemetry(
+        site_domain="example.com",
+        gsc_site_url="sc-domain:example.com",
+        ga4_property_id="properties/123456789",
+        access_token="invalid_token"
+    )
+
+    assert result["status"] == "ERROR"
+    assert result["error_code"] == "AUTH_FAILED"
+    assert result["gsc"]["connected"] is False
+    assert result["gsc"]["total_clicks"] == 0
+    assert result["gsc"]["total_impressions"] == 0
+    assert result["ga4"]["connected"] is False
+    assert result["ga4"]["active_users"] == 0
+    assert any(i["type"] == "INTEGRATION_BROKEN" for i in result["insights"])
+
+@pytest.mark.asyncio
+async def test_google_sync_hub_empty_token_disconnected():
+    result = await GoogleSyncHub.synchronize_site_telemetry(
+        site_domain="example.com",
+        gsc_site_url="sc-domain:example.com",
+        ga4_property_id="properties/123456789",
+        access_token=""
+    )
+
+    assert result["status"] == "ERROR"
+    assert result["gsc"]["connected"] is False
+    assert result["ga4"]["connected"] is False
+    assert result["gsc"]["total_clicks"] == 0
+    assert result["ga4"]["total_sessions"] == 0

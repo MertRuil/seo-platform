@@ -20,8 +20,8 @@ import { OpportunityFeedCard } from "../components/OpportunityFeedCard";
 import { GamificationWidget } from "../components/GamificationWidget";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
-import { fetchSiteIssues, fetchMorningBrief, fetchOpportunities, MorningBriefData } from "../services/api";
-import { SiteIssueItem, IssueSeverity, SeoOpportunityCard } from "../types";
+import { fetchSiteIssues, fetchMorningBrief, fetchOpportunities, fetchGoogleSyncTelemetry, MorningBriefData } from "../services/api";
+import { SiteIssueItem, IssueSeverity, SeoOpportunityCard, GoogleSyncTelemetry } from "../types";
 
 export const DashboardScreen: React.FC = () => {
   const { user } = useAuth();
@@ -33,6 +33,11 @@ export const DashboardScreen: React.FC = () => {
 
   const [morningBrief, setMorningBrief] = React.useState<MorningBriefData | null>(null);
   const [opportunities, setOpportunities] = React.useState<SeoOpportunityCard[]>([]);
+  const [googleSync, setGoogleSync] = React.useState<GoogleSyncTelemetry | null>(null);
+
+  React.useEffect(() => {
+    fetchGoogleSyncTelemetry(selectedSite?.id).then(setGoogleSync);
+  }, [selectedSite?.id]);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -47,6 +52,8 @@ export const DashboardScreen: React.FC = () => {
         setMorningBrief(brief);
         const opps = await fetchOpportunities(selectedSite.id, selectedSite.domain);
         setOpportunities(opps);
+        const sync = await fetchGoogleSyncTelemetry(selectedSite.id);
+        setGoogleSync(sync);
       }
     } finally {
       setRefreshing(false);
@@ -373,34 +380,92 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
       </GlassCard>
 
       {/* Google Search Console & Organic Performance */}
-      <GlassCard variant="elevated" style={styles.gscCard}>
-        <View style={styles.gscHeader}>
-          <View style={styles.gscHeaderLeft}>
-            <Ionicons name="bar-chart" size={15} color={Colors.primary} />
-            <Text style={styles.gscTitle}>Google Arama Performansı</Text>
-          </View>
-          <Text style={styles.gscPeriodBadge}>Son 28 Gün</Text>
-        </View>
+      {(() => {
+        const isConnected = Boolean(googleSync?.gsc.connected && googleSync?.status === "HEALTHY");
+        const isAuthFailed = Boolean(googleSync?.status === "ERROR" || googleSync?.gsc.status === "AUTH_FAILED");
+        const clicksText = isConnected ? (googleSync?.gsc.total_clicks ?? 0).toLocaleString() : "—";
+        const impressionsText = isConnected
+          ? (googleSync?.gsc.total_impressions || 0) > 1000
+            ? `${((googleSync?.gsc.total_impressions || 0) / 1000).toFixed(1)}K`
+            : String(googleSync?.gsc.total_impressions || 0)
+          : "—";
+        const ctrText = isConnected ? `%${(googleSync?.gsc.avg_ctr_percent || 0).toFixed(1)}` : "—";
+        const posText = isConnected ? `#${(googleSync?.gsc.avg_position || 0).toFixed(1)}` : "—";
 
-        <View style={styles.gscGrid}>
-          <View style={styles.gscStatBox}>
-            <Text style={styles.gscStatNum}>4.820</Text>
-            <Text style={styles.gscStatLbl}>Tıklama (+%12)</Text>
-          </View>
-          <View style={styles.gscStatBox}>
-            <Text style={styles.gscStatNum}>142.5K</Text>
-            <Text style={styles.gscStatLbl}>Gösterim</Text>
-          </View>
-          <View style={styles.gscStatBox}>
-            <Text style={styles.gscStatNum}>%3.4</Text>
-            <Text style={styles.gscStatLbl}>Ortalama CTR</Text>
-          </View>
-          <View style={styles.gscStatBox}>
-            <Text style={styles.gscStatNum}>#4.8</Text>
-            <Text style={styles.gscStatLbl}>Ort. Pozisyon</Text>
-          </View>
-        </View>
-      </GlassCard>
+        return (
+          <GlassCard variant="elevated" style={styles.gscCard}>
+            <View style={styles.gscHeader}>
+              <View style={styles.gscHeaderLeft}>
+                <Ionicons name="bar-chart" size={15} color={isAuthFailed ? Colors.error : Colors.primary} />
+                <Text style={styles.gscTitle}>Google Arama Performansı</Text>
+              </View>
+              {isConnected ? (
+                <View style={styles.gscBadgeHealthy}>
+                  <Text style={styles.gscBadgeTextHealthy}>Bağlı & Doğrulandı</Text>
+                </View>
+              ) : isAuthFailed ? (
+                <View style={styles.gscBadgeError}>
+                  <Text style={styles.gscBadgeTextError}>Yetki Hatası (401)</Text>
+                </View>
+              ) : (
+                <View style={styles.gscBadgeWarn}>
+                  <Text style={styles.gscBadgeTextWarn}>Bağlı Değil</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Error or Disconnected Alert Banner */}
+            {!isConnected && (
+              <View style={isAuthFailed ? styles.gscAlertError : styles.gscAlertWarn}>
+                <View style={styles.gscAlertHeader}>
+                  <Ionicons
+                    name={isAuthFailed ? "alert-circle" : "warning-outline"}
+                    size={15}
+                    color={isAuthFailed ? Colors.error : Colors.accent}
+                  />
+                  <Text style={isAuthFailed ? styles.gscAlertTitleError : styles.gscAlertTitleWarn}>
+                    {isAuthFailed ? "GSC Bağlantı Hatası: Sahte Veri Engellendi" : "Google Search Console Bağlı Değil"}
+                  </Text>
+                </View>
+                <Text style={styles.gscAlertDesc}>
+                  {isAuthFailed
+                    ? "OAuth jetonunuzun süresi doldu veya yetki iptal edildi. Yanıltıcı olmaması için sahte veriler gösterilmez. Gerçek arama verilerini görüntülemek için lütfen yeniden bağlanın."
+                    : "Organik tıklamalar, gösterimler ve anahtar kelime sıralamalarını canlı izlemek için Google hesabınızı doğrulayın."}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.gscConnectBtn, { backgroundColor: isAuthFailed ? Colors.error : Colors.primary }]}
+                  onPress={() => setActiveTab("settings")}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={isAuthFailed ? "key-outline" : "link-outline"} size={14} color="#FFFFFF" />
+                  <Text style={styles.gscConnectBtnText}>
+                    {isAuthFailed ? "OAuth ile Yeniden Doğrula" : "Search Console'u Bağla"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.gscGrid}>
+              <View style={styles.gscStatBox}>
+                <Text style={[styles.gscStatNum, !isConnected && { color: Colors.textMuted }]}>{clicksText}</Text>
+                <Text style={styles.gscStatLbl}>{isConnected ? "Tıklama (+%12)" : "Tıklama (Veri Yok)"}</Text>
+              </View>
+              <View style={styles.gscStatBox}>
+                <Text style={[styles.gscStatNum, !isConnected && { color: Colors.textMuted }]}>{impressionsText}</Text>
+                <Text style={styles.gscStatLbl}>Gösterim</Text>
+              </View>
+              <View style={styles.gscStatBox}>
+                <Text style={[styles.gscStatNum, !isConnected && { color: Colors.textMuted }]}>{ctrText}</Text>
+                <Text style={styles.gscStatLbl}>Ortalama CTR</Text>
+              </View>
+              <View style={styles.gscStatBox}>
+                <Text style={[styles.gscStatNum, !isConnected && { color: Colors.textMuted }]}>{posText}</Text>
+                <Text style={styles.gscStatLbl}>Ort. Pozisyon</Text>
+              </View>
+            </View>
+          </GlassCard>
+        );
+      })()}
 
       {/* SEO Opportunity Feed (Reels / Stories Style) */}
       {opportunities.length > 0 && (
@@ -772,6 +837,96 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
+  },
+  gscBadgeHealthy: {
+    backgroundColor: Colors.successSurface,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  gscBadgeTextHealthy: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+  gscBadgeError: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  gscBadgeTextError: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.error,
+  },
+  gscBadgeWarn: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+  },
+  gscBadgeTextWarn: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  gscAlertError: {
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    borderColor: "rgba(239, 68, 68, 0.25)",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    gap: 6,
+  },
+  gscAlertWarn: {
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    borderColor: "rgba(245, 158, 11, 0.25)",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    gap: 6,
+  },
+  gscAlertHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  gscAlertTitleError: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.error,
+  },
+  gscAlertTitleWarn: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  gscAlertDesc: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  gscConnectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  gscConnectBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   gscGrid: {
     flexDirection: "row",
