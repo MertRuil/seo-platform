@@ -19,7 +19,9 @@ from apps.api.routes import (
     knowledge,
     connectors,
     billing,
-    backlinks
+    backlinks,
+    geo,
+    leads
 )
 
 @asynccontextmanager
@@ -190,6 +192,8 @@ app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(connectors.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
 app.include_router(backlinks.router, prefix="/api/v1")
+app.include_router(geo.router, prefix="/api/v1")
+app.include_router(leads.router, prefix="/api/v1")
 
 @app.get("/api/v1/notifications")
 async def get_notifications():

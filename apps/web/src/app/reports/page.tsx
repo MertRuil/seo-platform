@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   FileText,
   Download,
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   Layers,
   ChevronRight,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
@@ -167,6 +169,16 @@ Nexus Otonom SEO & GEO Platformu Tarafından Üretilmiştir.`;
               >
                 Excel / CSV İndir
               </Button>
+              <Link href="/leads">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  icon={<Users className="w-4 h-4 text-emerald-500" />}
+                  className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                >
+                  Müşteri & CRM Köprüsü
+                </Button>
+              </Link>
               <Button
                 variant="primary"
                 size="md"

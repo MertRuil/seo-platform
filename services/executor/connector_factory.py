@@ -43,4 +43,12 @@ def build_connector_from_record(record: SiteConnector) -> BaseSiteConnector:
             kv_namespace_id=credentials.get("kv_namespace_id"),
             base_url=record.base_url or ""
         )
+    if c_type in ("SANDBOX", "SIMULATOR", "MOCK"):
+        from services.executor.connectors.sandbox import SandboxSimulationConnector
+        return SandboxSimulationConnector(site_domain=record.base_url or "sandbox.local")
     raise ValueError(f"Unsupported connector type: {record.connector_type}")
+
+def get_fallback_sandbox_connector(domain: str = "example.com") -> BaseSiteConnector:
+    """Returns an isolated in-memory simulation connector for sandbox testing."""
+    from services.executor.connectors.sandbox import SandboxSimulationConnector
+    return SandboxSimulationConnector(site_domain=domain)

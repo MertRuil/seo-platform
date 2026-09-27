@@ -43,6 +43,25 @@ class ExecutionResultResponse(BaseModel):
     error_message: Optional[str] = None
     rolled_back: bool = False
 
+class SelfHealRequest(BaseModel):
+    issue_id: Optional[str] = None
+    issue_title: Optional[str] = None
+    target_url: str
+    category: str = "CANONICAL"
+    operation: Optional[str] = None
+    state_before: Optional[str] = ""
+    state_after: Optional[str] = ""
+    expected_hash_before: Optional[str] = ""
+    risk_level: str = Field(default="LOW", pattern=r"^(INFO|LOW|MEDIUM|HIGH|CRITICAL)$")
+    auto_execute: bool = True
+
+class SelfHealResponse(BaseModel):
+    success: bool
+    change_set: ChangeSetResponse
+    execution: Optional[ExecutionResultResponse] = None
+    message: str
+    connector_type: str = "SANDBOX"
+
 class ConnectorCreateRequest(BaseModel):
     connector_type: str = Field(description="Connector type: WORDPRESS_REST, GENERIC_WEBHOOK, GIT_PR, CLOUDFLARE_WORKER, GOOGLE_SEARCH_CONSOLE")
     base_url: Optional[str] = None

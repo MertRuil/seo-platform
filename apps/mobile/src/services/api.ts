@@ -1404,6 +1404,22 @@ export async function generateAiSeoContent(
 // 15, 16 & 17. GEO (Generative Engine Optimization) Services
 // -------------------------------------------------------------
 export async function fetchGeoScores(siteId: string, domain?: string): Promise<GeoPlatformScore[]> {
+  try {
+    const orgId = (await Storage.getItem("user_org_id")) || "default";
+    const token = await Storage.getItem("auth_token");
+    if (token && orgId && orgId !== "default") {
+      const res = await safeNetworkFetch(
+        `${API_BASE_URL}/organizations/${orgId}/sites/${siteId}/geo`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data && data.platforms && data.platforms.length > 0) {
+          return data.platforms;
+        }
+      }
+    }
+  } catch {}
   return [
     { platform: "ChatGPT", score: 86, mentions: 42, citations: 29, status: "DOMINANT" },
     { platform: "Google AI Overview", score: 78, mentions: 34, citations: 22, status: "VISIBLE" },
@@ -1456,13 +1472,64 @@ export let MOCK_GEO_PROMPTS: GeoPromptItem[] = [
 ];
 
 export async function fetchGeoPrompts(siteId: string, domain?: string): Promise<GeoPromptItem[]> {
+  try {
+    const orgId = (await Storage.getItem("user_org_id")) || "default";
+    const token = await Storage.getItem("auth_token");
+    if (token && orgId && orgId !== "default") {
+      const res = await safeNetworkFetch(
+        `${API_BASE_URL}/organizations/${orgId}/sites/${siteId}/geo`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res && res.ok) {
+        const data = await res.json();
+        if (data && data.prompts && data.prompts.length > 0) {
+          return data.prompts;
+        }
+      }
+    }
+  } catch {}
   return [...MOCK_GEO_PROMPTS];
 }
 
 export async function addGeoPrompt(siteId: string, promptText: string): Promise<GeoPromptItem> {
+  const cleanPrompt = promptText.trim();
+  try {
+    const orgId = (await Storage.getItem("user_org_id")) || "default";
+    const token = await Storage.getItem("auth_token");
+    if (token && orgId && orgId !== "default") {
+      const res = await safeNetworkFetch(
+        `${API_BASE_URL}/organizations/${orgId}/sites/${siteId}/geo/simulate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ prompt: cleanPrompt })
+        }
+      );
+      if (res && res.ok) {
+        const sim = await res.json();
+        if (sim && sim.prompt) {
+          const item: GeoPromptItem = {
+            id: `gp-${Date.now()}`,
+            prompt: sim.prompt,
+            frequency: "CANLI SİMÜLASYON",
+            brand_mentioned: sim.brand_mentioned,
+            citation_rank: sim.citation_rank,
+            platform_results: sim.platform_results,
+            top_competitor_cited: sim.top_competitor_cited || "semrush.com"
+          };
+          MOCK_GEO_PROMPTS = [item, ...MOCK_GEO_PROMPTS];
+          return item;
+        }
+      }
+    }
+  } catch {}
+
   const newPrompt: GeoPromptItem = {
     id: `gp-${Date.now()}`,
-    prompt: promptText.trim(),
+    prompt: cleanPrompt,
     frequency: "GÜNLÜK",
     brand_mentioned: true,
     citation_rank: Math.floor(Math.random() * 3) + 1,
@@ -1475,6 +1542,7 @@ export async function addGeoPrompt(siteId: string, promptText: string): Promise<
   MOCK_GEO_PROMPTS = [newPrompt, ...MOCK_GEO_PROMPTS];
   return newPrompt;
 }
+
 
 // -------------------------------------------------------------
 // 24 & 25. SEO Task Management & AI Prioritization

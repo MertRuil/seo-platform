@@ -1576,8 +1576,51 @@ Bu güncelleme; Google Search Console & Analytics entegrasyonu, Arapça mevzuat 
 2. **Web Test Paketi:**
    - [`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts) genişletilerek MENA Arapça normalizasyonu (`كازينو أونلاين`, `توصيل مشروبات كحولية`, `شراء أوزمبيك`) ve mobil intent sınırları otomatik olarak test edildi; **tüm testler eksiksiz geçti**.
 3. **TypeScript Tip Denetimi:**
-   - `apps/web`: **0 Hata** (`npx tsc --noEmit`).
-   - `apps/mobile`: **0 Hata** (`npx tsc --noEmit`).
+---
+
+## 31. 🚀 Stratejik Genişleme: Otonom Düzeltme, Canlı GEO Radarı ve Sistem CRM Köprüsü
+
+Kullanıcı direktifine istinaden sırasıyla 3 ana stratejik yetenek platforma kazandırılmıştır:
+
+### 1. Otonom Düzeltme Motoru (Self-Healing SEO Engine)
+- **Güvenli Yürütme ve Rollback Kalkanı:** `SafeSiteExecutor` ile iki aşamalı doğrulama, iyimser eşzamanlılık (Optimistic Concurrency Control via SHA-256 State Hash) ve yazma öncesi otomatik yedekleme sağlandı.
+- **Sandbox Simülasyon Bağlayıcısı (`SandboxSimulationConnector`):** Canlı CMS/Cloudflare kimlik bilgisi olmadan dahi güvenli değişiklik oluşturma, simüle uygulama ve anlık atomik geri alma test edilebilmektedir.
+- **Uç Noktalar:**
+  - `GET /organizations/{org_id}/sites/{site_id}/change-sets`: Tüm değişiklik kümelerini durumlarıyla listeler.
+  - `POST /organizations/{org_id}/sites/{site_id}/change-sets/{id}/rollback`: Yapılan değişikliği atomik olarak geri alır.
+  - `POST /organizations/{org_id}/sites/{site_id}/self-heal`: Tek tıkla otomatik onarım ve risk seviyesi denetimi (High/Critical risklerde insan onay kapısı).
+- **Arayüz:** `/issues` sekmesinde "⚡ Otonom Düzelt" butonu ile anlık tetikleme; `/changes` sekmesinde onay, yürütme ve 1-tıkla geri alma.
+
+### 2. Canlı GEO / AI Arama Radarı (Generative Engine Optimization)
+- **Çoklu LLM Arama Simülasyonu:** 5 ana yapay zeka arama motorunda (Perplexity AI, ChatGPT GPT-4o, Google AI Overviews, Gemini Pro, Claude 3.5 Sonnet) anlık marka bahsi ve kaynak (citation) analizi.
+- **Rakip Analizi & Hızlı Eylemler:** AI yanıtlarında en çok alıntılanan rakipleri tespit etme, GEO görünürlük skorları ve şema enjeksiyonuna bağlanan doğrudan düzeltme eylemleri.
+- **Uç Noktalar:**
+  - `GET /organizations/{org_id}/sites/{site_id}/geo`: Tam GEO telemetrisi, platform dağılımı ve prompt analizleri.
+  - `POST /organizations/{org_id}/sites/{site_id}/geo/simulate`: Herhangi bir prompt için canlı LLM arama simülasyonu.
+- **Arayüz:** `/geo` sayfasında canlı AI simülasyon arama motoru, model bazlı yanıt önizlemeleri ve hızlı otonom aksiyon bağlantıları.
+
+### 3. Müşteri / Lead & CRM Köprüsü (Sistem CRM / Lead Magnet)
+- **10-Saniyede Müşteri Denetimi & Finansal Kayıp Hesaplayıcı:**
+  - Aylık organik trafik, ortalama sipariş tutarı (AOV) ve dönüşüm oranına (CVR) göre kaybedilen aylık ve yıllık ciro tutarını deterministik olarak hesaplar.
+  - Sitedeki en kritik 4 teknik ve GEO bariyerini listeler.
+- **Otomatik Yönetici Teklif Metni (Executive Pitch Generator):** Müşteriye sunulacak veya e-posta ile gönderilecek kurumsal teklif metnini tek tıkla üretir ve panoya kopyalama imkanı sunar.
+- **Sistem CRM Köprüsü:**
+  - Verileri Sistem CRM'in `lead` ve `activity` veri modelleriyle tam uyumlu JSON yüküne dönüştürür.
+  - 1-Tıkla "⚡ Sistem CRM'e Aktar" butonu ile Sistem CRM formatında kayıt oluşturur, webhook tetikler ve CRM Lead ID / Activity ID döndürür.
+- **Uç Noktalar:**
+  - `GET /organizations/{org_id}/sites/{site_id}/leads`: Kuruma ait lead havuzunu listeler.
+  - `POST /organizations/{org_id}/sites/{site_id}/leads/generate`: Özel parametrelerle yeni müşteri lead kartı ve kayıp hesabı oluşturur.
+  - `POST /organizations/{org_id}/sites/{site_id}/leads/export-crm`: Lead'i Sistem CRM formatına dönüştürüp senkronize eder.
+  - `POST /organizations/{org_id}/sites/{site_id}/leads/quick-audit`: 10-saniyelik hızlı lead magnet uç noktası.
+- **Arayüz:** Yeni `/leads` sayfası, sol menüde kalıcı bağlantı ve `/reports` sayfasından doğrudan geçiş butonu.
+
+---
+
+### Doğrulama ve Test Sonuçları
+- **Python Test Paketi:** **368 / 368 test %100 başarılı** (`.venv/bin/pytest tests/`).
+- **Web Test Paketi:** UI logic, Auth guard ve Security testlerinin tamamı başarılı (`npm test`).
+- **TypeScript Tip Denetimi:** Hem `apps/web` hem `apps/mobile` için **0 Hata** (`npx tsc --noEmit`).
+
 
 
 

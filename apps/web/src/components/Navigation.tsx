@@ -98,6 +98,7 @@ const navGroups: NavGroup[] = [
     label: "Yönetim",
     items: [
       { name: "Raporlar & Dışa Aktar", href: "/reports", icon: FileText },
+      { name: "Müşteri & CRM Köprüsü", href: "/leads", icon: Users },
       { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
       { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
       { name: "Denetim Günlüğü", href: "/audit", icon: History },

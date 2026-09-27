@@ -289,6 +289,12 @@ class ApiClient {
   }
 
   // Güvenli uygulama
+  getChangeSets(orgId: string, siteId: string) {
+    return this.request<ChangeSetResponse[]>(`/organizations/${orgId}/sites/${siteId}/change-sets`);
+  }
+  getChangeSet(orgId: string, siteId: string, changeSetId: string) {
+    return this.request<ChangeSetResponse>(`/organizations/${orgId}/sites/${siteId}/change-sets/${changeSetId}`);
+  }
   createChangeSet(orgId: string, siteId: string, data: { recommendation_id?: string; risk_level?: string; items: Array<{ target_url: string; operation: string; state_before: string; state_after: string; expected_hash_before: string }> }) {
     return this.request<ChangeSetResponse>(`/organizations/${orgId}/sites/${siteId}/change-sets`, { method: "POST", body: JSON.stringify(data) });
   }
@@ -301,8 +307,81 @@ class ApiClient {
       { method: "POST" }
     );
   }
+  rollbackChangeSet(orgId: string, siteId: string, changeSetId: string) {
+    return this.request<{ success: boolean; status: string; error_message?: string | null; rolled_back: boolean }>(
+      `/organizations/${orgId}/sites/${siteId}/change-sets/${changeSetId}/rollback`,
+      { method: "POST" }
+    );
+  }
+  selfHealIssue(
+    orgId: string,
+    siteId: string,
+    data: {
+      issue_id?: string;
+      issue_title?: string;
+      target_url: string;
+      category?: string;
+      operation?: string;
+      state_before?: string;
+      state_after?: string;
+      expected_hash_before?: string;
+      risk_level?: string;
+      auto_execute?: boolean;
+    }
+  ) {
+    return this.request<{
+      success: boolean;
+      change_set: ChangeSetResponse;
+      execution?: { success: boolean; status: string; error_message?: string | null; rolled_back: boolean };
+      message: string;
+      connector_type: string;
+    }>(`/organizations/${orgId}/sites/${siteId}/self-heal`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+  getGeoAnalytics(orgId: string, siteId: string) {
+    return this.request<any>(`/organizations/${orgId}/sites/${siteId}/geo`);
+  }
+  simulateGeoQuery(orgId: string, siteId: string, prompt: string, brandName?: string) {
+    return this.request<{
+      prompt: string;
+      brand_mentioned: boolean;
+      citation_rank: number;
+      mentions_count: number;
+      citations_count: number;
+      platform_results: Record<string, { mentioned: boolean; snippet: string }>;
+      top_competitor_cited: string;
+    }>(`/organizations/${orgId}/sites/${siteId}/geo/simulate`, {
+      method: "POST",
+      body: JSON.stringify({ prompt, brand_name: brandName }),
+    });
+  }
   evaluateExperiment(orgId: string, siteId: string, data: { name: string; variant_pages: string[]; control_pages: string[] }) {
     return this.request<ExperimentEvaluationResponse>(`/organizations/${orgId}/sites/${siteId}/experiments`, { method: "POST", body: JSON.stringify(data) });
+  }
+
+  // Müşteri / Lead & CRM Köprüsü (Sistem CRM)
+  getSiteLeads(orgId: string, siteId: string) {
+    return this.request<LeadCardResponse[]>(`/organizations/${orgId}/sites/${siteId}/leads`);
+  }
+  generateLead(orgId: string, siteId: string, data: GenerateLeadPayload) {
+    return this.request<LeadCardResponse>(`/organizations/${orgId}/sites/${siteId}/leads/generate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+  exportLeadToCrm(orgId: string, siteId: string, data: ExportCrmPayload) {
+    return this.request<ExportCrmResponse>(`/organizations/${orgId}/sites/${siteId}/leads/export-crm`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+  quickAuditLead(orgId: string, siteId: string, data: GenerateLeadPayload) {
+    return this.request<LeadCardResponse>(`/organizations/${orgId}/sites/${siteId}/leads/quick-audit`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   // Faturalama & Abonelik
@@ -408,5 +487,71 @@ export interface InvoiceResponse {
   paid_at?: string | null;
 }
 
+export interface FinancialLossMetricsResponse {
+  health_score: number;
+  monthly_traffic: number;
+  conversion_rate: number;
+  average_order_value: number;
+  traffic_at_risk: number;
+  monthly_revenue_loss: number;
+  annual_revenue_loss: number;
+  critical_barriers: string[];
+  top_quick_wins: string[];
+  currency: string;
+}
+
+export interface LeadCardResponse {
+  id: string;
+  organization_id: string;
+  site_id?: string | null;
+  company_name: string;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  target_url: string;
+  metrics: FinancialLossMetricsResponse;
+  proposal_pitch: string;
+  recommended_tier: string;
+  crm_status: string;
+  crm_lead_id?: string | null;
+  created_at: string;
+}
+
+export interface GenerateLeadPayload {
+  url?: string;
+  company_name?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  monthly_traffic?: number;
+  conversion_rate?: number;
+  average_order_value?: number;
+  currency?: string;
+}
+
+export interface ExportCrmPayload {
+  lead_id?: string;
+  company_name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone?: string;
+  target_url: string;
+  annual_value?: number;
+  proposal_pitch?: string;
+  destination_crm?: string;
+  webhook_url?: string;
+  custom_notes?: string;
+}
+
+export interface ExportCrmResponse {
+  success: boolean;
+  crm_lead_id: string;
+  activity_id: string;
+  destination: string;
+  synced_payload: any;
+  message: string;
+}
+
 export const api = new ApiClient();
 export { API_BASE_URL };
+
