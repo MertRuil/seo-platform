@@ -7,7 +7,7 @@ from packages.shared.models import Site, OAuthCredential, GscSearchMetric, CruxM
 from services.integrations.gsc_client import GoogleSearchConsoleClient, GscSearchRow
 from services.integrations.crux_client import ChromeUxReportClient
 from services.integrations.opportunity_engine import GscOpportunityEngine
-from services.security.crypto import decrypt_secret
+from services.integrations.google_token import is_fixture_token, ensure_valid_google_token
 from packages.config.settings import settings
 
 logger = logging.getLogger("integrations.gsc_sync")
@@ -15,16 +15,25 @@ logger = logging.getLogger("integrations.gsc_sync")
 async def sync_gsc_and_crux_for_site(site: Site, db: AsyncSession) -> Dict[str, Any]:
     """
     Executes an end-to-end synchronization pipeline for Google Search Console and CrUX metrics:
-    1. Locates active OAuthCredential for the organization or site.
-    2. Fetches 28-day Search Analytics performance data.
+    1. Locates active OAuthCredential for the organization or site and ensures fresh token.
+    2. Fetches 28-day Search Analytics performance data if credentials are valid.
     3. Persists metrics to GscSearchMetric table.
-    4. Fetches and persists Core Web Vitals field metrics via CrUX.
+    4. ALWAYS fetches and persists Core Web Vitals field metrics via CrUX (independent of GSC OAuth).
     5. Feeds metrics into OpportunityEngine to detect quick-win SEO queries and cannibalization.
     """
     gsc_count = 0
     crux_count = 0
 
-    # 1. Look up OAuth credentials
+    today = datetime.now(timezone.utc).date()
+    start_date = (today - timedelta(days=28)).isoformat()
+    end_date = today.isoformat()
+
+    gsc_rows: List[GscSearchRow] = []
+    gsc_status = "HEALTHY"
+    gsc_error_code: Optional[str] = None
+    gsc_message = ""
+
+    # 1. Look up OAuth credentials and ensure valid token
     cred_res = await db.execute(
         select(OAuthCredential).where(
             OAuthCredential.organization_id == site.organization_id,
@@ -33,80 +42,68 @@ async def sync_gsc_and_crux_for_site(site: Site, db: AsyncSession) -> Dict[str, 
     )
     cred = cred_res.scalars().first()
 
-    today = datetime.now(timezone.utc).date()
-    start_date = (today - timedelta(days=28)).isoformat()
-    end_date = today.isoformat()
-
-    gsc_rows: List[GscSearchRow] = []
-
     if not cred:
-        return {
-            "success": False,
-            "status": "DISCONNECTED",
-            "error_code": "NO_CREDENTIALS",
-            "gsc_metrics_synced": 0,
-            "crux_metrics_synced": 0,
-            "opportunities_found": 0,
-            "message": "Google Search Console hesabı bağlı değil. Arama ve tıklama verilerini eşitlemek için önce Google OAuth ile yetkilendirme yapmalısınız."
-        }
-
-    try:
-        client = GoogleSearchConsoleClient(cred.encrypted_access_token)
-        raw_token = decrypt_secret(cred.encrypted_access_token)
-        if "mock" in raw_token.lower() or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
-            gsc_rows = _generate_mock_gsc_data(site)
+        gsc_status = "DISCONNECTED"
+        gsc_error_code = "NO_CREDENTIALS"
+        gsc_message = "Google Search Console hesabı bağlı değil. Arama ve tıklama verilerini eşitlemek için önce Google OAuth ile yetkilendirme yapmalısınız."
+    else:
+        # Refresh access token if expired
+        valid_access_token = await ensure_valid_google_token(cred, db)
+        if not valid_access_token:
+            gsc_status = "ERROR"
+            gsc_error_code = "AUTH_FAILED"
+            gsc_message = "Google Search Console yetkilendirme hatası: Erişim anahtarının süresi dolmuş veya yenilenemedi."
         else:
-            site_url = f"sc-domain:{site.normalized_domain}"
-            gsc_rows = await client.get_search_analytics(
-                site_url=site_url,
-                start_date=start_date,
-                end_date=end_date,
-                row_limit=500
-            )
-    except Exception as e:
-        logger.error(f"GSC fetch failed for site {site.id}: {e}")
-        return {
-            "success": False,
-            "status": "ERROR",
-            "error_code": "AUTH_FAILED",
-            "gsc_metrics_synced": 0,
-            "crux_metrics_synced": 0,
-            "opportunities_found": 0,
-            "message": f"Google Search Console yetkilendirme hatası: {str(e)}. Erişim anahtarınızın süresi dolmuş olabilir."
-        }
+            try:
+                if is_fixture_token(valid_access_token) or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
+                    gsc_rows = _generate_mock_gsc_data(site)
+                else:
+                    client = GoogleSearchConsoleClient(valid_access_token)
+                    site_url = f"sc-domain:{site.normalized_domain}"
+                    gsc_rows = await client.get_search_analytics(
+                        site_url=site_url,
+                        start_date=start_date,
+                        end_date=end_date,
+                        row_limit=500
+                    )
+            except Exception as e:
+                logger.error(f"GSC fetch failed for site {site.id}: {e}")
+                gsc_status = "ERROR"
+                gsc_error_code = "AUTH_FAILED"
+                gsc_message = f"Google Search Console yetkilendirme hatası: {str(e)}. Erişim anahtarınızın süresi dolmuş olabilir."
 
-    # 2. Persist GSC metrics to DB
-    for row in gsc_rows:
-        # Check if record exists for query, page, metric_date
-        existing = (await db.execute(
-            select(GscSearchMetric).where(
-                GscSearchMetric.site_id == site.id,
-                GscSearchMetric.query == row.query,
-                GscSearchMetric.page == row.page,
-                GscSearchMetric.metric_date == today
-            )
-        )).scalars().first()
+    # 2. Persist GSC metrics to DB if any fetched
+    if gsc_rows:
+        for row in gsc_rows:
+            existing = (await db.execute(
+                select(GscSearchMetric).where(
+                    GscSearchMetric.site_id == site.id,
+                    GscSearchMetric.query == row.query,
+                    GscSearchMetric.page == row.page,
+                    GscSearchMetric.metric_date == today
+                )
+            )).scalars().first()
 
-        if existing:
-            existing.clicks = row.clicks
-            existing.impressions = row.impressions
-            existing.ctr = row.ctr
-            existing.position = row.position
-        else:
-            m = GscSearchMetric(
-                site_id=site.id,
-                metric_date=today,
-                query=row.query,
-                page=row.page,
-                clicks=row.clicks,
-                impressions=row.impressions,
-                ctr=row.ctr,
-                position=row.position
-            )
-            db.add(m)
-        gsc_count += 1
+            if existing:
+                existing.clicks = row.clicks
+                existing.impressions = row.impressions
+                existing.ctr = row.ctr
+                existing.position = row.position
+            else:
+                m = GscSearchMetric(
+                    site_id=site.id,
+                    metric_date=today,
+                    query=row.query,
+                    page=row.page,
+                    clicks=row.clicks,
+                    impressions=row.impressions,
+                    ctr=row.ctr,
+                    position=row.position
+                )
+                db.add(m)
+            gsc_count += 1
 
-    # 3. Fetch CrUX metrics for primary URL
+    # 3. ALWAYS Fetch CrUX metrics for primary URL (CrUX uses its own API key and does not depend on GSC OAuth)
     try:
         crux_client = ChromeUxReportClient()
         crux_record = await crux_client.get_field_metrics(site.primary_url)
@@ -132,7 +129,18 @@ async def sync_gsc_and_crux_for_site(site: Site, db: AsyncSession) -> Dict[str, 
     await db.commit()
 
     # 4. Evaluate Opportunity Engine
-    opps = GscOpportunityEngine.analyze_opportunities(gsc_rows)
+    opps = GscOpportunityEngine.analyze_opportunities(gsc_rows) if gsc_rows else []
+
+    if gsc_status != "HEALTHY":
+        return {
+            "success": False,
+            "status": gsc_status,
+            "error_code": gsc_error_code,
+            "gsc_metrics_synced": 0,
+            "crux_metrics_synced": crux_count,
+            "opportunities_found": 0,
+            "message": gsc_message
+        }
 
     return {
         "success": True,

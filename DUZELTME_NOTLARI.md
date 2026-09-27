@@ -27,8 +27,8 @@ Bu belge, SEO Platformu üzerinde gerçekleştirilen tüm sistem, backend ve fro
 | **`11f97b5`** | `fix(compliance): uk sektor filtreleme uyumsuzlugu ve turkce sahte stok kitligi onarimi` | Mobilde UK sektör filtrelerinin ihlalleri yutması giderildi, Türkçe 'son 3 adet kaldı' (Dark Patterns / Aciliyet Baskısı) kuralı eklendi |
 | **`44b5efc`** | `fix(reports): site degisiminde musteri adinin dinamik guncellenmesi ve veri sizintisi engeli` | Web ve mobil raporlarda site değiştirildiğinde müşteri adı ve dosya adının anında güncellenmesi, çapraz müşteri veri sızıntısının engellenmesi |
 | **`21d0b42`** | `fix(analytics): organik cvr hesaplamasi ve backlink spam siniflandirmasi onarildi` | Organik dönüşüm oranında tüm kanalların toplam dönüşümünün organik oturuma bölünmesi hatası giderildi, kumar/pharma/ham IP spam backlink sınıflandırması onarıldı |
-| **`ab6b442`** | `fix(mobile): wordpress shopify ve slack entegrasyonlarini baglama/kesme secenegi geri getirildi` | Mobil Ayarlar ekranında eksik olan CMS & platform entegrasyonları kartı, onaylı bağlantı kesme/bağlama akışı ve durum rozetleri eklendi |
-| **`(güncel)`** | `fix(test): cevrimdisi ci ortaminda test guvenilirligi ve ag hatasi cokme korumasi saglandi` | Harici OAuth/ağ isteklerinin mocklanması ile offline/CI test bağımsızlığı, mobil ve web tarafında unhandled rejection ve ağ çökme koruması |
+| **`86668e8`** | `fix(test): cevrimdisi ci ortaminda test guvenilirligi ve ag hatasi cokme korumasi saglandi` | Harici OAuth/ağ isteklerinin mocklanması ile offline/CI test bağımsızlığı, mobil ve web tarafında unhandled rejection ve ağ çökme koruması |
+| **`(güncel)`** | `fix(integrations): 10 kritik entegrasyon, guvenlik ve uyumluluk hatasi onarildi` | GSC 28 günlük sync tekilleştirme, MENA Arapça regex uyumu, bağımsız CrUX senkronizasyonu, otomatik Google refresh token yenileme, mobil yetkilendirme ve tenant izolasyonu, OAuth state zafiyeti & 400 hata düzeltmesi, web 401/403 ayrımı, GA4 eksik mülk uyumu, merkezi fixture kontrolü, mobil UK/Asya intent sınırları |
 
 
 ---
@@ -1520,6 +1520,65 @@ Kullanıcı bildirimi: *"Bildirimler sessizce kayboluyor. Webhook adresinde 'tes
 3. **TypeScript Tip Denetimi (`npx tsc --noEmit`):**
    - `apps/web`: **0 Hata**.
    - `apps/mobile`: **0 Hata**.
+
+---
+
+## 30. 🚀 10 Kritik Entegrasyon, Güvenlik ve Uyumluluk İyileştirmesi
+
+Bu güncelleme; Google Search Console & Analytics entegrasyonu, Arapça mevzuat uyumluluğu, mobil yetkilendirme güvenliği, OAuth geri çağırma (callback) zafiyetleri ve mobil yapay zeka intent yönlendirmesinde tespit edilen 10 kritik hatayı ve güvenlik açığını kapsamaktadır:
+
+### 1. GSC Metrikleri Sync Tarihi Tekilleştirmesi ([`apps/api/routes/integrations.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/api/routes/integrations.py))
+- **Hata:** `/google/status` uç noktası, son 28 güne ait tüm `GscSearchMetric` satırlarının tıklama ve gösterimlerini doğrudan topluyordu. Ancak her senkronizasyon çalıştığında o günün tarihiyle 28 günlük kümülatif toplamlar yeni satır olarak kaydedildiği için, her gün senkronizasyon yapıldığında sayılar gün sayısı kadar katlanarak sahte yüksek metrikler (örneğin 1.000 tıklama yerine 10 günde 10.000 tıklama) gösteriliyordu.
+- **Onarım:** SQL sorgusu `select(func.max(GscSearchMetric.metric_date))` ile en son senkronizasyon tarihini bulacak şekilde güncellendi. Toplama işlemi (`SUM(clicks)`, `SUM(impressions)`, `COUNT(query)`) yalnızca bu en güncel senkronizasyon tarihine ait satırlar üzerinden yapılarak metriklerin katlanması engellendi.
+
+### 2. MENA / Körfez Arapça Karakter Çift Taraflı Normalizasyonu ([`apps/web/src/lib/compliance-mena.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/lib/compliance-mena.ts))
+- **Hata:** `scanTextForMenaCompliance` fonksiyonu giriş metnini `normalizeMenaArabicText` ile normalize ediyor (`أ/إ/آ→ا`, `ة→ه`, `ى→ي`), fakat kural regex desenlerini normalize etmiyordu. Bu nedenle `كازينو أونلاين`, `توصيل مشروبات كحولية`, `شراء أوزمبيك` gibi kelimeleri içeren Arapça yasaklı desenler web arayüzünde asla eşleşemiyor ve kritik ihlaller gözden kaçıyordu.
+- **Onarım:** Kural döngüsünde her regex deseni `new RegExp(normalizeMenaArabicText(pat.source), pat.flags)` ile normalize edildi. Böylece hem taranan sayfa metni hem de kural regex'leri aynı kanonik Arapça karakter kümesine getirilerek Python motoruyla tam uyumlu tespit sağlandı.
+
+### 3. CrUX Metriklerinin GSC Bağlantısından Bağımsız Senkronizasyonu ([`services/integrations/gsc_sync_service.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/gsc_sync_service.py))
+- **Hata:** `sync_gsc_and_crux_for_site` fonksiyonundaki erken `return` satırları, Google OAuth bağlı olmadığında veya GSC API hatası alındığında CrUX adımına geçmeden fonksiyonu sonlandırıyordu. Oysa CrUX Core Web Vitals verileri Google Search Console OAuth kimliğiyle değil, bağımsız Google API anahtarıyla çekilmektedir.
+- **Onarım:** Erken return blokları kaldırıldı. GSC bağlantısı olmasa veya hata alsa bile CrUX adımı her senkronizasyonda bağımsız olarak çalıştırılıp veritabanına kaydedildi ve `crux_metrics_synced` metriği güncellendi.
+
+### 4. Google OAuth Erişim Belirtecinin (Refresh Token) Otomatik Yenilenmesi ([`services/integrations/google_token.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_token.py) & [`apps/api/routes/integrations.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/api/routes/integrations.py))
+- **Hata:** Veritabanında saklanan `encrypted_refresh_token` hiçbir zaman kullanılmıyordu. Google'ın döndüğü 1 saatlik `token_expiry` süresi dolduğunda `/google/status` ve `/sync` uç noktaları `TOKEN_EXPIRED` ve `401` dönerek tüm entegrasyonu koparıyordu.
+- **Onarım:** `services/integrations/google_token.py` modülü altında `ensure_valid_google_token` fonksiyonu yazıldı. Token süresi dolduğunda veya dolmasına 5 dakika kaldığında, şifrelenmiş refresh token otomatik çözülüp Google OAuth sunucusundan yeni bir `access_token` temin edilerek veritabanında güncelleniyor.
+
+### 5. Mobil Google Telemetri ve Senkronizasyon Yetkilendirmesi ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts))
+- **Hata:** `fetchGoogleSyncTelemetry` ve `triggerGoogleSync` fonksiyonları hardcoded `org_id = 'default'` ile ve `Authorization` başlığı göndermeden API'ye istek atıyordu. Bu nedenle backend 401 veya 403 dönüyor, mobil uygulama ise bu yetki hatasını sahte bir Google OAuth arızası (`AUTH_FAILED`) olarak kullanıcıya gösteriyordu.
+- **Onarım:** `Storage` üzerinden kullanıcının güncel JWT token'ı ve aktif `organization_id` değeri çekilerek `Authorization: Bearer <token>` başlığı eklendi. Ayrıca dönen yanıt uygulama oturum/yetki hatası (401/403) ise bu durum Google OAuth hatası olarak yansıtılmaktan çıkarıldı.
+
+### 6. OAuth Callback Güvenlik Doğrulaması ve 400 Hata Koruması ([`apps/api/routes/integrations.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/api/routes/integrations.py))
+- **Hata:** `/google/callback` uç noktası `state` parametresindeki `org:site:user` verisini doğrulamadan güveniyor, saldırgan kendi Google hesabıyla giriş yapıp state'i mağdurun `org_id`'si ile değiştirerek mağdurun organizasyonuna kendi kimlik bilgilerini yazabiliyordu. Ayrıca Google'ın reddettiği kodlar için fırlatılan `HTTPException(400)` hatası `except Exception` bloğuna takılarak sahte bir `502 Bad Gateway` olarak dönüyordu.
+- **Onarım:** Callback içerisinde kimlik yazılmadan önce `verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])` çalıştırılarak yetkisiz çapraz kiracı (cross-tenant) yazma açığı engellendi. `except HTTPException: raise` eklenerek geçersiz kod hatalarının doğru HTTP 400 durum koduyla istemciye dönmesi sağlandı.
+
+### 7. Web Arayüzünde Uygulama İzin Hataları ile Google OAuth Ayrımı ([`apps/web/src/app/integrations/page.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/src/app/integrations/page.tsx))
+- **Hata:** Manuel senkronizasyon tetiklendiğinde kullanıcının oturum süresi dolmuşsa veya rolü yetersizse (örneğin VIEWER rolü 403 aldığında), UI bunu Google OAuth hatası sanıp tüm metrikleri sıfırlıyor ve kullanıcıya "OAuth ile Yeniden Yetkilendir" uyarısı gösteriyordu.
+- **Onarım:** 401/403 durumları yakalanıp yalnızca uygulama oturumu ve yetki uyarısı verilecek şekilde ayrıştırıldı. Google entegrasyon durumu ve mevcut metrikler korunarak sahte re-auth uyarısı engellendi.
+
+### 8. GA4 Eksik Mülk Yapılandırmasının Sağlıklı Karşılanması ([`services/integrations/google_sync_hub.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_sync_hub.py))
+- **Hata:** `GoogleSyncHub` içerisinde `ga4_property_id=None` olduğunda sistem `PARTIAL_AUTH_FAILURE` ve `DEGRADED` durumuna geçip kullanıcıya Google'ı yeniden yetkilendirmesi gerektiğini söyleyen yüksek öncelikli bir uyarı üretiyordu. Oysa sorun auth değil, yalnızca mülk kimliğinin henüz tanımlanmamış olmasıydı.
+- **Onarım:** GA4 mülkü seçilmediğinde API çağrısı yapılmadan `ga4.connected = False` olarak işaretlendi; GSC sağlıklıysa genel durum `HEALTHY` ve `error_code = None` olarak döndürüldü, sahte re-auth uyarısı engellendi.
+
+### 9. Merkezi Fixture Token Doğrulaması ([`services/integrations/google_token.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_token.py), [`ga4_client.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/ga4_client.py), [`google_sync_hub.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/google_sync_hub.py), [`gsc_sync_service.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/services/integrations/gsc_sync_service.py))
+- **Hata:** Fixture token denetimi üç farklı yerde üç farklı mantıkla yapılıyordu (`mock_token` kümesi kontrolü, `startswith("mock-")` kontrolü vb.). Geliştirme ortamında mock OAuth akışı `mock-gsc-token-...` ürettiğinde GA4Client bunu tanımayıp gerçek Google'a istek atıyor ve 401 alıyordu.
+- **Onarım:** `is_fixture_token(token)` fonksiyonu tek merkezde toplandı. Hem exact `mock_token` / `mock_token_123` hem de `mock-` önekli veya `mock` içeren tüm test belirteçleri eksiksiz kapsandı ve tüm servisler bu merkezi fonksiyona bağlandı.
+
+### 10. Mobil Yapay Zeka Intent Yönlendirmesinde Kelime Sınırı ve Asya Önceliği ([`apps/mobile/src/services/api.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/services/api.ts))
+- **Hata:** Mobil yapay zeka sohbetinde UK intent kontrolü `lower.includes('asa')` ve `lower.includes('uk')` alt dize kontrolleri kullanıyordu. Bu durum Türkçe 'yasal', 'yasak', 'kasa', 'masa', 'hukuk' gibi kelimeleri içeren soruların yanlışlıkla İngiltere ASA/CMA/FCA cevabına yönlenmesine yol açıyordu. Ayrıca UK kontrolü Asya kontrolünden önce çalıştığı için 'yasa' içeren Asya soruları da UK cevabına gidiyordu.
+- **Onarım:** Asya & Pasifik kontrolü UK kontrolünden önceye alındı. UK kontrolü ise kelime sınırlarıyla `/\b(?:uk|asa|cma|fca|dmcc)\b/i.test(lower)` regex'ine dönüştürülerek Türkçe kelimelerin yanlış eşleşmesi tamamen engellendi.
+
+---
+
+### Test ve Doğrulama Özeti
+
+1. **Python Test Paketi:**
+   - Yeni eklenen [`tests/unit/test_integrations_remediation.py`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/tests/unit/test_integrations_remediation.py) ile birlikte **362 / 362 test %100 başarılı** olarak tamamlandı.
+2. **Web Test Paketi:**
+   - [`apps/web/test-ui-suite.ts`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/web/test-ui-suite.ts) genişletilerek MENA Arapça normalizasyonu (`كازينو أونلاين`, `توصيل مشروبات كحولية`, `شراء أوزمبيك`) ve mobil intent sınırları otomatik olarak test edildi; **tüm testler eksiksiz geçti**.
+3. **TypeScript Tip Denetimi:**
+   - `apps/web`: **0 Hata** (`npx tsc --noEmit`).
+   - `apps/mobile`: **0 Hata** (`npx tsc --noEmit`).
+
 
 
 

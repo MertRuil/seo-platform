@@ -241,13 +241,25 @@ export default function BaglayicilarPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        setGoogleIntegrationStatus("AUTH_FAILED");
-        setGscClicks(null);
-        setGa4Users(null);
-        setGoogleStatusDetail(errData.detail || errData.message || "Google OAuth yetkilendirmesi başarısız oldu (HTTP 401).");
+        // If HTTP 401 or 403: this is an APP session expiry or user permission error (e.g. VIEWER role), NOT a Google OAuth failure!
+        if (res.status === 401) {
+          setNotice({
+            tone: "error",
+            text: `⚠️ Oturum Hatası (HTTP 401): ${errData.detail || "Oturum süreniz dolmuş. Lütfen sayfayı yenileyip tekrar giriş yapın."}`
+          });
+          return;
+        }
+        if (res.status === 403) {
+          setNotice({
+            tone: "error",
+            text: `🔒 Yetki Hatası (HTTP 403): ${errData.detail || "Google senkronizasyonunu çalıştırmak için Yönetici veya SEO Yöneticisi rolü gereklidir."}`
+          });
+          return;
+        }
+
         setNotice({
           tone: "error",
-          text: `❌ Google Senkronizasyon Hatası (HTTP ${res.status}): ${errData.detail || errData.message || "Erişim anahtarının süresi dolmuş veya iptal edilmiş."} Arama ve dönüşüm verileri güncellenemiyor. Lütfen hesabı yeniden bağlayın.`
+          text: `❌ Senkronizasyon İsteği Başarısız (HTTP ${res.status}): ${errData.detail || errData.message || "Sunucu hatası oluştu."}`
         });
         return;
       }
@@ -275,13 +287,9 @@ export default function BaglayicilarPage() {
         text: `🟢 ${data.message || "Google Search Console ve GA4 verileri başarıyla eşitlendi."}`
       });
     } catch (e: any) {
-      setGoogleIntegrationStatus("AUTH_FAILED");
-      setGscClicks(null);
-      setGa4Users(null);
-      setGoogleStatusDetail("Bağlantı hatası: Google API uç noktasına ulaşılamadı.");
       setNotice({
         tone: "error",
-        text: `❌ Google Entegrasyon Hatası: Bağlantı başarısız (${e?.message || "Yetkilendirme veya ağ hatası"}). Müşteri verileri güncellenemiyor.`
+        text: `❌ Bağlantı Hatası: Sunucuya ulaşılamadı (${e?.message || "Ağ veya bağlantı hatası"}).`
       });
     } finally {
       setSyncingGoogle(false);

@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 from services.integrations.gsc_client import GoogleSearchConsoleClient, GscSearchRow
 from services.integrations.ga4_client import GoogleAnalytics4Client, Ga4TrafficRow
+from services.integrations.google_token import is_fixture_token
 
 logger = logging.getLogger("integrations.google_sync_hub")
 
@@ -27,12 +28,12 @@ class GoogleSyncHub:
         end_date = today.isoformat()
 
         effective_gsc_url = gsc_site_url or f"sc-domain:{site_domain}"
-        effective_ga4_id = ga4_property_id or "properties/398241029"
+        effective_ga4_id = ga4_property_id or ""
 
         gsc_connected = True
         gsc_error: Optional[str] = None
-        ga4_connected = True
-        ga4_error: Optional[str] = None
+        ga4_connected = bool(ga4_property_id)
+        ga4_error: Optional[str] = None if ga4_property_id else "Google Analytics 4 mülkü henüz yapılandırılmadı."
 
         gsc_rows: List[GscSearchRow] = []
         ga4_rows: List[Ga4TrafficRow] = []
@@ -47,7 +48,7 @@ class GoogleSyncHub:
         else:
             # 1. Fetch Google Search Console metrics
             try:
-                if access_token in ("mock_token", "mock_token_123"):
+                if is_fixture_token(access_token):
                     gsc_rows = [
                         GscSearchRow(f"{site_domain} seo", f"https://{site_domain}/", 340, 4200, 0.081, 3.4),
                         GscSearchRow(f"{site_domain} fiyat", f"https://{site_domain}/pricing", 185, 1950, 0.095, 2.1),
@@ -67,28 +68,42 @@ class GoogleSyncHub:
                 gsc_connected = False
                 gsc_error = str(e)
 
-            # 2. Fetch Google Analytics 4 metrics
-            try:
-                ga4_client = GoogleAnalytics4Client(access_token)
-                ga4_rows = await ga4_client.run_report(
-                    property_id=effective_ga4_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    row_limit=500
-                )
-            except Exception as e:
-                logger.error(f"GA4 sync failed: {e}")
-                ga4_connected = False
-                ga4_error = str(e)
+            # 2. Fetch Google Analytics 4 metrics only if property is configured
+            if ga4_property_id:
+                try:
+                    ga4_client = GoogleAnalytics4Client(access_token)
+                    ga4_rows = await ga4_client.run_report(
+                        property_id=effective_ga4_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        row_limit=500
+                    )
+                    ga4_connected = True
+                    ga4_error = None
+                except Exception as e:
+                    logger.error(f"GA4 sync failed: {e}")
+                    ga4_connected = False
+                    ga4_error = str(e)
 
         if not gsc_connected and not ga4_connected:
             overall_status = "ERROR"
-            error_code = "AUTH_FAILED"
-            error_message = "Google Search Console ve GA4 bağlantısı başarısız: OAuth erişim yetkisi geçersiz veya süresi dolmuş."
-        elif not gsc_connected or not ga4_connected:
-            overall_status = "DEGRADED"
-            error_code = "PARTIAL_AUTH_FAILURE"
-            error_message = gsc_error or ga4_error
+            error_code = "AUTH_FAILED" if is_token_invalid else "SYNC_FAILED"
+            error_message = gsc_error or "Google Search Console ve GA4 bağlantısı başarısız."
+        elif not gsc_connected:
+            overall_status = "ERROR"
+            error_code = "AUTH_FAILED" if is_token_invalid else "GSC_FAILED"
+            error_message = gsc_error
+        elif not ga4_connected:
+            # GSC is healthy, but GA4 is either not configured or failed
+            if not ga4_property_id:
+                # Missing GA4 property is a normal configuration state, NOT an auth failure!
+                overall_status = "HEALTHY"
+                error_code = None
+                error_message = None
+            else:
+                overall_status = "DEGRADED"
+                error_code = "GA4_SYNC_FAILED"
+                error_message = ga4_error
         else:
             overall_status = "HEALTHY"
             error_code = None
@@ -124,11 +139,23 @@ class GoogleSyncHub:
         )
 
         insights: List[Dict[str, str]] = []
-        if overall_status != "HEALTHY":
+        if overall_status == "ERROR" and error_code == "AUTH_FAILED":
             insights.append({
                 "type": "INTEGRATION_BROKEN",
                 "severity": "HIGH",
                 "message": f"🚨 Entegrasyon Hatası: {error_message} Müşteri arama ve dönüşüm verileri güncellenemiyor. Lütfen Google hesabınızı yeniden yetkilendirin."
+            })
+        elif overall_status != "HEALTHY":
+            insights.append({
+                "type": "INTEGRATION_BROKEN",
+                "severity": "HIGH",
+                "message": f"⚠️ Entegrasyon Uyarısı: {error_message}"
+            })
+        elif not ga4_property_id and gsc_connected:
+            insights.append({
+                "type": "GA4_NOT_CONFIGURED",
+                "severity": "INFO",
+                "message": "Google Analytics 4 mülkü yapılandırılmadı. Ziyaretçi ve dönüşüm verilerini izlemek için GA4 mülk kimliğinizi ekleyin."
             })
         if gsc_connected and avg_ctr < 0.05:
             insights.append({

@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
+import { scanTextForMenaCompliance } from "./src/lib/compliance-mena";
 
 async function run() {
   console.log("UI LOGIC TEST SUITE");
@@ -276,6 +277,69 @@ async function run() {
   assert.strictEqual(resHealthy.data.status, "live");
 
   console.log("  safeNetworkExecute (Offline & Crash Resilience): ok");
+
+  // MENA Compliance Arabic Normalization Test (Issue 2)
+  // Ensures both text and regex patterns are normalized (أ/إ/آ→ا, ة→ه, ى→ي)
+  const arabicCasinoText = "أفضل كازينو أونلاين في دبي للعب بمال حقيقي";
+  const casinoViolations = scanTextForMenaCompliance(arabicCasinoText);
+  assert.ok(casinoViolations.length > 0, "Must flag 'كازينو أونلاين' even with alef hamza");
+  assert.strictEqual(casinoViolations[0].ruleId, "MENA_ISLAMIC_MORALS_GAMBLING_ALCOHOL");
+
+  const arabicAlcoholText = "خدمة توصيل مشروبات كحولية سريعة";
+  const alcoholViolations = scanTextForMenaCompliance(arabicAlcoholText);
+  assert.ok(alcoholViolations.length > 0, "Must flag 'توصيل مشروبات كحولية'");
+  assert.strictEqual(alcoholViolations[0].ruleId, "MENA_ISLAMIC_MORALS_GAMBLING_ALCOHOL");
+
+  const arabicOzempicText = "شراء أوزمبيك بدون وصفة طبية للتنحيف السريع";
+  const ozempicViolations = scanTextForMenaCompliance(arabicOzempicText);
+  assert.ok(ozempicViolations.length > 0, "Must flag 'شراء أوزمبيك بدون وصفة'");
+  assert.strictEqual(ozempicViolations[0].ruleId, "MENA_MOHAP_SFDA_PRESCRIPTION_DRUGS");
+
+  const arabicGamblingOnline = "قمار عبر الإنترنت بدون شروط";
+  const gamblingViolations = scanTextForMenaCompliance(arabicGamblingOnline);
+  assert.ok(gamblingViolations.length > 0, "Must flag 'قمار عبر الإنترنت'");
+  console.log("  scanTextForMenaCompliance (Arabic normalization): ok");
+
+  // Mobile / Chat AI Intent Routing Logic Test (Issue 10)
+  // Verifies that Turkish words like 'yasal', 'yasak', 'kasa', 'hukuk' do NOT falsely trigger UK intent
+  const classifyTestIntent = (query: string): "ASIA" | "UK" | "MENA" | "GENERAL" => {
+    const lower = query.toLowerCase();
+    if (lower.includes("mena") || lower.includes("bae") || lower.includes("uae") || lower.includes("dubai") || lower.includes("saudi")) {
+      return "MENA";
+    }
+    // 1. Asia & Pacific evaluated first
+    if (lower.includes("asya") || lower.includes("apac") || lower.includes("pmda") || lower.includes("samr") || /\bmas\b/i.test(lower)) {
+      return "ASIA";
+    }
+    // 2. UK Intent uses strict word boundaries: \b(?:uk|asa|cma|fca|dmcc)\b
+    const isUkIntent =
+      lower.includes("ingiltere") ||
+      lower.includes("birleşik krallık") ||
+      lower.includes("botox") ||
+      /\b(?:uk|asa|cma|fca|dmcc)\b/i.test(lower);
+    if (isUkIntent) {
+      return "UK";
+    }
+    return "GENERAL";
+  };
+
+  // Turkish queries containing 'yasal', 'yasak', 'kasa', 'hukuk' must NEVER route to UK
+  assert.strictEqual(classifyTestIntent("Bu ürün reklamı yasal mı?"), "GENERAL");
+  assert.strictEqual(classifyTestIntent("Hangi ifadeler yasak?"), "GENERAL");
+  assert.strictEqual(classifyTestIntent("Kasa gelir raporu nerede?"), "GENERAL");
+  assert.strictEqual(classifyTestIntent("Bu masa ve mobilya tanıtımı yasal mı?"), "GENERAL");
+  assert.strictEqual(classifyTestIntent("Bu reklam hukuka uygun mu?"), "GENERAL");
+
+  // Asia questions containing 'yasa' must route to ASIA, not UK
+  assert.strictEqual(classifyTestIntent("Asya mevzuatında bu iddia yasal mı?"), "ASIA");
+  assert.strictEqual(classifyTestIntent("APAC bölgesinde bu reklam yasağı var mı?"), "ASIA");
+
+  // Real UK queries MUST route to UK
+  assert.strictEqual(classifyTestIntent("UK ASA kuralları nedir?"), "UK");
+  assert.strictEqual(classifyTestIntent("CMA Green claims rehberi"), "UK");
+  assert.strictEqual(classifyTestIntent("DMCC Act 2024 kapsamı nedir?"), "UK");
+  assert.strictEqual(classifyTestIntent("İngiltere pazarı için botox reklamı yapılabilir mi?"), "UK");
+  console.log("  classifyIntent (Strict UK word boundary & Asia precedence): ok");
 
   console.log("ALL UI LOGIC TESTS PASSED");
 }

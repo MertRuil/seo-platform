@@ -167,7 +167,7 @@ export const MENA_COMPLIANCE_RULES: MenaRuleDefinition[] = [
   },
 ];
 
-function normalizeMenaArabicText(text: string): string {
+export function normalizeMenaArabicText(text: string): string {
   if (!text) return "";
   return text
     .replace(/[\u064B-\u0652]/g, "") // Diacritics
@@ -189,7 +189,9 @@ export function scanTextForMenaCompliance(
     if (sectorFilter && rule.sector !== sectorFilter) continue;
 
     for (const pat of rule.patterns) {
-      const match = norm.match(pat);
+      // Normalize both input text and regex pattern source so Arabic character variants match consistently
+      const normPat = new RegExp(normalizeMenaArabicText(pat.source), pat.flags);
+      const match = norm.match(normPat);
       if (match) {
         const matched = match[0];
         const matchIdx = match.index || 0;

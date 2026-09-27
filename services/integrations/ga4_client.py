@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 import httpx
 from datetime import datetime, timezone, timedelta
 from services.security.crypto import decrypt_secret
+from services.integrations.google_token import is_fixture_token
 
 logger = logging.getLogger("integrations.ga4_client")
 
@@ -106,7 +107,7 @@ class GoogleAnalytics4Client:
         }
 
         # If running specifically in offline unit tests with mock fixture token:
-        if self.access_token in ("mock_token_123", "mock_token"):
+        if is_fixture_token(self.access_token):
             return self._generate_mock_ga4_rows(start_date, end_date)
 
         if not self.access_token:

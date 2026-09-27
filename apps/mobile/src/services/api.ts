@@ -40,7 +40,28 @@ import {
   MenaComplianceSector,
   MenaComplianceViolation
 } from "../types";
+import { Storage } from "./storage";
 
+async function getMobileAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const token = await Storage.getItem("seo_auth_token");
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+  } catch {}
+  return {};
+}
+
+async function getMobileActiveOrgId(): Promise<string> {
+  try {
+    const userStr = await Storage.getItem("seo_auth_user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.organization_id) return user.organization_id;
+    }
+  } catch {}
+  return "default";
+}
 
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
 let API_BASE_URL = 
@@ -1263,21 +1284,8 @@ export async function sendAiAssistantMessage(
     };
   }
 
-  if (lower.includes("uk") || lower.includes("ingiltere") || lower.includes("asa") || lower.includes("cma") || lower.includes("fca") || lower.includes("botox") || lower.includes("dmcc")) {
-    return {
-      id: `ai-${Date.now()}`,
-      sender: "assistant",
-      text: `🇬🇧 **Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Kalkanı:**\n\n• **1. ASA CAP Code 12 (POMs & Botox Yasağı):** Reçeteli ilaçların ve Botox reklamı kesinlikle yasaktır (Human Medicines Regs 2012 Reg 284).\n• **2. CMA Green Claims & DMCC Act 2024:** Kanıtlanamayan yeşil iddialara doğrudan küresel cironun %10'una kadar para cezası kesilebilir.\n• **3. FCA PS23/6 Kripto Uyarısı:** Kripto reklamlarında 'Don't invest unless you're prepared to lose all the money...' zorunlu risk uyarısı ve 24h cayma süresi şarttır.\n• **4. Sahte Kıtlık (Dark Patterns):** Yapay sayaçlar ve gizli damla fiyatlandırma (drip pricing) yasaktır.`,
-      timestamp: new Date().toISOString(),
-      sources: ["UK Advertising Standards Authority (CAP Code Rule 12)", "CMA DMCC Act 2024", "Financial Conduct Authority (FCA PS23/6)"],
-      suggested_actions: [
-        { label: "UK Kalkanını Aç", action_type: "GENERATE_CONTENT" },
-        { label: "UK Uyumlu Görev Aç", action_type: "CREATE_TASK" }
-      ]
-    };
-  }
-
-  if (lower.includes("asya") || lower.includes("apac") || lower.includes("pmda") || lower.includes("samr") || lower.includes("mas")) {
+  // 1. Asia & Pacific (APAC) Intent Check - Evaluated before UK to ensure proper routing
+  if (lower.includes("asya") || lower.includes("apac") || lower.includes("pmda") || lower.includes("samr") || /\bmas\b/i.test(lower)) {
     return {
       id: `ai-${Date.now()}`,
       sender: "assistant",
@@ -1287,6 +1295,27 @@ export async function sendAiAssistantMessage(
       suggested_actions: [
         { label: "Mevzuat Kalkanını Aç", action_type: "GENERATE_CONTENT" },
         { label: "Asya Uyumlu Görev Aç", action_type: "CREATE_TASK" }
+      ]
+    };
+  }
+
+  // 2. UK Intent Check - Uses strict word boundary matching so Turkish words like 'yasal', 'yasak', 'kasa', 'masa', 'hukuk' do not trigger UK response
+  const isUkIntent = 
+    lower.includes("ingiltere") || 
+    lower.includes("birleşik krallık") || 
+    lower.includes("botox") || 
+    /\b(?:uk|asa|cma|fca|dmcc)\b/i.test(lower);
+
+  if (isUkIntent) {
+    return {
+      id: `ai-${Date.now()}`,
+      sender: "assistant",
+      text: `🇬🇧 **Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Kalkanı:**\n\n• **1. ASA CAP Code 12 (POMs & Botox Yasağı):** Reçeteli ilaçların ve Botox reklamı kesinlikle yasaktır (Human Medicines Regs 2012 Reg 284).\n• **2. CMA Green Claims & DMCC Act 2024:** Kanıtlanamayan yeşil iddialara doğrudan küresel cironun %10'una kadar para cezası kesilebilir.\n• **3. FCA PS23/6 Kripto Uyarısı:** Kripto reklamlarında 'Don't invest unless you're prepared to lose all the money...' zorunlu risk uyarısı ve 24h cayma süresi şarttır.\n• **4. Sahte Kıtlık (Dark Patterns):** Yapay sayaçlar ve gizli damla fiyatlandırma (drip pricing) yasaktır.`,
+      timestamp: new Date().toISOString(),
+      sources: ["UK Advertising Standards Authority (CAP Code Rule 12)", "CMA DMCC Act 2024", "Financial Conduct Authority (FCA PS23/6)"],
+      suggested_actions: [
+        { label: "UK Kalkanını Aç", action_type: "GENERATE_CONTENT" },
+        { label: "UK Uyumlu Görev Aç", action_type: "CREATE_TASK" }
       ]
     };
   }
@@ -3149,48 +3178,64 @@ export const MOCK_GOOGLE_SYNC_DISCONNECTED: GoogleSyncTelemetry = {
   ],
 };
 
-export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleSyncTelemetry> {
+export async function fetchGoogleSyncTelemetry(siteId?: string, orgId?: string): Promise<GoogleSyncTelemetry> {
   try {
-    const res = await safeNetworkFetch(`${API_BASE_URL}/integrations/google/status?site_id=${siteId || "default"}`, {
-      headers: { "Content-Type": "application/json" }
-    });
+    const headers = await getMobileAuthHeaders();
+    const effectiveOrg = orgId || await getMobileActiveOrgId();
+    const effectiveSite = siteId || "site-1";
+
+    const res = await safeNetworkFetch(
+      `${API_BASE_URL}/organizations/${effectiveOrg}/sites/${effectiveSite}/integrations/google/status`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...headers
+        }
+      }
+    );
+
     if (res && res.ok) {
       const data = await res.json();
-      if (data.status === "HEALTHY") {
+      if (data.status === "HEALTHY" || data.status === "CONNECTED") {
         return {
           ...MOCK_GOOGLE_SYNC,
+          ...data,
+          status: "HEALTHY",
           last_synced_at: data.last_synced_at || new Date().toISOString(),
           gsc: {
             ...MOCK_GOOGLE_SYNC.gsc,
-            property: data.gsc_property || MOCK_GOOGLE_SYNC.gsc.property,
-            connected: Boolean(data.gsc_connected),
+            ...(data.gsc || {}),
+            connected: Boolean(data.gsc?.connected ?? data.connected),
             status: "CONNECTED",
           },
           ga4: {
             ...MOCK_GOOGLE_SYNC.ga4,
-            property_id: data.ga4_property_id || MOCK_GOOGLE_SYNC.ga4.property_id,
-            connected: Boolean(data.ga4_connected),
+            ...(data.ga4 || {}),
+            connected: Boolean(data.ga4?.connected ?? data.connected),
             status: "CONNECTED",
           }
         };
-      } else if (data.status === "ERROR") {
+      } else if (data.status === "AUTH_FAILED" || data.status === "ERROR") {
         return {
           ...MOCK_GOOGLE_SYNC_ERROR,
-          error_message: data.error_detail || MOCK_GOOGLE_SYNC_ERROR.error_message,
+          error_message: data.error_message || data.error_detail || MOCK_GOOGLE_SYNC_ERROR.error_message,
           gsc: {
             ...MOCK_GOOGLE_SYNC_ERROR.gsc,
-            property: data.gsc_property || "sc-domain:acmestore.io",
-            error_message: data.error_detail || "Google API yetkilendirme hatası",
+            property: data.gsc?.property || "sc-domain:acmestore.io",
+            error_message: data.gsc?.error_message || data.error_message || "Google API yetkilendirme hatası",
           },
           ga4: {
             ...MOCK_GOOGLE_SYNC_ERROR.ga4,
-            property_id: data.ga4_property_id || "properties/398241029",
-            error_message: data.error_detail || "Google API yetkilendirme hatası",
+            property_id: data.ga4?.property_id || "properties/398241029",
+            error_message: data.ga4?.error_message || data.error_message || "Google API yetkilendirme hatası",
           }
         };
       } else {
         return MOCK_GOOGLE_SYNC_DISCONNECTED;
       }
+    } else if (res && (res.status === 401 || res.status === 403)) {
+      // NOTE (Issue 5 Fix): HTTP 401/403 from app API indicates missing/expired app JWT, NOT Google OAuth failure.
+      // Do not falsely report this as a Google OAuth failure. Fall back to current state.
     }
   } catch {
     // Offline / demo fallback
@@ -3205,34 +3250,41 @@ export async function fetchGoogleSyncTelemetry(siteId?: string): Promise<GoogleS
   return MOCK_GOOGLE_SYNC_ERROR;
 }
 
-export async function triggerGoogleSync(siteId?: string): Promise<GoogleSyncTelemetry> {
+export async function triggerGoogleSync(siteId?: string, orgId?: string): Promise<GoogleSyncTelemetry> {
   try {
-    const res = await safeNetworkFetch(`${API_BASE_URL}/integrations/google/sync`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ site_id: siteId || "default", force: true }),
-    });
+    const headers = await getMobileAuthHeaders();
+    const effectiveOrg = orgId || await getMobileActiveOrgId();
+    const effectiveSite = siteId || "site-1";
+
+    const res = await safeNetworkFetch(
+      `${API_BASE_URL}/organizations/${effectiveOrg}/sites/${effectiveSite}/integrations/sync`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers
+        },
+        body: JSON.stringify({ site_id: effectiveSite, force: true }),
+      }
+    );
+
     if (res && res.ok) {
       const data = await res.json();
-      if (data.status === "ERROR" || data.error_code === "AUTH_FAILED") {
+      if (!data.success && (data.status === "ERROR" || data.error_code === "AUTH_FAILED")) {
         return {
           ...MOCK_GOOGLE_SYNC_ERROR,
-          error_message: data.error_message || "OAuth yetkilendirmesi başarısız oldu (Token Süresi Doldu).",
+          error_message: data.message || "OAuth yetkilendirmesi başarısız oldu (Token Süresi Doldu).",
           last_synced_at: new Date().toISOString(),
         };
       }
       return {
         ...MOCK_GOOGLE_SYNC,
         ...data,
+        status: "HEALTHY",
         last_synced_at: new Date().toISOString(),
       };
-    } else if (res) {
-      const err = await res.json().catch(() => ({ detail: "Google API yetkilendirme hatası (401 Unauthorized)" }));
-      return {
-        ...MOCK_GOOGLE_SYNC_ERROR,
-        error_message: err.detail || "Google API yetkilendirme hatası (401 Unauthorized)",
-        last_synced_at: new Date().toISOString(),
-      };
+    } else if (res && (res.status === 401 || res.status === 403)) {
+      // NOTE: App session/permission failure, NOT Google OAuth failure
     }
   } catch {
     // Offline / demo fallback
