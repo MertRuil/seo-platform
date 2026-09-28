@@ -23,6 +23,9 @@ import { TasksScreen } from "./src/screens/TasksScreen";
 import { ContentOptimizerScreen } from "./src/screens/ContentOptimizerScreen";
 import { ReportsScreen } from "./src/screens/ReportsScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
+import { LeadsScreen } from "./src/screens/LeadsScreen";
+import { SelfHealingScreen } from "./src/screens/SelfHealingScreen";
+import { ComplianceScreen } from "./src/screens/ComplianceScreen";
 import { QuickActionFab } from "./src/components/QuickActionFab";
 import { BiometricPromptModal } from "./src/components/BiometricPromptModal";
 
@@ -116,6 +119,9 @@ const MainNavigator: React.FC = () => {
                 {activeTab === "recommendations" && <RecommendationsScreen />}
                 {activeTab === "knowledge" && <KnowledgeScreen />}
                 {activeTab === "billing" && <BillingScreen />}
+                {activeTab === "leads" && <LeadsScreen />}
+                {activeTab === "self_healing" && <SelfHealingScreen />}
+                {activeTab === "compliance" && <ComplianceScreen />}
               </View>
               <QuickActionFab />
               <TabBar />

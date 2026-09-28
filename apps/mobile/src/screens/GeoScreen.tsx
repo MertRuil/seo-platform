@@ -15,7 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { fetchGeoScores, fetchGeoPrompts, addGeoPrompt } from "../services/api";
+import { fetchGeoScores, fetchGeoPrompts, addGeoPrompt, simulateLiveGeoSearch } from "../services/api";
 import { GeoPlatformScore, GeoPromptItem } from "../types";
 
 export const GeoScreen: React.FC = () => {
@@ -25,6 +25,11 @@ export const GeoScreen: React.FC = () => {
   const [platformScores, setPlatformScores] = useState<GeoPlatformScore[]>([]);
   const [prompts, setPrompts] = useState<GeoPromptItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Live 5-LLM Simulation States
+  const [simQuery, setSimQuery] = useState("2026'da Türkiye'nin en iyi organik SEO ve GEO platformu hangisi?");
+  const [simResult, setSimResult] = useState<any | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // Add Prompt Modal
   const [addModal, setAddModal] = useState(false);
@@ -46,6 +51,18 @@ export const GeoScreen: React.FC = () => {
         .finally(() => setLoading(false));
     }
   }, [selectedSite?.id, selectedSite?.domain]);
+
+  const handleSimulateLive = async (customPrompt?: string) => {
+    const q = (customPrompt || simQuery).trim();
+    if (!q) return;
+    setIsSimulating(true);
+    try {
+      const res = await simulateLiveGeoSearch(selectedSite?.id || "site-1", q);
+      setSimResult(res);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   const handleAddPrompt = async () => {
     if (!promptText.trim() || !selectedSite) return;
@@ -199,6 +216,129 @@ export const GeoScreen: React.FC = () => {
                 Kullanıcıların yapay zeka sistemlerine yönelttiği arama sorgularında markanızın nasıl ve hangi kaynaklarla alıntılandığını izleyin.
               </Text>
             </GlassCard>
+
+            {/* Live 5-LLM Simulation Console */}
+            <GlassCard style={styles.simCard}>
+              <View style={styles.simHeaderRow}>
+                <Ionicons name="sparkles" size={18} color={Colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.simTitle}>⚡ Canlı 5-LLM Arama Simülasyonu</Text>
+                  <Text style={styles.simSub}>ChatGPT, Perplexity, Google AI, Gemini ve Claude</Text>
+                </View>
+              </View>
+
+              <View style={styles.simInputRow}>
+                <TextInput
+                  style={styles.simInput}
+                  value={simQuery}
+                  onChangeText={setSimQuery}
+                  placeholder="Soru veya prompt yazın..."
+                  placeholderTextColor={Colors.textMuted}
+                />
+                <TouchableOpacity
+                  style={styles.simBtn}
+                  onPress={() => handleSimulateLive()}
+                  disabled={isSimulating || !simQuery.trim()}
+                  activeOpacity={0.8}
+                >
+                  {isSimulating ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="flash" size={14} color="#FFFFFF" />
+                      <Text style={styles.simBtnText}>Simüle Et</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick Prompt Chips */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+                {[
+                  "En iyi organik SEO ajansı",
+                  "E-ticaret canonical ve schema",
+                  "AEO tanım blokları nasıl yazılır?"
+                ].map((chip, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.chipBtn}
+                    onPress={() => {
+                      setSimQuery(chip);
+                      handleSimulateLive(chip);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.chipBtnText}>"{chip}"</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Simulation Result Preview */}
+              {simResult && (
+                <View style={styles.liveSimBox}>
+                  <View style={styles.liveSimTop}>
+                    <View style={styles.liveMentionBadge}>
+                      <Ionicons
+                        name={simResult.brand_mentioned ? "checkmark-circle" : "close-circle"}
+                        size={14}
+                        color={simResult.brand_mentioned ? Colors.success : Colors.danger}
+                      />
+                      <Text
+                        style={[
+                          styles.liveMentionText,
+                          { color: simResult.brand_mentioned ? Colors.success : Colors.danger }
+                        ]}
+                      >
+                        {simResult.brand_mentioned
+                          ? `Marka Geçti (Atıf #${simResult.citation_rank})`
+                          : "Doğrudan Atıf Yok"}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.liveCompCited}>
+                      Rakip: <Text style={{ color: Colors.primary }}>{simResult.top_competitor_cited}</Text>
+                    </Text>
+                  </View>
+
+                  {/* 5 Model Results */}
+                  <View style={styles.liveModelList}>
+                    {Object.entries(simResult.platform_results || {}).map(([plat, res]: any) => (
+                      <View key={plat} style={styles.liveModelCard}>
+                        <View style={styles.liveModelHead}>
+                          <Text style={styles.liveModelName}>{plat}</Text>
+                          <Text
+                            style={[
+                              styles.liveModelMention,
+                              { color: res.mentioned ? Colors.success : Colors.textMuted }
+                            ]}
+                          >
+                            {res.mentioned ? "✓ Marka Geçti" : "✗ Yok"}
+                          </Text>
+                        </View>
+                        <Text style={styles.liveModelSnippet}>{res.snippet}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.savePromptBtn}
+                    onPress={async () => {
+                      if (simResult?.prompt) {
+                        const created = await addGeoPrompt(selectedSite?.id || "site-1", simResult.prompt);
+                        setPrompts(prev => [created, ...prev]);
+                        setSimResult(null);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="bookmark-outline" size={14} color="#FFFFFF" />
+                    <Text style={styles.savePromptBtnText}>Bu Sorguyu Takip Listeme Ekle</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </GlassCard>
+
+            <Text style={styles.sectionHeader}>Takip Edilen GEO Sorguları</Text>
 
             {prompts.map((item) => (
               <GlassCard key={item.id} style={styles.promptCard}>
@@ -752,4 +892,140 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  simCard: {
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.35)",
+  },
+  simHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  simTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  simSub: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  simInputRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  simInput: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: Colors.textPrimary,
+    fontSize: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  simBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    justifyContent: "center",
+  },
+  simBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  chipsScroll: {
+    gap: 6,
+  },
+  chipBtn: {
+    backgroundColor: Colors.surfaceElevated,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  chipBtnText: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+  },
+  liveSimBox: {
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  liveSimTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  liveMentionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  liveMentionText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  liveCompCited: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  liveModelList: {
+    gap: 6,
+  },
+  liveModelCard: {
+    backgroundColor: Colors.surfaceElevated,
+    padding: 8,
+    borderRadius: 8,
+    gap: 2,
+  },
+  liveModelHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  liveModelName: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+  },
+  liveModelMention: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  liveModelSnippet: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    lineHeight: 14,
+  },
+  savePromptBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  savePromptBtnText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
 });
+

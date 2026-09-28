@@ -570,3 +570,110 @@ export interface AlertChannelConfig {
   };
   last_delivered_at?: string;
 }
+
+// ----------------------------------------------------------------------
+// Sistem CRM & Lead Magnet Tipleri
+// ----------------------------------------------------------------------
+export interface FinancialLossMetrics {
+  health_score: number;
+  monthly_traffic: number;
+  conversion_rate: number;
+  average_order_value: number;
+  traffic_at_risk: number;
+  monthly_revenue_loss: number;
+  annual_revenue_loss: number;
+  critical_barriers: string[];
+  top_quick_wins: string[];
+  currency: string;
+}
+
+export interface LeadCard {
+  id: string;
+  organization_id: string;
+  site_id?: string;
+  company_name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  target_url: string;
+  metrics: FinancialLossMetrics;
+  proposal_pitch: string;
+  recommended_tier: string;
+  crm_status: "draft" | "exported" | "synced";
+  crm_lead_id?: string;
+  created_at: string;
+}
+
+export interface ExportCrmRequest {
+  lead_id?: string;
+  company_name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone?: string;
+  target_url: string;
+  annual_value?: number;
+  proposal_pitch?: string;
+  destination_crm?: string;
+  webhook_url?: string;
+  custom_notes?: string;
+}
+
+export interface ExportCrmResponse {
+  success: boolean;
+  crm_lead_id: string;
+  activity_id: string;
+  destination: string;
+  synced_payload: Record<string, any>;
+  message: string;
+}
+
+// ----------------------------------------------------------------------
+// Otonom Düzeltme (Self-Healing) & ChangeSet Tipleri
+// ----------------------------------------------------------------------
+export interface ChangeItemPayload {
+  id?: string;
+  target_url: string;
+  operation: string;
+  state_before: string;
+  state_after: string;
+  expected_hash_before: string;
+  status?: string;
+}
+
+export interface ChangeSetItem {
+  id: string;
+  site_id: string;
+  recommendation_id?: string;
+  status: "PENDING" | "EXECUTED" | "ROLLED_BACK" | "FAILED";
+  risk_level: "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  created_at: string;
+  executed_at?: string;
+  items: ChangeItemPayload[];
+}
+
+export interface SelfHealRequest {
+  issue_id?: string;
+  issue_title?: string;
+  target_url: string;
+  category?: string;
+  operation?: string;
+  state_before?: string;
+  state_after?: string;
+  expected_hash_before?: string;
+  risk_level?: "INFO" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  auto_execute?: boolean;
+}
+
+export interface SelfHealResponse {
+  success: boolean;
+  change_set: ChangeSetItem;
+  execution?: {
+    success: boolean;
+    status: string;
+    error_message?: string;
+    rolled_back: boolean;
+  };
+  message: string;
+  connector_type: string;
+}
+

@@ -32,7 +32,10 @@ export const TabBar: React.FC = () => {
     "recommendations", 
     "knowledge", 
     "billing",
-    "backlinks"
+    "backlinks",
+    "leads",
+    "self_healing",
+    "compliance"
   ].includes(activeTab);
 
   return (

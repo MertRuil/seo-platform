@@ -1621,6 +1621,63 @@ Kullanıcı direktifine istinaden sırasıyla 3 ana stratejik yetenek platforma 
 - **Web Test Paketi:** UI logic, Auth guard ve Security testlerinin tamamı başarılı (`npm test`).
 - **TypeScript Tip Denetimi:** Hem `apps/web` hem `apps/mobile` için **0 Hata** (`npx tsc --noEmit`).
 
+---
+
+## 32. 📱 Mobil Uygulama Kapsamlı Genişletmesi: Sistem CRM, Otonom Rollback, Canlı 5-LLM Radarı ve 6-Bölge Kalkanı
+
+Web sürümündeki kurumsal seviye tüm özellikler eksiksiz olarak mobil (`apps/mobile`) platforma taşınmış, 3 yeni ana ekran geliştirilmiş ve mevcut ekranlar güçlendirilmiştir:
+
+### 1. Sistem CRM & Lead Magnet Ekranı ([`apps/mobile/src/screens/LeadsScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/LeadsScreen.tsx))
+- **10-Saniyede Hızlı Denetim & Finansal Kayıp Hesaplayıcı:**
+  - Aylık organik trafik, ortalama sepet (AOV) ve organik dönüşüm oranına (CVR) göre kaybedilen aylık ve yıllık ciro tutarını anlık hesaplama.
+  - Sitedeki en kritik 4 teknik/GEO engeli ve en hızlı 3 kazanımı (Quick Wins) özetleyen operasyonel kartlar.
+- **Otomatik Yönetici Teklif Metni (Executive Pitch Generator):**
+  - Müşteri karar vericisine sunulmak üzere üretilmiş teklif metnini panoya kopyalama (`Clipboard`) ve anında inceleme.
+- **Sistem CRM Köprüsü:**
+  - Lead havuzu listeleme (`DRAFT`, `SYNCED`, `EXPORTED`).
+  - 1-Tıkla **"⚡ Sistem CRM'e 1-Tıkla Aktar"** butonu ile Sistem CRM formatında kayıt oluşturma, webhook tetikleme ve `crm_lead_id` döndürme.
+  - Yeni müşteri lead kartı oluşturma modalı.
+
+### 2. Otonom Düzeltme & Atomik Rollback Ekranı ([`apps/mobile/src/screens/SelfHealingScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/SelfHealingScreen.tsx))
+- **Self-Healing SEO Motoru:**
+  - Parametreli sayfalarda canonical eksikliği, eksik JSON-LD Organization/Product/FAQ şemaları ve kırık 404 sayfaları için tek tıkla **"⚡ Otonom Düzelt (Self-Heal)"** eylemi.
+  - Risk seviyesi (LOW, MEDIUM, HIGH) kalkanı ve iyimser eşzamanlılık (SHA-256 State Hash) güvencesi.
+- **Kod Diff İnceleyicisi:**
+  - Değişiklik öncesi (State Before) ve değişiklik sonrası (State After) kırmızı/yeşil renklendirilmiş kod diff önizlemesi.
+- **Atomik Geri Alma (Atomic Rollback) Yeteneği:**
+  - Uygulanan her ChangeSet için **"⏪ Atomik Olarak Geri Al (Rollback)"** butonu ile tek tıkla anında orijinal kaynak koduna/durumuna dönme kabiliyeti.
+- **SafeSiteExecutor Kalkanı:**
+  - OCC çakışma koruması, sandbox simülasyon bağlayıcısı ve anlık IndexNow protokolü bildirim özetleri.
+
+### 3. 6-Bölge Mevzuat & Reklam Kalkanı Ekranı ([`apps/mobile/src/screens/ComplianceScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/ComplianceScreen.tsx))
+- **Canlı Metin ve Reklam Tarayıcısı:**
+  - Kullanıcının doğrudan girdiği veya sitenin mevcut sayfalarından çekilen metinleri 6 ana yargı bölgesinin yasal kurallarına karşı anında denetleme:
+    - 🇹🇷 **Türkiye:** TİTCK tıbbi şifa, TBB avukatlık üstünlük, SPK kripto kazanç ve Reklam Kurulu süperlatifleri.
+    - 🇪🇺 **Avrupa Birliği:** EmpCo 2024/825 Greenwashing, MiCA kripto ve EFSA sağlık beyanları.
+    - 🇺🇸 **ABD:** FTC 16 CFR Part 464 (sahte yorumlar), FDA ve SEC Rule 10b-5.
+    - 🇬🇧 **İngiltere (UK):** ASA CAP Code Rule 12 (POMs & Botox yasağı), CMA DMCC Act 2024 Green Claims ve Sahte Kıtlık (Dark Patterns).
+    - 🌏 **Asya & Pasifik:** JCAA/KFTC gizli reklam, SAMR mutlak süperlatifler ve MAS kripto.
+    - 🇦🇪 **Orta Doğu (MENA):** Medya Konseyi 55/2023, Mawthooq lisansı, VARA kripto ve MOHAP şifa iddiaları.
+- **İhlal Kartları & AI Düzeltme:**
+  - Tespit edilen yasaklı kelime, yasal dayanak, ceza riski, önerilen güvenli ifade ve tek tıkla AI Asistanına yönlendirme.
+
+### 4. Canlı 5-LLM Simülasyon Radarı ([`apps/mobile/src/screens/GeoScreen.tsx`](file:///Users/ayberkcaliskan/Documents/GitHub/seo-platform/apps/mobile/src/screens/GeoScreen.tsx))
+- **Gerçek Zamanlı Çoklu Model Simülasyonu:**
+  - Perplexity AI, ChatGPT (GPT-4o), Google AI Overviews, Gemini Pro ve Claude 3.5 Sonnet ile canlı prompt simülasyonu.
+  - Hızlı sorgu öneri çipleri ("En iyi SEO ajansı", "E-ticaret canonical ve schema").
+  - Marka geçme durumu (`✓ Marka Geçti` / `✗ Yok`), alıntı sıralaması, rakip tespiti ve tek tıkla takip listesine kaydetme.
+
+### 5. Navigasyon, Servis ve Tip Bütünlüğü
+- `AppContext.tsx` ve `TabBar.tsx`: `leads`, `self_healing` ve `compliance` sekmeleri eklendi; Hub hiyerarşisi korundu.
+- `HubScreen.tsx`: Yeni kurumsal araçlar en üstte öne çıkarılan kartlarla entegre edildi.
+- `services/api.ts` & `types/index.ts`: Tüm veri modelleri ve asenkron REST istemcileri tip güvenliğiyle bağlandı.
+
+### Test ve Doğrulama
+- **Mobil TypeScript Derlemesi (`cd apps/mobile && npx tsc --noEmit`):** **0 Hata**.
+- **Web TypeScript Derlemesi (`cd apps/web && npx tsc --noEmit`):** **0 Hata**.
+- **Python Birim Testleri (`pytest tests/unit/`):** **6 / 6 Test Başarılı**.
+
+
 
 
 

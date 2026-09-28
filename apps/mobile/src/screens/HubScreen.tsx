@@ -18,6 +18,30 @@ export const HubScreen: React.FC = () => {
 
   const HUB_MODULES = [
     {
+      tab: "leads" as const,
+      title: "Sistem CRM & Lead'ler",
+      desc: "10-saniyede ciro kaybı tespiti ve tek tıkla CRM senkronizasyonu",
+      icon: "briefcase" as const,
+      color: "#10B981",
+      bg: "rgba(16, 185, 129, 0.12)"
+    },
+    {
+      tab: "self_healing" as const,
+      title: "Otonom Düzelt & Rollback",
+      desc: "Self-healing SEO motoru, change sets ve atomik geri alma",
+      icon: "shield-checkmark" as const,
+      color: Colors.primary,
+      bg: "rgba(99, 102, 241, 0.12)"
+    },
+    {
+      tab: "compliance" as const,
+      title: "Mevzuat Kalkanı (6 Bölge)",
+      desc: "TR, AB, ABD, UK, Asya ve Orta Doğu reklam/ceza tarayıcısı",
+      icon: "shield-half" as const,
+      color: "#F59E0B",
+      bg: "rgba(245, 158, 11, 0.12)"
+    },
+    {
       tab: "keywords" as const,
       title: "Anahtar Kelimeler",
       desc: "Sıralama takibi, arama hacimleri ve kelime araştırması",

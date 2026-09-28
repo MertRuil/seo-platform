@@ -18,7 +18,10 @@ export type TabKey =
   | "recommendations" 
   | "knowledge" 
   | "billing"
-  | "backlinks";
+  | "backlinks"
+  | "leads"
+  | "self_healing"
+  | "compliance";
 
 interface AppContextType {
   sites: SiteSummary[];
