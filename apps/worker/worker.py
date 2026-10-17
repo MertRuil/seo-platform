@@ -117,6 +117,9 @@ class ResilientWorkerQueue:
     async def enqueue(self, task_name: str, **kwargs) -> str:
         if settings.ENVIRONMENT == "test":
             return await self._async_queue.enqueue(task_name, **kwargs)
+        if settings.is_production_like:
+            # API and worker are separate processes; an in-process fallback loses jobs.
+            return await asyncio.wait_for(self._redis_queue.enqueue(task_name, **kwargs), timeout=5)
         try:
             return await asyncio.wait_for(self._redis_queue.enqueue(task_name, **kwargs), timeout=1.5)
         except Exception as e:

@@ -1,7 +1,10 @@
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from jose import jwt, JWTError
+from urllib.parse import urlencode
+import secrets
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -29,6 +32,7 @@ global_router = APIRouter(prefix="/integrations", tags=["Global Integrations"])
 async def get_gsc_metrics(
     org_id: str,
     site_id: str,
+    days: int = Query(28, ge=1, le=548),
     payload: dict = Depends(get_current_user_payload),
     db: AsyncSession = Depends(get_db)
 ):
@@ -36,7 +40,10 @@ async def get_gsc_metrics(
     await verify_site_access(org_id, site_id, user_id, db)
 
     res = await db.execute(
-        select(GscSearchMetric).where(GscSearchMetric.site_id == site_id).order_by(GscSearchMetric.metric_date.desc()).limit(100)
+        select(GscSearchMetric).where(
+            GscSearchMetric.site_id == site_id,
+            GscSearchMetric.metric_date >= (datetime.now(timezone.utc) - timedelta(days=days - 1)).date(),
+        ).order_by(GscSearchMetric.metric_date.desc())
     )
     return res.scalars().all()
 
@@ -255,6 +262,7 @@ async def get_google_integration_status(
 async def google_oauth_authorize(
     org_id: str,
     site_id: str,
+    response: Response,
     payload: dict = Depends(get_current_user_payload),
     db: AsyncSession = Depends(get_db)
 ):
@@ -263,19 +271,20 @@ async def google_oauth_authorize(
     """
     user_id = payload.get("sub")
     await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+    if settings.is_production_like and not (settings.GOOGLE_OAUTH_CLIENT_ID and settings.GOOGLE_OAUTH_CLIENT_SECRET):
+        raise HTTPException(status_code=503, detail="Google bağlantısı için OAuth yapılandırması tamamlanmamış.")
     client_id = settings.GOOGLE_OAUTH_CLIENT_ID or "mock-google-client-id"
     redirect_uri = settings.GOOGLE_OAUTH_REDIRECT_URI
     scope = "https://www.googleapis.com/auth/webmasters.readonly"
-    state = f"{org_id}:{site_id}:{user_id}"
-    auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&"
-        f"scope={scope}&access_type=offline&prompt=consent&state={state}"
-    )
+    state = jwt.encode({"sub": user_id, "org": org_id, "site": site_id, "purpose": "google_oauth", "nonce": secrets.token_urlsafe(24), "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, settings.APP_SECRET_KEY, algorithm="HS256")
+    response.set_cookie("calpeo_google_state", state, httponly=True, secure=settings.is_production_like, samesite="lax", max_age=600, path="/")
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode({"client_id": client_id, "redirect_uri": redirect_uri, "response_type": "code", "scope": scope, "access_type": "offline", "prompt": "consent", "state": state})
     return {"auth_url": auth_url, "state": state}
 
 @global_router.get("/google/callback")
 async def google_oauth_callback(
+    request: Request,
+    response: Response,
     code: str = Query(...),
     state: str = Query(...),
     db: AsyncSession = Depends(get_db)
@@ -285,10 +294,18 @@ async def google_oauth_callback(
     and stores encrypted credentials for the organization.
     Strictly verifies that user_id has authorized management access to org_id and site_id.
     """
-    parts = state.split(":")
-    if len(parts) < 3:
-        raise HTTPException(status_code=400, detail="Geçersiz state parametresi.")
-    org_id, site_id, user_id = parts[0], parts[1], parts[2]
+    if not secrets.compare_digest(request.cookies.get("calpeo_google_state", ""), state):
+        raise HTTPException(status_code=400, detail="Google bağlantı oturumu geçersiz veya başka tarayıcıya ait. Bağlantıyı yeniden başlatın.")
+    try:
+        claims = jwt.decode(state, settings.APP_SECRET_KEY, algorithms=["HS256"])
+        if claims.get("purpose") != "google_oauth":
+            raise ValueError("Wrong state purpose")
+        org_id, site_id, user_id = claims["org"], claims["site"], claims["sub"]
+    except (JWTError, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Google bağlantı oturumunun süresi dolmuş veya imzası geçersiz.") from exc
+    if settings.is_production_like and (is_fixture_token(code) or not settings.GOOGLE_OAUTH_CLIENT_SECRET):
+        raise HTTPException(status_code=400, detail="Geçerli bir Google yetkilendirme kodu ve OAuth yapılandırması gerekiyor.")
+    response.delete_cookie("calpeo_google_state", path="/")
 
     # Verify user has access to target organization and site before storing credentials
     await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])

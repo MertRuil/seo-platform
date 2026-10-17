@@ -1,8 +1,14 @@
 import pytest
 import pytest_asyncio
+from unittest.mock import AsyncMock
+from types import SimpleNamespace
 from httpx import AsyncClient, ASGITransport
 from apps.api.main import app
 from packages.shared.database import engine, Base
+
+@pytest.fixture(autouse=True)
+def observed_audit(monkeypatch):
+    monkeypatch.setattr("apps.api.routes.leads.observe_health", AsyncMock(return_value={"health_score":60,"issues":[SimpleNamespace(title="Observed missing title",recommendation_template="Add the observed title")]}))
 
 @pytest_asyncio.fixture(autouse=True)
 async def prepare_database():
@@ -42,11 +48,7 @@ async def test_leads_generation_and_listing():
         list_res = await client.get(f"/api/v1/organizations/{org['id']}/sites/{site['id']}/leads", headers=headers)
         assert list_res.status_code == 200
         leads = list_res.json()
-        assert len(leads) >= 1
-        initial_lead = leads[0]
-        assert "metrics" in initial_lead
-        assert initial_lead["metrics"]["annual_revenue_loss"] > 0
-        assert len(initial_lead["metrics"]["critical_barriers"]) > 0
+        assert leads == []  # A new site has no fabricated sample opportunities.
 
         # 2. Test Custom Lead Generation
         gen_res = await client.post(f"/api/v1/organizations/{org['id']}/sites/{site['id']}/leads/generate", json={

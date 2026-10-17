@@ -1,14 +1,14 @@
 import uuid
 import json
 import hashlib
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from packages.shared.database import get_db
-from packages.shared.models import ChangeSet, ChangeItem, Site, SiteConnector, CrawlPage
+from packages.shared.models import ChangeSet, ChangeItem, Site, SiteConnector, CrawlPage, AuditLog
 from packages.config.settings import settings
 from packages.contracts.execution import (
     ChangeSetCreateRequest,
@@ -137,6 +137,8 @@ async def execute_change_set(
 
     res_cs = await db.execute(select(ChangeSet).where(ChangeSet.id == change_set_id, ChangeSet.site_id == site_id))
     cs = res_cs.scalars().first()
+    if not cs:
+        raise HTTPException(status_code=404, detail="ChangeSet not found")
     if cs.risk_level in ("HIGH", "CRITICAL") and cs.status != "APPROVED":
         raise HTTPException(status_code=409, detail="High-risk ChangeSet requires explicit approval")
 
@@ -182,6 +184,9 @@ async def execute_change_set(
     rolled_back = False
     completed_items = []
     for item in items:
+        async def persist_backup(snapshot):
+            item.state_before = json.dumps(snapshot)
+            await db.commit()
         exec_res = await executor.execute_change_item(
             change_item={
                 "id": item.id,
@@ -192,7 +197,8 @@ async def execute_change_set(
                 "state_after": item.state_after
             },
             require_approval=(cs.risk_level in ("HIGH", "CRITICAL")),
-            is_approved=(cs.status == "EXECUTING" and cs.approved_by is not None) or cs.risk_level not in ("HIGH", "CRITICAL")
+            is_approved=(cs.status == "EXECUTING" and cs.approved_by is not None) or cs.risk_level not in ("HIGH", "CRITICAL"),
+            persist_backup=persist_backup,
         )
         if exec_res.success:
             item.status = "SUCCESS"
@@ -210,7 +216,8 @@ async def execute_change_set(
                         backup = completed.state_before
                     else:
                         backup = {}
-                    await connector.rollback_change(backup)
+                    if not await connector.rollback_change(backup):
+                        raise IOError("Bağlayıcı geri alma işlemini reddetti")
                     completed.status = "ROLLED_BACK"
                     rolled_back = True
                 except Exception:
@@ -219,6 +226,7 @@ async def execute_change_set(
 
     cs.status = "SUCCESS" if all_success else "FAILED"
     cs.executed_at = datetime.now(timezone.utc)
+    db.add(AuditLog(organization_id=org_id,site_id=site_id,user_id=user_id,action="DEĞİŞİKLİK_UYGULANDI" if all_success else "DEĞİŞİKLİK_BAŞARISIZ",resource_type="CHANGE_SET",resource_id=cs.id))
     await db.commit()
 
     # Track usage: Başarıyla uygulanan adımları organizasyon kotasından düş
@@ -337,14 +345,20 @@ async def rollback_change_set(
     items = (await db.execute(select(ChangeItem).where(ChangeItem.change_set_id == cs.id))).scalars().all()
     if not items:
         raise HTTPException(status_code=400, detail="ChangeSet has no items to rollback")
+    if cs.status not in ("SUCCESS", "ROLLBACK_FAILED", "FAILED") or not any(i.status in ("SUCCESS", "ROLLBACK_FAILED") for i in items):
+        raise HTTPException(status_code=409, detail="Geri alınabilecek uygulanmış bir değişiklik bulunamadı")
 
     connector_record = (await db.execute(select(SiteConnector).where(SiteConnector.site_id == site_id, SiteConnector.is_active.is_(True)))).scalars().first()
     if connector_record:
         try:
             connector = build_connector(connector_record)
         except Exception:
+            if settings.is_production_like:
+                raise HTTPException(status_code=503, detail="Bağlayıcı yüklenemedi; canlı geri alma yapılmadı")
             connector = get_fallback_sandbox_connector(site.domain)
     else:
+        if settings.is_production_like:
+            raise HTTPException(status_code=409, detail="Canlı geri alma için aktif bağlayıcı gerekli")
         connector = get_fallback_sandbox_connector(site.domain)
 
     rolled_back_all = True
@@ -361,7 +375,10 @@ async def rollback_change_set(
             else:
                 backup = {"url": item.target_url}
 
-            await connector.rollback_change(backup)
+            if item.status not in ("SUCCESS", "ROLLBACK_FAILED"):
+                continue
+            if not await connector.rollback_change(backup):
+                raise IOError("Bağlayıcı geri alma işlemini reddetti")
             item.status = "ROLLED_BACK"
         except Exception as e:
             rolled_back_all = False
@@ -369,13 +386,14 @@ async def rollback_change_set(
             error_msg = str(e)
 
     cs.status = "ROLLED_BACK" if rolled_back_all else "ROLLBACK_FAILED"
+    db.add(AuditLog(organization_id=org_id,site_id=site_id,user_id=user_id,action="DEĞİŞİKLİK_GERİ_ALINDI" if rolled_back_all else "GERİ_ALMA_BAŞARISIZ",resource_type="CHANGE_SET",resource_id=cs.id))
     await db.commit()
 
     return ExecutionResultResponse(
         success=rolled_back_all,
         status=cs.status,
         error_message=error_msg,
-        rolled_back=True
+        rolled_back=rolled_back_all
     )
 
 @router.post("/self-heal", response_model=SelfHealResponse)
@@ -394,6 +412,19 @@ async def self_heal_issue(
     """
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
+    target = urlparse(urljoin(site.primary_url, req.target_url))
+    if target.scheme not in ("http", "https") or (target.hostname or "").lower().removeprefix("www.") != site.normalized_domain or target.username or target.password:
+        raise HTTPException(status_code=400, detail="Değişiklik hedefi bu sitenin alan adına ait olmalıdır")
+    req = req.model_copy(update={"target_url": target.geturl()})
+    if settings.is_production_like and req.auto_execute:
+        if site.verification_status != "VERIFIED":
+            raise HTTPException(status_code=403, detail="Canlı düzeltme için önce alan adı sahipliğini doğrulayın")
+        from services.billing.entitlements import EntitlementGuard
+        await EntitlementGuard.ensure_feature(db, org_id, "auto_fixes")
+        await EntitlementGuard.ensure_limit(db, org_id, "auto_fixes", requested_qty=1)
+        connector_record = (await db.execute(select(SiteConnector).where(SiteConnector.site_id == site_id, SiteConnector.is_active.is_(True)))).scalars().first()
+        if not connector_record or connector_record.connector_type in ("SANDBOX", "MOCK", "SIMULATOR"):
+            raise HTTPException(status_code=409, detail="Canlı düzeltme için aktif bir site bağlayıcısı gerekiyor")
 
     # 1. Resolve operation type
     op = req.operation
@@ -457,6 +488,8 @@ async def self_heal_issue(
                 connector = build_connector(connector_record)
                 connector_type = connector_record.connector_type
             except Exception:
+                if settings.is_production_like:
+                    raise HTTPException(status_code=503, detail="Bağlayıcı yüklenemedi; canlı düzeltme yapılmadı")
                 connector = get_fallback_sandbox_connector(site.domain)
                 connector_type = "SANDBOX"
         else:
@@ -467,6 +500,9 @@ async def self_heal_issue(
         cs.status = "EXECUTING"
         await db.commit()
 
+        async def persist_backup(snapshot):
+            ci.state_before = json.dumps(snapshot)
+            await db.commit()
         exec_res = await executor.execute_change_item(
             change_item={
                 "id": ci.id,
@@ -477,12 +513,14 @@ async def self_heal_issue(
                 "state_after": ci.state_after
             },
             require_approval=False,
-            is_approved=True
+            is_approved=True,
+            persist_backup=persist_backup,
         )
 
         ci.status = "SUCCESS" if exec_res.success else "FAILED"
         cs.status = "SUCCESS" if exec_res.success else "FAILED"
         cs.executed_at = datetime.now(timezone.utc)
+        db.add(AuditLog(organization_id=org_id,site_id=site_id,user_id=user_id,action="DEĞİŞİKLİK_DENENDİ" if connector_type == "SANDBOX" else "DEĞİŞİKLİK_UYGULANDI" if exec_res.success else "DEĞİŞİKLİK_BAŞARISIZ",resource_type="CHANGE_SET",resource_id=cs.id))
         await db.commit()
 
         exec_result = ExecutionResultResponse(
@@ -520,7 +558,7 @@ async def self_heal_issue(
         success=exec_result.success if exec_result else True,
         change_set=cs_response,
         execution=exec_result,
-        message=f"Sorun #{req.issue_id or 'GEN-1'} için otonom düzeltme başarıyla uygulandı.",
+        message="Değişiklik uygulandı." if exec_result and exec_result.success and connector_type != "SANDBOX" else "Değişiklik seti oluşturuldu; canlı uygulama doğrulanmadı.",
         connector_type=connector_type
     )
 

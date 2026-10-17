@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, Awaitable
 from services.executor.base import SiteConnector
 
 class SafeExecutionResult:
@@ -23,7 +23,8 @@ class SafeSiteExecutor:
         self,
         change_item: Dict[str, Any],
         require_approval: bool = True,
-        is_approved: bool = False
+        is_approved: bool = False,
+        persist_backup: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
     ) -> SafeExecutionResult:
         risk_level = change_item.get("risk_level", "LOW")
 
@@ -61,6 +62,9 @@ class SafeSiteExecutor:
         # 3. Step 2: Pre-write Backup
         backup_key = f"backup-{hashlib.sha256(target_url.encode()).hexdigest()[:16]}"
         self.backup_storage[backup_key] = current_state
+        if persist_backup:
+            # Durable snapshot must succeed BEFORE touching the website.
+            await persist_backup({**current_state, "url": target_url})
 
         # 4. Step 3: Apply Mutation
         try:

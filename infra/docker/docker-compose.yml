@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: autonomous_seo_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: seo_platform_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -42,8 +42,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - miniodata:/data
     healthcheck:
@@ -101,14 +101,15 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+        NEXT_PUBLIC_API_URL: /api/v1
     container_name: seo_platform_web
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_URL=/api/v1
+      - BACKEND_API_URL=http://api:8000/api/v1
       - APP_SECRET_KEY=${APP_SECRET_KEY:?APP_SECRET_KEY is required}
     depends_on:
       - api

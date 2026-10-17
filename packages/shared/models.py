@@ -592,3 +592,22 @@ class BillingEvent(Base):
     processed_at = Column(DateTime(timezone=True), nullable=True)
     error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class PasswordResetChallenge(Base):
+    __tablename__ = "password_reset_challenges"
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class LeadRecord(Base):
+    __tablename__ = "lead_records"
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    site_id = Column(String(36), ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
+    payload_json = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)

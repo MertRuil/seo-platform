@@ -25,6 +25,7 @@ from services.billing.provider.base import (
 )
 from services.billing.usage import UsageService
 from services.billing.entitlements import EntitlementGuard
+from packages.config.settings import settings
 
 
 class PaddleBillingProvider(BillingProvider):
@@ -66,9 +67,7 @@ class PaddleBillingProvider(BillingProvider):
         Format: ts=1690000000;h1=hash
         """
         if not self.webhook_secret:
-            # Geliştirme ortamında webhook_secret boşsa ama test modundaysak esnek davranabiliriz,
-            # ancak güvenlik gereği secret tanımlıysa daima doğrulamalıyız.
-            return True
+            return False
 
         sig_header = headers.get("Paddle-Signature") or headers.get("paddle-signature")
         if not sig_header:
@@ -80,6 +79,8 @@ class PaddleBillingProvider(BillingProvider):
             h1 = parts.get("h1")
 
             if not ts or not h1:
+                return False
+            if abs(time.time() - int(ts)) > 300:
                 return False
 
             # İmza hesabı: ts:raw_body
@@ -127,10 +128,12 @@ class PaddleBillingProvider(BillingProvider):
                     (p for p in plan.prices if p.interval == interval and p.active),
                     plan.prices[0] if plan.prices else None
                 )
+                if not price or not price.external_price_id:
+                    raise ValueError("Bu plan ve dönem için Paddle fiyat kimliği yapılandırılmamış.")
                 payload = {
                     "items": [
                         {
-                            "price_id": price.external_price_id if price and price.external_price_id else f"pri_{plan.code}_{interval}",
+                            "price_id": price.external_price_id,
                             "quantity": 1
                         }
                     ],
@@ -140,10 +143,8 @@ class PaddleBillingProvider(BillingProvider):
                         "interval": interval
                     }
                 }
-                if customer_email:
-                    payload["customer_email"] = customer_email
-                if return_url:
-                    payload["return_url"] = return_url
+                # Paddle collects customer details in checkout. The configured default
+                # payment link supplies checkout.url; success redirects belong to Paddle.js.
 
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.post(f"{self.api_base_url}/transactions", json=payload, headers=headers)
@@ -156,10 +157,14 @@ class PaddleBillingProvider(BillingProvider):
                                 session_id=data.get("id"),
                                 provider=self.provider_name
                             )
-            except Exception:
-                pass  # Fallback to standard checkout URL below
+            except ValueError:
+                raise
+            except Exception as exc:
+                raise ValueError("Paddle ödeme servisine ulaşılamadı; planınız değiştirilmedi.") from exc
 
         # Sandbox / Fallback checkout linki
+        if settings.ENVIRONMENT.lower() != "test" or not self.api_key.startswith("mock_"):
+            raise ValueError("Ödeme oturumu oluşturulamadı. Paddle API anahtarını ve ürün fiyatlarını kontrol edin; planınız değiştirilmedi.")
         callback = return_url or f"/billing?session=checkout_complete&org_id={org_id}"
         checkout_url = (
             f"{self.checkout_base_url}/checkout?"
@@ -181,35 +186,47 @@ class PaddleBillingProvider(BillingProvider):
         Kullanıcı için Paddle Müşteri Portalı bağlantısı üretir.
         """
         sub = await EntitlementGuard.get_or_create_subscription(db, org_id)
-        customer_id = sub.external_customer_id or f"ctm_{org_id[:12]}"
-        
-        portal_base = (
-            "https://sandbox-customer-portal.paddle.com" if self.is_sandbox
-            else "https://customer-portal.paddle.com"
-        )
-        portal_url = f"{portal_base}/?customer_id={customer_id}&org_id={org_id}"
-        return PortalResult(portal_url=portal_url)
+        customer_id = sub.external_customer_id
+        if not self.api_key or self.api_key.startswith("mock_"):
+            if settings.ENVIRONMENT.lower() == "test":
+                return PortalResult(portal_url=f"https://sandbox-customer-portal.paddle.com/?org_id={org_id}")
+            raise ValueError("Paddle müşteri portalı henüz yapılandırılmamış.")
+        if not customer_id:
+            raise ValueError("Bu kuruluş için Paddle müşteri kaydı bulunmuyor. Önce ödeme işlemini tamamlayın.")
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(
+                    f"{self.api_base_url}/customers/{customer_id}/portal-sessions",
+                    json={}, headers={"Authorization": f"Bearer {self.api_key}"})
+                response.raise_for_status()
+                url = response.json()["data"]["urls"]["general"]["overview"]
+                return PortalResult(portal_url=url)
+        except Exception as exc:
+            raise ValueError("Paddle müşteri portalı oturumu oluşturulamadı.") from exc
 
-    async def cancel_subscription(
-        self,
-        db: AsyncSession,
-        org_id: str,
-        immediately: bool = False
-    ) -> bool:
-        """
-        Organizasyonun aktif aboneliğini iptal eder.
-        """
+    async def cancel_subscription(self, db: AsyncSession, org_id: str, immediately: bool = False) -> bool:
         sub = await EntitlementGuard.get_or_create_subscription(db, org_id)
-        sub.cancel_at_period_end = not immediately
-        if immediately:
-            sub.status = "CANCELED"
-            sub.canceled_at = utc_now()
-        else:
-            sub.canceled_at = utc_now()
-
-        await db.commit()
-        await db.refresh(sub)
-        return True
+        if not self.api_key or self.api_key.startswith("mock_") or not sub.external_subscription_id:
+            raise ValueError("Paddle aboneliği doğrulanamadı; iptal işlemi yapılmadı.")
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(
+                    f"{self.api_base_url}/subscriptions/{sub.external_subscription_id}/cancel",
+                    json={"effective_from": "immediately" if immediately else "next_billing_period"},
+                    headers={"Authorization": f"Bearer {self.api_key}"})
+                response.raise_for_status()
+                data = response.json()["data"]
+            if immediately and data.get("status") != "canceled":
+                raise ValueError("Paddle iptal işlemini onaylamadı.")
+            if not immediately and data.get("scheduled_change", {}).get("action") != "cancel":
+                raise ValueError("Paddle dönem sonu iptalini onaylamadı.")
+            sub.cancel_at_period_end = not immediately
+            sub.canceled_at = utc_now() if immediately else None
+            if immediately: sub.status = "CANCELED"
+            await db.commit()
+            return True
+        except Exception as exc:
+            raise ValueError("Paddle abonelik iptali doğrulanamadı; yerel kayıt değiştirilmedi.") from exc
 
     async def handle_webhook_event(
         self,

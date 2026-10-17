@@ -32,6 +32,12 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
     records audit logs, and triggers instant IndexNow notifications.
     """
     try:
+        from packages.config.settings import settings
+        if settings.is_production_like and site.verification_status != "VERIFIED":
+            return 0
+        if settings.is_production_like:
+            from services.billing.entitlements import EntitlementGuard
+            await EntitlementGuard.ensure_feature(db, site.organization_id, "auto_fixes")
         # 1. Fetch pending low-risk recommendations for the site
         recs_res = await db.execute(
             select(Recommendation).where(
@@ -141,6 +147,9 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
             await db.commit()
 
             # Execute change safely
+            async def persist_backup(snapshot):
+                ci.state_before = json.dumps(snapshot)
+                await db.commit()
             exec_res = await executor.execute_change_item(
                 change_item={
                     "id": ci.id,
@@ -151,7 +160,8 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
                     "state_after": ci.state_after
                 },
                 require_approval=False,
-                is_approved=True
+                is_approved=True,
+                persist_backup=persist_backup,
             )
 
             if exec_res.success:

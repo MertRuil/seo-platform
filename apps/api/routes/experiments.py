@@ -1,4 +1,7 @@
 import uuid
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import select, func
+from packages.shared.models import GscSearchMetric
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from packages.shared.database import get_db
@@ -20,26 +23,38 @@ async def create_and_evaluate_experiment(
     user_id = payload.get("sub")
     await verify_site_access(org_id, site_id, user_id, db, ["OWNER", "ADMIN", "SEO_MANAGER"])
 
-    # Baseline projected metrics based on variant and control cohorts
-    v_count = max(1, len(req.variant_pages))
-    c_count = max(1, len(req.control_pages))
-    v_before = 1000 * v_count
-    v_after = 1150 * v_count
-    c_before = 1000 * c_count
-    c_after = 950 * c_count
-
-    res = ExperimentEngine.calculate_diff_in_diff(
-        experiment_id=f"exp-{uuid.uuid4().hex[:8]}",
-        variant_before=v_before,
-        variant_after=v_after,
-        control_before=c_before,
-        control_after=c_after
-    )
-
+    variant = set(req.variant_pages)
+    control = set(req.control_pages)
+    if variant & control:
+        raise HTTPException(status_code=400, detail="Varyant ve kontrol grupları aynı URL'yi içeremez")
+    today = datetime.now(timezone.utc).date()
+    change = req.change_date or today - timedelta(days=req.window_days)
+    start = change - timedelta(days=req.window_days)
+    end = change + timedelta(days=req.window_days - 1)
+    if end >= today:
+        raise HTTPException(status_code=400, detail="Her iki ölçüm penceresi de tamamlanmış olmalıdır")
+    rows = (await db.execute(select(GscSearchMetric.page,GscSearchMetric.metric_date,func.sum(GscSearchMetric.clicks)).where(
+        GscSearchMetric.site_id==site_id,GscSearchMetric.page.in_(variant|control),GscSearchMetric.metric_date>=start,GscSearchMetric.metric_date<=end,
+    ).group_by(GscSearchMetric.page,GscSearchMetric.metric_date))).all()
+    totals = [0.0]*4
+    counts = [0]*4
+    for page,day,clicks in rows:
+        index = (0 if page in variant else 2) + (1 if day >= change else 0)
+        totals[index] += clicks
+        counts[index] += 1
+    if not all(counts):
+        raise HTTPException(status_code=409, detail="Her iki grubun önce ve sonra pencereleri için Search Console verisi gerekir. Bağlantıyı eşitleyin ve ölçüm tamamlandığında tekrar deneyin.")
+    v_before,v_after = totals[0]/len(variant),totals[1]/len(variant)
+    c_before,c_after = totals[2]/len(control),totals[3]/len(control)
+    if v_before <= 0 or c_before <= 0:
+        raise HTTPException(status_code=409, detail="Yüzde değişim için her iki grubun önceki dönemde pozitif tıklama sayısı olmalıdır.")
+    res = ExperimentEngine.calculate_diff_in_diff(str(uuid.uuid4()),v_before,v_after,c_before,c_after)
     return ExperimentEvaluationResponse(
         experiment_name=req.name,
-        diff_in_diff_lift=float(res.diff_in_diff_net_clicks),
-        variant_relative_lift_percent=round(float(res.net_relative_lift * 100), 2),
-        is_statistically_significant=res.diff_in_diff_net_clicks > 0,
-        conclusion=f"Causal Diff-in-Diff estimation shows net positive gain of {res.diff_in_diff_net_clicks} clicks relative to control pages."
+        diff_in_diff_lift=res.diff_in_diff_net_clicks,
+        variant_relative_lift_percent=round(res.net_relative_lift*100,2),
+        variant_growth_percent=round(res.variant_growth*100,2),
+        control_growth_percent=round(res.control_growth*100,2),
+        is_statistically_significant=False,
+        conclusion=f"{start}–{end} Search Console verisiyle sayfa başına karşılaştırma hesaplandı. Bu fark istatistiksel anlamlılık veya nedensellik kanıtı değildir; eksik günler ve grup seçimi sonucu etkileyebilir.",
     )

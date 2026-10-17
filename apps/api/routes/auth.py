@@ -1,12 +1,16 @@
 import time
 import uuid
 import secrets
+import hashlib
+import hmac
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import delete
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from packages.shared.database import get_db
-from packages.shared.models import User
+from packages.shared.models import User, PasswordResetChallenge
 from packages.config.settings import settings
 from packages.contracts.auth import (
     UserRegisterRequest, UserLoginRequest, TokenResponse, RefreshTokenRequest, UserResponse,
@@ -15,14 +19,16 @@ from packages.contracts.auth import (
 from services.security.crypto import hash_password, verify_password
 from services.security.jwt_auth import create_access_token, create_refresh_token, decode_token, get_current_user_payload
 from services.security.oauth_verifier import verify_oauth_token
+from services.security.password_mailer import send_password_code
+from services.security.rate_limiter import RateLimiter
+
+password_reset_limiter = RateLimiter(max_requests=20, window_seconds=900, scope="password-reset")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # In-memory tracking of failed login attempts per email with TTL & LRU auto-eviction to prevent memory leaks (DoS defense)
 FAILED_ATTEMPTS: Dict[str, Dict[str, Any]] = {}
-RESET_TOKENS: Dict[str, dict] = {}  # token -> {"email": str, "expires_at": float}
 MAX_FAILED_ATTEMPTS_ENTRIES = 5000
-MAX_RESET_TOKENS_ENTRIES = 5000
 LOCKOUT_THRESHOLD = 5          # failed attempts within LOCKOUT_WINDOW_SECONDS
 LOCKOUT_WINDOW_SECONDS = 900
 
@@ -57,16 +63,6 @@ def _is_locked_out(clean_email: str) -> bool:
     if not rec:
         return False
     return rec.get("count", 0) >= LOCKOUT_THRESHOLD and time.time() - rec.get("updated_at", 0) < LOCKOUT_WINDOW_SECONDS
-
-def _cleanup_expired_tokens():
-    now = time.time()
-    expired = [t for t, data in RESET_TOKENS.items() if now > data.get("expires_at", 0)]
-    for t in expired:
-        RESET_TOKENS.pop(t, None)
-    if len(RESET_TOKENS) > MAX_RESET_TOKENS_ENTRIES:
-        oldest = sorted(RESET_TOKENS.keys(), key=lambda k: RESET_TOKENS[k].get("expires_at", 0))[:1000]
-        for k in oldest:
-            RESET_TOKENS.pop(k, None)
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
@@ -143,54 +139,61 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
         refresh_token=create_refresh_token(token_data)
     )
 
-@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def _reset_code_hash(email: str, code: str) -> str:
+    return hmac.new(settings.APP_SECRET_KEY.encode(), f"{email}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse, dependencies=[Depends(password_reset_limiter)])
 async def forgot_password(req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
-    clean_email = req.email.strip().lower()
-    result = await db.execute(select(User).where(User.email == clean_email))
-    user = result.scalars().first()
-
-    _cleanup_expired_tokens()
-    reset_token = f"rst_{uuid.uuid4().hex[:24]}"
-    # 15 minutes TTL
-    RESET_TOKENS[reset_token] = {
-        "email": clean_email,
-        "expires_at": time.time() + 900
-    }
-    _clear_failed_attempts(clean_email)
-
-    # In production, never return reset token in JSON response (security best practice)
-    is_dev_or_test = settings.ENVIRONMENT.lower() in {"development", "test"}
-    return ForgotPasswordResponse(
-        success=True,
-        message=f"{clean_email} adresine şifre sıfırlama bağlantısı gönderildi.",
-        reset_token=reset_token if is_dev_or_test else None
-    )
-
-@router.post("/reset-password")
-async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
-    if len(req.new_password) > 128:
-        raise HTTPException(status_code=400, detail="Yeni parola maksimum 128 karakter olabilir.")
-
-    _cleanup_expired_tokens()
-    record = RESET_TOKENS.get(req.token)
-    if not record:
-        raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş sıfırlama bağlantısı.")
-
-    if time.time() > record["expires_at"]:
-        RESET_TOKENS.pop(req.token, None)
-        raise HTTPException(status_code=400, detail="Şifre sıfırlama bağlantısının süresi dolmuş (15 dakika). Lütfen tekrar talep edin.")
-
-    email = record["email"]
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
-
-    user.hashed_password = hash_password(req.new_password)
+    if settings.is_production_like and not settings.SMTP_HOST:
+        raise HTTPException(status_code=503, detail="Şifre sıfırlama e-posta servisi henüz yapılandırılmamış.")
+    email = req.email.strip().lower()
+    user = (await db.execute(select(User).where(User.email == email))).scalars().first()
+    token = None
+    now = datetime.now(timezone.utc)
+    await db.execute(delete(PasswordResetChallenge).where(PasswordResetChallenge.expires_at < now))
+    if user:
+        await db.execute(delete(PasswordResetChallenge).where(PasswordResetChallenge.user_id == user.id))
+        token = secrets.token_urlsafe(32)
+        code = f"{secrets.randbelow(1000000):06d}"
+        challenge = PasswordResetChallenge(user_id=user.id, token_hash=hashlib.sha256(token.encode()).hexdigest(), code_hash=_reset_code_hash(email, code), expires_at=now + timedelta(minutes=15))
+        db.add(challenge)
+        if settings.ENVIRONMENT.lower() != "test":
+            try:
+                await send_password_code(email, code)
+            except Exception as exc:
+                await db.rollback()
+                raise HTTPException(status_code=503, detail="Doğrulama e-postası gönderilemedi. Lütfen daha sonra tekrar deneyin.") from exc
     await db.commit()
-    RESET_TOKENS.pop(req.token, None)
-    _clear_failed_attempts(email)
+    return ForgotPasswordResponse(success=True, message="Bu e-posta ile kayıtlı bir hesap varsa doğrulama kodu gönderildi.", reset_token=token if settings.ENVIRONMENT.lower() in {"development", "test"} else None)
 
+
+@router.post("/reset-password", dependencies=[Depends(password_reset_limiter)])
+async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    invalid = HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş sıfırlama kodu.")
+    if req.email:
+        email = req.email.strip().lower()
+        user = (await db.execute(select(User).where(User.email == email))).scalars().first()
+        if not user: raise invalid
+        query = select(PasswordResetChallenge).where(PasswordResetChallenge.user_id == user.id)
+    else:
+        query = select(PasswordResetChallenge).where(PasswordResetChallenge.token_hash == hashlib.sha256(req.token.encode()).hexdigest())
+    challenge = (await db.execute(query.with_for_update())).scalars().first()
+    if not challenge: raise invalid
+    expiry = challenge.expires_at
+    if expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+    if expiry <= datetime.now(timezone.utc) or challenge.attempts >= 5:
+        await db.delete(challenge); await db.commit(); raise invalid
+    user = (await db.execute(select(User).where(User.id == challenge.user_id))).scalars().first()
+    if not user: raise invalid
+    if req.email and not hmac.compare_digest(challenge.code_hash, _reset_code_hash(user.email, req.token.strip())):
+        challenge.attempts += 1
+        await db.commit()
+        raise invalid
+    user.hashed_password = hash_password(req.new_password)
+    await db.delete(challenge)
+    await db.commit()
+    _clear_failed_attempts(user.email)
     return {"success": True, "message": "Şifreniz başarıyla güncellendi. Yeni şifrenizle giriş yapabilirsiniz."}
 
 @router.post("/oauth", response_model=TokenResponse)

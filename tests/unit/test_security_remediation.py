@@ -171,11 +171,13 @@ async def test_safe_network_backend_non_blocking_dns_and_ip_literal():
     assert any(ip in ("127.0.0.1", "::1") for ip in ips)
 
 @pytest.mark.anyio
-async def test_safe_client_redirect_hop_ssrf_blocking():
+async def test_safe_client_redirect_hop_ssrf_blocking(monkeypatch):
     """Vulnerability 4 (Python crawler): Redirect hop to private IP / AWS metadata is blocked immediately."""
     from services.crawler.safe_client import SafeHttpClient
 
     client = SafeHttpClient()
+    # This test exercises redirect validation, independently of public DNS access.
+    monkeypatch.setattr("services.security.ssrf.resolve_domain_ips", lambda hostname: ["93.184.216.34"])
 
     async def mock_fetch_send(*args, **kwargs):
         return Response(302, headers={"Location": "http://169.254.169.254/latest/meta-data/"})

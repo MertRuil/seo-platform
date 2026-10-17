@@ -118,5 +118,5 @@ async def test_full_platform_api_flow():
             "variant_pages": ["https://acmestore.com/shoes", "https://acmestore.com/boots"],
             "control_pages": ["https://acmestore.com/shirts", "https://acmestore.com/pants"]
         }, headers=headers)
-        assert exp_res.status_code == 201
-        assert exp_res.json()["diff_in_diff_lift"] > 0
+        assert exp_res.status_code == 409
+        assert "Search Console" in exp_res.json()["detail"]

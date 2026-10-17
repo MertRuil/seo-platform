@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # App URLs
     API_BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: str = "CALPEO <noreply@calpeo.io>"
 
     @model_validator(mode="after")
     def reject_insecure_production_secrets(self):

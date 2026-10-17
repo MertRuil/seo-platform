@@ -245,12 +245,12 @@ async def main():
         raise SystemExit("[ERROR] --sqlite is not allowed in production/staging; PostgreSQL is the only data source.")
 
     if args.sqlite or "sqlite" in settings.DATABASE_URL:
-        db_url = "sqlite+aiosqlite:///./dev.db"
+        db_url = "sqlite+aiosqlite:///./dev.db" if args.sqlite else settings.DATABASE_URL
         print(f"[DB] Initializing SQLite database at: {db_url}")
         target_engine = create_async_engine(db_url, echo=False)
     else:
         db_url = settings.DATABASE_URL
-        print(f"[DB] Attempting connection to configured database: {db_url}")
+        print("[DB] Connecting to the configured PostgreSQL database")
         target_engine = default_engine
 
     try:

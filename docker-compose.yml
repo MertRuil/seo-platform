@@ -73,7 +73,7 @@ services:
       - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-}
     # Sema ve bilgi tabani her acilista kurulur (idempotent), sonra API baslar.
     command: >-
-      sh -c "python scripts/init_db.py &&
+      sh -c "alembic upgrade head && python scripts/init_db.py &&
              uvicorn apps.api.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"

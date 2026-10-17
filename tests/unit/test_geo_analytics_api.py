@@ -44,6 +44,9 @@ async def test_geo_telemetry_endpoint():
 
         assert "overallVisibility" in data
         assert data["overallVisibility"] > 0
+        # Değerler gerçek AI sorgusuyla ölçülmüyor; istemci bunu bilmeli
+        assert data["is_simulated"] is True
+        assert data["data_source"] == "SIMULATION"
         assert "aiSearchShare" in data
         assert len(data["platforms"]) >= 4
         assert any(p["platform"] == "Perplexity AI" for p in data["platforms"])

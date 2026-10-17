@@ -36,7 +36,12 @@ async def trigger_crawl(
     await db.refresh(crawl_run)
 
     # Enqueue crawl job in background worker
-    await worker_queue.enqueue("crawl", crawl_run_id=crawl_run.id)
+    try:
+        await worker_queue.enqueue("crawl", crawl_run_id=crawl_run.id)
+    except Exception as exc:
+        crawl_run.status = "FAILED"
+        await db.commit()
+        raise HTTPException(status_code=503, detail="Tarama kuyruğuna ulaşılamıyor. Lütfen tekrar deneyin.") from exc
 
     return crawl_run
 
@@ -73,19 +78,3 @@ async def get_crawl_run(
     if not run:
         raise HTTPException(status_code=404, detail="Crawl run not found")
     return run
-
-@router.get("/{crawl_id}/pages", response_model=List[CrawlPageDetailResponse])
-async def list_crawl_pages(
-    org_id: str,
-    site_id: str,
-    crawl_id: str,
-    payload: dict = Depends(get_current_user_payload),
-    db: AsyncSession = Depends(get_db)
-):
-    user_id = payload.get("sub")
-    await verify_site_access(org_id, site_id, user_id, db)
-
-    res = await db.execute(
-        select(CrawlPage).where(CrawlPage.crawl_run_id == crawl_id, CrawlPage.site_id == site_id)
-    )
-    return res.scalars().all()

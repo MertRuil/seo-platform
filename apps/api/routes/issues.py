@@ -12,6 +12,8 @@ from services.seo_engine.engine import SeoRuleEngine
 
 router = APIRouter(prefix="/organizations/{org_id}/sites/{site_id}", tags=["Issues & Health"])
 
+MAX_AFFECTED_URLS = 50
+
 class IssueSummaryResponse(BaseModel):
     rule_id: str
     category: str
@@ -21,6 +23,8 @@ class IssueSummaryResponse(BaseModel):
     recommendation_template: str
     documentation_url: Optional[str] = None
     affected_url_count: int
+    # Kullanıcının sorunu nerede düzelteceğini görebilmesi için etkilenen sayfalar (en fazla 50)
+    affected_urls: List[str] = []
 
 class SiteHealthReportResponse(BaseModel):
     site_id: str
@@ -75,6 +79,14 @@ async def get_crawl_health_and_issues(
     engine = SeoRuleEngine()
     evaluation = engine.evaluate_site(page_contexts)
 
+    # Kural -> etkilenen sayfalar (issues_by_page motorun kendi çıktısı; sıralama deterministik)
+    urls_by_rule: dict = {}
+    for page_url, page_issues in (evaluation.get("issues_by_page") or {}).items():
+        for page_issue in page_issues:
+            bucket = urls_by_rule.setdefault(page_issue.rule_id, [])
+            if page_url not in bucket:
+                bucket.append(page_url)
+
     # Group issues by rule_id
     issues_by_rule = {}
     for issue in evaluation["issues"]:
@@ -100,7 +112,8 @@ async def get_crawl_health_and_issues(
             description=data["description"],
             recommendation_template=data["recommendation_template"],
             documentation_url=data["documentation_url"],
-            affected_url_count=data["count"]
+            affected_url_count=data["count"],
+            affected_urls=sorted(urls_by_rule.get(data["rule_id"], []))[:MAX_AFFECTED_URLS]
         )
         for data in issues_by_rule.values()
     ]

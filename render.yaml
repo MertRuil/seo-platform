@@ -15,15 +15,16 @@ services:
       - key: APP_SECRET_KEY
         generateValue: true
       - key: ENCRYPTION_KEY
-        value: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        sync: false
       - key: INITIAL_ADMIN_EMAIL
-        value: admin@calpeo.io
+        sync: false
       - key: INITIAL_ADMIN_PASSWORD
-        value: CalpeoAdmin2026!
-      # Live Supabase PostgreSQL Connection (Async & Sync)
+        sync: false
       - key: DATABASE_URL
-        value: postgresql+asyncpg://postgres.wlrrdasqofpewvjtfkgs:CINHct6Og9WwuRQVckcF4PqQ@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+        sync: false
       - key: DATABASE_SYNC_URL
-        value: postgresql://postgres.wlrrdasqofpewvjtfkgs:CINHct6Og9WwuRQVckcF4PqQ@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+        sync: false
+      - key: REDIS_URL
+        sync: false
       - key: FRONTEND_URL
-        value: https://seo-platform-web.vercel.app
+        sync: false

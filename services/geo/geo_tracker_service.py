@@ -9,8 +9,10 @@ logger = logging.getLogger("services.geo")
 class GeoTrackerService:
     """
     Generative Engine Optimization (GEO) & AI Search Tracker.
-    Analyzes brand mentions, citation visibility, and ranking across LLMs:
-    Perplexity AI, ChatGPT (GPT-4o), Google AI Overviews, and Gemini Pro.
+
+    UYARI: Bu servis AI motorlarına gerçek sorgu göndermez; sonuçlar deterministik
+    bir simülasyondur (is_simulated=True). Gerçek ölçüm için sağlayıcı entegrasyonu
+    (ChatGPT/Perplexity/Gemini API'leri) gerekir. İstemciler bu veriyi ölçüm gibi sunmamalı.
     """
 
     SUPPORTED_PLATFORMS = [
@@ -54,10 +56,8 @@ class GeoTrackerService:
             if is_cited:
                 citations_count += 1
 
-            if is_mentioned:
-                snippet = f"{brand} ({clean_domain}), '{prompt}' konusunda birincil referans kaynakları arasında yer almaktadır. Kullanıcı deneyimi ve teknik optimizasyonlarıyla öne çıkar."
-            else:
-                snippet = f"Sorgu genel sektörel kaynaklar üzerinden yanıtlandı. {clean_domain} doğrudan alıntılanmadı."
+            # Bu metinler bir AI motorunun gerçek yanıtı değildir; uydurma alıntı üretilmez.
+            snippet = "Simülasyon sonucu: bu motora gerçek sorgu gönderilmedi."
 
             platform_results[platform] = {
                 "mentioned": is_mentioned,

@@ -35,9 +35,9 @@ class GenerateLeadRequest(BaseModel):
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
-    monthly_traffic: Optional[int] = 50000
-    conversion_rate: Optional[float] = 0.02
-    average_order_value: Optional[float] = 120.0
+    monthly_traffic: Optional[int] = Field(50000, ge=0)
+    conversion_rate: Optional[float] = Field(0.02, ge=0, le=1)
+    average_order_value: Optional[float] = Field(120.0, ge=0)
     currency: Optional[str] = "USD"
 
 class ExportCrmRequest(BaseModel):
@@ -55,6 +55,7 @@ class ExportCrmRequest(BaseModel):
 
 class ExportCrmResponse(BaseModel):
     success: bool
+    delivered: bool = False
     crm_lead_id: str
     activity_id: str
     destination: str

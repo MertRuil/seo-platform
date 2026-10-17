@@ -29,33 +29,22 @@ class LeadEngine:
         conversion rates, and average order value.
         """
         # Clamping
-        health_score = max(10, min(100, health_score))
-        monthly_traffic = max(100, monthly_traffic)
-        conversion_rate = max(0.001, min(0.5, conversion_rate))
-        average_order_value = max(1.0, average_order_value)
+        health_score = max(0, min(100, health_score))
+        monthly_traffic = max(0, monthly_traffic)
+        conversion_rate = max(0, min(1, conversion_rate))
+        average_order_value = max(0, average_order_value)
 
         # Loss ratio: unoptimized portion scaled by 50% impact factor
         unoptimized_ratio = (100 - health_score) / 100.0
-        penalty_ratio = max(0.05, min(0.85, unoptimized_ratio * 0.55))
+        penalty_ratio = max(0, min(0.85, unoptimized_ratio * 0.55))
 
         traffic_at_risk = int(monthly_traffic * penalty_ratio)
         conversions_lost = traffic_at_risk * conversion_rate
         monthly_revenue_loss = round(conversions_lost * average_order_value, 2)
         annual_revenue_loss = round(monthly_revenue_loss * 12, 2)
 
-        critical_barriers = [
-            "İndekslenemeyen veya Hatalı Canonical Yapıdaki 18 Sayfa (Bot Tarama Bütçesi Kaybı)",
-            "Core Web Vitals: LCP > 3.8s (Mobil Ziyaretçilerde %34 Hemen Çıkma Artışı)",
-            "AI / GEO Eksikliği: LLM ve ChatGPT Arama Yanıtlarında Sıfır Şema İşaretlemesi",
-            "Kayıp 404 İç Linkler ve Eksik Hreflang Etiketleri",
-        ]
-
-        top_quick_wins = [
-            "1-Tıkla Otonom Düzeltme ile Kritik Canonical ve Meta Hatalarını Onar",
-            "JSON-LD Schema Markup Enjeksiyonu ile AI Arama Görünürlüğünü %40 Artır",
-            "IndexNow Anlık Bildirim ile Yeni Sayfaları 60 Saniyede Dizine Ekle",
-            "Görsel Optimizasyonu ve Edge Caching ile LCP Süresini 1.8s Seviyesine İndir",
-        ]
+        critical_barriers: List[str] = []
+        top_quick_wins: List[str] = []
 
         return FinancialLossMetrics(
             health_score=health_score,
@@ -76,20 +65,11 @@ class LeadEngine:
         target_url: str,
         metrics: FinancialLossMetrics,
     ) -> str:
-        symbol = "$" if metrics.currency == "USD" else ("₺" if metrics.currency == "TRY" else "€")
-        pitch = (
-            f"Sayın Yetkili,\n\n"
-            f"**{company_name}** ({target_url}) web siteniz üzerinde gerçekleştirdiğimiz teknik SEO ve "
-            f"Yapay Zeka Görünürlük (GEO) denetiminde sitenizin genel sağlık skoru **{metrics.health_score}/100** "
-            f"olarak tespit edilmiştir.\n\n"
-            f"Sitenizdeki teknik darboğazlar ve GEO şema eksiklikleri nedeniyle, her ay yaklaşık "
-            f"**{metrics.traffic_at_risk:,}** potansiyel müşteri arama motorları ve AI asistanları tarafından "
-            f"rakiplerinize yönlendirilmektedir. Bu durum işletmenizde tahmini aylık **{symbol}{metrics.monthly_revenue_loss:,.2f}** "
-            f"(yıllık **{symbol}{metrics.annual_revenue_loss:,.2f}**) ciro kaybına yol açmaktadır.\n\n"
-            f"Nexus SEO Platformu'nun Otonom Düzeltme Motoru ve AI Arama Radarı ile bu bariyerler ortalama 14 gün "
-            f"içinde tamamen ortadan kaldırılabilir ve kaybedilen cironun büyük bölümü doğrudan geri kazanılabilir."
+        return (
+            f"{company_name} ({target_url}) için teknik denetim puanı: {metrics.health_score}/100. "
+            f"Kullanıcı varsayımlarıyla aylık {metrics.monthly_revenue_loss} {metrics.currency} "
+            "senaryo tahmini hesaplandı. Bu değer ölçülmüş gelir kaybı veya gelir artışı taahhüdü değildir."
         )
-        return pitch
 
     def create_lead_card(
         self,
@@ -97,15 +77,16 @@ class LeadEngine:
         site_id: Optional[str],
         request: GenerateLeadRequest,
         health_score: int = 68,
+        remember: bool = True,
     ) -> LeadCard:
         company = request.company_name or "Potansiyel Müşteri"
         target_url = request.url or "https://example.com"
         
         metrics = self.calculate_financial_loss(
             health_score=health_score,
-            monthly_traffic=request.monthly_traffic or 50000,
-            conversion_rate=request.conversion_rate or 0.02,
-            average_order_value=request.average_order_value or 120.0,
+            monthly_traffic=request.monthly_traffic if request.monthly_traffic is not None else 50000,
+            conversion_rate=request.conversion_rate if request.conversion_rate is not None else 0.02,
+            average_order_value=request.average_order_value if request.average_order_value is not None else 120.0,
             currency=request.currency or "USD",
         )
 
@@ -127,8 +108,8 @@ class LeadEngine:
             organization_id=organization_id,
             site_id=site_id,
             company_name=company,
-            contact_name=request.contact_name or "Yetkili",
-            contact_email=request.contact_email or "yetkili@firma.com",
+            contact_name=request.contact_name,
+            contact_email=request.contact_email,
             contact_phone=request.contact_phone,
             target_url=target_url,
             metrics=metrics,
@@ -139,9 +120,10 @@ class LeadEngine:
             created_at=now,
         )
 
-        if organization_id not in self._org_leads:
-            self._org_leads[organization_id] = {}
-        self._org_leads[organization_id][lead_id] = lead
+        if remember:
+            if organization_id not in self._org_leads:
+                self._org_leads[organization_id] = {}
+            self._org_leads[organization_id][lead_id] = lead
 
         return lead
 
@@ -181,12 +163,12 @@ class LeadEngine:
                 "website": request.target_url,
                 "status": "new",
                 "pipeline": "Inbound SEO Audit",
-                "deal_value": request.annual_value or 28800.0,
+                "deal_value": request.annual_value if request.annual_value is not None else 0.0,
                 "currency": "USD",
                 "created_at": now,
                 "custom_fields": {
                     "lead_origin": "Autonomous SEO Audit Magnet",
-                    "annual_revenue_loss": request.annual_value or 28800.0,
+                    "annual_revenue_loss": request.annual_value if request.annual_value is not None else 0.0,
                     "target_url": request.target_url,
                     "notes": request.custom_notes or "",
                 },
@@ -200,29 +182,31 @@ class LeadEngine:
             },
         }
 
-        # If webhook URL is provided, try sending HTTP POST (safely with timeout)
+        delivered = False
         if request.webhook_url and request.webhook_url.startswith(("http://", "https://")):
-            try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    await client.post(request.webhook_url, json=crm_payload)
-            except Exception:
-                # Webhook failure shouldn't fail CRM export generation
-                pass
+            from services.security.ssrf import validate_safe_url
+            from services.crawler.safe_client import SSRFSafeAsyncHTTPTransport
+            validate_safe_url(request.webhook_url)
+            async with httpx.AsyncClient(timeout=5.0, transport=SSRFSafeAsyncHTTPTransport(), follow_redirects=False, trust_env=False) as client:
+                response = await client.post(request.webhook_url, json=crm_payload)
+                response.raise_for_status()
+                delivered = True
 
         # Update lead in memory if lead_id was specified
         if request.lead_id and organization_id in self._org_leads:
             if request.lead_id in self._org_leads[organization_id]:
                 target_lead = self._org_leads[organization_id][request.lead_id]
-                target_lead.crm_status = "synced"
-                target_lead.crm_lead_id = crm_lead_id
+                target_lead.crm_status = "synced" if delivered else "exported"
+                target_lead.crm_lead_id = crm_lead_id if delivered else None
 
         return ExportCrmResponse(
             success=True,
-            crm_lead_id=crm_lead_id,
+            delivered=delivered,
+            crm_lead_id=crm_lead_id if delivered else "",
             activity_id=activity_id,
             destination=request.destination_crm or "Sistem CRM",
             synced_payload=crm_payload,
-            message="Lead başarıyla Sistem CRM formatına dönüştürüldü ve entegrasyon kuyruğuna aktarıldı.",
+            message="CRM webhook teslimi doğrulandı." if delivered else "CRM uyumlu JSON dosyası hazırlandı. Dış CRM sistemine gönderim yapılmadı.",
         )
 
 # Global singleton

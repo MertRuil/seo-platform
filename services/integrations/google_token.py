@@ -42,6 +42,8 @@ async def ensure_valid_google_token(cred: OAuthCredential, db: AsyncSession) -> 
     except Exception as e:
         logger.error(f"Failed to decrypt Google access token: {e}")
         return None
+    if settings.is_production_like and is_fixture_token(raw_access):
+        return None
 
     now = datetime.now(timezone.utc)
     expiry = cred.token_expiry
@@ -71,6 +73,8 @@ async def ensure_valid_google_token(cred: OAuthCredential, db: AsyncSession) -> 
 
     # Handle fixture/mock tokens in dev or test
     if is_fixture_token(raw_refresh) or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
+        if settings.is_production_like:
+            return None
         cred.token_expiry = now + timedelta(seconds=3600)
         await db.commit()
         return raw_access

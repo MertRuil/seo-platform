@@ -277,41 +277,10 @@ def _get_or_init_site_backlinks(site_id: str, site_domain: str, primary_url: Opt
         _SITE_BACKLINKS_CACHE[site_id] = links
         return links
 
-    # Customer custom site: Generate clean, domain-tailored backlinks targeting the actual site URL
-    links = [
-        BacklinkItem(
-            id=f"bl-{site_id}-1",
-            source_url="https://google.com/search",
-            source_domain="google.com",
-            target_url=base_url,
-            anchor_text=clean_domain,
-            anchor_category=AnchorCategory.BRAND,
-            is_dofollow=True,
-            domain_authority=98,
-            page_authority=85,
-            spam_score=1,
-            is_toxic=False,
-            toxicity_risk=ToxicityRisk.CLEAN,
-            toxicity_reasons=[],
-            first_seen="2026-03-01",
-        ),
-        BacklinkItem(
-            id=f"bl-{site_id}-2",
-            source_url="https://webdirectory-clean.org/listing",
-            source_domain="webdirectory-clean.org",
-            target_url=base_url,
-            anchor_text=f"{clean_domain} ana sayfa",
-            anchor_category=AnchorCategory.PARTIAL_MATCH,
-            is_dofollow=True,
-            domain_authority=45,
-            page_authority=38,
-            spam_score=4,
-            is_toxic=False,
-            toxicity_risk=ToxicityRisk.CLEAN,
-            toxicity_reasons=[],
-            first_seen="2026-03-10",
-        )
-    ]
+    # Müşteri siteleri boş listeyle başlar: gerçek bir bağlantı kaynağı (GSC bağlantı dışa aktarımı,
+    # backlink veri sağlayıcısı) bağlanana kadar yalnızca kullanıcının eklediği bağlantılar gösterilir.
+    # Önceden her siteye uydurma "google.com DR 98" bağlantısı ekleniyordu.
+    links: List[BacklinkItem] = []
     _SITE_BACKLINKS_CACHE[site_id] = links
     return links
 

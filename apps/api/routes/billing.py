@@ -131,6 +131,16 @@ async def verify_org_billing_access(org_id: str, payload: dict, db: AsyncSession
     return membership
 
 
+def _manual_billing_allowed(payload: dict) -> bool:
+    """
+    Ödeme sağlayıcısını atlayan işlemler (ücretli plana doğrudan geçiş, elle kredi tanımlama)
+    yalnız platform yöneticisine veya yerel/test ortamına açıktır. Üretimde organizasyon sahibi
+    bu uçlarla kendine ücretsiz Pro plan ya da sınırsız kredi tanımlayabiliyordu.
+    """
+    from packages.config.settings import settings
+    return bool(payload.get("is_admin")) or not settings.is_production_like
+
+
 # ==========================================
 # ENDPOINT'LER
 # ==========================================
@@ -202,20 +212,7 @@ async def get_mobile_billing_summary():
     """
     Mobil uygulama ve genel özet için aktif abonelik ve kota durumunu döner.
     """
-    from datetime import datetime, timezone, timedelta
-    now = datetime.now(timezone.utc)
-    return {
-        "plan_name": "GROWTH",
-        "status": "ACTIVE",
-        "crawls_used": 14,
-        "crawls_limit": 30,
-        "pages_used": 18450,
-        "pages_limit": 50000,
-        "ai_tokens_used": 320000,
-        "ai_tokens_limit": 1000000,
-        "renews_at": (now + timedelta(days=16)).isoformat()
-    }
-
+    raise HTTPException(status_code=410, detail="Çalışma alanınızdaki gerçek abonelik için /organizations/{org_id}/billing/subscription adresini kullanın.")
 
 @router.get("/organizations/{org_id}/billing/subscription", response_model=SubscriptionDetailsResponse)
 async def get_subscription_details(
@@ -292,6 +289,13 @@ async def switch_organization_plan(
     if not target_plan:
         raise HTTPException(status_code=404, detail=f"'{req.plan_code}' kodlu plan bulunamadı")
 
+    # Ücretsiz plana dönüş serbest; ücretli plan yalnız ödeme onayıyla (webhook) etkinleşir.
+    if target_plan.code != "free" and not _manual_billing_allowed(payload):
+        raise HTTPException(
+            status_code=402,
+            detail="Ücretli plana geçiş ödeme sayfası üzerinden yapılır. Lütfen 'Plana geç' ile ödeme adımını tamamlayın."
+        )
+
     sub = await EntitlementGuard.get_or_create_subscription(db, org_id)
     sub.plan_id = target_plan.id
     sub.plan = target_plan
@@ -318,6 +322,12 @@ async def grant_ai_credits(
     Organizasyona manuel veya promosyon AI kredisi ekler.
     """
     await verify_org_billing_access(org_id, payload, db, allowed_roles=["OWNER", "ADMIN"])
+
+    if not _manual_billing_allowed(payload):
+        raise HTTPException(
+            status_code=403,
+            detail="AI kredisi yalnızca ödeme onayıyla veya platform yöneticisi tarafından tanımlanabilir."
+        )
 
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Eklenecek kredi miktarı pozitif bir sayı olmalıdır")
@@ -381,7 +391,10 @@ async def get_customer_portal(
     """
     await verify_org_billing_access(org_id, payload, db, allowed_roles=["OWNER", "ADMIN"])
     provider = get_billing_provider("paddle")
-    result = await provider.get_portal_url(db, org_id)
+    try:
+        result = await provider.get_portal_url(db, org_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return CustomerPortalResponse(portal_url=result.portal_url)
 
 
@@ -468,6 +481,15 @@ async def upgrade_mobile_subscription(req: UpgradeSubscriptionRequest):
     """
     Mobil veya web arayüzünden yapılan doğrudan ödeme/plan yükseltme işlemini onaylar ve yeni kotaları döner.
     """
+    # Bu uç ödeme almadan "plan aktif edildi" yanıtı veriyordu. Gerçek ödeme akışı
+    # (checkout + webhook) mobilde yokken üretimde başarı döndürmez.
+    from packages.config.settings import settings
+    if settings.is_production_like:
+        raise HTTPException(
+            status_code=501,
+            detail="Mobil uygulama içi ödeme henüz desteklenmiyor. Planınızı web panelindeki Abonelik sayfasından yükseltebilirsiniz."
+        )
+
     from datetime import datetime, timezone, timedelta
     now = datetime.now(timezone.utc)
     plan_upper = req.plan_name.upper()

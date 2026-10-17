@@ -17,6 +17,8 @@ class GeoPromptItem(BaseModel):
     citation_rank: int
     platform_results: Dict[str, Any]
     top_competitor_cited: Optional[str] = None
+    is_simulated: bool = True
+    data_source: str = "SIMULATION"
 
 class GeoQuickAction(BaseModel):
     title: str
@@ -31,6 +33,9 @@ class GeoDataResponse(BaseModel):
     platforms: List[GeoPlatformScore]
     prompts: List[GeoPromptItem]
     quickActions: List[GeoQuickAction]
+    # Değerler AI motorlarına gerçek sorgu atılarak ölçülmedi; istemciler bunu açıkça göstermeli.
+    is_simulated: bool = True
+    data_source: str = "SIMULATION"
 
 class GeoSimulateRequest(BaseModel):
     prompt: str = Field(min_length=3, max_length=500)

@@ -171,6 +171,14 @@ async def test_oauth_callback_security_checks_user_org_membership():
 
         # Attacker tries to complete OAuth callback
         cb_res = await client.get(f"/api/v1/integrations/google/callback?code=mock_code_attacker&state={malicious_state}")
-        # Must be rejected with 403 Forbidden because attacker does not belong to victim org!
-        assert cb_res.status_code == 403
+        # Unsigned state is rejected before organization lookup.
+        assert cb_res.status_code == 400
+        # Even correctly signed browser-bound state cannot grant membership.
+        from jose import jwt
+        from datetime import datetime, timezone, timedelta
+        from packages.config.settings import settings
+        state = jwt.encode({"sub":attacker_user_id,"org":org1["id"],"site":site1["id"],"purpose":"google_oauth","nonce":"test","exp":datetime.now(timezone.utc)+timedelta(minutes=5)}, settings.APP_SECRET_KEY, algorithm="HS256")
+        client.cookies.set("calpeo_google_state",state)
+        denied = await client.get("/api/v1/integrations/google/callback",params={"code":"mock_code_attacker","state":state})
+        assert denied.status_code == 403
 

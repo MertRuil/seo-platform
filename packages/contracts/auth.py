@@ -35,6 +35,7 @@ class ForgotPasswordResponse(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
+    email: Optional[EmailStr] = None
     new_password: str = Field(..., min_length=8, max_length=128, description="Minimum 8, maksimum 128 karakter")
 
 class OAuthLoginRequest(BaseModel):
