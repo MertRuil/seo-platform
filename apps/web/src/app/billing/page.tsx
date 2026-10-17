@@ -39,7 +39,6 @@ export default function BillingPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
-  const [creditLoading, setCreditLoading] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -63,14 +62,19 @@ export default function BillingPage() {
       if (activeOrgId) {
         // Abonelik ve faturaları paralel çek
         const [subData, invData] = await Promise.all([
-          api.getSubscription(activeOrgId).catch(() => null),
-          api.getInvoices(activeOrgId).catch(() => []),
+          api.getSubscription(activeOrgId),
+          api.getInvoices(activeOrgId),
         ]);
         setSubscription(subData);
         setInvoices(invData || []);
       }
     } catch (err: any) {
-      setError(err?.message || "Faturalama bilgileri yüklenirken bir hata oluştu");
+      const status = err?.status as number | undefined;
+      setError(
+        status === 0 || status === 404 || status === 502 || status === 503
+          ? "Abonelik bilgileri şu anda alınamıyor: faturalama servisine ulaşılamadı. Planınız ve kullanım kotalarınız etkilenmedi; lütfen daha sonra tekrar deneyin."
+          : err?.message || "Faturalama bilgileri yüklenirken bir hata oluştu"
+      );
     } finally {
       setLoading(false);
     }
@@ -85,32 +89,31 @@ export default function BillingPage() {
     loadData(newOrgId);
   };
 
-  // Plan yükseltme / Checkout başlatma
+  // Plan yükseltme: ücretli plan yalnız ödeme sayfası (checkout) ile etkinleşir.
+  // Ücretsiz plana dönüş ödeme gerektirmediği için doğrudan yapılır.
   const handleSelectPlan = async (planCode: string) => {
     if (!selectedOrgId) return;
     if (subscription?.plan_code.toLowerCase() === planCode.toLowerCase()) return;
 
     setCheckoutLoadingPlan(planCode);
     setActionSuccess(null);
+    setError(null);
     try {
+      if (planCode.toLowerCase() === "free") {
+        await api.switchPlan(selectedOrgId, planCode);
+        setActionSuccess("Planınız Ücretsiz plana geçirildi.");
+        await loadData(selectedOrgId);
+        return;
+      }
       const checkout = await api.createCheckoutSession(selectedOrgId, {
         plan_code: planCode,
         interval: billingInterval,
         return_url: window.location.href,
       });
-
-      if (checkout?.checkout_url) {
-        window.location.href = checkout.checkout_url;
-      }
+      if (!checkout?.checkout_url) throw new Error("Ödeme sayfası adresi alınamadı.");
+      window.location.href = checkout.checkout_url;
     } catch (err: any) {
-      // Sandbox/Test fallback: doğrudan plan geçişi dene
-      try {
-        await api.switchPlan(selectedOrgId, planCode);
-        setActionSuccess(`Planınız başarıyla ${planCode.toUpperCase()} olarak güncellendi!`);
-        await loadData(selectedOrgId);
-      } catch (switchErr: any) {
-        setError(err?.message || "Ödeme oturumu başlatılamadı");
-      }
+      setError(`Ödeme sayfası açılamadı: ${err?.message || "bilinmeyen hata"}. Planınız değiştirilmedi.`);
     } finally {
       setCheckoutLoadingPlan(null);
     }
@@ -126,22 +129,6 @@ export default function BillingPage() {
       }
     } catch (err: any) {
       setError("Müşteri portalı açılamadı: " + (err?.message || "Bilinmeyen hata"));
-    }
-  };
-
-  // Ek AI Kredisi Ekleme
-  const handleGrantCredits = async (amount: number) => {
-    if (!selectedOrgId) return;
-    setCreditLoading(true);
-    setActionSuccess(null);
-    try {
-      const res = await api.grantAiCredits(selectedOrgId, amount, "MANUAL_PURCHASE");
-      setActionSuccess(`Hesabınıza +${amount} AI kredisi başarıyla tanımlandı!`);
-      await loadData(selectedOrgId);
-    } catch (err: any) {
-      setError("Kredi yüklenirken hata: " + (err?.message || ""));
-    } finally {
-      setCreditLoading(false);
     }
   };
 
@@ -178,7 +165,7 @@ export default function BillingPage() {
             <select
               value={selectedOrgId}
               onChange={(e) => handleOrgChange(e.target.value)}
-              className="bg-surface-2 border border-line text-ink text-xs rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-accent"
+              className="bg-surface-2 border border-line text-ink text-xs rounded-sm px-2.5 py-1.5 focus:outline-none focus:border-accent"
             >
               {organizations.map((org) => (
                 <option key={org.id} value={org.id}>
@@ -225,7 +212,7 @@ export default function BillingPage() {
 
       {/* 1. MEVCUT ABONELİK DURUM KARTI */}
       {subscription && (
-        <div className="bg-surface border border-line rounded-md p-6 relative overflow-hidden shadow-xs">
+        <div className="bg-surface border border-line rounded-md p-6 relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-5">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-md bg-accent-soft text-accent-ink flex items-center justify-center font-bold text-lg shrink-0">
@@ -272,7 +259,7 @@ export default function BillingPage() {
                 <button
                   type="button"
                   onClick={() => setUpgradeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent-fill text-accent-on hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Pro'ya Yükselt</span>
@@ -301,14 +288,6 @@ export default function BillingPage() {
                   <span className="flex items-center gap-1.5 font-medium">
                     <Coins className="w-3.5 h-3.5 text-accent" /> AI Kredi Bakiyesi
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleGrantCredits(100)}
-                    disabled={creditLoading}
-                    className="text-2xs text-accent hover:underline font-semibold cursor-pointer disabled:opacity-50"
-                  >
-                    +100 Ekle
-                  </button>
                 </div>
                 <div className="text-xl font-bold font-mono text-ink">
                   {subscription.ai_credit_balance.toLocaleString("tr-TR")}
@@ -364,7 +343,7 @@ export default function BillingPage() {
               className={cn(
                 "px-3 py-1 text-xs font-medium rounded-sm transition-colors cursor-pointer",
                 billingInterval === "month"
-                  ? "bg-surface text-ink shadow-xs"
+                  ? "bg-surface text-ink"
                   : "text-muted hover:text-ink"
               )}
             >
@@ -376,12 +355,12 @@ export default function BillingPage() {
               className={cn(
                 "px-3 py-1 text-xs font-medium rounded-sm transition-colors flex items-center gap-1.5 cursor-pointer",
                 billingInterval === "year"
-                  ? "bg-surface text-ink shadow-xs"
+                  ? "bg-surface text-ink"
                   : "text-muted hover:text-ink"
               )}
             >
               <span>Yıllık Fatura</span>
-              <span className="bg-accent-soft text-accent-ink text-2xs px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-accent-soft text-accent-ink text-2xs px-1.5 py-0.5 rounded-full font-bold">
                 %20 Tasarruf
               </span>
             </button>
@@ -389,6 +368,9 @@ export default function BillingPage() {
         </div>
 
         {/* Plan Kartları Grid */}
+        {plans.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted border border-dashed border-line rounded-sm">Plan listesi şu anda gösterilemiyor.</div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.code.toLowerCase();
@@ -408,7 +390,7 @@ export default function BillingPage() {
                 )}
               >
                 {isPro && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-ink text-2xs font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent-fill text-accent-on text-2xs font-bold uppercase tracking-wider px-3 py-0.5 rounded-full">
                     En Popüler
                   </div>
                 )}
@@ -517,9 +499,9 @@ export default function BillingPage() {
                       onClick={() => handleSelectPlan(plan.code)}
                       disabled={checkoutLoadingPlan === plan.code}
                       className={cn(
-                        "w-full py-2 px-3 text-xs font-semibold rounded-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50",
+                        "w-full py-2 px-3 text-xs font-semibold rounded-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50",
                         isPro
-                          ? "bg-accent text-accent-ink hover:bg-accent-hover"
+                          ? "bg-accent-fill text-accent-on hover:bg-accent-hover"
                           : "bg-surface-2 text-ink hover:bg-surface border border-line"
                       )}
                     >
@@ -543,66 +525,15 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* 3. EK KREDİ PAKETLERİ (ADDONS) */}
-      <div className="bg-surface border border-line rounded-md p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+      {/* 3. EK KREDİ: ek paket satışı için ödeme altyapısı henüz yok; kredi plan ile gelir */}
+      <div className="bg-surface border border-line rounded-md p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <Coins className="w-4 h-4 text-accent mt-0.5 shrink-0" aria-hidden />
           <div>
-            <h3 className="text-base font-bold text-ink flex items-center gap-2">
-              <Coins className="w-4 h-4 text-accent" /> Ek AI Kredisi Yükle
-            </h3>
+            <h3 className="text-sm font-semibold text-ink">Daha fazla AI kredisi mi gerekiyor?</h3>
             <p className="text-xs text-muted mt-0.5">
-              Planınızı değiştirmeden anlık büyük denetimler veya otonom aksiyonlar için kredi satın alın.
+              Ayrı kredi paketleri henüz satışta değil. AI kredisi her ay planınızla birlikte yenilenir; daha yüksek kota için planınızı yükseltebilirsiniz.
             </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-surface-2 border border-line rounded-sm flex items-center justify-between">
-            <div>
-              <div className="text-sm font-bold text-ink">+100 AI Kredisi</div>
-              <div className="text-xs text-muted">Hızlı denetimler için</div>
-              <div className="text-base font-mono font-bold text-ink mt-1">$15</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleGrantCredits(100)}
-              disabled={creditLoading}
-              className="px-3 py-1.5 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Yükle
-            </button>
-          </div>
-
-          <div className="p-4 bg-surface-2 border border-line rounded-sm flex items-center justify-between">
-            <div>
-              <div className="text-sm font-bold text-ink">+500 AI Kredisi</div>
-              <div className="text-xs text-muted">Büyük siteler ve toplu patch'ler için</div>
-              <div className="text-base font-mono font-bold text-ink mt-1">$50</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleGrantCredits(500)}
-              disabled={creditLoading}
-              className="px-3 py-1.5 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Yükle
-            </button>
-          </div>
-
-          <div className="p-4 bg-surface-2 border border-line rounded-sm flex items-center justify-between">
-            <div>
-              <div className="text-sm font-bold text-ink">+2.000 AI Kredisi</div>
-              <div className="text-xs text-muted">Ajans ve kurumsal yoğun kullanım</div>
-              <div className="text-base font-mono font-bold text-ink mt-1">$150</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleGrantCredits(2000)}
-              disabled={creditLoading}
-              className="px-3 py-1.5 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer disabled:opacity-50"
-            >
-              Yükle
-            </button>
           </div>
         </div>
       </div>
@@ -743,7 +674,7 @@ function UsageMetricCard({
             <Icon className="w-3.5 h-3.5 text-accent" /> {title}
           </span>
           {locked ? (
-            <span className="text-2xs font-semibold px-1.5 py-0.2 bg-surface text-muted rounded-sm border border-line">
+            <span className="text-2xs font-semibold px-1.5 py-0.5 bg-surface text-muted rounded-sm border border-line">
               Kilitli
             </span>
           ) : (

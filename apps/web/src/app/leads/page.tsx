@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Users,
-  DollarSign,
   TrendingDown,
   Sparkles,
   Send,
@@ -11,8 +10,6 @@ import {
   Copy,
   FileText,
   AlertTriangle,
-  ArrowRight,
-  ShieldCheck,
   Globe,
   RefreshCw,
   Briefcase,
@@ -22,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Notice } from "@/components/ui/States";
 import { Panel } from "@/components/ui/Panel";
 import { MetricStrip } from "@/components/ui/MetricStrip";
 import { Badge } from "@/components/ui/Badge";
@@ -39,6 +37,7 @@ import {
 export default function LeadsCrmPage() {
   const { site } = useSite();
 
+  const [error, setError] = useState<string | null>(null);
   const [leads, setLeads] = useState<LeadCardResponse[]>([]);
   const [selectedLead, setSelectedLead] = useState<LeadCardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,46 +59,66 @@ export default function LeadsCrmPage() {
   // Auto-fill from active site if empty
   useEffect(() => {
     if (site) {
-      if (!companyName) setCompanyName(site.name || site.domain || "Hedef Müşteri");
-      if (!targetUrl) setTargetUrl(site.primary_url || `https://${site.domain}`);
-      if (!contactEmail && site.domain) setContactEmail(`pazarlama@${site.domain}`);
+      setCompanyName(site.name || site.domain || "Hedef Müşteri");
+      setTargetUrl(site.primary_url || `https://${site.domain}`);
+      setContactEmail("");
+      setContactName("");
+      setContactPhone("");
+      setLastExportResult(null);
     }
   }, [site?.id, site?.name, site?.domain, site?.primary_url]);
 
-  // Load leads from backend
-  const loadLeads = async () => {
+  const activeSite = `${site?.organization_id || ""}/${site?.id || ""}`;
+  const activeSiteRef = useRef(activeSite);
+  useEffect(() => { activeSiteRef.current = activeSite; }, [activeSite]);
+  const loadVersion = useRef(0);
+
+  // Ignore responses for a site that is no longer selected.
+  const loadLeads = useCallback(async () => {
+    const version = ++loadVersion.current;
+    const requestSite = activeSite;
+    const current = () => version === loadVersion.current && requestSite === activeSiteRef.current;
+    setLeads([]);
+    setSelectedLead(null);
     if (!site?.organization_id || !site?.id) return;
     setIsLoading(true);
+    setError(null);
+    setLeads([]);
+    setSelectedLead(null);
     try {
       const data = await api.getSiteLeads(site.organization_id, site.id);
+      if (!current()) return;
       setLeads(data);
-      if (data.length > 0 && !selectedLead) {
+      if (data.length > 0) {
         setSelectedLead(data[0]);
       }
     } catch (err) {
-      console.error("Failed to load CRM leads:", err);
+      if (current()) setError(err instanceof Error ? err.message : "Müşteri kayıtları yüklenemedi");
     } finally {
-      setIsLoading(false);
+      if (current()) setIsLoading(false);
     }
-  };
+  }, [activeSite, site]);
 
   useEffect(() => {
-    loadLeads();
-  }, [site?.organization_id, site?.id]);
+    void loadLeads();
+    return () => { loadVersion.current += 1; };
+  }, [loadLeads]);
 
   // Handle Calculate & Generate Lead
   const handleGenerateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!site?.organization_id || !site?.id) return;
 
+    const requestSite = activeSite;
     setIsCalculating(true);
+    setError(null);
     setLastExportResult(null);
     try {
       const payload: GenerateLeadPayload = {
         company_name: companyName.trim() || site.name || "Hedef Müşteri",
         url: targetUrl.trim() || site.primary_url || `https://${site.domain}`,
-        contact_name: contactName.trim() || "Firma Yetkilisi",
-        contact_email: contactEmail.trim() || `info@${site.domain}`,
+        contact_name: contactName.trim() || undefined,
+        contact_email: contactEmail.trim() || undefined,
         contact_phone: contactPhone.trim() || undefined,
         monthly_traffic: Number(monthlyTraffic),
         average_order_value: Number(aov),
@@ -108,10 +127,11 @@ export default function LeadsCrmPage() {
       };
 
       const newLead = await api.generateLead(site.organization_id, site.id, payload);
+      if (requestSite !== activeSiteRef.current) return;
       setLeads((prev) => [newLead, ...prev]);
       setSelectedLead(newLead);
     } catch (err) {
-      console.error("Failed to generate lead:", err);
+      if (requestSite === activeSiteRef.current) setError(err instanceof Error ? err.message : "Denetim tamamlanamadı");
     } finally {
       setIsCalculating(false);
     }
@@ -122,13 +142,15 @@ export default function LeadsCrmPage() {
     const lead = leadToExport || selectedLead;
     if (!lead || !site?.organization_id || !site?.id) return;
 
+    const requestSite = activeSite;
     setIsExporting(true);
+    setError(null);
     try {
       const exportPayload: ExportCrmPayload = {
         lead_id: lead.id,
         company_name: lead.company_name,
-        contact_name: lead.contact_name || "Yetkili",
-        contact_email: lead.contact_email || `info@${site.domain}`,
+        contact_name: lead.contact_name || "",
+        contact_email: lead.contact_email || "",
         contact_phone: lead.contact_phone || undefined,
         target_url: lead.target_url,
         annual_value: lead.metrics.annual_revenue_loss,
@@ -138,36 +160,44 @@ export default function LeadsCrmPage() {
       };
 
       const res = await api.exportLeadToCrm(site.organization_id, site.id, exportPayload);
+      if (requestSite !== activeSiteRef.current) return;
       setLastExportResult(res);
+      if (!res.delivered) {
+        const file = new Blob([JSON.stringify(res.synced_payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a"); link.href = url; link.download = "crm-export.json"; link.click(); URL.revokeObjectURL(url);
+      }
 
       // Update lead in local state
       setLeads((prev) =>
         prev.map((item) =>
           item.id === lead.id
-            ? { ...item, crm_status: "synced", crm_lead_id: res.crm_lead_id }
+            ? { ...item, crm_status: res.delivered ? "synced" : "exported", crm_lead_id: res.crm_lead_id }
             : item
         )
       );
       if (selectedLead?.id === lead.id) {
         setSelectedLead({
           ...selectedLead,
-          crm_status: "synced",
+          crm_status: res.delivered ? "synced" : "exported",
           crm_lead_id: res.crm_lead_id,
         });
       }
     } catch (err) {
-      console.error("Export to Sistem CRM failed:", err);
+      if (requestSite === activeSiteRef.current) setError(err instanceof Error ? err.message : "CRM dışa aktarımı tamamlanamadı");
     } finally {
       setIsExporting(false);
     }
   };
 
   // Handle Copy Pitch
-  const handleCopyPitch = () => {
+  const handleCopyPitch = async () => {
     if (!selectedLead?.proposal_pitch) return;
-    navigator.clipboard.writeText(selectedLead.proposal_pitch);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(selectedLead.proposal_pitch);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
+    } catch { setError("Pano izni alınamadı. Metni seçerek kopyalayabilirsiniz."); }
   };
 
   // Aggregate metrics
@@ -177,9 +207,11 @@ export default function LeadsCrmPage() {
 
   return (
     <div className="space-y-6">
+      {error && <Notice tone="error">{error}</Notice>}
+      <Notice tone="info">Gelir tutarları girilen varsayımlarla hesaplanan senaryolardır. Ölçülmüş kayıp veya kazanç taahhüdü değildir. Denetim yalnızca hedef ana sayfayı kapsar.</Notice>
       <PageHeader
         title="Müşteri & CRM Köprüsü"
-        description="10-Saniyede SEO Denetimi, Finansal Gelir Kaybı Hesaplayıcı ve Sistem CRM Fırsat Aktarımı."
+        description="Ana sayfa denetimi, varsayımlı gelir senaryosu ve CRM için JSON dışa aktarımı."
         actions={
           <div className="flex items-center gap-3">
             <Button
@@ -191,9 +223,9 @@ export default function LeadsCrmPage() {
             >
               Yenile
             </Button>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-evidence/10 border border-evidence/20 text-xs font-semibold text-evidence">
               <Zap className="w-3.5 h-3.5" />
-              Sistem CRM Entegrasyonu Aktif
+              CRM uyumlu JSON dışa aktarımı
             </div>
           </div>
         }
@@ -203,26 +235,26 @@ export default function LeadsCrmPage() {
       <MetricStrip
         items={[
           {
-            label: "Toplam Kayıp Ciro Fırsatı",
+            label: "Yıllık gelir senaryosu",
             value: `$${totalPipelineLoss.toLocaleString()}`,
-            trend: { text: "+%18 Çeyreklik", direction: "up" },
+            hint: "Kullanıcı varsayımlarıyla hesaplandı",
             tone: "critical",
           },
           {
-            label: "Tehlikedeki Aylık Trafik",
+            label: "Aylık trafik senaryosu",
             value: totalTrafficAtRisk.toLocaleString(),
-            hint: "Organik kullanıcı kaybı",
+            hint: "Ölçülmüş trafik kaybı değildir",
           },
           {
-            label: "Sistem CRM'e Aktarılan Leadler",
+            label: "CRM'e teslim edilen kayıtlar",
             value: `${syncedCount} / ${leads.length}`,
-            hint: "Dönüştürülen fırsatlar",
+            hint: "Webhook teslimi doğrulananlar",
             tone: "evidence",
           },
           {
-            label: "Kurtarma & ROI Potansiyeli",
-            value: "%85",
-            trend: { text: "14 Günlük Hedef", direction: "up" },
+            label: "Kaydedilen müşteri adayları",
+            value: String(leads.length),
+            hint: "Seçili siteye ait kayıtlar",
           },
         ]}
       />
@@ -232,7 +264,7 @@ export default function LeadsCrmPage() {
         {/* Left Column: Instant Audit & Loss Calculator */}
         <div className="lg:col-span-6 space-y-6">
           <Panel
-            title="10-Saniyede Müşteri Denetimi & Gelir Kaybı Hesaplayıcı"
+            title="Ana sayfa denetimi ve gelir senaryosu"
             actions={<Badge tone="accent">Lead Magnet Motoru</Badge>}
           >
             <form onSubmit={handleGenerateLead} className="space-y-4 pt-2">
@@ -326,7 +358,7 @@ export default function LeadsCrmPage() {
                       step="10"
                       value={aov}
                       onChange={(e) => setAov(Number(e.target.value))}
-                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-evidence"
                     />
                   </div>
                   <div>
@@ -341,7 +373,7 @@ export default function LeadsCrmPage() {
                       step="0.1"
                       value={cvr}
                       onChange={(e) => setCvr(Number(e.target.value))}
-                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-warn"
                     />
                   </div>
                 </div>
@@ -355,7 +387,7 @@ export default function LeadsCrmPage() {
                   className="w-full gap-2 font-semibold py-2.5"
                   icon={<Sparkles className={`w-4 h-4 ${isCalculating ? "animate-spin" : ""}`} />}
                 >
-                  {isCalculating ? "Denetim ve Kayıp Hesaplanıyor..." : "🎯 Finansal Kaybı Hesapla & Lead Kartı Oluştur"}
+                  {isCalculating ? "Denetim ve senaryo hesaplanıyor…" : "Denetle ve müşteri kartı oluştur"}
                 </Button>
               </div>
             </form>
@@ -377,9 +409,9 @@ export default function LeadsCrmPage() {
             >
               <div className="space-y-4 pt-1">
                 {/* Financial Loss Callout Banner */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-rose-500/10 via-amber-500/5 to-transparent border border-rose-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="p-4 rounded-lg bg-gradient-to-br from-critical/10 via-warn/5 to-transparent border border-critical/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs uppercase tracking-wider font-semibold text-rose-400 flex items-center gap-1.5">
+                    <div className="text-xs uppercase tracking-wider font-semibold text-critical flex items-center gap-1.5">
                       <TrendingDown className="w-4 h-4" /> Yıllık Tahmini Gelir Kaybı
                     </div>
                     <div className="text-3xl font-extrabold text-ink mt-1">
@@ -394,7 +426,7 @@ export default function LeadsCrmPage() {
                   </div>
                   <div className="text-center sm:text-right px-4 py-2 rounded-lg bg-surface border border-line">
                     <div className="text-xs text-muted">Sağlık Skoru</div>
-                    <div className="text-2xl font-bold text-amber-500">{selectedLead.metrics.health_score}/100</div>
+                    <div className="text-2xl font-bold text-warn">{selectedLead.metrics.health_score}/100</div>
                     <div className="text-[11px] text-muted">Kritik Risk</div>
                   </div>
                 </div>
@@ -402,12 +434,12 @@ export default function LeadsCrmPage() {
                 {/* Top Critical Barriers */}
                 <div>
                   <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Tespit Edilen Kritik Teknik ve GEO Bariyerleri
+                    <AlertTriangle className="w-3.5 h-3.5 text-warn" /> Tespit Edilen Kritik Teknik ve GEO Bariyerleri
                   </h4>
                   <div className="space-y-1.5">
                     {selectedLead.metrics.critical_barriers.map((barrier, idx) => (
                       <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-surface-2 text-xs text-ink">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-critical mt-1.5 shrink-0" />
                         <span>{barrier}</span>
                       </div>
                     ))}
@@ -425,7 +457,7 @@ export default function LeadsCrmPage() {
                       size="sm"
                       onClick={handleCopyPitch}
                       className="h-7 text-xs text-accent"
-                      icon={isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      icon={isCopied ? <Check className="w-3.5 h-3.5 text-evidence" /> : <Copy className="w-3.5 h-3.5" />}
                     >
                       {isCopied ? "Kopyalandı!" : "Metni Kopyala"}
                     </Button>
@@ -437,10 +469,10 @@ export default function LeadsCrmPage() {
 
                 {/* Export Feedback Banner */}
                 {lastExportResult && (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-500 flex items-center justify-between">
+                  <div className="p-3 rounded-lg bg-evidence/10 border border-evidence/30 text-xs text-evidence flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Check className="w-4 h-4 shrink-0" />
-                      <span>{lastExportResult.message} (CRM Lead ID: <b>{lastExportResult.crm_lead_id}</b>)</span>
+                      <span>{lastExportResult.message} {lastExportResult.crm_lead_id && <> (CRM Lead ID: <b>{lastExportResult.crm_lead_id}</b>)</>}</span>
                     </div>
                   </div>
                 )}
@@ -454,7 +486,7 @@ export default function LeadsCrmPage() {
                     className="flex-1 gap-2 font-medium py-2"
                     icon={<Send className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} />}
                   >
-                    {isExporting ? "Sistem CRM'e Aktarılıyor..." : "⚡ Sistem CRM'e Aktar"}
+                    {isExporting ? "Dosya hazırlanıyor..." : "CRM dosyasını hazırla"}
                   </Button>
                   <Button
                     variant="secondary"
@@ -469,7 +501,7 @@ export default function LeadsCrmPage() {
           ) : (
             <Panel title="Finansal Etki & Teklif Kartı">
               <div className="p-12 text-center text-muted text-sm">
-                Sol taraftaki hesaplayıcıyı kullanarak veya aşağıdaki listeden bir müşteri seçerek finansal kayıp ve teklif kartını görüntüleyin.
+                Sol taraftaki hesaplayıcıyı kullanarak veya aşağıdaki listeden bir müşteri seçerek gelir senaryosunu ve teklif kartını görüntüleyin.
               </div>
             </Panel>
           )}
@@ -488,7 +520,7 @@ export default function LeadsCrmPage() {
                 <th className="py-3 px-4">Şirket / Domain</th>
                 <th className="py-3 px-4">İletişim Kişisi</th>
                 <th className="py-3 px-4">Aylık Trafik</th>
-                <th className="py-3 px-4">Yıllık Kayıp Değer</th>
+                <th className="py-3 px-4">Yıllık senaryo tutarı</th>
                 <th className="py-3 px-4">Önerilen Hizmet</th>
                 <th className="py-3 px-4">CRM Durumu</th>
                 <th className="py-3 px-4 text-right">İşlemler</th>
@@ -523,7 +555,7 @@ export default function LeadsCrmPage() {
                       {lead.metrics.monthly_traffic.toLocaleString()} / ay
                     </td>
                     <td className="py-3 px-4">
-                      <span className="font-bold text-rose-500">
+                      <span className="font-bold text-critical">
                         ${lead.metrics.annual_revenue_loss.toLocaleString()}
                       </span>
                     </td>
@@ -534,11 +566,11 @@ export default function LeadsCrmPage() {
                     </td>
                     <td className="py-3 px-4">
                       {lead.crm_status === "synced" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-evidence font-medium">
                           <Check className="w-3 h-3" /> Sistem CRM'de
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-500 font-medium">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-warn font-medium">
                           Taslak
                         </span>
                       )}

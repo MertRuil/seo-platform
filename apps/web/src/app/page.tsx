@@ -1,553 +1,549 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Search, ArrowUpRight, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Zap, Users, Activity, HelpCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  AlertTriangle,
+  OctagonAlert,
+  Loader2,
+  Globe,
+  Search,
+  Sparkles,
+  KeyRound,
+  ShieldCheck,
+  History,
+  RefreshCw,
+  Users,
+} from "lucide-react";
 import { useDensity } from "@/context/DensityContext";
 import { useSite } from "@/context/SiteContext";
 import { useSiteData } from "@/hooks/useSiteData";
-import { useQueue } from "@/hooks/useQueue";
-import { api } from "@/lib/api";
-import { DEMO_DASHBOARD, type DashboardData } from "@/lib/demo";
+import { useIssues } from "@/hooks/useIssues";
+import { useAiReadiness } from "@/hooks/useAiReadiness";
+import { api, type CrawlRunResponse } from "@/lib/api";
+import { DEMO_DASHBOARD, type IssueItem } from "@/lib/demo";
 import { gscToPerformance, gscToWeeklySeries } from "@/lib/mappers";
+import { issueGuide } from "@/lib/issueGuide";
 import { formatCompact, formatNumber, formatPercent, formatRelative } from "@/lib/format";
-import { Panel, Inset } from "@/components/ui/Panel";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Badge, BetaBadge, severityStripeClass } from "@/components/ui/Badge";
+import { Panel } from "@/components/ui/Panel";
+import { Button, LinkButton } from "@/components/ui/Button";
+import { Input, Label } from "@/components/ui/Input";
+import { SeverityBadge } from "@/components/ui/Badge";
 import { DemoBanner } from "@/components/ui/DemoBanner";
-import { TrendChart, ChartLegend } from "@/components/ui/TrendChart";
+import { TrendChart } from "@/components/ui/TrendChart";
 import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
 
 interface Overview {
-  series: DashboardData["series"];
-  markers: DashboardData["markers"];
-  googleScore: number;
-  aiScore?: number;
-  visibilityDelta: number;
-  health: DashboardData["health"];
-  search: DashboardData["search"];
-  impact: DashboardData["impact"];
+  score: number;
+  pages: number;
+  finishedAt: string | null;
+  prev: { score: number; rules: string[]; titles: Record<string, string> } | null;
+  rules: string[];
+  gsc: { connected: boolean; clicks: number; impressions: number; ctr: number; position: number; labels: string[]; values: number[] };
 }
 
 const DEMO_OVERVIEW: Overview = {
-  series: DEMO_DASHBOARD.series,
-  markers: DEMO_DASHBOARD.markers,
-  googleScore: DEMO_DASHBOARD.googleScore,
-  aiScore: DEMO_DASHBOARD.aiScore,
-  visibilityDelta: DEMO_DASHBOARD.visibilityDelta,
-  health: DEMO_DASHBOARD.health,
-  search: DEMO_DASHBOARD.search,
-  impact: DEMO_DASHBOARD.impact,
+  score: DEMO_DASHBOARD.health.score,
+  pages: DEMO_DASHBOARD.health.pages,
+  finishedAt: null,
+  prev: { score: DEMO_DASHBOARD.health.score - 6, rules: ["ISSUE-01", "ISSUE-02", "ISSUE-05"], titles: { "ISSUE-05": "Eksik hreflang dönüş bağlantısı" } },
+  rules: ["ISSUE-01", "ISSUE-02", "ISSUE-03", "ISSUE-04"],
+  gsc: { connected: true, clicks: DEMO_DASHBOARD.search.clicks, impressions: 0, ctr: DEMO_DASHBOARD.search.ctr, position: DEMO_DASHBOARD.search.position, labels: DEMO_DASHBOARD.series.labels, values: DEMO_DASHBOARD.series.google },
 };
 
-export default function GenelGorunumPage() {
-  const { density, setDensity } = useDensity();
-  const { site, crawl, period } = useSite();
-  const queue = useQueue();
+const isCompleted = (c: CrawlRunResponse) => c.status === "COMPLETED" || c.status === "COMPLETED_WITH_ERRORS";
 
-  // Canlı: sağlık raporu + GSC haftalık tıklama serisi. AI kolu ölçüm gelene kadar yalnızca örnek veride (Beta).
+function healthLabel(score: number) {
+  if (score >= 80) return { text: "İyi", Icon: CheckCircle2, cls: "text-evidence" };
+  if (score >= 50) return { text: "Orta", Icon: AlertTriangle, cls: "text-warn" };
+  return { text: "Zayıf", Icon: OctagonAlert, cls: "text-critical" };
+}
+
+/* ---------- İlk kurulum: site yokken ---------- */
+function FirstRun() {
+  const { addSite, siteImport, dismissSiteImport } = useSite();
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await addSite(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Site eklenemedi.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (siteImport?.state === "running") {
+    return (
+      <Panel>
+        <div className="flex items-start gap-3 p-1">
+          <Loader2 className="w-5 h-5 text-accent animate-spin shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <h1 className="text-lg font-semibold text-ink">{siteImport.url.replace(/^https?:\/\//, "")} ekleniyor ve taranıyor</h1>
+            <p className="text-sm text-muted mt-1">Sayfalar, başlıklar, meta açıklamalar, canonical ve robots ayarları kontrol ediliyor. Bu genellikle bir iki dakika sürer; bu sayfada kalabilirsiniz.</p>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel>
+      <div className="max-w-2xl space-y-4 p-1">
+        <div>
+          <h1 className="text-xl font-semibold text-ink">Sitenizi ekleyin, ilk analiz birkaç dakikada hazır olsun</h1>
+          <p className="text-sm text-muted mt-1">Yalnızca site adresi gerekiyor. Anahtar kelime, rakip veya entegrasyon eklemeniz gerekmez; bunları sonra ekleyebilirsiniz.</p>
+        </div>
+        {siteImport?.state === "error" && (
+          <Notice tone="error" onClose={dismissSiteImport}>
+            {siteImport.url} eklenemedi: {siteImport.message}
+          </Notice>
+        )}
+        {error && <Notice tone="error">{error}</Notice>}
+        <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2">
+          <Label htmlFor="first-site-url">
+            <span className="sr-only">Site adresi</span>
+          </Label>
+          <Input id="first-site-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="siteniz.com" inputMode="url" autoComplete="url" icon={<Globe className="w-4 h-4" />} />
+          <Button type="submit" loading={busy} icon={<ArrowRight className="w-4 h-4" aria-hidden />} className="shrink-0">
+            {busy ? "Taranıyor…" : "Ekle ve tara"}
+          </Button>
+        </form>
+        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted">
+          <li className="p-3 rounded-sm border border-line">
+            <span className="block font-semibold text-ink">1. Tarama</span>Sitenizin sayfaları taranır ve teknik sorunlar bulunur.
+          </li>
+          <li className="p-3 rounded-sm border border-line">
+            <span className="block font-semibold text-ink">2. Öncelikler</span>Sorunlar önem ve etkilediği sayfa sayısına göre sıralanır.
+          </li>
+          <li className="p-3 rounded-sm border border-line">
+            <span className="block font-semibold text-ink">3. Düzeltme</span>Her sorun için nerede olduğu ve nasıl düzeltileceği gösterilir.
+          </li>
+        </ol>
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------- İlk tarama bekleniyor ---------- */
+function CrawlPending() {
+  const { org, site, crawls, refresh } = useSite();
+  const latest = [...crawls].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  const [retrying, setRetrying] = useState(false);
+
+  // Arka uçta tarama kuyrukta çalışır: tamamlanınca pano kendiliğinden canlı veriye geçer.
+  useEffect(() => {
+    if (!org || !site || latest?.status === "FAILED") return;
+    let cancelled = false;
+    const t = setInterval(async () => {
+      const list = await api.listCrawls(org.id, site.id).catch(() => [] as CrawlRunResponse[]);
+      if (cancelled) return;
+      const newest = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      if (list.some(isCompleted) || newest?.status === "FAILED") {
+        clearInterval(t);
+        refresh({ siteId: site.id });
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [org, site, refresh, latest?.status]);
+
+  const failed = latest?.status === "FAILED";
+  const retry = async () => {
+    if (!org || !site) return;
+    setRetrying(true);
+    try {
+      await api.triggerCrawl(org.id, site.id);
+      await refresh({ siteId: site.id });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  return (
+    <Panel>
+      <div className="flex items-start gap-3 p-1">
+        {failed ? <OctagonAlert className="w-5 h-5 text-critical shrink-0 mt-0.5" aria-hidden /> : <Loader2 className="w-5 h-5 text-accent animate-spin shrink-0 mt-0.5" aria-hidden />}
+        <div className="space-y-2">
+          <h1 className="text-lg font-semibold text-ink">{failed ? "İlk tarama tamamlanamadı" : latest ? "İlk tarama sürüyor" : "Henüz tarama başlatılmadı"}</h1>
+          <p className="text-sm text-muted">
+            {failed
+              ? "Siteye ulaşılamamış olabilir. Adresin doğru ve herkese açık olduğunu kontrol edip yeniden deneyin."
+              : latest
+                ? `${site?.domain} taranıyor${latest.total_urls_crawled ? ` (${latest.total_urls_crawled} sayfa)` : ""}. Tamamlandığında bu sayfa kendiliğinden güncellenir.`
+                : "Sonuçları görmek için ilk taramayı başlatın."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(failed || !latest) && (
+              <Button size="sm" loading={retrying} onClick={retry} icon={<RefreshCw className="w-3.5 h-3.5" aria-hidden />}>
+                {failed ? "Yeniden dene" : "Taramayı başlat"}
+              </Button>
+            )}
+            <LinkButton href="/crawls" size="sm">
+              Tarama ayrıntıları
+            </LinkButton>
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------- Pano gövdesi ---------- */
+interface Priority {
+  key: string;
+  title: string;
+  detail: string;
+  href: string;
+  cta: string;
+  issue?: IssueItem;
+}
+
+function Kpi({ label, value, sub, source, href, children }: { label: string; value: React.ReactNode; sub?: React.ReactNode; source: string; href: string; children?: React.ReactNode }) {
+  return (
+    <Link href={href} className="block bg-surface border border-line rounded-md px-4 py-4 hover:bg-surface-2 hover:border-line-strong transition-colors min-w-0">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="text-2xl font-semibold text-ink mt-1 tabular-nums">{value}</div>
+      {sub && <div className="text-xs text-muted mt-1">{sub}</div>}
+      {children}
+      <div className="text-2xs text-faint mt-2">Kaynak: {source}</div>
+    </Link>
+  );
+}
+
+function DashboardBody({ o, issues, isDemo }: { o: Overview; issues: ReturnType<typeof useIssues>; isDemo: boolean }) {
+  const { density } = useDensity();
+  const { site, crawl, period } = useSite();
+  const ai = useAiReadiness(isDemo ? null : site?.primary_url);
+  const hl = healthLabel(o.score);
+  const top = issues.data[0];
+
+  // Öncelikler: acil sorunlar → AI erişim engeli → Search Console kurulumu (en fazla 3)
+  const priorities: Priority[] = [];
+  issues.data
+    .filter((i) => i.severity === "CRITICAL")
+    .slice(0, 2)
+    .forEach((i) => priorities.push({ key: i.id, title: i.title, detail: `${i.affected ?? 0} sayfada. ${issueGuide(i.category, i.ruleId).why}`, href: "/issues", cta: "Sayfaları gör", issue: i }));
+  if (ai.blocked.length > 0)
+    priorities.push({ key: "ai", title: `${ai.blocked.length} AI yanıt motoru sitenizi okuyamıyor`, detail: `${ai.blocked.map((b) => b.token).join(", ")} robots.txt ile engelli. İçeriğiniz bu motorların yanıtlarında kaynak olamaz.`, href: "/geo", cta: "Nasıl açılır" });
+  issues.data
+    .filter((i) => i.severity === "HIGH")
+    .forEach((i) => priorities.push({ key: i.id, title: i.title, detail: `${i.affected ?? 0} sayfada. ${issueGuide(i.category, i.ruleId).why}`, href: "/issues", cta: "Sayfaları gör", issue: i }));
+  if (!o.gsc.connected) priorities.push({ key: "gsc", title: "Search Console'u bağlayın", detail: "Hangi aramalardan tıklama aldığınızı ve sıralamanızı görmek için gerekir. Bağlamak birkaç dakika sürer.", href: "/integrations", cta: "Bağla" });
+  const shown = priorities.slice(0, 3);
+
+  const headline =
+    issues.urgent > 0 && top
+      ? `${issues.urgent} acil sorun var. En önemlisi: ${top.title.toLocaleLowerCase("tr-TR")} (${top.affected ?? 0} sayfa).`
+      : ai.blocked.length > 0
+        ? `Acil teknik sorun yok, ancak ${ai.blocked.length} AI yanıt motoru sitenizi okuyamıyor.`
+        : issues.data.length > 0
+          ? `Acil sorun yok. Kalan ${issues.data.length} bulgu iyileştirme fırsatı.`
+          : "Son taramada sorun bulunmadı.";
+
+  const resolved = o.prev ? o.prev.rules.filter((r) => !o.rules.includes(r)) : [];
+  const added = o.prev ? o.rules.filter((r) => !o.prev!.rules.includes(r)) : [];
+  const titleFor = (rule: string) => issues.data.find((i) => i.ruleId === rule || i.id === rule)?.title ?? o.prev?.titles[rule] ?? rule;
+
+  return (
+    <div className="space-y-5">
+      {/* 1. Durum */}
+      <section className="bg-surface border border-line rounded-md p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div className="min-w-0 space-y-2">
+          <div className="text-xs text-muted">
+            {site ? site.domain : "Örnek site"} · {crawl ? `son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : "örnek veri"}
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-ink text-balance">{headline}</h1>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <LinkButton href="/issues" variant="primary" icon={<ArrowRight className="w-4 h-4" aria-hidden />}>
+              {issues.urgent > 0 ? "Acil sorunlara bak" : "Tüm bulgular"}
+            </LinkButton>
+            <LinkButton href="/crawls" icon={<RefreshCw className="w-4 h-4" aria-hidden />}>
+              Yeniden tara
+            </LinkButton>
+          </div>
+        </div>
+        <div className="shrink-0 text-center px-6 py-4 rounded-md border border-line bg-surface-2">
+          <div className="text-2xs uppercase tracking-wider text-muted font-semibold">Teknik sağlık</div>
+          <div className="text-4xl font-semibold text-ink tabular-nums mt-1">
+            {o.score}
+            <span className="text-sm text-muted font-normal">/100</span>
+          </div>
+          <div className={cn("inline-flex items-center gap-1 text-sm font-semibold mt-1", hl.cls)}>
+            <hl.Icon className="w-4 h-4" aria-hidden />
+            {hl.text}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Göstergeler: her birinin kaynağı yazılı */}
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3" aria-label="Özet göstergeler">
+        <Kpi label="Acil sorunlar" value={issues.urgent} sub={`${issues.critical} kritik · ${issues.high} yüksek`} source="son tarama" href="/issues" />
+        <Kpi label="Taranan sayfa" value={formatNumber(o.pages)} sub={o.finishedAt ? formatRelative(o.finishedAt) : "son tarama"} source="son tarama" href="/pages" />
+        {o.gsc.connected ? (
+          <Kpi label="Google tıklamaları" value={formatCompact(o.gsc.clicks)} sub={`ort. sıra ${formatNumber(o.gsc.position, 1)} · TO ${formatPercent(o.gsc.ctr, 1)}`} source={`Search Console · ${period} gün`} href="/performance" />
+        ) : (
+          <Kpi label="Google tıklamaları" value={<span className="text-base text-muted font-medium">Bağlı değil</span>} sub="Search Console'u bağlayın" source="Search Console" href="/integrations" />
+        )}
+        {isDemo ? (
+          <Kpi label="AI yanıt motorları" value="6/7" sub="erişebiliyor" source="robots.txt denetimi" href="/geo" />
+        ) : ai.isLoading ? (
+          <Kpi label="AI yanıt motorları" value={<Loader2 className="w-5 h-5 animate-spin text-muted" aria-label="Denetleniyor" />} source="robots.txt denetimi" href="/geo" />
+        ) : ai.isError ? (
+          <Kpi label="AI yanıt motorları" value={<span className="text-base text-muted font-medium">Denetlenemedi</span>} source="robots.txt denetimi" href="/geo" />
+        ) : (
+          <Kpi
+            label="AI yanıt motorları"
+            value={ai.access.unknown.length === ai.access.total ? "Bilinmiyor" : `${ai.access.accessible}/${ai.access.total}`}
+            sub={ai.access.summary}
+            source="robots.txt denetimi"
+            href="/geo"
+          />
+        )}
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* 3. Öncelikler */}
+        <Panel className="lg:col-span-7" title="Önce bunları yapın" sub="Önem ve etkilenen sayfa sayısına göre, en fazla üç iş.">
+          {issues.loading ? (
+            <SkeletonRows rows={4} />
+          ) : shown.length === 0 ? (
+            <EmptyState icon={<CheckCircle2 className="w-8 h-8 text-evidence" />} title="Acil iş yok" description="Kalan bulgular Sorunlar ekranında önem sırasıyla listelenir." />
+          ) : (
+            <ol className="space-y-2">
+              {shown.map((p, idx) => (
+                <li key={p.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-sm border border-line">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="w-6 h-6 rounded-full bg-surface-2 border border-line text-xs font-semibold text-ink flex items-center justify-center shrink-0" aria-hidden>
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {p.issue && <SeverityBadge severity={p.issue.severity} />}
+                        <span className="text-sm font-semibold text-ink">{p.title}</span>
+                      </div>
+                      <p className="text-xs text-muted mt-0.5">{p.detail}</p>
+                    </div>
+                  </div>
+                  <LinkButton href={p.href} size="sm" className="shrink-0 self-start sm:self-center">
+                    {p.cta}
+                  </LinkButton>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Panel>
+
+        {/* 4. Ne değişti */}
+        <Panel className="lg:col-span-5" title="Ne değişti?" sub="Son iki taramanın karşılaştırması">
+          {o.prev ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-ink">
+                Sağlık puanı {o.prev.score} → <strong>{o.score}</strong>
+                <span className={cn("ml-1 font-semibold", o.score - o.prev.score > 0 ? "text-evidence" : o.score - o.prev.score < 0 ? "text-critical" : "text-muted")}>
+                  ({o.score - o.prev.score > 0 ? "+" : ""}
+                  {o.score - o.prev.score})
+                </span>
+              </p>
+              <div>
+                <div className="text-xs font-semibold text-evidence flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden /> {resolved.length} sorun türü çözüldü
+                </div>
+                <ul className="text-xs text-muted list-disc pl-5 mt-1">
+                  {resolved.slice(0, 3).map((r) => (
+                    <li key={r}>{titleFor(r)}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className={cn("text-xs font-semibold flex items-center gap-1", added.length ? "text-critical" : "text-muted")}>
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden /> {added.length} yeni sorun türü
+                </div>
+                <ul className="text-xs text-muted list-disc pl-5 mt-1">
+                  {added.slice(0, 3).map((r) => (
+                    <li key={r}>{titleFor(r)}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon={<History className="w-7 h-7" />} title="Bu ilk tarama" description="Bir sonraki taramadan sonra neyin düzeldiğini ve neyin yeni çıktığını burada görürsünüz." className="py-6" />
+          )}
+        </Panel>
+      </section>
+
+      {/* 5. Diğer alanlar */}
+      <nav aria-label="Diğer alanlar" className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[
+          { href: "/keywords", label: "Anahtar kelimeler", Icon: KeyRound },
+          { href: "/geo", label: "AI görünürlüğü", Icon: Sparkles },
+          { href: "/competitors", label: "Rakiplerle karşılaştır", Icon: Users },
+          { href: "/changes", label: "Değişiklik taslakları", Icon: ShieldCheck },
+        ].map(({ href, label, Icon }) => (
+          <Link key={href} href={href} className="flex items-center gap-2 px-3 py-3 rounded-sm border border-line bg-surface text-sm font-medium text-ink hover:bg-surface-2 min-h-[44px]">
+            <Icon className="w-4 h-4 text-muted shrink-0" aria-hidden />
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      {density === "expert" && <ExpertDetails o={o} />}
+    </div>
+  );
+}
+
+function ExpertDetails({ o }: { o: Overview }) {
+  const { period } = useSite();
+  const [auditUrl, setAuditUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ url: string; score: number | null; issues: Array<{ title: string; severity: string }> } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const audit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auditUrl.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const url = /^https?:\/\//.test(auditUrl) ? auditUrl : `https://${auditUrl}`;
+      const res = await fetch("/api/v1/audit/quick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Denetim yapılamadı.");
+      setResult({ url, score: typeof data.health_score === "number" ? data.health_score : null, issues: data.issues ?? [] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Denetim yapılamadı.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+      <Panel className="xl:col-span-8" title="Google tıklamaları" sub={`Search Console · haftalık · son ${period} gün`}>
+        {o.gsc.connected && o.gsc.values.length > 1 ? (
+          <TrendChart labels={o.gsc.labels} series={[{ name: "Tıklama", values: o.gsc.values, tone: "accent" }]} height={220} ariaLabel="Haftalık Google tıklamaları" format={(n) => formatCompact(n)} />
+        ) : (
+          <EmptyState
+            title="Henüz eğri yok"
+            description="Search Console bağlandığında ve en az iki haftalık veri biriktiğinde eğri burada oluşur."
+            action={<LinkButton href="/integrations" size="sm">Search Console'u bağla</LinkButton>}
+          />
+        )}
+      </Panel>
+      <Panel className="xl:col-span-4" title="Tek sayfa denetimi" sub="Herhangi bir adresi hızlıca kontrol edin">
+        <form onSubmit={audit} className="flex gap-2">
+          <label htmlFor="expert-audit" className="sr-only">
+            Denetlenecek adres
+          </label>
+          <Input id="expert-audit" value={auditUrl} onChange={(e) => setAuditUrl(e.target.value)} placeholder="ornek.com/sayfa" icon={<Search className="w-4 h-4" />} />
+          <Button type="submit" loading={busy} className="shrink-0">
+            Denetle
+          </Button>
+        </form>
+        {error && (
+          <Notice tone="error" className="mt-2">
+            {error}
+          </Notice>
+        )}
+        {result && (
+          <div className="mt-3 text-xs space-y-2" aria-live="polite">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-ink truncate">{result.url.replace(/^https?:\/\//, "")}</span>
+              {result.score !== null && <span className="font-mono font-semibold">{result.score}/100</span>}
+            </div>
+            <ul className="space-y-1">
+              {result.issues.slice(0, 5).map((i, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <SeverityBadge severity={i.severity} />
+                  <span className="text-ink">{i.title}</span>
+                </li>
+              ))}
+              {result.issues.length === 0 && <li className="text-muted">Sorun bulunmadı.</li>}
+            </ul>
+          </div>
+        )}
+      </Panel>
+    </section>
+  );
+}
+
+export default function GenelGorunumPage() {
+  const { status, source, reason, site, crawl, crawls, siteImport } = useSite();
+  const issues = useIssues();
+
   const overview = useSiteData<Overview>(
     "overview",
-    async ({ org, site: s, crawl: c }) => {
-      const [health, gsc] = await Promise.all([api.getCrawlHealth(org.id, s.id, c!.id), api.getGscMetrics(org.id, s.id).catch(() => [])]);
-      const weekly = gscToWeeklySeries(gsc);
+    async ({ org, site: s, crawl: c, period }) => {
+      const done = crawls.filter(isCompleted).sort((a, b) => (b.finished_at ?? b.created_at).localeCompare(a.finished_at ?? a.created_at));
+      const prevCrawl = done.find((x) => x.id !== c!.id);
+      const [health, gsc, prev] = await Promise.all([
+        api.getCrawlHealth(org.id, s.id, c!.id),
+        api.getGscMetrics(org.id, s.id, period).catch(() => []),
+        prevCrawl ? api.getCrawlHealth(org.id, s.id, prevCrawl.id).catch(() => null) : Promise.resolve(null),
+      ]);
       const perf = gscToPerformance(gsc);
-      const critical = health.issues.filter((i) => i.severity === "CRITICAL" || i.severity === "HIGH").length;
-      const first = weekly.values[0] ?? 0;
-      const last = weekly.values[weekly.values.length - 1] ?? 0;
+      const weekly = gscToWeeklySeries(gsc);
       return {
-        series: { labels: weekly.labels, google: weekly.values },
-        markers: [],
-        googleScore: health.health_score,
-        visibilityDelta: first > 0 ? ((last - first) / first) * 100 : 0,
-        health: { score: health.health_score, pages: health.total_pages_evaluated, critical, delta: 0 },
-        search: { clicks: perf.clicks, ctr: perf.ctr, position: perf.position },
-        impact: { lift: 0, confidence: 0, experiments: 0 },
+        score: health.health_score,
+        pages: health.total_pages_evaluated,
+        finishedAt: c!.finished_at ?? null,
+        rules: health.issues.map((i) => i.rule_id),
+        prev: prev ? { score: prev.health_score, rules: prev.issues.map((i) => i.rule_id), titles: Object.fromEntries(prev.issues.map((i) => [i.rule_id, i.title])) } : null,
+        gsc: { connected: gsc.length > 0, clicks: perf.clicks, impressions: perf.impressions, ctr: perf.ctr, position: perf.position, labels: weekly.labels, values: weekly.values },
       };
     },
     DEMO_OVERVIEW
   );
 
-  const d = overview.data;
-  const isDemo = overview.source === "demo";
-  const topQueue = queue.data.slice(0, 4);
-  const criticalCount = queue.critical;
-  const trendUp = d.visibilityDelta >= 0;
-  const hasSeries = d.series.google.length > 1;
+  if (status === "loading") {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <Panel>
+          <SkeletonRows rows={6} />
+        </Panel>
+      </div>
+    );
+  }
 
-  // Hızlı denetim
-  const [auditUrl, setAuditUrl] = useState("");
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [auditResult, setAuditResult] = useState<{ score: number; url: string; total: number; critical: number } | null>(null);
-  const [auditError, setAuditError] = useState<string | null>(null);
-
-  const handleQuickAudit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auditUrl.trim()) return;
-    setIsAuditing(true);
-    setAuditError(null);
-    setAuditResult(null);
-    try {
-      const formatted = /^https?:\/\//.test(auditUrl) ? auditUrl : `https://${auditUrl}`;
-      const res = await fetch("/api/v1/audit/quick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: formatted }) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Denetim gerçekleştirilemedi.");
-      const issues = (data.issues || []) as Array<{ severity: string }>;
-      setAuditResult({ score: data.overall_score ?? data.health_score ?? 0, url: data.metadata?.url || formatted, total: issues.length, critical: issues.filter((i) => i.severity === "CRITICAL").length });
-    } catch (err) {
-      setAuditError(err instanceof Error ? err.message : "Analiz sırasında bir hata oluştu.");
-    } finally {
-      setIsAuditing(false);
-    }
-  };
-
-  const headline = useMemo(() => {
-    const first = trendUp ? "Görünürlük artıyor" : "Görünürlük geriliyor";
-    const second = criticalCount > 0 ? `${criticalCount} kritik iş karar bekliyor.` : "karar bekleyen kritik iş yok.";
-    return { first, second };
-  }, [trendUp, criticalCount]);
-
-  const chartSeries = [
-    { name: "Google", values: d.series.google, tone: "accent" as const },
-    ...(d.series.ai ? [{ name: "AI atıf (beta)", values: d.series.ai, tone: "evidence" as const, dashed: true }] : []),
-  ];
+  const noSite = !site && (reason === "no-site" || reason === "no-org" || reason === "unauthorized");
+  const pendingCrawl = Boolean(site) && !crawl && reason === "no-crawl";
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
-      <DemoBanner source={overview.source} reason={overview.reason} error={overview.error} />
-
-      {density === "summary" ? (
-        /* ================= SADE & BAŞLANGIÇ MODU ================= */
-        <div className="space-y-6 animate-fade-in">
-          {/* 1. Üst Durum Kartı (Hero Banner) */}
-          <div className="relative overflow-hidden rounded-xl border border-line bg-gradient-to-br from-surface via-surface to-surface-2 p-6 sm:p-8 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-evidence/15 text-evidence-ink">
-                    🌱 Sade Mod · {site ? site.name : "Siteniz"}
-                  </span>
-                  <span className="text-2xs text-muted">Son {period} gün</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-ink">
-                  {d.health.score >= 80 ? "Sitenizin Durumu Harika! 🎉" : "Sitenizde Büyüme Fırsatları Var 🚀"}
-                </h1>
-                <p className="text-sm text-muted leading-relaxed">
-                  Google aramalarında bulunabilirliğiniz güçlü. Yapay zekamız, arama sonuçlarında daha çok kişiye ulaşmanız için sitenizde hemen uygulayabileceğiniz {topQueue.length} kritik fırsat belirledi.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="text-center p-4 rounded-xl bg-surface border border-line shadow-sm min-w-[120px]">
-                  <div className="text-2xs uppercase tracking-wider text-muted font-bold">Sağlık Puanı</div>
-                  <div className="text-3xl font-bold text-evidence mt-1">
-                    {d.health.score} <span className="text-xs text-muted font-normal">/ 100</span>
-                  </div>
-                  <div className="text-2xs text-muted mt-0.5">{d.health.critical > 0 ? `${d.health.critical} acil işlem` : "Kusursuz"}</div>
-                </div>
-
-                <Link
-                  href="/changes"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-accent hover:bg-accent-strong text-accent-contrast font-semibold text-sm shadow-sm transition-colors"
-                >
-                  <Zap className="w-4 h-4" />
-                  <span>Önerileri Uygula</span>
-                </Link>
-              </div>
-            </div>
+      {noSite || siteImport?.state === "running" ? (
+        <>
+          <FirstRun />
+          <div className="pt-2 space-y-3">
+            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">Örnek pano</h2>
+            <DemoBanner source="demo" reason="no-site" />
+            <DashboardBody o={DEMO_OVERVIEW} issues={issues} isDemo />
           </div>
-
-          {/* 2. Üç Sade Anahtar Gösterge */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between text-xs text-muted mb-2">
-                  <span>Google Ziyaretçileri</span>
-                  <Users className="w-4 h-4 text-accent" />
-                </div>
-                <div className="text-2xl font-bold text-ink">
-                  {formatCompact(d.search.clicks)} <span className="text-xs font-normal text-muted">kişi</span>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
-                <span>Son {period} günde Google'dan</span>
-                <span className={trendUp ? "text-evidence font-semibold" : "text-critical font-semibold"}>
-                  {trendUp ? "+" : ""}
-                  {formatNumber(d.visibilityDelta, 1)}%
-                </span>
-              </div>
-            </div>
-
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between text-xs text-muted mb-2">
-                  <span>İncelenen Sayfa</span>
-                  <Activity className="w-4 h-4 text-evidence" />
-                </div>
-                <div className="text-2xl font-bold text-ink">
-                  {formatNumber(d.health.pages)} <span className="text-xs font-normal text-muted">sayfa</span>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
-                <span>Teknik engel</span>
-                <span className={d.health.critical > 0 ? "text-critical font-semibold" : "text-evidence font-semibold"}>
-                  {d.health.critical > 0 ? `${d.health.critical} kritik sorun` : "Sıfır kritik hata"}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between text-xs text-muted mb-2">
-                  <span>Yapay Zeka Hazırlığı</span>
-                  <Sparkles className="w-4 h-4 text-warn" />
-                </div>
-                <div className="text-2xl font-bold text-ink">
-                  {topQueue.length} <span className="text-xs font-normal text-muted">hazır görev</span>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
-                <span>Otomasyon durumu</span>
-                <span className="text-accent font-semibold">1-tıkla onay bekliyor</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Yapay Zeka Öncelikli Yapılacaklar (1-Tıkla Aksiyon Listesi) */}
-          <div className="rounded-xl border border-line bg-surface p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-bold text-ink flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-accent" />
-                  <span>Sitenizi Büyütecek Öncelikli Görevler</span>
-                </h2>
-                <p className="text-xs text-muted mt-0.5">
-                  Karmaşık kodlarla uğraşmanıza gerek yok. Aşağıdaki görevleri tek tıkla sitenize uygulayabilirsiniz:
-                </p>
-              </div>
-              <Link href="/opportunities" className="text-xs font-semibold text-accent-ink hover:underline">
-                Tümünü Gör ({queue.pending}) →
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {topQueue.length === 0 ? (
-                <div className="text-center py-8 text-muted text-sm">
-                  Tebrikler! Şu an için yapılması gereken acil bir işlem bulunmuyor.
-                </div>
-              ) : (
-                topQueue.map((q, idx) => (
-                  <div
-                    key={q.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border border-line bg-surface-2/50 hover:bg-surface-2 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-accent/10 text-accent flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-ink">{q.title}</div>
-                        <p className="text-xs text-muted mt-0.5">
-                          {q.impact ? `Beklenen fayda: ${q.impact} artış` : "Arama sonuçlarında üst sıralara taşır"} · {q.source}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Link
-                      href={q.href}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-accent hover:bg-accent-strong text-accent-contrast text-xs font-semibold shrink-0 transition-colors"
-                    >
-                      <span>{q.actionLabel || "Hemen Uygula"}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* 4. Sade Trafik Özeti Grafiği */}
-          <Panel
-            title="Google Ziyaretçi Akışı"
-            sub="Son dönemde sitenize Google aramalarından gelen kullanıcı sayısı"
-            actions={
-              <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                {trendUp ? "Artış Eğiliminde" : "Düşüş Eğiliminde"}
-              </Badge>
-            }
-          >
-            {hasSeries ? (
-              <div className="py-2">
-                <TrendChart
-                  labels={d.series.labels}
-                  series={[{ name: "Google Ziyaretçileri", values: d.series.google, tone: "accent" as const }]}
-                  markers={[]}
-                  height={180}
-                  ariaLabel="Ziyaretçi akışı"
-                  format={(n) => formatCompact(n)}
-                />
-              </div>
-            ) : (
-              <EmptyState title="Veri Bekleniyor" description="Search Console verileri biriktikçe ziyaretçi grafiğiniz burada oluşur." />
-            )}
-          </Panel>
-
-          {/* 5. Uzman Moduna Geçiş Çubuğu */}
-          <div className="p-4 rounded-xl border border-line bg-surface-2/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-surface border border-line flex items-center justify-center text-lg">
-                ⚡
-              </div>
-              <div className="text-left">
-                <div className="text-xs font-bold text-ink">Daha detaylı teknik analizler mi arıyorsunuz?</div>
-                <div className="text-2xs text-muted">
-                  TTFB hızları, şema işaretlemeleri, yapay zeka model kırılımları ve tarama logları için dilediğiniz an Uzman Modu'na geçebilirsiniz.
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setDensity("expert")}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface border border-line hover:border-line-strong text-ink text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm"
-            >
-              <span>⚡ Uzman Modunu Aç</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        </>
+      ) : pendingCrawl ? (
+        <CrawlPending />
       ) : (
-        /* ================= UZMAN & AJANS MODU ================= */
-        <div className="space-y-5 animate-fade-in">
-          {/* Uzman Modu Bildirim Şeridi */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-accent/20 bg-accent/5 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-accent">⚡ Uzman Modu Aktif</span>
-              <span className="text-muted hidden sm:inline">· Tüm teknik telemetri, model kırılımları ve denetim araçları devrede.</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDensity("summary")}
-              className="text-xs font-semibold text-accent-ink hover:underline cursor-pointer"
-            >
-              🌱 Sade Moda Geç
-            </button>
-          </div>
-
-          {/* Sayfa başlığı: durum cümlesi + hızlı denetim */}
-          <section className="flex flex-col xl:flex-row xl:items-end justify-between gap-5 border-b border-line pb-5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 font-mono text-2xs uppercase tracking-wider text-muted">
-                <span className="calpeo-mark" aria-hidden />
-                <span className="truncate">
-                  Genel görünüm · {site ? site.name : "Acme Türkiye"} · son {period} gün
-                </span>
-              </div>
-              <h1 className="font-editorial text-3xl sm:text-4xl font-normal tracking-tight text-ink leading-[1.1] mt-2 text-balance">
-                {headline.first}, <span className={criticalCount > 0 ? "text-critical" : "text-evidence"}>{headline.second}</span>
-              </h1>
-              <p className="text-sm text-muted mt-2">
-                Google organik {d.series.ai ? "+ AI yanıt motorları (beta)" : ""} · {crawl ? `son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : "son tarama 12 Eyl 14:00 (örnek)"} ·{" "}
-                {formatNumber(d.health.pages)} URL
-              </p>
-            </div>
-
-            <form onSubmit={handleQuickAudit} className="w-full xl:w-[420px] shrink-0" aria-label="Hızlı URL denetimi">
-              <div className="flex gap-2">
-                <Input icon={<Search className="w-4 h-4" />} type="text" value={auditUrl} onChange={(e) => setAuditUrl(e.target.value)} placeholder="Herhangi bir URL'yi hızlı denetle" aria-label="Denetlenecek URL" />
-                <Button type="submit" loading={isAuditing} className="shrink-0">
-                  Denetle
-                </Button>
-              </div>
-              {auditError && (
-                <Notice tone="error" className="mt-2">
-                  {auditError}
-                </Notice>
-              )}
-              {auditResult && (
-                <div className="mt-2 flex items-center justify-between gap-3 p-3 bg-surface border border-line rounded-sm text-xs">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-ink truncate">{auditResult.url}</span>
-                      <Badge tone="evidence" mono>
-                        Skor {auditResult.score}/100
-                      </Badge>
-                    </div>
-                    <p className="text-muted mt-0.5">
-                      {auditResult.total} tespit, {auditResult.critical} kritik.
-                    </p>
-                  </div>
-                  <Link href="/crawls" className="text-accent-ink font-semibold hover:underline inline-flex items-center gap-1 shrink-0">
-                    Detay <ChevronRight className="w-3.5 h-3.5" aria-hidden />
-                  </Link>
-                </div>
-              )}
-            </form>
-          </section>
-
-          {/* Çalışma alanı: görünürlük eğrisi + karar kuyruğu */}
-          <section className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-            <Panel
-              className="xl:col-span-8"
-              title="Görünürlük"
-              sub={d.series.ai ? "Google organik ve AI atıf, tek eğri ve kırılım · dağıtımlar işaretli" : "Google organik tıklamalar (GSC) · dağıtımlar işaretli"}
-              actions={
-                <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                  {trendUp ? "+" : ""}
-                  {formatNumber(d.visibilityDelta, 1)} % · {period} gün
-                </Badge>
-              }
-            >
-              {overview.loading ? (
-                <SkeletonRows rows={5} />
-              ) : hasSeries ? (
-                <>
-                  <TrendChart labels={d.series.labels} series={chartSeries} markers={d.markers.map((m) => ({ ...m, windowPoints: 2 }))} height={230} ariaLabel="Görünürlük zaman serisi" format={(n) => formatCompact(n)} />
-                  <ChartLegend
-                    items={[
-                      { label: `Google · ${d.googleScore}`, tone: "accent" },
-                      ...(d.series.ai
-                        ? [
-                            {
-                              label: (
-                                <span className="inline-flex items-center gap-1.5">
-                                  AI atıf · {d.aiScore ?? "—"} <BetaBadge />
-                                </span>
-                              ),
-                              tone: "evidence" as const,
-                              dashed: true,
-                            },
-                          ]
-                        : []),
-                      { label: "Dağıtım işareti · etki penceresi", tone: "warn" },
-                    ]}
-                  />
-                </>
-              ) : (
-                <EmptyState
-                  title="Henüz zaman serisi yok"
-                  description="Google Search Console bağlandığında ve en az iki haftalık veri biriktiğinde eğri burada oluşur."
-                  action={
-                    <Link href="/integrations" className="text-sm font-semibold text-accent-ink hover:underline">
-                      Search Console'u bağla →
-                    </Link>
-                  }
-                />
-              )}
+        <>
+          <DemoBanner source={overview.source} reason={overview.reason} error={overview.error} />
+          {overview.loading ? (
+            <Panel>
+              <SkeletonRows rows={6} />
             </Panel>
-
-            <Panel className="xl:col-span-4" title="Bu hafta karar bekleyen" sub="Etki · güven · kanıt" actions={<Badge tone="neutral" mono>{topQueue.length} / {queue.pending}</Badge>}>
-              {queue.loading ? (
-                <SkeletonRows rows={4} />
-              ) : topQueue.length === 0 ? (
-                <EmptyState title="Karar bekleyen iş yok" description="Yeni tarama sonrası öneriler burada sıralanır." />
-              ) : (
-                <ul className="space-y-2">
-                  {topQueue.map((q) => (
-                    <li key={q.id}>
-                      <Link href={q.href} className="grid grid-cols-[4px_1fr_auto] gap-3 items-center p-2.5 rounded-sm border border-line bg-surface hover:bg-surface-2 hover:border-line-strong transition-colors">
-                        <span className={cn("w-1 self-stretch rounded-full", severityStripeClass(q.severity))} aria-hidden />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-ink truncate">{q.title}</span>
-                          <span className="block font-mono text-2xs text-muted truncate">
-                            {q.impact ?? "—"} · güven {q.confidence !== undefined ? `%${Math.round(q.confidence * 100)}` : "—"} · {q.source}
-                          </span>
-                        </span>
-                        <span className="text-xs font-semibold text-accent-ink inline-flex items-center gap-0.5 whitespace-nowrap">
-                          {q.actionLabel} <ChevronRight className="w-3.5 h-3.5" aria-hidden />
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-3 pt-3 border-t border-line">
-                <Link href="/opportunities" className="text-xs font-semibold text-accent-ink hover:underline inline-flex items-center gap-1">
-                  Tüm kuyruğu gör ({queue.pending}) <ChevronRight className="w-3.5 h-3.5" aria-hidden />
-                </Link>
-              </div>
-            </Panel>
-          </section>
-
-          {/* Bağlam şeridi */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <Link href="/health" className="block bg-surface border border-line rounded-md px-5 py-4 hover:bg-surface-2 transition-colors">
-              <div className="text-xs text-muted">Teknik sağlık</div>
-              <div className="font-editorial text-2xl text-ink mt-1 tabular-nums">
-                {d.health.score} <span className="font-mono text-2xs text-muted">/ 100</span>
-              </div>
-              <div className="text-xs text-muted mt-1">
-                {formatNumber(d.health.pages)} URL · <span className={d.health.critical > 0 ? "text-critical font-semibold" : "text-evidence"}>{d.health.critical} kritik</span>
-                {d.health.delta ? ` · +${formatNumber(d.health.delta, 1)}` : ""}
-              </div>
-            </Link>
-            <Link href="/performance" className="block bg-surface border border-line rounded-md px-5 py-4 hover:bg-surface-2 transition-colors">
-              <div className="text-xs text-muted">Arama performansı</div>
-              <div className="font-editorial text-2xl text-ink mt-1 tabular-nums">
-                {formatCompact(d.search.clicks)} <span className="font-mono text-2xs text-muted">tıklama</span>
-              </div>
-              <div className="text-xs text-muted mt-1">
-                GSC {period} gün · TO {formatPercent(d.search.ctr)} · poz. {formatNumber(d.search.position, 1)}
-              </div>
-            </Link>
-            <Link href="/experiments" className="block bg-surface border border-line rounded-md px-5 py-4 hover:bg-surface-2 transition-colors">
-              <div className="text-xs text-muted">Ölçülen etki</div>
-              <div className={cn("font-editorial text-2xl mt-1 tabular-nums", d.impact.experiments > 0 ? "text-evidence" : "text-muted")}>
-                {d.impact.experiments > 0 ? `+${formatNumber(d.impact.lift, 1)} %` : "—"}
-              </div>
-              <div className="text-xs text-muted mt-1">
-                {d.impact.experiments > 0 ? `DiD · dizin kapsamı · güven %${Math.round(d.impact.confidence * 100)} · ${d.impact.experiments} deney` : "Henüz tamamlanmış deney yok"}
-              </div>
-            </Link>
-          </section>
-
-          {/* Model kırılımı ve derin telemetri */}
-          <section className="space-y-5">
-            <Panel
-              title={
-                <span className="inline-flex items-center gap-2">
-                  Model ve arama motoru kırılımı <BetaBadge />
-                </span>
-              }
-              sub="AI motoru atıf ölçümü henüz canlı değil; değerler örnek. Ölçüm katmanı geldiğinde burada gerçek prompt takibi görünür."
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {DEMO_DASHBOARD.engines.map((m) => (
-                  <Inset key={m.name}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-ink truncate">{m.name}</span>
-                      <span className="text-evidence font-mono font-semibold inline-flex items-center gap-0.5">
-                        <ArrowUpRight className="w-3 h-3" aria-hidden />
-                        {m.trend}
-                      </span>
-                    </div>
-                    <div className="text-xl font-mono font-semibold text-ink mt-1 tabular-nums">{m.score}</div>
-                    <div className="text-2xs text-muted">{m.status}</div>
-                  </Inset>
-                ))}
-              </div>
-            </Panel>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <Panel>
-                <div className="font-mono text-2xs uppercase tracking-wider text-muted">Dizinlenebilirlik</div>
-                <div className="text-xl font-mono font-semibold text-ink mt-1">{isDemo ? DEMO_DASHBOARD.technical.indexability : `${formatNumber(((d.health.pages - d.health.critical) / Math.max(1, d.health.pages)) * 100, 1)} %`}</div>
-                <p className="text-xs text-muted mt-1">robots.txt ve canonical uyumlu URL oranı</p>
-              </Panel>
-              <Panel>
-                <div className="font-mono text-2xs uppercase tracking-wider text-muted">Ortalama yanıt (TTFB)</div>
-                <div className="text-xl font-mono font-semibold text-evidence mt-1">{DEMO_DASHBOARD.technical.ttfb}</div>
-                <p className="text-xs text-muted mt-1">p75 · örnek değer</p>
-              </Panel>
-              <Panel>
-                <div className="font-mono text-2xs uppercase tracking-wider text-muted">Şema kapsamı</div>
-                <div className="text-xl font-mono font-semibold text-ink mt-1">{DEMO_DASHBOARD.technical.schemaCoverage}</div>
-                <p className="text-xs text-muted mt-1">Organization, BreadcrumbList, FAQPage · örnek değer</p>
-              </Panel>
-            </div>
-          </section>
-        </div>
+          ) : (
+            <DashboardBody o={overview.data} issues={issues} isDemo={source === "demo" || overview.source === "demo"} />
+          )}
+        </>
       )}
     </div>
   );

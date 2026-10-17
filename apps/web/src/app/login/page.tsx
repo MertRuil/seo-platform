@@ -8,6 +8,8 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Notice } from "@/components/ui/States";
+import { SeverityBadge } from "@/components/ui/Badge";
+import { setPendingSite } from "@/lib/pendingSite";
 import { cn } from "@/lib/cn";
 
 type Mode = "login" | "register";
@@ -26,7 +28,7 @@ const strengthLabel = (s: number) => (s <= 25 ? "Zayıf" : s <= 50 ? "Orta" : s 
 const strengthClass = (s: number) => (s <= 25 ? "bg-critical" : s <= 50 ? "bg-warn" : s <= 75 ? "bg-accent" : "bg-evidence");
 
 export default function LoginPage() {
-  const { login, register, oauthLogin, forgotPassword } = useAuth();
+  const { login, register, forgotPassword } = useAuth();
 
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
@@ -36,7 +38,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -59,7 +60,12 @@ export default function LoginPage() {
   // Anında Canlı Analiz (giriş gerektirmez)
   const [quickAuditUrl, setQuickAuditUrl] = useState("");
   const [quickAuditLoading, setQuickAuditLoading] = useState(false);
-  const [quickAuditResult, setQuickAuditResult] = useState<{ url: string; score: number; issues: number; critical: number } | null>(null);
+  const [quickAuditResult, setQuickAuditResult] = useState<{
+    url: string;
+    score: number | null;
+    findings: Array<{ title: string; severity: string; recommendation?: string }>;
+    critical: number;
+  } | null>(null);
 
   const handleInstantAudit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,11 +82,13 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Canlı analiz başarısız oldu.");
-      const issues = (data.issues || []) as Array<{ severity: string }>;
+      const issues = (data.issues || []) as Array<{ title: string; severity: string; recommendation?: string }>;
+      const order: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+      const score = data.overall_score ?? data.health_score;
       setQuickAuditResult({
         url: target,
-        score: data.overall_score ?? data.health_score ?? 85,
-        issues: issues.length,
+        score: typeof score === "number" ? score : null,
+        findings: [...issues].sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9)),
         critical: issues.filter((i) => i.severity === "CRITICAL").length,
       });
     } catch (err: any) {
@@ -90,11 +98,13 @@ export default function LoginPage() {
     }
   };
 
-  // Panele aktarmak için gerçek bir hesap gerekir: kayıt sekmesine yönlendir.
+  // Panele aktarmak için gerçek bir hesap gerekir: adres saklanır, kayıttan sonra ilk proje olarak eklenip taranır.
   const enterWithAuditedSite = () => {
     if (!quickAuditResult) return;
+    setPendingSite(quickAuditResult.url);
     setMode("register");
     setError(null);
+    setSuccess(`Hesabınızı oluşturduğunuzda ${quickAuditResult.url.replace(/^https?:\/\//, "")} ilk projeniz olarak eklenecek ve tüm sayfaları taranacak.`);
   };
 
   const strength = passwordStrength(password);
@@ -146,14 +156,6 @@ export default function LoginPage() {
         return next;
       });
     }
-  };
-
-  const handleOauth = async (provider: "google" | "github" | "microsoft") => {
-    setError(null);
-    setOauthLoading(provider);
-    const res = await oauthLogin(provider);
-    setOauthLoading(null);
-    if (!res.success) setError(res.error || `${provider} ile giriş yapılamadı.`);
   };
 
   const handleSendCode = async (e: React.FormEvent) => {
@@ -221,7 +223,7 @@ export default function LoginPage() {
             </h1>
             <p className="text-base text-muted mt-5">Google organik arama, yapay zeka yanıt motorları ve sitenizin teknik altyapısı için neyin çalıştığını, neyin düzeltilmesi gerektiğini tek bir kanıt tabanlı merkezde yönetin.</p>
             <ul className="mt-6 space-y-2 text-sm">
-              {["Her öneri resmi Google belgesine dayanır", "Değişiklikler kaynağa yazılır; abonelikle kaybolmaz", "Etki, kontrol grubuyla nedensel ölçülür"].map((t) => (
+              {["Her öneri resmi Google belgesine dayanır", "Değişiklikler kaynağa yazılır; abonelikle kaybolmaz", "Ölçüm, kontrol grubuyla karşılaştırılır"].map((t) => (
                 <li key={t} className="flex items-center gap-2 text-muted">
                   <CheckCircle2 className="w-4 h-4 text-evidence shrink-0" aria-hidden />
                   {t}
@@ -251,59 +253,66 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* Canlı Denetim Kartı */}
-              <div className="space-y-3 pb-1 border-b border-line">
+              {/* Girişsiz denetim: kayıt olmadan önce ilk değer */}
+              <div className="space-y-3 pb-4 border-b border-line">
                 <div className="p-3 rounded-md bg-surface-2 border border-line flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-evidence" />
-                    Kendi Web Sitenizi Canlı Analiz Edin
-                  </span>
+                  <label htmlFor="quick-audit-url" className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-evidence" aria-hidden />
+                    Kayıt olmadan sitenizi kontrol edin
+                  </label>
                   <form onSubmit={handleInstantAudit} className="flex gap-2">
                     <Input
-                      placeholder="https://siteniz.com"
+                      id="quick-audit-url"
+                      placeholder="siteniz.com"
                       value={quickAuditUrl}
                       onChange={(e) => setQuickAuditUrl(e.target.value)}
-                      className="text-xs"
-                      aria-label="Canlı analiz edilecek site adresi"
+                      inputMode="url"
+                      autoComplete="url"
                     />
-                    <Button type="submit" variant="secondary" loading={quickAuditLoading} size="sm" className="shrink-0 text-xs">
-                      Analiz Et
+                    <Button type="submit" variant="secondary" loading={quickAuditLoading} className="shrink-0">
+                      {quickAuditLoading ? "Kontrol ediliyor" : "Kontrol et"}
                     </Button>
                   </form>
+                  <p className="text-2xs text-muted">Ana sayfanızda başlık, meta açıklama, canonical, robots.txt ve site haritası kontrol edilir.</p>
                   {quickAuditResult && (
-                    <div className="p-2.5 rounded bg-surface border border-line flex items-center justify-between text-xs mt-1 animate-fade-in">
-                      <div>
-                        <div className="font-semibold text-ink">Sağlık Skoru: {quickAuditResult.score}/100</div>
-                        <div className="text-2xs text-muted">
-                          {quickAuditResult.issues} bulgu tespit edildi ({quickAuditResult.critical} kritik)
+                    <div className="rounded-sm bg-surface border border-line text-xs mt-1 animate-fade-in" aria-live="polite">
+                      <div className="p-2.5 flex items-center justify-between gap-2 border-b border-line">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-ink truncate">{quickAuditResult.url.replace(/^https?:\/\//, "")}</div>
+                          <div className="text-2xs text-muted">
+                            {quickAuditResult.findings.length === 0
+                              ? "Ana sayfada sorun bulunmadı."
+                              : `${quickAuditResult.findings.length} bulgu${quickAuditResult.critical > 0 ? `, ${quickAuditResult.critical} kritik` : ""}`}
+                          </div>
                         </div>
+                        {quickAuditResult.score !== null && (
+                          <div className="text-right shrink-0">
+                            <div className="text-lg font-semibold tabular-nums text-ink leading-5">{quickAuditResult.score}</div>
+                            <div className="text-2xs text-muted">/100 ana sayfa</div>
+                          </div>
+                        )}
                       </div>
-                      <Button size="sm" variant="primary" onClick={enterWithAuditedSite} className="text-xs">
-                        Kayıt olup panele aktar →
-                      </Button>
+                      {quickAuditResult.findings.length > 0 && (
+                        <ul className="divide-y divide-line">
+                          {quickAuditResult.findings.slice(0, 4).map((f, i) => (
+                            <li key={i} className="p-2.5 flex items-start gap-2">
+                              <SeverityBadge severity={f.severity} />
+                              <span className="text-ink min-w-0">{f.title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="p-2.5 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-2xs text-muted">
+                          {quickAuditResult.findings.length > 4 ? `+${quickAuditResult.findings.length - 4} bulgu daha. ` : ""}Nasıl düzeltileceğini görmek ve tüm sayfaları taramak için ücretsiz hesap açın.
+                        </span>
+                        <Button size="sm" onClick={enterWithAuditedSite} icon={<ArrowRight className="w-3.5 h-3.5" aria-hidden />} className="shrink-0">
+                          Ücretsiz hesap aç
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["google", "Google"],
-                    ["github", "GitHub"],
-                    ["microsoft", "Microsoft"],
-                  ] as const
-                ).map(([p, label]) => (
-                  <Button key={p} type="button" variant="secondary" loading={oauthLoading === p} onClick={() => handleOauth(p)} aria-label={`${label} ile devam et`}>
-                    {label}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 text-2xs font-mono uppercase tracking-wider text-muted">
-                <span className="flex-1 border-t border-line" aria-hidden />
-                veya e-posta ile
-                <span className="flex-1 border-t border-line" aria-hidden />
               </div>
 
               {error && <Notice tone="error">{error}</Notice>}
@@ -392,7 +401,6 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <p className="text-center text-2xs text-muted mt-4">Şifreler tuzlanmış PBKDF2 ile saklanır · Oturum HMAC-SHA256 imzalı</p>
           </div>
         </main>
       </div>

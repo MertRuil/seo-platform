@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Layers, Play, Globe, ChevronRight, ShieldCheck, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -50,7 +50,7 @@ const crawlColumns: Column<CrawlRow>[] = [
 export default function SiteTaramalariPage() {
   const router = useRouter();
   const { token } = useAuth();
-  const { org, site, sites, crawls, status, source, reason, refresh, selectSite } = useSite();
+  const { org, site, sites, crawls, status, source, reason, refresh, selectSite, addSite } = useSite();
 
   // Site ekleme
   const [siteName, setSiteName] = useState("");
@@ -71,6 +71,21 @@ export default function SiteTaramalariPage() {
   const canRegister = status === "ready";
   const rows = source === "demo" && crawls.length === 0 ? DEMO_CRAWLS : crawlsToRows(crawls);
 
+  useEffect(() => {
+    if (!org || !site || !crawls.some((run) => ["QUEUED", "RUNNING"].includes(run.status))) return;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const latest = await api.listCrawls(org.id, site.id);
+        if (!cancelled && latest.some((run) => {
+          const previous = crawls.find((old) => old.id === run.id);
+          return !previous || previous.status !== run.status || previous.total_urls_crawled !== run.total_urls_crawled;
+        })) await refresh();
+      } catch { /* next interval retries without inventing progress */ }
+    }, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [org, site, crawls, refresh]);
+
   const handleAddSite = async (e: React.FormEvent) => {
     e.preventDefault();
     setSiteError(null);
@@ -80,28 +95,10 @@ export default function SiteTaramalariPage() {
     }
     setAddingSite(true);
     try {
-      let targetOrgId = org?.id;
-      if (!targetOrgId) {
-        const orgs = await api.getOrganizations();
-        targetOrgId = orgs[0]?.id;
-      }
-      if (!targetOrgId) throw new Error("Organizasyon bulunamadı.");
-
-      const created = await api.createSite(targetOrgId, {
-        name: siteName.trim() || new URL(siteUrl.trim()).hostname,
-        primary_url: siteUrl.trim(),
-      });
-      setNotice({ tone: "info", text: `${created.normalized_domain} kaydedildi, canlı analiz ve tarama yapılıyor…` });
-
-      const run = await api.triggerCrawl(targetOrgId, created.id);
-      await refresh();
-      selectSite(created.id);
+      const created = await addSite(siteUrl.trim(), siteName.trim());
       setSiteName("");
       setSiteUrl("");
-      setNotice({
-        tone: "success",
-        text: `${created.normalized_domain} başarıyla tarandı ve analiz edildi (#${run.id.slice(0, 8).toUpperCase()})! Şimdi Teknik Sağlık veya Genel Görünüm sayfalarından gerçek bulguları inceleyebilirsiniz.`,
-      });
+      setNotice({ tone: "info", text: `${created.normalized_domain} kaydedildi. Tarama başlatıldı; tamamlanma durumunu aşağıdaki listeden izleyebilirsiniz.` });
     } catch (err) {
       setSiteError(err instanceof ApiError ? err.message : (err as any).message || "Site kaydedilemedi.");
     } finally {

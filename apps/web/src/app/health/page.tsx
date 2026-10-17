@@ -13,7 +13,6 @@ import { Button, LinkButton } from "@/components/ui/Button";
 import { Badge, type Tone } from "@/components/ui/Badge";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { SkeletonRows } from "@/components/ui/States";
-import { cn } from "@/lib/cn";
 
 const statusTone: Record<HealthRule["status"], Tone> = { Mükemmel: "evidence", İyi: "accent", Uyarı: "warn", Kritik: "critical" };
 
@@ -56,7 +55,7 @@ export default function TeknikSaglikPage() {
           </p>
         </Panel>
 
-        <Panel className="md:col-span-2" title="Puan kırılımı">
+        <Panel className="md:col-span-2" title="Bulgu türlerinin dağılımı" sub="Bildirilen sorun türlerinin alanlara göre payı; ayrı bir sağlık puanı değildir.">
           {res.loading ? (
             <SkeletonRows rows={3} />
           ) : (
@@ -65,10 +64,10 @@ export default function TeknikSaglikPage() {
                 <li key={b.label}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted">{b.label}</span>
-                    <span className={cn("font-semibold tabular-nums", b.pct >= 90 ? "text-evidence" : b.pct >= 70 ? "text-warn" : "text-critical")}>%{b.pct}</span>
+                    <span className="font-semibold tabular-nums text-muted">%{b.pct}</span>
                   </div>
                   <div className="w-full h-2 bg-surface-2 rounded-full overflow-hidden" role="progressbar" aria-valuenow={b.pct} aria-valuemin={0} aria-valuemax={100} aria-label={b.label}>
-                    <div className={cn("h-full rounded-full", b.pct >= 90 ? "bg-evidence" : b.pct >= 70 ? "bg-warn" : "bg-critical")} style={{ width: `${b.pct}%` }} />
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${b.pct}%` }} />
                   </div>
                 </li>
               ))}
@@ -77,7 +76,7 @@ export default function TeknikSaglikPage() {
         </Panel>
       </div>
 
-      <Panel flush title="Deterministik kural değerlendirmesi" sub="Her kural için durum, puan ve etkilenen sayfa notu">
+      <Panel flush title="Deterministik kural değerlendirmesi" sub="Her kural için bulgu durumu ve etkilenen URL sayısı">
         {res.loading ? (
           <div className="p-5">
             <SkeletonRows rows={6} />

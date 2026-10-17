@@ -1,90 +1,187 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ChevronRight, CheckCircle2, ExternalLink, Zap } from "lucide-react";
-import { api } from "@/lib/api";
-import { DEMO_ISSUES, type IssueItem, type Severity } from "@/lib/demo";
-import { healthToIssues } from "@/lib/mappers";
+import { AlertTriangle, ChevronDown, CheckCircle2, ExternalLink, Download, Copy, FilePlus2, Check } from "lucide-react";
+import { SEVERITY_LABEL, type IssueItem, type Severity } from "@/lib/demo";
+import { issueGuide } from "@/lib/issueGuide";
 import { addChangeSet, newChangeSetId, readChangeSets } from "@/lib/changesets";
-import { useSiteData } from "@/hooks/useSiteData";
+import { useIssues } from "@/hooks/useIssues";
 import { useDensity } from "@/context/DensityContext";
-import { useSite } from "@/context/SiteContext";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Panel, Inset } from "@/components/ui/Panel";
+import { Panel } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
 import { FilterChips } from "@/components/ui/Input";
-import { Badge, SeverityBadge, severityStripeClass } from "@/components/ui/Badge";
+import { SeverityBadge, severityStripeClass } from "@/components/ui/Badge";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
 
 type Filter = "ALL" | Severity;
 
+const PREVIEW_URLS = 5;
+
+function affectedUrls(issue: IssueItem): string[] {
+  return issue.urls && issue.urls.length > 0 ? issue.urls : issue.url ? [issue.url] : [];
+}
+
+function downloadCsv(issue: IssueItem) {
+  const rows = ["url", ...affectedUrls(issue).map((u) => `"${u.replace(/"/g, '""')}"`)];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(issue.ruleId || issue.id).toLowerCase()}-sayfalar.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function IssueCard({ issue, expert, drafted, onDraft }: { issue: IssueItem; expert: boolean; drafted: boolean; onDraft: (i: IssueItem) => void }) {
+  const [open, setOpen] = useState(issue.severity === "CRITICAL");
+  const [showAll, setShowAll] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const guide = issueGuide(issue.category, issue.ruleId);
+  const urls = affectedUrls(issue);
+  const count = issue.affected ?? urls.length;
+  const share = issue.totalPages && count ? Math.round((count / issue.totalPages) * 100) : null;
+  const visible = showAll ? urls : urls.slice(0, PREVIEW_URLS);
+  const bodyId = `issue-body-${issue.id}`;
+
+  const copyUrls = async () => {
+    try {
+      await navigator.clipboard.writeText(urls.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* pano izni yok */
+    }
+  };
+
+  return (
+    <li className="bg-surface border border-line rounded-md grid grid-cols-[4px_1fr] overflow-hidden">
+      <span className={cn("block", severityStripeClass(issue.severity))} aria-hidden />
+      <div className="min-w-0">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          className="w-full text-left p-4 sm:p-5 flex items-start justify-between gap-3 cursor-pointer hover:bg-surface-2/60"
+        >
+          <span className="min-w-0 space-y-1.5">
+            <span className="flex flex-wrap items-center gap-2">
+              <SeverityBadge severity={issue.severity} />
+              <span className="text-2xs font-semibold uppercase tracking-wider text-muted">{guide.label}</span>
+            </span>
+            <span className="block text-base font-semibold text-ink">{issue.title}</span>
+            <span className="block text-xs text-muted">
+              {count > 0 ? `${count} sayfada` : "Site genelinde"}
+              {share !== null && ` · taranan sayfaların %${share}'i`}
+            </span>
+          </span>
+          <ChevronDown className={cn("w-4 h-4 text-muted shrink-0 mt-1 transition-transform", open && "rotate-180")} aria-hidden />
+        </button>
+
+        {open && (
+          <div id={bodyId} className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <h3 className="text-xs font-semibold text-ink mb-0.5">Ne oldu?</h3>
+                <p className="text-muted">{issue.diagnosis}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-ink mb-0.5">Neden önemli?</h3>
+                <p className="text-muted">{guide.why}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-evidence mb-0.5">Nasıl düzeltilir?</h3>
+                <p className="text-muted">{issue.fix}</p>
+                {issue.docUrl && (
+                  <a href={issue.docUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-accent-ink hover:underline">
+                    Google belgesi <ExternalLink className="w-3 h-3" aria-hidden />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {urls.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-ink mb-1.5">Etkilenen sayfalar</h3>
+                <ul className="rounded-sm border border-line divide-y divide-line">
+                  {visible.map((u) => (
+                    <li key={u} className="px-3 py-2 font-mono text-xs text-ink break-all">
+                      <a href={u} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-accent-ink">
+                        {u}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted">
+                  {urls.length > PREVIEW_URLS && (
+                    <button type="button" onClick={() => setShowAll((v) => !v)} className="font-medium text-accent-ink hover:underline cursor-pointer min-h-[32px]">
+                      {showAll ? "Daha az göster" : `Tümünü göster (${urls.length})`}
+                    </button>
+                  )}
+                  {count > urls.length && <span>İlk {urls.length} sayfa listeleniyor; toplam {count}.</span>}
+                </div>
+              </div>
+            )}
+
+            {expert && issue.before && issue.after && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
+                <div>
+                  <div className="text-2xs font-sans font-semibold text-critical mb-1">Şu an</div>
+                  <pre className="whitespace-pre-wrap bg-critical-soft text-critical border-l-2 border-critical rounded-sm p-3 overflow-x-auto">{issue.before}</pre>
+                </div>
+                <div>
+                  <div className="text-2xs font-sans font-semibold text-evidence mb-1">Önerilen</div>
+                  <pre className="whitespace-pre-wrap bg-evidence-soft text-evidence border-l-2 border-evidence rounded-sm p-3 overflow-x-auto">{issue.after}</pre>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-3 border-t border-line flex flex-wrap items-center gap-2">
+              {urls.length > 0 && (
+                <>
+                  <Button size="sm" variant="secondary" icon={<Download className="w-3.5 h-3.5" aria-hidden />} onClick={() => downloadCsv(issue)}>
+                    Sayfa listesini indir (CSV)
+                  </Button>
+                  <Button size="sm" variant="ghost" icon={copied ? <Check className="w-3.5 h-3.5" aria-hidden /> : <Copy className="w-3.5 h-3.5" aria-hidden />} onClick={copyUrls}>
+                    {copied ? "Kopyalandı" : "Adresleri kopyala"}
+                  </Button>
+                </>
+              )}
+              {issue.before && issue.after && (
+                <Button size="sm" variant={drafted ? "ghost" : "secondary"} icon={drafted ? <CheckCircle2 className="w-3.5 h-3.5 text-evidence" aria-hidden /> : <FilePlus2 className="w-3.5 h-3.5" aria-hidden />} onClick={() => onDraft(issue)}>
+                  {drafted ? "Taslak hazır · incele" : "Değişiklik taslağı oluştur"}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
 export default function SorunlarPage() {
   const router = useRouter();
   const { density } = useDensity();
-  const { org, site } = useSite();
-  const res = useSiteData<IssueItem[]>("issues", async ({ org, site, crawl }) => healthToIssues(await api.getCrawlHealth(org.id, site.id, crawl!.id)), DEMO_ISSUES);
+  const res = useIssues();
 
   const [filter, setFilter] = useState<Filter>("ALL");
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [created, setCreated] = useState<string[]>([]);
+  const [drafted, setDrafted] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    setCreated(readChangeSets().map((s) => s.sorunId).filter((x): x is string => !!x));
+    setDrafted(readChangeSets().map((s) => s.sorunId).filter((x): x is string => !!x));
   }, []);
 
-  const handleSelfHeal = async (issue: IssueItem) => {
-    setBusyId(issue.id + "-heal");
-    setNotice(null);
-
-    let connectorType = "Safe Executor Sandbox";
-    if (org?.id && site?.id) {
-      try {
-        const healRes = await api.selfHealIssue(org.id, site.id, {
-          issue_id: issue.id,
-          issue_title: issue.title,
-          target_url: issue.url,
-          category: issue.category,
-          risk_level: issue.severity || "LOW",
-          auto_execute: true,
-          state_before: issue.before,
-          state_after: issue.after,
-        });
-        if (healRes.connector_type) connectorType = healRes.connector_type;
-      } catch {
-        // Fallback gracefully
-      }
-    } else {
-      await new Promise((r) => setTimeout(r, 600));
+  // Taslak yalnızca gerçek önce/sonra kodu olan bulgular için oluşturulur ve siteye uygulanmış sayılmaz.
+  const handleDraft = (issue: IssueItem) => {
+    if (drafted.includes(issue.id)) {
+      router.push("/changes");
+      return;
     }
-
-    const id = newChangeSetId();
-    addChangeSet({
-      id,
-      sorunId: issue.id,
-      baslik: issue.title,
-      onem: issue.severity,
-      etkilenenSayfa: issue.url,
-      kategori: issue.category,
-      oneri: issue.fix,
-      durum: "UYGULANDI",
-      oncekiKod: issue.before,
-      yeniKod: issue.after,
-      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
-    });
-
-    setCreated((prev) => [...prev, issue.id]);
-    setBusyId(null);
-    setNotice(`⚡ Sorun #${issue.id} (${connectorType}) ile başarıyla otonom düzeltildi! Pre-write backup alındı, SHA-256 doğrulandı.`);
-  };
-
-  const handleCreateSet = async (issue: IssueItem) => {
-    setBusyId(issue.id);
-    setNotice(null);
-    await new Promise((r) => setTimeout(r, 500));
     const id = newChangeSetId();
     addChangeSet({
       id,
@@ -95,44 +192,51 @@ export default function SorunlarPage() {
       kategori: issue.category,
       oneri: issue.fix,
       durum: "BEKLİYOR",
-      oncekiKod: issue.before,
-      yeniKod: issue.after,
+      oncekiKod: issue.before ?? "",
+      yeniKod: issue.after ?? "",
       olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
     });
-    setCreated((prev) => [...prev, issue.id]);
-    setBusyId(null);
-    setNotice(`Düzeltme seti #${id} hazırlandı; diff sayfasına yönlendiriliyorsunuz.`);
-    setTimeout(() => router.push("/changes"), 900);
+    setDrafted((prev) => [...prev, issue.id]);
+    setNotice(`Değişiklik taslağı ${id} oluşturuldu. Siteye henüz uygulanmadı; Değişiklikler sayfasında inceleyip onaylayabilirsiniz.`);
   };
 
+  const counts = useMemo(() => res.data.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.severity]: (acc[i.severity] ?? 0) + 1 }), {}), [res.data]);
   const list = filter === "ALL" ? res.data : res.data.filter((i) => i.severity === filter);
-  const counts = res.data.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.severity]: (acc[i.severity] ?? 0) + 1 }), {});
+  const urgent = (counts.CRITICAL ?? 0) + (counts.HIGH ?? 0);
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
       <DemoBanner source={res.source} reason={res.reason} error={res.error} />
       <PageHeader
         icon={<AlertTriangle className="w-5 h-5" />}
-        title="Tespit edilen sorunlar"
-        description="Taramada saptanan teknik ve içerik bulguları. Her bulgu için düzeltme seti oluşturup diff'i inceleyebilir, sonra uygulayabilirsiniz."
-        actions={
-          <FilterChips<Filter>
-            label="Önem filtresi"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "ALL", label: `Tümü (${res.data.length})` },
-              { value: "CRITICAL", label: `Kritik (${counts.CRITICAL ?? 0})` },
-              { value: "HIGH", label: `Yüksek (${counts.HIGH ?? 0})` },
-              { value: "MEDIUM", label: `Orta (${counts.MEDIUM ?? 0})` },
-              { value: "LOW", label: `Düşük (${counts.LOW ?? 0})` },
-            ]}
-          />
-        }
+        title="Sorunlar"
+        description="Son taramada bulunan sorunlar, önem düzeyine ve etkilenen sayfa sayısına göre sıralı. Her sorunda nerede olduğunu, neden önemli olduğunu ve nasıl düzeltileceğini görebilirsiniz."
+      />
+
+      {!res.loading && res.data.length > 0 && (
+        <p className="text-sm text-ink">
+          {urgent > 0 ? (
+            <>
+              <strong>{urgent} acil sorun</strong> var ({counts.CRITICAL ?? 0} kritik, {counts.HIGH ?? 0} yüksek). En üstteki sorundan başlayın.
+            </>
+          ) : (
+            <>Kritik veya yüksek önemde sorun yok. Kalan {res.data.length} bulgu iyileştirme fırsatıdır.</>
+          )}
+        </p>
+      )}
+
+      <FilterChips<Filter>
+        label="Önem filtresi"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: "ALL", label: `Tümü (${res.data.length})` },
+          ...(["CRITICAL", "HIGH", "MEDIUM", "LOW"] as Severity[]).map((s) => ({ value: s, label: `${SEVERITY_LABEL[s]} (${counts[s] ?? 0})` })),
+        ]}
       />
 
       {notice && (
-        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Diff'e git</Button>}>
+        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="secondary" onClick={() => router.push("/changes")}>Taslakları gör</Button>}>
           {notice}
         </Notice>
       )}
@@ -143,86 +247,18 @@ export default function SorunlarPage() {
         </Panel>
       ) : list.length === 0 ? (
         <Panel>
-          <EmptyState icon={<CheckCircle2 className="w-8 h-8 text-evidence" />} title={filter === "ALL" ? "Bu taramada sorun bulunmadı" : "Bu önem düzeyinde sorun yok"} description="Kural motoru hiçbir ihlal raporlamadı. Yeni tarama sonrası liste güncellenir." />
+          <EmptyState
+            icon={<CheckCircle2 className="w-8 h-8 text-evidence" />}
+            title={filter === "ALL" ? "Bu taramada sorun bulunmadı" : `${SEVERITY_LABEL[filter as Severity]} önemde sorun yok`}
+            description={filter === "ALL" ? "Kural motoru hiçbir ihlal bulmadı. Sitede değişiklik yaptıktan sonra yeni tarama başlatarak tekrar kontrol edebilirsiniz." : "Diğer önem düzeylerine bakmak için filtreyi değiştirin."}
+            action={filter !== "ALL" ? <Button size="sm" variant="secondary" onClick={() => setFilter("ALL")}>Tüm sorunları göster</Button> : undefined}
+          />
         </Panel>
       ) : (
         <ul className="space-y-3">
-          {list.map((issue) => {
-            const done = created.includes(issue.id);
-            const busy = busyId === issue.id;
-            return (
-              <li key={issue.id} className="bg-surface border border-line rounded-md grid grid-cols-[4px_1fr] overflow-hidden">
-                <span className={cn("block", severityStripeClass(issue.severity))} aria-hidden />
-                <div className="p-4 sm:p-5 space-y-3 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2 min-w-0">
-                      <SeverityBadge severity={issue.severity} />
-                      <Badge tone="neutral" mono>
-                        {issue.category}
-                      </Badge>
-                      <span className="text-base font-semibold text-ink">{issue.title}</span>
-                    </div>
-                    <span className="font-mono text-2xs text-muted shrink-0">{issue.id}</span>
-                  </div>
-
-                  <Inset className="font-mono text-xs text-accent-ink truncate">Etkilenen: {issue.url}</Inset>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <div className="text-xs font-semibold text-ink mb-0.5">Teşhis</div>
-                      <p className="text-muted">{issue.diagnosis}</p>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-evidence mb-0.5">Önerilen çözüm</div>
-                      <p className="text-muted">{issue.fix}</p>
-                    </div>
-                  </div>
-
-                  {density === "expert" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
-                      <pre className="whitespace-pre-wrap bg-critical-soft text-critical border-l-2 border-critical rounded-sm p-3 overflow-x-auto">{issue.before}</pre>
-                      <pre className="whitespace-pre-wrap bg-evidence-soft text-evidence border-l-2 border-evidence rounded-sm p-3 overflow-x-auto">{issue.after}</pre>
-                    </div>
-                  )}
-
-                  <div className="pt-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="text-xs text-muted inline-flex items-center gap-3">
-                      {issue.docUrl ? (
-                        <a href={issue.docUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-ink hover:underline">
-                          Resmi belge <ExternalLink className="w-3 h-3" aria-hidden />
-                        </a>
-                      ) : (
-                        <span>Kaynak: kural motoru</span>
-                      )}
-                      {issue.affected !== undefined && <span>{issue.affected} URL</span>}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {done ? (
-                        <Button size="sm" variant="secondary" icon={<CheckCircle2 className="w-3.5 h-3.5 text-evidence" />} onClick={() => router.push("/changes")}>
-                          Düzeltildi · Diff İncele
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="evidence"
-                            loading={busyId === issue.id + "-heal"}
-                            onClick={() => handleSelfHeal(issue)}
-                            icon={<Zap className="w-3.5 h-3.5" />}
-                          >
-                            Otonom Düzelt
-                          </Button>
-                          <Button size="sm" variant="ghost" loading={busy} onClick={() => handleCreateSet(issue)} icon={busy ? undefined : <ChevronRight className="w-3.5 h-3.5" />}>
-                            {busy ? "Hazırlanıyor" : "Diff İncele"}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
+          {list.map((issue) => (
+            <IssueCard key={issue.id} issue={issue} expert={density === "expert"} drafted={drafted.includes(issue.id)} onDraft={handleDraft} />
+          ))}
         </ul>
       )}
     </div>

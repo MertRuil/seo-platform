@@ -6,6 +6,7 @@ import {
   Sparkles,
   FileCheck,
   CheckCircle2,
+  XCircle,
   AlertTriangle,
   Copy,
   Check,
@@ -29,6 +30,8 @@ import { MetricStrip } from "@/components/ui/MetricStrip";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
+import { Notice } from "@/components/ui/States";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 import {
   scanTurkishCompliance,
   getSectorName as getTrSectorName,
@@ -290,6 +293,9 @@ export default function ContentOptimizerPage() {
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
   const [targetKeyword, setTargetKeyword] = useState(DEMO_CONTENT.targetKeyword);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Sayfa gerçekten okunarak yapılan temel içerik kontrolü (rastgele skor yok)
+  const [pageCheck, setPageCheck] = useState<{ url: string; wordCount: number; checks: Array<{ label: string; ok: boolean; detail: string }> } | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
   // Content Draft & Compliance Shield state
   const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "UK" | "ASIA" | "MENA">("TR");
@@ -335,23 +341,38 @@ export default function ContentOptimizerPage() {
 
   const criticalViolations = complianceViolations.filter((v) => v.severity === "CRITICAL");
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUrl.trim() || !targetKeyword.trim()) return;
-
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setData({
-        ...data,
-        url: targetUrl,
-        targetKeyword: targetKeyword,
-        contentScore: Math.floor(Math.random() * 15) + 80,
-        geoScore: Math.floor(Math.random() * 15) + 82,
-        readabilityScore: 84,
-        wordCount: Math.floor(Math.random() * 500) + 1400,
+    setAnalyzeError(null);
+    try {
+      const url = /^https?:\/\//i.test(targetUrl.trim()) ? targetUrl.trim() : `https://${targetUrl.trim()}`;
+      const res = await fetch("/api/v1/audit/quick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || "Sayfa okunamadı.");
+      const info = body.page_info ?? {};
+      const kw = targetKeyword.trim().toLocaleLowerCase("tr-TR");
+      const title = String(info.title ?? "").toLocaleLowerCase("tr-TR");
+      const meta = String(info.meta_description ?? "").toLocaleLowerCase("tr-TR");
+      const words = Number(info.word_count ?? 0);
+      setPageCheck({
+        url,
+        wordCount: words,
+        checks: [
+          { label: "Anahtar kelime başlıkta", ok: title.includes(kw), detail: info.title ? `Başlık: "${info.title}"` : "Sayfada başlık yok." },
+          { label: "Meta açıklama var", ok: Boolean(info.meta_description), detail: info.meta_description ? `${String(info.meta_description).length} karakter` : "Meta açıklama tanımlanmamış." },
+          { label: "Anahtar kelime meta açıklamada", ok: meta.includes(kw), detail: meta ? "Açıklamada aranan ifade kontrol edildi." : "Meta açıklama olmadığı için kontrol edilemedi." },
+          { label: "En az 300 kelime", ok: words >= 300, detail: `Sayfada ${formatNumber(words)} kelime var.` },
+          { label: "Yapılandırılmış veri", ok: Boolean(info.has_structured_data), detail: info.schema_types?.length ? `Şema: ${info.schema_types.join(", ")}` : "JSON-LD bulunamadı." },
+          { label: "Arama dizinine açık", ok: !info.has_noindex, detail: info.has_noindex ? "Sayfada noindex var." : "Noindex yok." },
+        ],
       });
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : "Sayfa okunamadı.");
+    } finally {
       setIsAnalyzing(false);
-    }, 700);
+    }
   };
 
   const handleApplyFix = (violation: { matchedPattern: string; suggestedFix: string }) => {
@@ -405,18 +426,18 @@ export default function ContentOptimizerPage() {
       {/* Header */}
       <PageHeader
         icon={<PenTool className="w-5 h-5 text-accent" />}
-        title="İçerik Optimizasyonu & Türkiye Mevzuat Uyum Kalkanı"
-        description="Surfer SEO standardında NLP içerik skoru, Google Helpful Content semantik varlıkları ve Türkiye Reklam Kurulu / TİTCK / TBB mevzuatına göre yasaklı kelime denetimi."
+        title="İçerik"
+        description="Bir sayfanın hedef anahtar kelimeye göre temel kontrolü, reklam mevzuatına uygunluk taraması ve başlık/meta açıklama şablonları."
         actions={
           <div className="flex items-center gap-2">
             {criticalViolations.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold animate-pulse">
-                <ShieldAlert className="w-4 h-4 text-rose-600" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-critical-soft text-critical border border-critical/30 text-xs font-bold animate-pulse">
+                <ShieldAlert className="w-4 h-4 text-critical" />
                 {criticalViolations.length} Kritik Mevzuat İhlali!
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-evidence-soft text-evidence border border-evidence/30 text-xs font-bold">
+                <ShieldCheck className="w-4 h-4 text-evidence" />
                 Türkiye Reklam Mevzuatına Uyumlu
               </span>
             )}
@@ -457,26 +478,51 @@ export default function ContentOptimizerPage() {
               loading={isAnalyzing}
               icon={<Sparkles className="w-4 h-4" />}
             >
-              NLP Analiz Et
+              Sayfayı kontrol et
             </Button>
           </div>
         </form>
       </Panel>
 
-      {/* Metric Strip */}
+      {analyzeError && <Notice tone="error">{analyzeError}</Notice>}
+      {pageCheck && (
+        <Panel title="Sayfa kontrolü" sub={`${pageCheck.url} · hedef: "${targetKeyword}"`}>
+          <p className="text-sm text-ink mb-3">
+            {pageCheck.checks.filter((c) => c.ok).length}/{pageCheck.checks.length} kontrol geçti.
+            {pageCheck.checks.some((c) => !c.ok) && " Eksik maddeleri düzeltmek sayfanın bu arama için anlaşılmasını kolaylaştırır."}
+          </p>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {pageCheck.checks.map((c) => (
+              <li key={c.label} className="flex items-start gap-2 p-2.5 rounded-sm border border-line">
+                {c.ok ? <CheckCircle2 className="w-4 h-4 text-evidence shrink-0 mt-0.5" aria-hidden /> : <XCircle className="w-4 h-4 text-critical shrink-0 mt-0.5" aria-hidden />}
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink">
+                    {c.label}
+                    <span className="sr-only">{c.ok ? ": geçti" : ": eksik"}</span>
+                  </span>
+                  <span className="block text-xs text-muted break-words">{c.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {/* Aşağıdaki skorlar ve varlık analizi henüz bir veri kaynağına bağlı değil */}
+      <DemoBanner source="demo" reason="no-endpoint" />
       <MetricStrip
         items={[
           {
-            label: "İçerik Kalite Skoru",
+            label: "İçerik skoru (örnek)",
             value: `${data.contentScore} / 100`,
             tone: data.contentScore >= 80 ? "evidence" : "warn",
-            hint: "Surfer SEO NLP standardı",
+            hint: "Örnek değer",
           },
           {
-            label: "GEO (AI Arama) Skoru",
+            label: "AI arama skoru (örnek)",
             value: `${data.geoScore} / 100`,
             tone: "default",
-            hint: "ChatGPT ve Perplexity alıntı uyumu",
+            hint: "Örnek değer",
           },
           {
             label: "TR Mevzuat Riski",
@@ -485,9 +531,9 @@ export default function ContentOptimizerPage() {
             hint: "Reklam Kurulu & TİTCK",
           },
           {
-            label: "Kelime Sayısı",
-            value: `${formatNumber(data.wordCount)} / ${formatNumber(data.targetWordCount)}`,
-            hint: "Önerilen uzunluk",
+            label: "Kelime sayısı",
+            value: pageCheck ? formatNumber(pageCheck.wordCount) : `${formatNumber(data.wordCount)} / ${formatNumber(data.targetWordCount)}`,
+            hint: pageCheck ? "Kontrol edilen sayfa" : "Örnek değer",
           },
           {
             label: "Okunabilirlik İndeksi",
@@ -523,7 +569,7 @@ export default function ContentOptimizerPage() {
           <Scale className="w-4 h-4 text-accent" />
           🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : complianceRegion === "US" ? "🇺🇸 US" : complianceRegion === "UK" ? "🇬🇧 UK" : complianceRegion === "ASIA" ? "🌏 ASIA" : "🇦🇪 MENA"})
           {complianceViolations.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-2xs">
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-critical-fill text-white font-mono text-2xs">
               {complianceViolations.length}
             </span>
           )}
@@ -539,7 +585,7 @@ export default function ContentOptimizerPage() {
           }`}
         >
           <Wand2 className="w-4 h-4 text-accent" />
-          AI SEO İçerik Üretici
+          Başlık ve meta şablonları
         </button>
       </div>
 
@@ -570,7 +616,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "TR"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -585,7 +631,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "EU"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -600,7 +646,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "US"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -615,7 +661,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "UK"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -630,7 +676,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "ASIA"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -645,7 +691,7 @@ export default function ContentOptimizerPage() {
                 }}
                 className={`text-xs px-2.5 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   complianceRegion === "MENA"
-                    ? "bg-accent-fill text-white shadow-xs"
+                    ? "bg-accent-fill text-white"
                     : "text-muted hover:text-ink"
                 }`}
               >
@@ -738,9 +784,9 @@ export default function ContentOptimizerPage() {
 
           {/* Compliance Status Alert */}
           {complianceViolations.length > 0 ? (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-sm space-y-2">
-              <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
-                <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+            <div className="p-4 bg-critical-soft border border-critical/30 rounded-sm space-y-2">
+              <div className="flex items-center gap-2 text-critical font-bold text-sm">
+                <ShieldAlert className="w-5 h-5 text-critical shrink-0" />
                 <span>
                   {complianceRegion === "TR"
                     ? `Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı ${complianceViolations.length} İfade Tespit Edildi!`
@@ -755,7 +801,7 @@ export default function ContentOptimizerPage() {
                     : `Orta Doğu & Körfez (MENA) İkazı: ${complianceViolations.length} İfade BAE / Suudi Arabistan Reklam Kanunlarına Aykırı!`}
                 </span>
               </div>
-              <p className="text-xs text-rose-600 leading-relaxed">
+              <p className="text-xs text-critical leading-relaxed">
                 {complianceRegion === "TR" ? (
                   <>
                     Türk Ticaret Kanunu, TİTCK Sağlık Hizmetleri Tanıtım Yönetmeliği veya TBB Avukatlık Reklam Yasağı uyarınca aşağıdaki ifadeler sitenize{" "}
@@ -791,10 +837,10 @@ export default function ContentOptimizerPage() {
               </p>
             </div>
           ) : (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+            <div className="p-4 bg-evidence-soft border border-evidence/30 rounded-sm flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-evidence shrink-0" />
               <div>
-                <h4 className="text-sm font-bold text-emerald-800">
+                <h4 className="text-sm font-bold text-evidence">
                   {complianceRegion === "TR"
                     ? "Mevzuata Tam Uyumlu"
                     : complianceRegion === "EU"
@@ -807,7 +853,7 @@ export default function ContentOptimizerPage() {
                     ? "Fully Compliant with Asia & Pacific (APAC) Regulations"
                     : "Orta Doğu & Körfez (MENA) Mevzuatına Tam Uyumlu"}
                 </h4>
-                <p className="text-xs text-emerald-700">
+                <p className="text-xs text-evidence">
                   {complianceRegion === "TR"
                     ? "İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır."
                     : complianceRegion === "EU"
@@ -965,7 +1011,7 @@ export default function ContentOptimizerPage() {
                       <tr key={i} className="hover:bg-surface-2 transition-colors">
                         <td className="py-3.5 px-4">
                           <div className="flex flex-col gap-1">
-                            <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm font-mono text-xs w-fit">
+                            <span className="font-bold text-critical bg-critical-soft px-2 py-0.5 rounded-sm font-mono text-xs w-fit">
                               "{v.matchedPattern}"
                             </span>
                             <span className="text-2xs text-muted font-mono">{v.title}</span>
@@ -993,11 +1039,11 @@ export default function ContentOptimizerPage() {
                           {v.legalBasis}
                         </td>
 
-                        <td className="py-3.5 px-3 text-xs text-rose-600 font-medium max-w-[180px]">
+                        <td className="py-3.5 px-3 text-xs text-critical font-medium max-w-[180px]">
                           {v.penaltyRisk}
                         </td>
 
-                        <td className="py-3.5 px-4 text-xs font-medium text-emerald-700 bg-emerald-50/40 rounded-sm">
+                        <td className="py-3.5 px-4 text-xs font-medium text-evidence bg-evidence-soft rounded-sm">
                           {v.suggestedFix}
                         </td>
 
@@ -1021,7 +1067,7 @@ export default function ContentOptimizerPage() {
         </div>
       ) : activeTab === "nlp" ? (
         /* =========================================================
-           TAB 1: NLP SEMANTİK SKORLAMA (SURFER SEO STANDARDI)
+           TAB 1: SEMANTİK VARLIKLAR (örnek veri; sayfa içeriği analizi henüz yok)
            ========================================================= */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Missing Entities & Headings */}
@@ -1107,7 +1153,7 @@ export default function ContentOptimizerPage() {
                 <div className="flex items-center justify-between text-2xs text-muted font-mono">
                   <span>Kelime: {contentDraft.split(/\s+/).filter(Boolean).length}</span>
                   {complianceViolations.length > 0 && (
-                    <span className="text-rose-600 font-bold">
+                    <span className="text-critical font-bold">
                       ⚠️ {complianceViolations.length} Türkiye mevzuat uyarısı
                     </span>
                   )}
@@ -1121,14 +1167,14 @@ export default function ContentOptimizerPage() {
            TAB 3: AI SEO İÇERİK & KOD ÜRETİCİ
            ========================================================= */
         <div className="max-w-3xl mx-auto">
-          <Panel title="AI SEO İçerik & Kod Üretici" sub="Başlık, meta açıklama, FAQ schema veya taslak üretin">
+          <Panel title="Başlık, meta açıklama ve FAQ şablonları" sub="Konu ve anahtar kelimeden hazır kalıpla taslak oluşturur. Yapay zeka kullanılmaz; metni sayfanıza göre düzenleyin.">
             <div className="space-y-4">
               {/* Type Switcher */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-surface-2 p-1 rounded-sm border border-line">
                 <button
                   type="button"
                   onClick={() => setGenType("META_TITLE")}
-                  className={`text-xs py-1.5 font-semibold rounded-xs transition-colors ${
+                  className={`text-xs py-1.5 font-semibold rounded-sm transition-colors ${
                     genType === "META_TITLE" ? "bg-accent-fill text-white" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -1137,7 +1183,7 @@ export default function ContentOptimizerPage() {
                 <button
                   type="button"
                   onClick={() => setGenType("META_DESCRIPTION")}
-                  className={`text-xs py-1.5 font-semibold rounded-xs transition-colors ${
+                  className={`text-xs py-1.5 font-semibold rounded-sm transition-colors ${
                     genType === "META_DESCRIPTION" ? "bg-accent-fill text-white" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -1146,7 +1192,7 @@ export default function ContentOptimizerPage() {
                 <button
                   type="button"
                   onClick={() => setGenType("FAQ")}
-                  className={`text-xs py-1.5 font-semibold rounded-xs transition-colors ${
+                  className={`text-xs py-1.5 font-semibold rounded-sm transition-colors ${
                     genType === "FAQ" ? "bg-accent-fill text-white" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -1155,7 +1201,7 @@ export default function ContentOptimizerPage() {
                 <button
                   type="button"
                   onClick={() => setGenType("OUTLINE")}
-                  className={`text-xs py-1.5 font-semibold rounded-xs transition-colors ${
+                  className={`text-xs py-1.5 font-semibold rounded-sm transition-colors ${
                     genType === "OUTLINE" ? "bg-accent-fill text-white" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -1181,7 +1227,7 @@ export default function ContentOptimizerPage() {
                 onClick={handleGenerate}
                 icon={<Sparkles className="w-4 h-4" />}
               >
-                Yapay Zeka ile Oluştur
+                Şablon oluştur
               </Button>
 
               {/* Result Area */}
@@ -1205,12 +1251,9 @@ export default function ContentOptimizerPage() {
                       )}
                     </button>
                   </div>
-                  <pre className="font-mono text-xs text-ink whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto custom-scrollbar bg-surface p-2.5 rounded-xs border border-line">
+                  <pre className="font-mono text-xs text-ink whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto custom-scrollbar bg-surface p-2.5 rounded-sm border border-line">
                     {generatedOutput.content}
                   </pre>
-                  <div className="text-right text-2xs text-faint font-mono">
-                    Token harcaması: {generatedOutput.tokens} tokens
-                  </div>
                 </div>
               )}
             </div>

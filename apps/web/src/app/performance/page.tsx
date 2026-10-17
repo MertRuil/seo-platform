@@ -28,7 +28,7 @@ const columns: Column<QueryRow>[] = [
 
 export default function AramaPerformansiPage() {
   const { period } = useSite();
-  const res = useSiteData<PerformanceData>("performance", async ({ org, site }) => gscToPerformance(await api.getGscMetrics(org.id, site.id)), DEMO_PERFORMANCE, { requires: "site" });
+  const res = useSiteData<PerformanceData>("performance", async ({ org, site, period }) => gscToPerformance(await api.getGscMetrics(org.id, site.id, period)), DEMO_PERFORMANCE, { requires: "site" });
   const d = res.data;
   const live = res.source === "live";
   const hasData = d.queries.length > 0;

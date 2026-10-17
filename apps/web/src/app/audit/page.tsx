@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { History, UserCheck, Lock, Search, Shield } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
 import { useSiteData } from "@/hooks/useSiteData";
-import { DEMO_AUDIT, type AuditRow } from "@/lib/demo";
+import { type AuditRow } from "@/lib/demo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { Input, FilterChips } from "@/components/ui/Input";
@@ -17,8 +18,7 @@ type Cat = "ALL" | "DEĞİŞİKLİK" | "TARAMA" | "OTURUM";
 export default function DenetimGunluguPage() {
   const { user } = useAuth();
   const isAdmin = Boolean(user?.isAdmin || user?.isSuperAdmin);
-  // Arka uçta denetim günlüğü okuma ucu yok (AuditLog tablosuna yalnızca yazılıyor).
-  const res = useSiteData<AuditRow[]>("audit", async () => DEMO_AUDIT, DEMO_AUDIT, { requires: "none" });
+  const res = useSiteData<AuditRow[]>("audit", async ({org,site}) => api.getSiteAudit(org.id,site.id), [], { requires: "site" });
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Cat>("ALL");

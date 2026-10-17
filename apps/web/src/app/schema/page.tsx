@@ -4,6 +4,7 @@ import React from "react";
 import { Code2 } from "lucide-react";
 import { DEMO_SCHEMA, type SchemaRow } from "@/lib/demo";
 import { useSiteData } from "@/hooks/useSiteData";
+import { api } from "@/lib/api";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
@@ -19,14 +20,13 @@ const columns: Column<SchemaRow>[] = [
 ];
 
 export default function YapilandirilmisVeriPage() {
-  // Arka uçta şema varlıklarını listeleyen uç yok; SchemaGenerator yalnızca öneri üretiyor.
-  const res = useSiteData<SchemaRow[]>("schema", async () => DEMO_SCHEMA, DEMO_SCHEMA, { requires: "none" });
+  const res = useSiteData<SchemaRow[]>("schema", async ({org, site, crawl}) => api.getCrawlSchema(org.id, site.id, crawl!.id), DEMO_SCHEMA);
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
       <DemoBanner source={res.source} reason={res.reason} />
-      <PageHeader icon={<Code2 className="w-5 h-5" />} title="Yapılandırılmış veri ve zengin sonuçlar" description="Sayfalardaki JSON-LD şema varlıkları, uygun zengin sonuç türü ve Google yönergelerine göre doğrulama durumu." />
-      <Panel flush title="Aktif JSON-LD varlıkları" actions={<Badge tone="evidence">Sözdizimi hatası yok</Badge>}>
+      <PageHeader icon={<Code2 className="w-5 h-5" />} title="Yapılandırılmış veri ve zengin sonuçlar" description="Son taramada okunan JSON-LD türleri. Bir türün bulunması Google zengin sonuç uygunluğunu garanti etmez." />
+      <Panel flush title="Taramada bulunan JSON-LD varlıkları" actions={<Badge tone="neutral">{res.data.length} kayıt</Badge>}>
         <DataTable columns={columns} rows={res.data} rowKey={(r) => `${r.type}-${r.page}`} caption="Şema varlıkları tablosu" />
       </Panel>
     </div>

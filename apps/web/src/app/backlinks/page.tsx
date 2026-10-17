@@ -5,15 +5,9 @@ import {
   Link2,
   ShieldAlert,
   Download,
-  Filter,
   ExternalLink,
   CheckCircle2,
-  AlertTriangle,
-  FileText,
   Plus,
-  RefreshCw,
-  Globe,
-  TrendingUp,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
@@ -23,6 +17,9 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { useSite } from "@/context/SiteContext";
+import { useAuth } from "@/context/AuthContext";
+import { Notice } from "@/components/ui/States";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 
 export interface WebBacklinkItem {
   id: string;
@@ -31,17 +28,17 @@ export interface WebBacklinkItem {
   target_url: string;
   anchor_text: string;
   anchor_category: "BRAND" | "EXACT_MATCH" | "PARTIAL_MATCH" | "GENERIC" | "NAKED_URL" | "SPAM";
-  is_dofollow: boolean;
+  is_dofollow: boolean | null;
   domain_authority: number; // 1-100 DR
   page_authority: number;   // 1-100 UR
-  spam_score: number;       // 0-100
+  spam_score: number | null;       // 0-100
   is_toxic: boolean;
   toxicity_reasons: string[];
   first_seen: string;
   status: "ACTIVE" | "LOST";
 }
 
-export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
+const INITIAL_BACKLINKS: WebBacklinkItem[] = [
   {
     id: "bl-1",
     source_url: "https://techcrunch.com/2026/02/top-enterprise-seo-platforms",
@@ -184,137 +181,15 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
   },
 ];
 
-export const ANALYTICSHUB_BACKLINKS: WebBacklinkItem[] = [
-  {
-    id: "bl-ah-1",
-    source_url: "https://github.com/topics/saas-analytics",
-    source_domain: "github.com",
-    target_url: "https://analyticshub.com",
-    anchor_text: "SaaS Analytics Hub Platform",
-    anchor_category: "BRAND",
-    is_dofollow: true,
-    domain_authority: 96,
-    page_authority: 82,
-    spam_score: 1,
-    is_toxic: false,
-    toxicity_reasons: [],
-    first_seen: "2026-01-15",
-    status: "ACTIVE",
-  },
-  {
-    id: "bl-ah-2",
-    source_url: "https://producthunt.com/products/analytics-hub",
-    source_domain: "producthunt.com",
-    target_url: "https://analyticshub.com",
-    anchor_text: "Analytics Hub",
-    anchor_category: "BRAND",
-    is_dofollow: true,
-    domain_authority: 91,
-    page_authority: 76,
-    spam_score: 1,
-    is_toxic: false,
-    toxicity_reasons: [],
-    first_seen: "2026-02-01",
-    status: "ACTIVE",
-  },
-  {
-    id: "bl-ah-3",
-    source_url: "https://techradar.com/pro/best-business-intelligence-tools",
-    source_domain: "techradar.com",
-    target_url: "https://analyticshub.com/features",
-    anchor_text: "veri analitiği ve dashboard çözümleri",
-    anchor_category: "PARTIAL_MATCH",
-    is_dofollow: true,
-    domain_authority: 89,
-    page_authority: 70,
-    spam_score: 2,
-    is_toxic: false,
-    toxicity_reasons: [],
-    first_seen: "2026-02-18",
-    status: "ACTIVE",
-  },
-  {
-    id: "bl-ah-4",
-    source_url: "https://capterra.com/p/analyticshub/reviews",
-    source_domain: "capterra.com",
-    target_url: "https://analyticshub.com",
-    anchor_text: "https://analyticshub.com",
-    anchor_category: "NAKED_URL",
-    is_dofollow: false,
-    domain_authority: 84,
-    page_authority: 58,
-    spam_score: 2,
-    is_toxic: false,
-    toxicity_reasons: [],
-    first_seen: "2026-03-05",
-    status: "ACTIVE",
-  },
-  {
-    id: "bl-ah-5",
-    source_url: "https://dev.to/dataarchitect/modern-analytics-architecture-2026",
-    source_domain: "dev.to",
-    target_url: "https://analyticshub.com/integrations",
-    anchor_text: "Analytics Hub REST API",
-    anchor_category: "BRAND",
-    is_dofollow: true,
-    domain_authority: 79,
-    page_authority: 61,
-    spam_score: 3,
-    is_toxic: false,
-    toxicity_reasons: [],
-    first_seen: "2026-03-12",
-    status: "ACTIVE",
-  },
-];
-
-export function getSiteBacklinks(site?: { id?: string; domain?: string; primary_url?: string } | null): WebBacklinkItem[] {
-  const domain = (site?.domain || "").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
-  const siteId = site?.id;
-  if (domain === "analyticshub.com" || siteId === "site-2") {
-    return ANALYTICSHUB_BACKLINKS;
-  }
-  if (domain === "acmestore.io" || siteId === "site-1" || !domain) {
-    return INITIAL_BACKLINKS;
-  }
-  const baseUrl = site?.primary_url || `https://${domain}`;
-  return [
-    {
-      id: `bl-${siteId || "custom"}-1`,
-      source_url: "https://google.com/search",
-      source_domain: "google.com",
-      target_url: baseUrl,
-      anchor_text: domain,
-      anchor_category: "BRAND",
-      is_dofollow: true,
-      domain_authority: 98,
-      page_authority: 85,
-      spam_score: 1,
-      is_toxic: false,
-      toxicity_reasons: [],
-      first_seen: "2026-03-01",
-      status: "ACTIVE",
-    },
-    {
-      id: `bl-${siteId || "custom"}-2`,
-      source_url: "https://webdirectory-clean.org/listing",
-      source_domain: "webdirectory-clean.org",
-      target_url: baseUrl,
-      anchor_text: `${domain} ana sayfa`,
-      anchor_category: "PARTIAL_MATCH",
-      is_dofollow: true,
-      domain_authority: 45,
-      page_authority: 38,
-      spam_score: 4,
-      is_toxic: false,
-      toxicity_reasons: [],
-      first_seen: "2026-03-10",
-      status: "ACTIVE",
-    },
-  ];
+function getSiteBacklinks(site?: { id?: string; domain?: string; primary_url?: string } | null): WebBacklinkItem[] {
+  return site ? [] : INITIAL_BACKLINKS;
 }
 
 export default function BacklinksPage() {
   const { site } = useSite();
+  const { user } = useAuth();
+  const storageKey = site && user ? `calpeo:backlinks:${user.id}:${site.id}` : null;
+  const [storageError, setStorageError] = useState<string | null>(null);
   const [backlinks, setBacklinks] = useState<WebBacklinkItem[]>(() => getSiteBacklinks(site));
   const [cleanDisavowNotice, setCleanDisavowNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | "TOXIC" | "DOFOLLOW" | "NOFOLLOW" | "HIGH_DR">("ALL");
@@ -324,21 +199,26 @@ export default function BacklinksPage() {
   const [newAnchor, setNewAnchor] = useState("");
 
   React.useEffect(() => {
-    setBacklinks(getSiteBacklinks(site));
+    try {
+      const saved = storageKey ? JSON.parse(localStorage.getItem(storageKey) || "[]") : getSiteBacklinks(site ? { id:site.id } : null);
+      setBacklinks(Array.isArray(saved) ? saved : []);
+      setStorageError(null);
+    } catch { setBacklinks([]); setStorageError("Kaydedilen bağlantılar okunamadı."); }
     setCleanDisavowNotice(null);
-  }, [site?.id, site?.domain]);
+  }, [storageKey, site]);
 
   const toxicCount = backlinks.filter((b) => b.is_toxic).length;
   const dofollowCount = backlinks.filter((b) => b.is_dofollow).length;
   const uniqueDomains = new Set(backlinks.map((b) => b.source_domain)).size;
-  const avgDa = Math.round(backlinks.reduce((acc, b) => acc + b.domain_authority, 0) / (backlinks.length || 1));
+  const withDa = backlinks.filter((b) => b.domain_authority > 0);
+  const avgDa = Math.round(withDa.reduce((acc, b) => acc + b.domain_authority, 0) / (withDa.length || 1));
   const dofollowRatio = Math.round((dofollowCount / (backlinks.length || 1)) * 100);
 
   const filteredLinks = useMemo(() => {
     return backlinks.filter((b) => {
       if (filter === "TOXIC" && !b.is_toxic) return false;
       if (filter === "DOFOLLOW" && !b.is_dofollow) return false;
-      if (filter === "NOFOLLOW" && b.is_dofollow) return false;
+      if (filter === "NOFOLLOW" && b.is_dofollow !== false) return false;
       if (filter === "HIGH_DR" && b.domain_authority < 60) return false;
 
       if (searchQuery.trim()) {
@@ -429,7 +309,6 @@ export default function BacklinksPage() {
     const isRawIp = /^https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/i.test(newSourceUrl.trim()) || /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(domain);
 
     const isSuspicious = isSpamTld || hasSpamKeyword || isRawIp;
-    const spamScore = isSuspicious ? Math.floor(Math.random() * 20) + 75 : Math.floor(Math.random() * 8) + 1;
 
     const toxicityReasons: string[] = [];
     if (isSpamTld) toxicityReasons.push("Yüksek riskli spam TLD uzantısı");
@@ -446,17 +325,23 @@ export default function BacklinksPage() {
       target_url: site?.primary_url || "https://acmestore.io",
       anchor_text: newAnchor.trim() || domain,
       anchor_category: hasSpamKeyword ? "SPAM" : "BRAND",
-      is_dofollow: true,
-      domain_authority: isSuspicious ? Math.floor(Math.random() * 10) + 2 : Math.floor(Math.random() * 40) + 40,
-      page_authority: isSuspicious ? 5 : 35,
-      spam_score: spamScore,
+      is_dofollow: null,
+      // Otorite (DR/UR) bir veri sağlayıcısından gelmeden bilinemez: 0 = bilinmiyor, "—" gösterilir.
+      // Spam riski yalnızca kural tabanlı sinyallerden türetilir (rastgele sayı yok).
+      domain_authority: 0,
+      page_authority: 0,
+      spam_score: null,
       is_toxic: isSuspicious,
       toxicity_reasons: toxicityReasons,
       first_seen: new Date().toISOString().slice(0, 10),
       status: "ACTIVE",
     };
 
-    setBacklinks([newItem, ...backlinks]);
+    if (!storageKey) { setStorageError("Bağlantı kaydetmek için önce kendi sitenizi seçin."); return; }
+    const next = [newItem, ...backlinks];
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); }
+    catch { setStorageError("Tarayıcı depolaması kullanılamıyor; bağlantı kaydedilmedi."); return; }
+    setBacklinks(next);
     setNewSourceUrl("");
     setNewAnchor("");
     setIsAddModalOpen(false);
@@ -464,28 +349,31 @@ export default function BacklinksPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-14">
+      {/* Backlink listesi henüz bir veri kaynağına bağlı değil: tablo örnektir, elle eklenen bağlantılar bu tarayıcıda kalır */}
+      {!site ? <DemoBanner source="demo" reason="no-site" /> : <Notice><strong>Elle tutulan bağlantı listesi.</strong> Kayıtlar bu tarayıcıda saklanır. Bağlantı sağlayıcısı bağlı olmadığı için bağlantının varlığı, follow türü, DR/UR ve spam yüzdesi ölçülmez. Risk etiketleri URL ve bağlantı metnindeki kelimelere dayalı ön incelemedir.</Notice>}
+      {storageError && <Notice tone="warn">{storageError}</Notice>}
       {/* Header */}
       <PageHeader
         icon={<Link2 className="w-5 h-5 text-accent" />}
-        title="Backlink Analizi & Toksik Link Dedektörü"
-        description="Ahrefs ve Moz standartlarında gelen bağlantı profili, Domain Rating (DR), Dofollow/Nofollow oranları, spam skorları ve Google Penguin cezalarından korunmak için tek tıkla Google Disavow dosyası oluşturucu."
+        title="Backlink'ler"
+        description="Sitenize bağlantı veren sayfalar, bağlantı metinleri ve riskli bağlantılar. Riskli alan adları için Google'a yüklenebilecek disavow dosyası oluşturabilirsiniz."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
               size="md"
-              icon={<Download className="w-4 h-4 text-warn" />}
+              icon={<Download className="w-4 h-4 text-warn" aria-hidden />}
               onClick={handleDownloadDisavow}
             >
-              Google Disavow (.txt) İndir
+              Disavow dosyası indir
             </Button>
             <Button
               variant="primary"
               size="md"
-              icon={<Plus className="w-4 h-4" />}
+              icon={<Plus className="w-4 h-4" aria-hidden />}
               onClick={() => setIsAddModalOpen(true)}
             >
-              Yeni Backlink Tara
+              Backlink ekle
             </Button>
           </div>
         }
@@ -508,13 +396,13 @@ export default function BacklinksPage() {
           },
           {
             label: "Dofollow Oranı",
-            value: `%${dofollowRatio}`,
+            value: backlinks.some(b => b.is_dofollow !== null) ? `%${dofollowRatio}` : "—",
             tone: dofollowRatio > 60 ? "evidence" : "default",
             hint: `${dofollowCount} dofollow link`,
           },
           {
             label: "Ortalama Otorite (DR)",
-            value: avgDa.toString(),
+            value: withDa.length ? avgDa.toString() : "—",
             unit: "/100",
             tone: avgDa > 45 ? "evidence" : "warn",
           },
@@ -530,7 +418,7 @@ export default function BacklinksPage() {
 
       {/* Toxic Alert or Clean Profile Banner */}
       {toxicCount > 0 ? (
-        <div className="p-4 rounded-xl border border-warn/30 bg-warn/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 rounded-lg border border-warn/30 bg-warn/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <ShieldAlert className="w-5 h-5 text-warn shrink-0 mt-0.5" />
             <div>
@@ -547,13 +435,13 @@ export default function BacklinksPage() {
             size="sm"
             icon={<Download className="w-4 h-4" />}
             onClick={handleDownloadDisavow}
-            className="shrink-0 bg-warn hover:bg-warn/90 text-white"
+            className="shrink-0 bg-warn-fill hover:bg-warn-fill/90 text-white"
           >
             Disavow Dosyası Oluştur (.txt)
           </Button>
         </div>
       ) : (
-        <div className="p-4 rounded-xl border border-evidence/30 bg-evidence/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 rounded-lg border border-evidence/30 bg-evidence/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
             <div>
@@ -573,7 +461,7 @@ export default function BacklinksPage() {
 
       {/* Filters & Search Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="flex flex-wrap items-center gap-1.5 bg-surface-subtle p-1 rounded-xl border border-line">
+        <div className="flex flex-wrap items-center gap-1.5 bg-surface-subtle p-1 rounded-lg border border-line">
           {[
             { id: "ALL", label: `Tümü (${backlinks.length})` },
             { id: "TOXIC", label: `🚨 Toksik / Zararlı (${toxicCount})` },
@@ -586,7 +474,7 @@ export default function BacklinksPage() {
               onClick={() => setFilter(f.id as any)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 filter === f.id
-                  ? "bg-accent text-white shadow-sm"
+                  ? "bg-accent-fill text-accent-on"
                   : "text-muted hover:text-ink hover:bg-surface"
               }`}
             >
@@ -669,29 +557,29 @@ export default function BacklinksPage() {
                     </td>
 
                     <td className="py-3 px-3 text-center">
-                      <span className="font-mono font-bold text-ink">
-                        {item.domain_authority}
+                      <span className="font-mono font-bold text-ink" title={item.domain_authority ? undefined : "Otorite verisi yok"}>
+                        {item.domain_authority || "—"}
                       </span>
-                      <span className="text-[10px] text-muted block">UR: {item.page_authority}</span>
+                      {item.page_authority > 0 && <span className="text-2xs text-muted block">UR: {item.page_authority}</span>}
                     </td>
 
                     <td className="py-3 px-3 text-center">
                       <span
                         className={`inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                          item.spam_score > 60
+                          (item.spam_score ?? 0) > 60
                             ? "bg-warn/20 text-warn"
-                            : item.spam_score > 25
-                            ? "bg-yellow-500/20 text-yellow-400"
+                            : (item.spam_score ?? 0) > 25
+                            ? "bg-warn/20 text-warn"
                             : "bg-evidence/20 text-evidence"
                         }`}
                       >
-                        %{item.spam_score}
+                        {item.spam_score === null ? "—" : `%${item.spam_score}`}
                       </span>
                     </td>
 
                     <td className="py-3 px-3">
                       <Badge tone={item.is_dofollow ? "evidence" : "neutral"}>
-                        {item.is_dofollow ? "Dofollow" : "Nofollow"}
+                        {item.is_dofollow === null ? "Bilinmiyor" : item.is_dofollow ? "Dofollow" : "Nofollow"}
                       </Badge>
                     </td>
 
@@ -770,13 +658,13 @@ export default function BacklinksPage() {
         title="Disavow Dosyası Gerekli Değil"
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 bg-evidence/10 border border-evidence/30 rounded-xl">
+          <div className="flex items-start gap-3 p-3 bg-evidence/10 border border-evidence/30 rounded-lg">
             <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
             <p className="text-xs text-ink leading-relaxed">
               {cleanDisavowNotice}
             </p>
           </div>
-          <div className="p-3 bg-surface-subtle border border-line rounded-xl text-[11px] text-muted space-y-1">
+          <div className="p-3 bg-surface-subtle border border-line rounded-lg text-[11px] text-muted space-y-1">
             <div className="font-semibold text-ink">Google Arama Merkezi (Search Central) Uyarısı:</div>
             <p>
               "Disavow aracı yalnızca sitenize yönelik yapay, yanıltıcı veya manipülatif bağlantılar için kullanılmalıdır. Sitenize link vermemiş alan adlarını disavow etmek faydasız olduğu gibi, geçerli yönlendirmeleri yanlışlıkla engelleme riski taşır."

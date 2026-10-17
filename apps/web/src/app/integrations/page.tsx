@@ -22,8 +22,10 @@ import {
   Check,
   AlertTriangle
 } from "lucide-react";
+import { SiteVerification } from "@/components/SiteVerification";
 import { useAuth } from "@/context/AuthContext";
 import { useSite } from "@/context/SiteContext";
+import { api } from "@/lib/api";
 import { useSiteData, type LiveContext } from "@/hooks/useSiteData";
 import { DEMO_CONNECTORS, type ConnectorItem } from "@/lib/demo";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -33,7 +35,7 @@ import { Input, Label } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { DemoBanner } from "@/components/ui/DemoBanner";
-import { Notice } from "@/components/ui/States";
+import { EmptyState, Notice } from "@/components/ui/States";
 import { MetricStrip } from "@/components/ui/MetricStrip";
 
 interface ExtendedConnectorItem extends ConnectorItem {
@@ -43,7 +45,7 @@ interface ExtendedConnectorItem extends ConnectorItem {
 export default function BaglayicilarPage() {
   const { user } = useAuth();
   const { org, site } = useSite();
-  const isAdmin = Boolean(!user || user.isAdmin || user.isSuperAdmin || user.role === "OWNER" || user.role === "ADMIN" || true);
+  const isAdmin = Boolean(user && org && site);
 
   const [activeTab, setActiveTab] = useState<"google" | "connectors" | "alerts">("google");
 
@@ -53,34 +55,36 @@ export default function BaglayicilarPage() {
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleLastSync, setGoogleLastSync] = useState("Henüz eşitlenmedi");
   const [gscClicks, setGscClicks] = useState<number | null>(null);
-  const [ga4Users, setGa4Users] = useState<number | null>(null);
+  const [gscCtr, setGscCtr] = useState<number | null>(null);
+  // GA4 verisi henüz platforma alınmıyor; değer uydurulmaz.
+  const ga4Users: number | null = null;
 
   // Alert Channels States
   const [testingChannel, setTestingChannel] = useState<string | null>(null);
-  const [alertChannels, setAlertChannels] = useState([
+  const [alertChannels] = useState([
     {
       id: "slack-1",
       name: "Slack #seo-alarmlari",
       type: "Slack Webhook",
-      url: "https://hooks.slack.com/services/T00/B00/XXXX",
-      enabled: true,
-      lastDelivered: "2 saat önce",
+      url: "Yapılandırılmadı",
+      enabled: false,
+      lastDelivered: "Henüz gönderilmedi",
       triggers: ["Sıralama Düşüşleri", "404 / 500 Kritik Hatalar", "Mevzuat İhlalleri"]
     },
     {
       id: "telegram-1",
-      name: "Telegram Bot (@SeoPlatformAlertBot)",
+      name: "Telegram",
       type: "Telegram Bot",
-      url: "Chat ID: -100293847192",
-      enabled: true,
-      lastDelivered: "Dün 18:40",
+      url: "Yapılandırılmadı",
+      enabled: false,
+      lastDelivered: "Henüz gönderilmedi",
       triggers: ["Sıralama Düşüşleri", "Kritik SEO Hataları"]
     },
     {
       id: "discord-1",
       name: "Discord Webhook #seo-ops",
       type: "Discord Webhook",
-      url: "https://discord.com/api/webhooks/123/xyz",
+      url: "Yapılandırılmadı",
       enabled: false,
       lastDelivered: "Henüz gönderilmedi",
       triggers: ["Mevzuat & Reklam İhlalleri"]
@@ -89,9 +93,9 @@ export default function BaglayicilarPage() {
       id: "webhook-1",
       name: "Kurumsal SIEM / CI/CD Webhook",
       type: "HMAC-SHA256 Webhook",
-      url: "https://api.sirket.com/v1/seo-events",
-      enabled: true,
-      lastDelivered: "5 saat önce",
+      url: "Yapılandırılmadı",
+      enabled: false,
+      lastDelivered: "Henüz gönderilmedi",
       triggers: ["Tüm Olaylar (Ham JSON Payload)"]
     }
   ]);
@@ -104,13 +108,10 @@ export default function BaglayicilarPage() {
     const res = await fetch(`/api/v1/organizations/${ctx.org.id}/sites/${ctx.site.id}/connectors`, {
       headers,
     });
-    if (!res.ok) {
-      return DEMO_CONNECTORS;
-    }
+    // Hata durumunda örnek veriye useSiteData düşer (bantla işaretlenir); boş liste boş kalır.
+    if (!res.ok) throw new Error(`Bağlayıcılar alınamadı (HTTP ${res.status})`);
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      return DEMO_CONNECTORS;
-    }
+    if (!Array.isArray(data)) return [];
 
     return data.map((d: any) => {
       const typeName =
@@ -149,14 +150,14 @@ export default function BaglayicilarPage() {
 
   const demo = useSiteData<ExtendedConnectorItem[]>("connectors", fetchConnectors, DEMO_CONNECTORS, { requires: "site" });
 
-  const [list, setList] = useState<ExtendedConnectorItem[]>(DEMO_CONNECTORS);
+  const [list, setList] = useState<ExtendedConnectorItem[]>([]);
   const [editing, setEditing] = useState<ExtendedConnectorItem | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [secret, setSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [notice, setNotice] = useState<{ tone: "success" | "error" | "warn"; text: string } | null>(null);
 
   // Yeni bağlayıcı modalı
   const [addOpen, setAddOpen] = useState(false);
@@ -164,10 +165,30 @@ export default function BaglayicilarPage() {
   const [newEndpoint, setNewEndpoint] = useState("");
   const [newSecret, setNewSecret] = useState("");
   useEffect(() => {
-    if (demo.data && demo.data.length > 0) {
+    if (demo.data) {
       setList(demo.data);
     }
   }, [demo.data]);
+
+  // Search Console'dan senkronlanmış satırların gerçek toplamı (satır yoksa değer gösterilmez)
+  const loadGscTotals = async () => {
+    if (!org?.id || !site?.id) return;
+    try {
+      const rows = await api.getGscMetrics(org.id, site.id);
+      if (rows.length === 0) {
+        setGscClicks(null);
+        setGscCtr(null);
+        return;
+      }
+      const clicks = rows.reduce((a, r) => a + r.clicks, 0);
+      const impressions = rows.reduce((a, r) => a + r.impressions, 0);
+      setGscClicks(clicks);
+      setGscCtr(impressions ? clicks / impressions : null);
+    } catch {
+      setGscClicks(null);
+      setGscCtr(null);
+    }
+  };
 
   // Initial Check for Real Google Integration Health
   useEffect(() => {
@@ -185,38 +206,34 @@ export default function BaglayicilarPage() {
           if (data.connected && data.status === "CONNECTED") {
             setGoogleIntegrationStatus("HEALTHY");
             setGoogleLastSync(data.last_synced_at ? new Date(data.last_synced_at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "Bugün");
-            setGscClicks(14850);
-            setGa4Users(18400);
+            loadGscTotals();
+
             setGoogleStatusDetail("Canlı veri akışı aktif ve doğrulanmış.");
           } else {
             setGoogleIntegrationStatus(data.status === "AUTH_FAILED" ? "AUTH_FAILED" : "DISCONNECTED");
             setGoogleStatusDetail(data.error_message || "Google Search Console hesabı bağlanmadı.");
             setGscClicks(null);
-            setGa4Users(null);
           }
         } else {
           // If status endpoint returns error or site has no credentials:
           const gscItem = list.find((c) => c.id === "gsc" || c.tur === "OAuth 2.0" || c.tur === "GOOGLE_SEARCH_CONSOLE");
           if (gscItem?.durum === "Bağlandı") {
             setGoogleIntegrationStatus("HEALTHY");
-            setGscClicks(14850);
-            setGa4Users(18400);
+            loadGscTotals();
+
           } else if (gscItem?.durum === "Bağlantı Başarısız") {
             setGoogleIntegrationStatus("AUTH_FAILED");
             setGoogleStatusDetail("Google OAuth yetkilendirme hatası (401 Unauthorized): Token süresi doldu.");
             setGscClicks(null);
-            setGa4Users(null);
           } else {
             setGoogleIntegrationStatus("DISCONNECTED");
             setGoogleStatusDetail("Google Search Console hesabı bağlanmadı.");
             setGscClicks(null);
-            setGa4Users(null);
           }
         }
       } catch {
         setGoogleIntegrationStatus("DISCONNECTED");
         setGscClicks(null);
-        setGa4Users(null);
       }
     };
 
@@ -268,7 +285,6 @@ export default function BaglayicilarPage() {
       if (!data.success) {
         setGoogleIntegrationStatus(data.status === "DISCONNECTED" ? "DISCONNECTED" : "AUTH_FAILED");
         setGscClicks(null);
-        setGa4Users(null);
         setGoogleStatusDetail(data.message);
         setNotice({
           tone: "error",
@@ -279,8 +295,7 @@ export default function BaglayicilarPage() {
 
       setGoogleIntegrationStatus("HEALTHY");
       setGoogleLastSync("Şimdi senkronize edildi");
-      setGscClicks(data.gsc_metrics_synced > 0 ? data.gsc_metrics_synced * 35 : 14850);
-      setGa4Users(data.crux_metrics_synced > 0 ? data.crux_metrics_synced * 220 : 18400);
+      loadGscTotals();
       setGoogleStatusDetail("Canlı veriler başarıyla eşitlendi.");
       setNotice({
         tone: "success",
@@ -318,40 +333,14 @@ export default function BaglayicilarPage() {
     }
   };
 
-  const handleToggleSimulation = () => {
-    if (googleIntegrationStatus === "HEALTHY") {
-      setGoogleIntegrationStatus("AUTH_FAILED");
-      setGscClicks(null);
-      setGa4Users(null);
-      setGoogleStatusDetail("OAuth Token Süresi Doldu (Simüle Edildi / Test Modu)");
-      setNotice({
-        tone: "error",
-        text: "⚠️ [Test Simülasyonu] Google yetkilendirme hatası (401 Unauthorized) simüle edildi. Sistem sahte veri gösterimini durdurdu ve müşteri uyarı kalkanını açtı."
-      });
-    } else {
-      setGoogleIntegrationStatus("HEALTHY");
-      setGscClicks(14850);
-      setGa4Users(18400);
-      setGoogleStatusDetail("Bağlantı aktif ve canlı veriler doğrulanıyor.");
-      setNotice({
-        tone: "success",
-        text: "🟢 [Test Simülasyonu] Google entegrasyonu sağlıklı duruma getirildi."
-      });
-    }
-  };
-
   const handleTestAlertChannel = async (id: string, name: string) => {
     setTestingChannel(id);
     setNotice(null);
     try {
-      await new Promise((r) => setTimeout(r, 700));
       setNotice({
-        tone: "success",
-        text: `🟢 ${name}: Test alarm bildirimi başarıyla iletildi (HTTP 200 OK). Webhook payload doğrulandı.`,
+        tone: "warn",
+        text: `${name}: Bildirim kanalı bir gönderim servisine henüz bağlı değil. Test bildirimi gönderilmedi.`,
       });
-      setAlertChannels((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, lastDelivered: "Şimdi" } : c))
-      );
     } catch {
       setNotice({ tone: "error", text: `${name} test bildirimi gönderilemedi.` });
     } finally {
@@ -594,12 +583,12 @@ export default function BaglayicilarPage() {
       <DemoBanner source={demo.source} reason={demo.reason} />
       <PageHeader
         icon={<Sliders className="w-5 h-5 text-accent-ink" />}
-        title="Entegrasyonlar & Bağlayıcılar Hub'ı"
+        title="Entegrasyonlar"
         description="Google Search Console, Google Analytics 4 (GA4), CMS yayıncıları ve anlık alarm kanallarını (Slack, Telegram, Discord) tek merkezden yönetin."
         actions={
           <div className="flex items-center gap-2">
             <Badge tone="accent">
-              <Shield className="w-3 h-3" aria-hidden /> Yönetici Yetkisi
+              <Shield className="w-3 h-3" aria-hidden /> Bağlantı ayarları
             </Badge>
             {activeTab === "connectors" && (
               <Button size="sm" variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setAddOpen(true)}>
@@ -615,43 +604,52 @@ export default function BaglayicilarPage() {
           {notice.text}
         </Notice>
       )}
+      <SiteVerification />
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-line pb-3">
+      <div role="tablist" aria-label="Entegrasyon türleri" className="flex items-center gap-2 border-b border-line pb-3 overflow-x-auto custom-scrollbar">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "google"}
           onClick={() => setActiveTab("google")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 transition-all ${
             activeTab === "google"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-surface text-accent-ink border border-accent/30"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >
           <Globe className="w-4 h-4" />
-          Google Hub (GSC + GA4)
-          <span className="ml-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          Google
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "connectors"}
           onClick={() => setActiveTab("connectors")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 transition-all ${
             activeTab === "connectors"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-surface text-accent-ink border border-accent/30"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >
           <Sliders className="w-4 h-4" />
-          Dağıtım Bağlayıcıları (CMS)
+          Yayın bağlayıcıları
           <span className="text-xs px-1.5 py-0.5 rounded bg-surface border border-line text-muted">{list.length}</span>
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "alerts"}
           onClick={() => setActiveTab("alerts")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 transition-all ${
             activeTab === "alerts"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-surface text-accent-ink border border-accent/30"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >
           <Bell className="w-4 h-4" />
-          Anlık Alarm Kanalları
+          Uyarı kanalları
           <span className="text-xs px-1.5 py-0.5 rounded bg-surface border border-line text-muted">{alertChannels.length}</span>
         </button>
       </div>
@@ -661,23 +659,23 @@ export default function BaglayicilarPage() {
         <div className="space-y-6">
           {/* Prominent Warning Banners for Broken / Disconnected Integration */}
           {googleIntegrationStatus === "AUTH_FAILED" && (
-            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="p-4 rounded-lg bg-critical/40 border border-critical/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-900/50 border border-red-700/50 flex items-center justify-center shrink-0 text-red-400">
+                <div className="w-10 h-10 rounded-lg bg-critical/50 border border-critical/50 flex items-center justify-center shrink-0 text-critical">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-red-200">Google Entegrasyonu Bozuk — Veri Akışı Durdu!</h4>
-                  <p className="text-xs text-red-300/80 mt-0.5">
+                  <h4 className="text-sm font-bold text-critical">Google Entegrasyonu Bozuk — Veri Akışı Durdu!</h4>
+                  <p className="text-xs text-critical mt-0.5">
                     Google Search Console veya GA4 yetkilendirme anahtarının (OAuth Token) süresi dolmuş veya erişim yetkisi kaldırılmış. Organik tıklama, gösterim ve dönüşüm verileri güncellenemiyor.
                   </p>
-                  <span className="inline-block mt-1 font-mono text-2xs text-red-300 bg-red-900/40 px-2 py-0.5 rounded border border-red-800/40">
+                  <span className="inline-block mt-1 font-mono text-2xs text-critical bg-critical/40 px-2 py-0.5 rounded border border-critical/40">
                     Durum: {googleStatusDetail}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="primary" onClick={handleConnectGoogle} className="bg-red-600 hover:bg-red-500 text-white font-semibold">
+                <Button variant="primary" onClick={handleConnectGoogle} className="bg-critical-fill hover:bg-critical-fill text-white font-semibold">
                   OAuth ile Yeniden Yetkilendir
                 </Button>
               </div>
@@ -685,20 +683,20 @@ export default function BaglayicilarPage() {
           )}
 
           {googleIntegrationStatus === "DISCONNECTED" && (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="p-4 rounded-lg bg-warn/40 border border-warn/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-900/50 border border-amber-700/50 flex items-center justify-center shrink-0 text-amber-400">
+                <div className="w-10 h-10 rounded-lg bg-warn/50 border border-warn/50 flex items-center justify-center shrink-0 text-warn">
                   <AlertCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-amber-200">Google Search Console & GA4 Bağlantısı Yapılandırılmadı</h4>
-                  <p className="text-xs text-amber-300/80 mt-0.5">
+                  <h4 className="text-sm font-bold text-warn">Google Search Console & GA4 Bağlantısı Yapılandırılmadı</h4>
+                  <p className="text-xs text-warn mt-0.5">
                     Bu site için henüz Google Search Console veya Google Analytics 4 hesabı bağlanmamış. Gerçek arama performansı ve organik dönüşümleri izlemek için hesabınızı bağlayın.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="primary" onClick={handleConnectGoogle} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                <Button variant="primary" onClick={handleConnectGoogle} className="bg-warn-fill hover:bg-warn-fill text-white font-semibold">
                   Google Hesabını Bağla (OAuth)
                 </Button>
               </div>
@@ -709,32 +707,22 @@ export default function BaglayicilarPage() {
           <MetricStrip
             items={[
               {
-                label: "GSC Organik Tıklamalar",
-                value: gscClicks !== null ? gscClicks.toLocaleString() : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+%14.2", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : googleIntegrationStatus === "AUTH_FAILED" ? "critical" : "warn",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Son 28 gün arama performansı" : googleIntegrationStatus === "AUTH_FAILED" ? "Bağlantı Hatası: Veri Yok" : "Bağlantı Bekleniyor",
+                label: "Search Console tıklamaları",
+                value: gscClicks !== null ? gscClicks.toLocaleString("tr-TR") : "—",
+                tone: gscClicks !== null ? "evidence" : googleIntegrationStatus === "AUTH_FAILED" ? "critical" : "muted",
+                hint: gscClicks !== null ? "Senkronlanan dönemin toplamı" : googleIntegrationStatus === "HEALTHY" ? "Henüz veri senkronlanmadı" : "Bağlantı bekleniyor",
               },
               {
-                label: "GSC Ortalama Tıklama (CTR)",
-                value: googleIntegrationStatus === "HEALTHY" ? "%5.23" : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+0.8 puan", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : "muted",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Sektör ortalaması %3.1" : "Erişim İzni Yok",
+                label: "Tıklama oranı",
+                value: gscCtr !== null ? `%${(gscCtr * 100).toFixed(1).replace(".", ",")}` : "—",
+                tone: "muted",
+                hint: gscCtr !== null ? "Tıklama / gösterim" : "Veri yok",
               },
               {
-                label: "GA4 Aktif Kullanıcı",
-                value: ga4Users !== null ? ga4Users.toLocaleString() : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+%18.6", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : googleIntegrationStatus === "AUTH_FAILED" ? "critical" : "warn",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Doğrudan ve organik trafik" : "Mülk Bağlantısı Kesildi",
-              },
-              {
-                label: "GA4 Organik Dönüşüm Oranı",
-                value: googleIntegrationStatus === "HEALTHY" ? "%3.20" : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+0.4 puan", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : "muted",
-                hint: googleIntegrationStatus === "HEALTHY" ? "486 organik işlem (toplam 842)" : "Veri Akışı Yok",
+                label: "GA4 kullanıcıları",
+                value: ga4Users !== null ? String(ga4Users) : "—",
+                tone: "muted",
+                hint: "GA4 verisi henüz alınmıyor",
               },
             ]}
           />
@@ -769,11 +757,11 @@ export default function BaglayicilarPage() {
                   <div className="flex justify-between">
                     <span className="text-muted">Protokol / İzin:</span>
                     {googleIntegrationStatus === "HEALTHY" ? (
-                      <span className="text-emerald-400 font-semibold">OAuth 2.0 (Google Search Console API)</span>
+                      <span className="text-evidence font-semibold">OAuth 2.0 (Google Search Console API)</span>
                     ) : googleIntegrationStatus === "AUTH_FAILED" ? (
-                      <span className="text-red-400 font-semibold">❌ Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
+                      <span className="text-critical font-semibold">❌ Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
                     ) : (
-                      <span className="text-amber-400 font-semibold">⚠️ Yetki Verilmedi</span>
+                      <span className="text-warn font-semibold">⚠️ Yetki Verilmedi</span>
                     )}
                   </div>
                   <div className="flex justify-between">
@@ -820,18 +808,18 @@ export default function BaglayicilarPage() {
                 <Inset className="space-y-2 font-mono text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted">Mülk Kimliği (Property ID):</span>
-                    <span className="text-ink font-semibold">properties/398241029</span>
+                    <span className="text-ink font-semibold">Yapılandırılmadı</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted">Ölçüm Kimliği (Measurement ID):</span>
-                    <span className="text-ink font-semibold">G-8X94W29E10</span>
+                    <span className="text-ink font-semibold">Yapılandırılmadı</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted">Ortalama Etkileşim Oranı:</span>
                     {googleIntegrationStatus === "HEALTHY" ? (
-                      <span className="text-emerald-400 font-semibold">%72.4 (Sağlıklı)</span>
+                      <span className="text-evidence font-semibold">%72.4 (Sağlıklı)</span>
                     ) : (
-                      <span className="text-red-400 font-semibold">❌ Veri Yok (Bağlantı Hatası)</span>
+                      <span className="text-critical font-semibold">❌ Veri Yok (Bağlantı Hatası)</span>
                     )}
                   </div>
                   <div className="flex justify-between">
@@ -853,27 +841,20 @@ export default function BaglayicilarPage() {
           <div className="bg-surface border border-line rounded-lg p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-accent-surface border border-accent/20 flex items-center justify-center">
-                <Radio className={`w-5 h-5 ${googleIntegrationStatus === "HEALTHY" ? "text-accent-ink animate-pulse" : "text-red-400"}`} />
+                <Radio className={`w-5 h-5 ${googleIntegrationStatus === "HEALTHY" ? "text-accent-ink animate-pulse" : "text-critical"}`} />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-ink">Canlı Google Senkronizasyon Durumu</h4>
                 <p className="text-xs text-muted mt-0.5">
                   Son başarılı senkronizasyon: <span className="font-medium text-ink">{googleLastSync}</span>
                   {googleIntegrationStatus !== "HEALTHY" && (
-                    <span className="text-red-400 ml-2 font-semibold">({googleStatusDetail})</span>
+                    <span className="text-critical ml-2 font-semibold">({googleStatusDetail})</span>
                   )}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={handleToggleSimulation}
-                className="text-xs px-3 py-1.5 rounded border border-line bg-surface hover:bg-surface-2 text-muted transition-colors cursor-pointer"
-              >
-                {googleIntegrationStatus === "HEALTHY" ? "⚠️ Hata Simülasyonunu Aç" : "✅ Sağlıklı Duruma Getir"}
-              </button>
               <Button
                 variant="primary"
                 loading={syncingGoogle}
@@ -888,7 +869,17 @@ export default function BaglayicilarPage() {
       )}
 
       {/* TAB 2: CONNECTORS (CMS / WORKER / WEBHOOK) */}
-      {activeTab === "connectors" && (
+      {activeTab === "connectors" && list.length === 0 && (
+        <Panel>
+          <EmptyState
+            icon={<Sliders className="w-8 h-8" />}
+            title="Henüz yayın bağlayıcısı yok"
+            description="WordPress, Git veya Cloudflare bağlantısı kurduğunuzda onayladığınız düzeltmeler sitenize doğrudan yazılabilir. Bağlayıcı olmadan düzeltme kodunu kopyalayıp elle uygulayabilirsiniz."
+            action={<Button icon={<Plus className="w-4 h-4" aria-hidden />} onClick={() => setAddOpen(true)}>Bağlayıcı ekle</Button>}
+          />
+        </Panel>
+      )}
+      {activeTab === "connectors" && list.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {list.map((c) => (
             <Panel
@@ -946,6 +937,7 @@ export default function BaglayicilarPage() {
       {/* TAB 3: ALERT CHANNELS (SLACK, TELEGRAM, DISCORD, WEBHOOK) */}
       {activeTab === "alerts" && (
         <div className="space-y-6">
+          <Notice tone="info">Bildirim kanalları henüz gönderim servisine bağlı değil. Aşağıdaki kartlar kullanılabilir kanal türlerini gösterir; aktif bağlantı veya otomatik uyarı bulunmuyor.</Notice>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {alertChannels.map((chan) => (
               <Panel
@@ -992,8 +984,8 @@ export default function BaglayicilarPage() {
                     >
                       Test Bildirimi Gönder
                     </Button>
-                    <Button size="sm" variant="secondary">
-                      Kanalı Yapılandır
+                    <Button size="sm" variant="secondary" onClick={() => setNotice({tone:"warn",text:"Bildirim sağlayıcıları henüz bağlanmadı. Bu bölüm kullanılabilir kanal türlerini gösterir; kayıt veya bildirim gönderimi yapılmaz."})}>
+                      Yapılandırma durumu
                     </Button>
                   </div>
                 </div>

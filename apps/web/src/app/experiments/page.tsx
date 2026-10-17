@@ -1,61 +1,60 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 import { FlaskConical } from "lucide-react";
-import { DEMO_EXPERIMENTS, type ExperimentItem } from "@/lib/demo";
+import { api, type ExperimentEvaluationResponse } from "@/lib/api";
+import { useSite } from "@/context/SiteContext";
 import { formatNumber } from "@/lib/format";
-import { useSiteData } from "@/hooks/useSiteData";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Panel, Inset } from "@/components/ui/Panel";
-import { Badge } from "@/components/ui/Badge";
-import { DemoBanner } from "@/components/ui/DemoBanner";
-import { EmptyState } from "@/components/ui/States";
+import { Panel } from "@/components/ui/Panel";
+import { Button } from "@/components/ui/Button";
+import { Input, Label, Textarea } from "@/components/ui/Input";
+import { Notice, EmptyState } from "@/components/ui/States";
 
 export default function SeoDeneyleriPage() {
-  // Arka uçta deney listesi ucu yok (yalnızca POST /experiments değerlendirir).
-  const res = useSiteData<ExperimentItem[]>("experiments", async () => DEMO_EXPERIMENTS, DEMO_EXPERIMENTS, { requires: "none" });
-
-  return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-12">
-      <DemoBanner source={res.source} reason={res.reason} />
-      <PageHeader
-        icon={<FlaskConical className="w-5 h-5" />}
-        title="SEO deneyleri ve nedensellik (Diff-in-Diff)"
-        description="Varyant ve kontrol sayfa gruplarını karşılaştırarak mevsimsellik ve algoritma güncellemelerinden arındırılmış net etkiyi ölçer."
-      />
-
-      {res.data.length === 0 ? (
-        <Panel>
-          <EmptyState title="Henüz deney yok" description="Bir değişiklik setini uyguladığınızda 14 günlük ölçüm penceresiyle deney otomatik açılır." />
-        </Panel>
-      ) : (
-        res.data.map((e) => (
-          <Panel
-            key={e.name}
-            title={e.name}
-            sub={`${e.days} günlük kohort · ${e.variantPages} varyant / ${e.controlPages} kontrol sayfası`}
-            actions={<Badge tone={e.significant ? "evidence" : "warn"}>{e.significant ? "İstatistiksel olarak anlamlı" : "Henüz anlamlı değil"}</Badge>}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Inset>
-                <div className="text-xs text-muted">Varyant büyümesi</div>
-                <div className="text-2xl font-semibold text-evidence mt-1 tabular-nums">+%{formatNumber(e.variantPct, 1)}</div>
-                <p className="text-2xs text-muted mt-1">Değişen sayfalar</p>
-              </Inset>
-              <Inset>
-                <div className="text-xs text-muted">Kontrol büyümesi</div>
-                <div className="text-2xl font-semibold text-ink mt-1 tabular-nums">+%{formatNumber(e.controlPct, 1)}</div>
-                <p className="text-2xs text-muted mt-1">Değişmeyen sayfalar (genel pazar)</p>
-              </Inset>
-              <Inset className="border-accent bg-accent-soft">
-                <div className="text-xs text-accent-ink">Net nedensel etki</div>
-                <div className="text-2xl font-semibold text-accent-ink mt-1 tabular-nums">+%{formatNumber(e.liftPct, 1)}</div>
-                <p className="text-2xs text-accent-ink mt-1">Algoritma dalgalanması hariç</p>
-              </Inset>
-            </div>
-          </Panel>
-        ))
-      )}
-    </div>
-  );
+  const { org, site } = useSite();
+  const [name,setName] = useState("");
+  const [variant,setVariant] = useState("");
+  const [control,setControl] = useState("");
+  const [date,setDate] = useState("");
+  const [days,setDays] = useState(14);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState<string|null>(null);
+  const [result,setResult] = useState<{siteId:string;data:ExperimentEvaluationResponse}|null>(null);
+  const evaluate = async (event:React.FormEvent) => {
+    event.preventDefault();
+    if (!org || !site) return;
+    setBusy(true);setError(null);setResult(null);
+    try {
+      const pages=(text:string)=>text.split(/\s+/).map((url)=>url.trim()).filter(Boolean);
+      const data=await api.evaluateExperiment(org.id,site.id,{name,variant_pages:pages(variant),control_pages:pages(control),change_date:date,window_days:days});
+      setResult({siteId:site.id,data});
+    } catch (e) { setError(e instanceof Error ? e.message : "Karşılaştırma hesaplanamadı"); }
+    finally {setBusy(false);}
+  };
+  const current=result?.siteId===site?.id ? result?.data : null;
+  return <div className="space-y-5 max-w-5xl mx-auto pb-12">
+    <PageHeader icon={<FlaskConical className="w-5 h-5"/>} title="SEO deney karşılaştırması" description="Search Console tıklamalarıyla değişen sayfaları kontrol grubuyla karşılaştırın. Sabit veya örnek sonuç üretilmez."/>
+    <Notice tone="info">Önce ve sonra pencerelerinde her iki grup için veri gerekir. Sonuç sayfa başına normalize edilir; istatistiksel anlamlılık ve nedensellik kanıtı değildir.</Notice>
+    {!site || !org ? <Panel><EmptyState title="Önce bir site seçin" description="Karşılaştırma için Search Console bağlantısını kurup verileri eşitleyin."/></Panel> : <Panel title="Karşılaştırmayı tanımla">
+      <form onSubmit={evaluate} className="space-y-4">
+        <div><Label htmlFor="experiment-name">Karşılaştırma adı</Label><Input id="experiment-name" required value={name} onChange={(e)=>setName(e.target.value)}/></div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div><Label htmlFor="experiment-date">Değişiklik tarihi</Label><Input id="experiment-date" type="date" required value={date} onChange={(e)=>setDate(e.target.value)}/></div>
+          <div><Label htmlFor="experiment-days">Önce ve sonra pencere uzunluğu (gün)</Label><Input id="experiment-days" type="number" min={7} max={90} required value={days} onChange={(e)=>setDays(Number(e.target.value))}/></div>
+          <div><Label htmlFor="variant-pages">Değişen sayfalar (her satıra bir tam URL)</Label><Textarea id="variant-pages" required rows={5} value={variant} onChange={(e)=>setVariant(e.target.value)}/></div>
+          <div><Label htmlFor="control-pages">Kontrol sayfaları (her satıra bir tam URL)</Label><Textarea id="control-pages" required rows={5} value={control} onChange={(e)=>setControl(e.target.value)}/></div>
+        </div>
+        {error && <Notice tone="error">{error}</Notice>}
+        <Button type="submit" loading={busy}>Gerçek verilerle karşılaştır</Button>
+      </form>
+    </Panel>}
+    {current && <Panel title={current.experiment_name} sub={current.conclusion}>
+      <dl className="grid sm:grid-cols-3 gap-5 text-sm">
+        <div><dt className="text-muted">Varyant büyümesi</dt><dd className="text-2xl mt-1">%{formatNumber(current.variant_growth_percent,1)}</dd></div>
+        <div><dt className="text-muted">Kontrol büyümesi</dt><dd className="text-2xl mt-1">%{formatNumber(current.control_growth_percent,1)}</dd></div>
+        <div><dt className="text-muted">Büyüme farkı (yüzde puan)</dt><dd className="text-2xl mt-1">{formatNumber(current.variant_relative_lift_percent,1)}</dd></div>
+      </dl>
+    </Panel>}
+  </div>;
 }

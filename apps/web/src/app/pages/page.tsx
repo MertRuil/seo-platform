@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileText, CheckCircle2, XCircle, Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { useSite } from "@/context/SiteContext";
+import { Button } from "@/components/ui/Button";
 import { DEMO_PAGES, type PageRow } from "@/lib/demo";
 import { pagesToRows } from "@/lib/mappers";
 import { formatNumber, shortUrl } from "@/lib/format";
@@ -61,9 +63,15 @@ const columns: Column<PageRow>[] = [
 
 export default function TarananSayfalarPage() {
   const [q, setQ] = useState("");
-  const res = useSiteData<PageRow[]>("pages", async ({ org, site, crawl }) => pagesToRows(await api.getCrawlPages(org.id, site.id, crawl!.id, { limit: 200 })), DEMO_PAGES);
+  const [offset, setOffset] = useState(0);
+  const { site, crawl } = useSite();
+  useEffect(() => { setOffset(0); }, [site?.id, crawl?.id, q]);
+  const res = useSiteData<{rows:PageRow[];total:number}>(`pages:${offset}:${q}`, async ({ org, site, crawl }) => {
+    const result = await api.getCrawlPages(org.id, site.id, crawl!.id, { limit: 100, offset, q });
+    return { rows: pagesToRows(result), total: result.total };
+  }, { rows: DEMO_PAGES, total: DEMO_PAGES.length });
   const needle = q.toLowerCase();
-  const rows = res.data.filter((p) => p.url.toLowerCase().includes(needle) || p.title.toLowerCase().includes(needle));
+  const rows = res.source === "live" ? res.data.rows : res.data.rows.filter((p) => p.url.toLowerCase().includes(needle) || p.title.toLowerCase().includes(needle));
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
@@ -74,7 +82,7 @@ export default function TarananSayfalarPage() {
         description="Tarayıcının keşfettiği URL'ler, HTTP yanıt kodları, canonical hedefleri ve indeks uygunluğu. Uzman görünümü derinlik ve yanıt süresini de gösterir."
         actions={<Input icon={<Search className="w-4 h-4" />} placeholder="URL veya başlık ara" value={q} onChange={(e) => setQ(e.target.value)} className="w-full sm:w-72" aria-label="Sayfa ara" />}
       />
-      <Panel flush title={`${formatNumber(rows.length)} sayfa`} sub={q ? `"${q}" için filtrelendi` : "Son taramadaki tüm URL'ler"}>
+      <Panel flush title={`${formatNumber(res.data.total)} sayfa`} sub={q ? `"${q}" için filtrelendi` : "Son taramadaki URL'ler"}>
         {res.loading ? (
           <div className="p-5">
             <SkeletonRows rows={6} />
@@ -83,6 +91,11 @@ export default function TarananSayfalarPage() {
           <DataTable columns={columns} rows={rows} rowKey={(r) => r.url} caption="Taranan sayfalar tablosu" empty="Arama kriterine uyan sayfa yok." />
         )}
       </Panel>
+      {res.source === "live" && res.data.total > 100 && <div className="flex items-center justify-between gap-3">
+        <Button variant="secondary" disabled={offset === 0 || res.loading} onClick={() => setOffset(Math.max(0, offset - 100))}>Önceki</Button>
+        <span className="text-xs text-muted">{offset + 1}–{Math.min(offset + 100, res.data.total)} / {res.data.total}</span>
+        <Button variant="secondary" disabled={offset + 100 >= res.data.total || res.loading} onClick={() => setOffset(offset + 100)}>Sonraki</Button>
+      </div>}
     </div>
   );
 }
