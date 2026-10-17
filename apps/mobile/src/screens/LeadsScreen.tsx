@@ -56,6 +56,9 @@ export const LeadsScreen: React.FC = () => {
       if (data.length > 0 && !activeLead) {
         setActiveLead(data[0]);
       }
+    } catch (err) {
+      setLeads([]); setActiveLead(null);
+      setExportSuccessMsg(err instanceof Error?err.message:"Müşteri kayıtları alınamadı.");
     } finally {
       setLoading(false);
     }
@@ -79,6 +82,8 @@ export const LeadsScreen: React.FC = () => {
 
       setLeads(prev => [created, ...prev]);
       setActiveLead(created);
+    } catch (e: any) {
+      Alert.alert("Hesaplanamadı", e?.message || "Site denetlenemedi; kayıp tahmini üretilmedi.");
     } finally {
       setIsCalculating(false);
     }

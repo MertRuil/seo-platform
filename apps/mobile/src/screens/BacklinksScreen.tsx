@@ -17,6 +17,7 @@ import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchBacklinks, fetchBacklinkSummary, generateMobileDisavowText } from "../services/api";
 import { BacklinkItem, BacklinkSummary } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const BacklinksScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -96,6 +97,7 @@ export const BacklinksScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <DemoNotice text="Backlink listesi bir veri kaynağına bağlı değil; bu ekrandaki bağlantılar örnektir." />
         {loading ? (
           <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 30 }} />
         ) : (

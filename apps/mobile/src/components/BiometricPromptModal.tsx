@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 export const BiometricPromptModal: React.FC = () => {
   const {
     isAuthenticated,
+    user,
     isBiometricEnrolled,
     hasAnsweredBiometricPrompt,
     enableBiometrics,
@@ -29,16 +30,20 @@ export const BiometricPromptModal: React.FC = () => {
 
   useEffect(() => {
     // Only show if user is authenticated, hasn't enrolled biometrics yet, and hasn't dismissed/answered the prompt
-    if (isAuthenticated && !isBiometricEnrolled && !hasAnsweredBiometricPrompt) {
+    // Misafir (örnek veri) oturumunda ve web'de sorulmaz: web'de biyometrik sensör yoktur ve
+    // ilk girişte kullanıcının önce kendi verisini görmesi gerekir.
+    const isGuest = user?.id === "guest-user";
+    if (isAuthenticated && !isGuest && Platform.OS !== "web" && !isBiometricEnrolled && !hasAnsweredBiometricPrompt) {
       checkDeviceAndPrompt();
     } else {
       setVisible(false);
     }
-  }, [isAuthenticated, isBiometricEnrolled, hasAnsweredBiometricPrompt]);
+  }, [isAuthenticated, user, isBiometricEnrolled, hasAnsweredBiometricPrompt]);
 
   const checkDeviceAndPrompt = async () => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
+      if (!hasHardware || !await LocalAuthentication.isEnrolledAsync()) { setVisible(false); return; }
       const types: LocalAuthentication.AuthenticationType[] =
         await LocalAuthentication.supportedAuthenticationTypesAsync().catch(
           () => [] as LocalAuthentication.AuthenticationType[]
@@ -52,13 +57,8 @@ export const BiometricPromptModal: React.FC = () => {
       } else if (hasFace) {
         setDetectedType("FACE_ID");
       } else {
-        // Platform heuristic: Apple devices default to Face ID, others to Touch ID
-        const isApple =
-          Platform.OS === "ios" ||
-          (Platform.OS === "web" &&
-            typeof navigator !== "undefined" &&
-            /iPhone|iPad|Macintosh/i.test(navigator.userAgent));
-        setDetectedType(isApple ? "FACE_ID" : "TOUCH_ID");
+        setVisible(false);
+        return;
       }
 
       // Small delay after login transition before presenting the enrollment prompt
@@ -70,8 +70,7 @@ export const BiometricPromptModal: React.FC = () => {
 
       return () => clearTimeout(timer);
     } catch {
-      setDetectedType("FACE_ID");
-      setVisible(true);
+      setVisible(false);
     }
   };
 
@@ -112,14 +111,8 @@ export const BiometricPromptModal: React.FC = () => {
       }
     }
 
-    // Web / Simulator visual activation simulation
-    setTimeout(async () => {
-      await enableBiometrics(detectedType);
-      setStatus("SUCCESS");
-      setTimeout(() => {
-        setVisible(false);
-      }, 1200);
-    }, 1000);
+    setStatus("FAILED");
+    setErrorMessage("Bu cihazda biyometrik doğrulama tamamlanamadı. Şifrenizle giriş yapabilirsiniz.");
   };
 
   const handleDismiss = async () => {

@@ -30,6 +30,8 @@ export interface CrawlRunItem {
   completed_at?: string;
   current_url?: string;
   discovered_urls?: string[];
+  /** Sunucuya ulaşılamadığında sayfa taraması yapılmaz; yalnızca ana sayfa denetlenir. */
+  homepage_only?: boolean;
 }
 
 export interface DiscoveredPagesResult {
@@ -109,7 +111,8 @@ export interface QuickAuditResult {
   canonical_url?: string;
   has_schema: boolean;
   robots_txt_status: "ALLOWED" | "BLOCKED" | "NOT_FOUND";
-  core_web_vitals: CoreWebVitalsSummary;
+  /** Yalnızca gerçek saha verisi (CrUX) varsa doludur; yanıt süresinden türetilmez. */
+  core_web_vitals?: CoreWebVitalsSummary;
   checks: Array<{
     id: string;
     title: string;

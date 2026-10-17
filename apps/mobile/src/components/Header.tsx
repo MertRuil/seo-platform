@@ -78,7 +78,7 @@ export const Header: React.FC = () => {
           <View style={styles.logoBadge}>
             <Ionicons name="sparkles" size={16} color={Colors.primary} />
           </View>
-          <Text style={styles.brandTitle}>SEO Platform</Text>
+          <Text style={styles.brandTitle}>CALPEO</Text>
         </View>
 
         <View style={styles.actionsRow}>

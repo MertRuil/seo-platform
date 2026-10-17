@@ -16,6 +16,7 @@ import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchCompetitors, addCompetitor, fetchCompetitorGap } from "../services/api";
 import { CompetitorItem, CompetitorGapItem } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const CompetitorsScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -99,6 +100,7 @@ export const CompetitorsScreen: React.FC = () => {
 
       {/* Body */}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <DemoNotice text="Rakip trafik, kelime ve backlink verisi için bir SEO veri sağlayıcısı gerekir; bu ekrandaki değerler örnektir." />
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={Colors.primary} />
@@ -125,7 +127,7 @@ export const CompetitorsScreen: React.FC = () => {
                     <Text style={styles.compDomain}>{comp.domain}</Text>
                   </View>
                   <View style={styles.scoreCircle}>
-                    <Text style={styles.scoreCircleNum}>{comp.seo_score}</Text>
+                    <Text style={styles.scoreCircleNum}>{comp.seo_score || "—"}</Text>
                     <Text style={styles.scoreCircleLbl}>SEO Skoru</Text>
                   </View>
                 </View>
@@ -133,19 +135,19 @@ export const CompetitorsScreen: React.FC = () => {
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{(comp.organic_traffic / 1000).toFixed(0)}K</Text>
+                    <Text style={styles.statVal}>{comp.organic_traffic ? `${(comp.organic_traffic / 1000).toFixed(0)}K` : "—"}</Text>
                     <Text style={styles.statLbl}>Aylık Trafik</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{(comp.ranked_keywords / 1000).toFixed(1)}K</Text>
+                    <Text style={styles.statVal}>{comp.ranked_keywords ? `${(comp.ranked_keywords / 1000).toFixed(1)}K` : "—"}</Text>
                     <Text style={styles.statLbl}>Kelimeler</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{(comp.backlinks / 1000).toFixed(0)}K</Text>
+                    <Text style={styles.statVal}>{comp.backlinks ? `${(comp.backlinks / 1000).toFixed(0)}K` : "—"}</Text>
                     <Text style={styles.statLbl}>Backlink</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={[styles.statVal, { color: Colors.accent }]}>%{comp.geo_visibility}</Text>
+                    <Text style={[styles.statVal, { color: Colors.accent }]}>{comp.geo_visibility ? `%${comp.geo_visibility}` : "—"}</Text>
                     <Text style={styles.statLbl}>GEO Görünürlük</Text>
                   </View>
                 </View>

@@ -16,6 +16,7 @@ import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchKeywords, addKeyword, researchKeywords, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, scanUkCompliance, scanMenaCompliance } from "../services/api";
 import { KeywordItem, KeywordResearchItem } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const KeywordsScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -132,6 +133,7 @@ export const KeywordsScreen: React.FC = () => {
       {/* SEGMENT 1: TRACKING */}
       {activeSegment === "TRACKING" && (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <DemoNotice text="Sıralama, hacim ve zorluk verisi için Search Console veya bir anahtar kelime veri sağlayıcısı bağlantısı gerekir; bu ekrandaki değerler örnektir." />
           {/* Quick Filter Bar */}
           <View style={styles.searchBar}>
             <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
@@ -153,14 +155,14 @@ export const KeywordsScreen: React.FC = () => {
           <GlassCard style={styles.summaryCard}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryVal}>
-                {keywords.filter(k => k.current_pos <= 3).length}
+                {keywords.filter(k => k.current_pos > 0 && k.current_pos <= 3).length}
               </Text>
               <Text style={styles.summaryLbl}>İlk 3 Sıra</Text>
             </View>
             <View style={styles.summaryDiv} />
             <View style={styles.summaryItem}>
               <Text style={styles.summaryVal}>
-                {keywords.filter(k => k.current_pos <= 10).length}
+                {keywords.filter(k => k.current_pos > 0 && k.current_pos <= 10).length}
               </Text>
               <Text style={styles.summaryLbl}>İlk Sayfa</Text>
             </View>
@@ -281,21 +283,21 @@ export const KeywordsScreen: React.FC = () => {
                       
                       <View style={styles.kwPillsRow}>
                         <View style={styles.kwPill}>
-                          <Text style={styles.kwPillText}>Hacim: {kw.volume.toLocaleString()}</Text>
+                          <Text style={styles.kwPillText}>Hacim: {kw.volume ? kw.volume.toLocaleString() : "—"}</Text>
                         </View>
                         <View style={styles.kwPill}>
-                          <Text style={styles.kwPillText}>Zorluk: %{kw.difficulty}</Text>
+                          <Text style={styles.kwPillText}>Zorluk: {kw.difficulty ? `%${kw.difficulty}` : "—"}</Text>
                         </View>
                         <View style={styles.kwPill}>
-                          <Text style={styles.kwPillText}>CPC: ${kw.cpc}</Text>
+                          <Text style={styles.kwPillText}>CPC: {kw.cpc ? `$${kw.cpc}` : "—"}</Text>
                         </View>
                       </View>
                     </View>
 
                     {/* Position & Movement Badge */}
                     <View style={styles.kwPosCol}>
-                      <View style={[styles.posBadge, kw.current_pos <= 3 ? styles.posBadgeTop : styles.posBadgeNorm]}>
-                        <Text style={styles.posBadgeText}>#{kw.current_pos}</Text>
+                      <View style={[styles.posBadge, kw.current_pos > 0 && kw.current_pos <= 3 ? styles.posBadgeTop : styles.posBadgeNorm]}>
+                        <Text style={styles.posBadgeText}>{kw.current_pos ? `#${kw.current_pos}` : "—"}</Text>
                       </View>
                       <View style={[styles.changeBadge, isUp ? styles.badgeUp : isDown ? styles.badgeDown : styles.badgeEqual]}>
                         <Ionicons

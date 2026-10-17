@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   ActivityIndicator,
-  Modal 
+  Modal
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -18,16 +18,19 @@ import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
 import { OnboardingModal } from "./OnboardingModal";
 
+/** Gerçek Apple/Google OAuth entegrasyonu yapılana kadar sosyal giriş gösterilmez. */
+const SOCIAL_LOGIN_ENABLED = false;
+
 export const LoginScreen: React.FC = () => {
-  const { 
-    login, 
-    register, 
-    continueAsGuest, 
-    loginAsDemo, 
-    loginWithSocial, 
+  const {
+    login,
+    register,
+    continueAsGuest,
+    loginAsDemo,
+    loginWithSocial,
     loginWithBiometrics,
     isBiometricEnrolled,
-    enrolledBiometricType 
+    enrolledBiometricType
   } = useAuth();
 
   const [isRegister, setIsRegister] = useState(false);
@@ -50,7 +53,7 @@ export const LoginScreen: React.FC = () => {
 
   // Biometric Detection & State
   type BiometricType = "FACIAL_RECOGNITION" | "FINGERPRINT" | "BOTH" | "NONE";
-  const [biometricType, setBiometricType] = useState<BiometricType>("FACIAL_RECOGNITION");
+  const [biometricType, setBiometricType] = useState<BiometricType>("NONE");
   const [selectedBioTab, setSelectedBioTab] = useState<"FACE_ID" | "TOUCH_ID">("FACE_ID");
   const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [bioStatus, setBioStatus] = useState<"IDLE" | "SCANNING" | "SUCCESS" | "FAILED">("IDLE");
@@ -62,7 +65,7 @@ export const LoginScreen: React.FC = () => {
     const checkBiometricHardware = async () => {
       try {
         const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
-        const types: LocalAuthentication.AuthenticationType[] = 
+        const types: LocalAuthentication.AuthenticationType[] =
           await LocalAuthentication.supportedAuthenticationTypesAsync().catch(() => [] as LocalAuthentication.AuthenticationType[]);
 
         const hasFace = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
@@ -80,21 +83,10 @@ export const LoginScreen: React.FC = () => {
           setBiometricType("FINGERPRINT");
           setSelectedBioTab("TOUCH_ID");
         } else {
-          // Web / Simulator heuristic: iOS/Mac defaults to Face ID, Android/Windows to Touch ID
-          const isApple = Platform.OS === "ios" || (Platform.OS === "web" && typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/i.test(navigator.userAgent));
-          if (isApple) {
-            setBiometricType("FACIAL_RECOGNITION");
-            setSelectedBioTab("FACE_ID");
-          } else {
-            setBiometricType("FINGERPRINT");
-            setSelectedBioTab("TOUCH_ID");
-          }
+          setBiometricType("NONE");
         }
       } catch {
-        if (isMounted) {
-          setBiometricType("FACIAL_RECOGNITION");
-          setSelectedBioTab("FACE_ID");
-        }
+        if (isMounted) setBiometricType("NONE");
       }
     };
 
@@ -118,8 +110,7 @@ export const LoginScreen: React.FC = () => {
 
   const handleInstantDemoLogin = async () => {
     setDemoLoading(true);
-    setEmail("admin@seoplatform.io");
-    setPassword("admin123");
+    setErrorMessage(null);
     try {
       await loginAsDemo();
     } finally {
@@ -140,60 +131,23 @@ export const LoginScreen: React.FC = () => {
     setBioStatus("IDLE");
     setBioError(null);
 
-    // If on native device with enrolled biometrics, attempt native prompt directly
-    if (Platform.OS !== "web") {
-      try {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync().catch(() => false);
-        const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync().catch(() => false) : false;
-
-        if (hasHardware && isEnrolled) {
-          const isFace = selectedBioTab === "FACE_ID" || biometricType === "FACIAL_RECOGNITION";
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: isFace ? "Face ID ile Kimliğinizi Doğrulayın" : "Touch ID / Parmak İzinizi Okutun",
-            cancelLabel: "Vazgeç",
-            fallbackLabel: "Şifre ile Giriş",
-            disableDeviceFallback: false,
-          });
-
-          if (result.success) {
-            await loginWithBiometrics(isFace ? "FACE_ID" : "TOUCH_ID");
-            return;
-          } else if (result.error === "user_cancel" || result.error === "app_cancel") {
-            // User cancelled native prompt
-            return;
-          }
-        }
-      } catch (err) {
-        console.log("Native biometric error, showing interactive modal:", err);
-      }
+    try {
+      await loginWithBiometrics(selectedBioTab);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Biyometrik giriş tamamlanamadı.");
     }
-
-    // On Web / Simulator or when manual verification is requested:
-    // Open interactive prompt modal in IDLE state (NO AUTOMATIC LOGIN!)
-    setShowBiometricModal(true);
   };
 
-  const startBiometricScan = (forceFail = false) => {
+  const startBiometricScan = async (_forceFail = false) => {
     setBioStatus("SCANNING");
-    setBioError(null);
-
-    setTimeout(async () => {
-      if (forceFail) {
-        setBioStatus("FAILED");
-        setBioError(
-          selectedBioTab === "FACE_ID"
-            ? "Yüzünüz tanınamadı. Lütfen doğrudan kameraya bakın veya şifrenizle giriş yapın."
-            : "Parmak izi eşleşmedi. Lütfen sensörü temizleyip tekrar dokunun."
-        );
-        return;
-      }
-
+    try {
+      await loginWithBiometrics(selectedBioTab);
       setBioStatus("SUCCESS");
-      setTimeout(async () => {
-        setShowBiometricModal(false);
-        await loginWithBiometrics(selectedBioTab);
-      }, 700);
-    }, 1100);
+      setShowBiometricModal(false);
+    } catch (err) {
+      setBioStatus("FAILED");
+      setBioError(err instanceof Error ? err.message : "Biyometrik doğrulama tamamlanmadı.");
+    }
   };
 
   const handleConfirmAppleLogin = async () => {
@@ -233,7 +187,7 @@ export const LoginScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = isRegister 
+      const res = isRegister
         ? await register(email, password, name)
         : await login(email, password);
 
@@ -247,14 +201,13 @@ export const LoginScreen: React.FC = () => {
 
   const fillDemoCredentials = () => {
     setIsRegister(false);
-    setEmail("admin@seoplatform.io");
-    setPassword("admin123");
+    setErrorMessage(null);
     setErrorMessage(null);
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -263,22 +216,22 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.logoBadge}>
             <Ionicons name="sparkles" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.brandTitle}>SEO Platform</Text>
-          <Text style={styles.brandTagline}>Otonom AI & Teknik SEO Mobil Yönetim</Text>
+          <Text style={styles.brandTitle}>CALPEO</Text>
+          <Text style={styles.brandTagline}>Sitenizin SEO durumu ve öncelikli işleri cebinizde</Text>
 
           {/* Value Proposition Pills */}
           <View style={styles.featuresRow}>
             <View style={styles.featurePill}>
               <Ionicons name="flash" size={10} color={Colors.primary} />
-              <Text style={styles.featurePillText}>Canlı Googlebot</Text>
+              <Text style={styles.featurePillText}>Teknik denetim</Text>
             </View>
             <View style={styles.featurePill}>
               <Ionicons name="sparkles" size={10} color={Colors.primary} />
-              <Text style={styles.featurePillText}>Otonom AI</Text>
+              <Text style={styles.featurePillText}>Öncelikli işler</Text>
             </View>
             <View style={styles.featurePill}>
               <Ionicons name="shield-checkmark" size={10} color={Colors.primary} />
-              <Text style={styles.featurePillText}>Sıfır Mit</Text>
+              <Text style={styles.featurePillText}>Kanıta dayalı</Text>
             </View>
           </View>
         </View>
@@ -353,10 +306,10 @@ export const LoginScreen: React.FC = () => {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                  size={18} 
-                  color={Colors.textMuted} 
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={Colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -364,8 +317,8 @@ export const LoginScreen: React.FC = () => {
 
           {/* Forgot Password Link */}
           {!isRegister && (
-            <TouchableOpacity 
-              style={styles.forgotBtn} 
+            <TouchableOpacity
+              style={styles.forgotBtn}
               onPress={() => setShowForgotModal(true)}
               activeOpacity={0.7}
             >
@@ -374,8 +327,8 @@ export const LoginScreen: React.FC = () => {
           )}
 
           {/* Submit Button */}
-          <TouchableOpacity 
-            style={styles.submitBtn} 
+          <TouchableOpacity
+            style={styles.submitBtn}
             onPress={handleSubmit}
             disabled={loading}
             activeOpacity={0.8}
@@ -391,15 +344,15 @@ export const LoginScreen: React.FC = () => {
 
           {/* Biometric Login (Face ID / Touch ID) - ONLY shown if already activated by user on this device */}
           {!isRegister && isBiometricEnrolled && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.biometricBtn}
               onPress={handleBiometricLogin}
               activeOpacity={0.7}
             >
-              <Ionicons 
-                name={(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT" ? "finger-print-outline" : "scan-outline"} 
-                size={18} 
-                color={Colors.primary} 
+              <Ionicons
+                name={(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT" ? "finger-print-outline" : "scan-outline"}
+                size={18}
+                color={Colors.primary}
               />
               <Text style={styles.biometricBtnText}>
                 {(enrolledBiometricType || biometricType) === "TOUCH_ID" || (enrolledBiometricType || biometricType) === "FINGERPRINT"
@@ -417,7 +370,10 @@ export const LoginScreen: React.FC = () => {
             </TouchableOpacity>
           )}
 
-          {/* Social Logins */}
+          {/* Sosyal giriş: gerçek Apple/Google OAuth bağlanana kadar kapalı.
+              Önceki sürüm kimlik doğrulamadan sabit bir kullanıcıyla giriş yapıyordu. */}
+          {SOCIAL_LOGIN_ENABLED && (
+            <>
           <View style={styles.socialDividerRow}>
             <View style={styles.socialDividerLine} />
             <Text style={styles.socialDividerText}>veya</Text>
@@ -425,7 +381,7 @@ export const LoginScreen: React.FC = () => {
           </View>
 
           <View style={styles.socialRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.socialBtn}
               onPress={() => setShowAppleModal(true)}
               activeOpacity={0.7}
@@ -434,7 +390,7 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.socialBtnText}>Apple</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.socialBtn}
               onPress={() => setShowGoogleModal(true)}
               activeOpacity={0.7}
@@ -444,8 +400,11 @@ export const LoginScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
+            </>
+          )}
+
           {/* Switch Mode Link */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.switchModeBtn}
             onPress={() => {
               setIsRegister(!isRegister);
@@ -464,7 +423,9 @@ export const LoginScreen: React.FC = () => {
           {/* Quick Demo & Guest Actions */}
           {!isRegister && (
             <View style={styles.demoActionsContainer}>
-              <TouchableOpacity 
+              {/* Demo yönetici girişi yalnızca geliştirme derlemesinde görünür */}
+              {__DEV__ && (
+              <TouchableOpacity
                 style={styles.demoFillBtn}
                 onPress={handleInstantDemoLogin}
                 activeOpacity={0.8}
@@ -475,23 +436,27 @@ export const LoginScreen: React.FC = () => {
                 ) : (
                   <>
                     <Ionicons name="flash" size={14} color={Colors.primary} />
-                    <Text style={styles.demoFillText}>Tek Tıkla Demo Girişi (admin123)</Text>
+                    <Text style={styles.demoFillText}>Geliştirici demo girişi</Text>
                   </>
                 )}
               </TouchableOpacity>
+              )}
 
               <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                <TouchableOpacity 
-                  onPress={fillDemoCredentials}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={styles.subtleLinkText}>Sadece Forma Yaz</Text>
-                </TouchableOpacity>
+                {__DEV__ && (
+                  <>
+                    <TouchableOpacity
+                      onPress={fillDemoCredentials}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.subtleLinkText}>Demo bilgilerini doldur</Text>
+                    </TouchableOpacity>
+                    <Text style={{ color: Colors.border, fontSize: 11 }}>•</Text>
+                  </>
+                )}
 
-                <Text style={{ color: Colors.border, fontSize: 11 }}>•</Text>
-
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestBtn}
                   onPress={handleGuestLogin}
                   activeOpacity={0.7}
@@ -502,7 +467,7 @@ export const LoginScreen: React.FC = () => {
                   ) : (
                     <>
                       <Ionicons name="person-outline" size={12} color={Colors.textMuted} />
-                      <Text style={styles.guestBtnText}>Misafir Olarak Giriş</Text>
+                      <Text style={styles.guestBtnText}>Hesapsız dene (örnek veri)</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -511,7 +476,7 @@ export const LoginScreen: React.FC = () => {
           )}
 
           {/* Onboarding Wizard Trigger */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.onboardingTriggerBtn}
             onPress={() => setShowOnboarding(true)}
             activeOpacity={0.7}
@@ -550,7 +515,7 @@ export const LoginScreen: React.FC = () => {
             <Ionicons name="key-outline" size={36} color={Colors.primary} style={{ alignSelf: "center" }} />
             <Text style={styles.modalTitle}>Şifrenizi mi Unuttunuz?</Text>
             <Text style={styles.modalSub}>Kayıtlı e-posta adresinize tek tıkla şifre sıfırlama bağlantısı gönderilecektir.</Text>
-            
+
             <TextInput
               style={styles.modalInput}
               placeholder="ornek@alanadiniz.com"
@@ -572,7 +537,7 @@ export const LoginScreen: React.FC = () => {
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowForgotModal(false)}>
                 <Text style={styles.modalCancelText}>Kapat</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalSubmitBtn}
                 onPress={() => {
                   setForgotSent(true);
@@ -613,16 +578,16 @@ export const LoginScreen: React.FC = () => {
       </Modal>
 
       {/* Onboarding Wizard Modal */}
-      <OnboardingModal 
+      <OnboardingModal
         visible={showOnboarding}
         onClose={() => setShowOnboarding(false)}
       />
 
       {/* Biometric Verification Modal (Adaptive Face ID / Touch ID) */}
-      <Modal 
-        visible={showBiometricModal} 
-        transparent 
-        animationType="fade" 
+      <Modal
+        visible={showBiometricModal}
+        transparent
+        animationType="fade"
         onRequestClose={() => {
           if (bioStatus !== "SCANNING") setShowBiometricModal(false);
         }}
@@ -642,8 +607,8 @@ export const LoginScreen: React.FC = () => {
 
             {/* Segmented Mode Switcher (Face ID vs Touch ID) */}
             <View style={styles.bioTabContainer}>
-              <TouchableOpacity 
-                style={[styles.bioTabBtn, selectedBioTab === "FACE_ID" && styles.bioTabBtnActive]} 
+              <TouchableOpacity
+                style={[styles.bioTabBtn, selectedBioTab === "FACE_ID" && styles.bioTabBtnActive]}
                 onPress={() => {
                   setSelectedBioTab("FACE_ID");
                   setBioStatus("IDLE");
@@ -652,18 +617,18 @@ export const LoginScreen: React.FC = () => {
                 disabled={bioStatus === "SCANNING"}
                 activeOpacity={0.8}
               >
-                <Ionicons 
-                  name="scan-outline" 
-                  size={14} 
-                  color={selectedBioTab === "FACE_ID" ? "#FFFFFF" : Colors.textMuted} 
+                <Ionicons
+                  name="scan-outline"
+                  size={14}
+                  color={selectedBioTab === "FACE_ID" ? "#FFFFFF" : Colors.textMuted}
                 />
                 <Text style={[styles.bioTabText, selectedBioTab === "FACE_ID" && styles.bioTabTextActive]}>
                   Face ID (Yüz)
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.bioTabBtn, selectedBioTab === "TOUCH_ID" && styles.bioTabBtnActive]} 
+              <TouchableOpacity
+                style={[styles.bioTabBtn, selectedBioTab === "TOUCH_ID" && styles.bioTabBtnActive]}
                 onPress={() => {
                   setSelectedBioTab("TOUCH_ID");
                   setBioStatus("IDLE");
@@ -672,10 +637,10 @@ export const LoginScreen: React.FC = () => {
                 disabled={bioStatus === "SCANNING"}
                 activeOpacity={0.8}
               >
-                <Ionicons 
-                  name="finger-print-outline" 
-                  size={14} 
-                  color={selectedBioTab === "TOUCH_ID" ? "#FFFFFF" : Colors.textMuted} 
+                <Ionicons
+                  name="finger-print-outline"
+                  size={14}
+                  color={selectedBioTab === "TOUCH_ID" ? "#FFFFFF" : Colors.textMuted}
                 />
                 <Text style={[styles.bioTabText, selectedBioTab === "TOUCH_ID" && styles.bioTabTextActive]}>
                   Touch ID (Parmak İzi)
@@ -686,9 +651,9 @@ export const LoginScreen: React.FC = () => {
             {/* Mode-Specific Graphic */}
             {selectedBioTab === "FACE_ID" ? (
               <View style={styles.bioReticleContainer}>
-                <View 
+                <View
                   style={[
-                    styles.bioReticleBox, 
+                    styles.bioReticleBox,
                     bioStatus === "SUCCESS" && styles.bioReticleBoxSuccess,
                     bioStatus === "FAILED" && styles.bioReticleBoxFailed,
                   ]}
@@ -704,10 +669,10 @@ export const LoginScreen: React.FC = () => {
                   ) : bioStatus === "FAILED" ? (
                     <Ionicons name="alert-circle" size={54} color={Colors.danger} />
                   ) : (
-                    <Ionicons 
-                      name={bioStatus === "SCANNING" ? "happy-outline" : "person-outline"} 
-                      size={52} 
-                      color={Colors.primary} 
+                    <Ionicons
+                      name={bioStatus === "SCANNING" ? "happy-outline" : "person-outline"}
+                      size={52}
+                      color={Colors.primary}
                     />
                   )}
 
@@ -718,9 +683,9 @@ export const LoginScreen: React.FC = () => {
                 </View>
               </View>
             ) : (
-              <View 
+              <View
                 style={[
-                  styles.bioTouchRing, 
+                  styles.bioTouchRing,
                   bioStatus === "SUCCESS" && styles.bioTouchRingSuccess,
                   bioStatus === "FAILED" && styles.bioTouchRingFailed,
                 ]}
@@ -730,10 +695,10 @@ export const LoginScreen: React.FC = () => {
                 ) : bioStatus === "FAILED" ? (
                   <Ionicons name="close-circle" size={54} color={Colors.danger} />
                 ) : (
-                  <Ionicons 
-                    name="finger-print" 
-                    size={52} 
-                    color={bioStatus === "SCANNING" ? Colors.accent : Colors.primary} 
+                  <Ionicons
+                    name="finger-print"
+                    size={52}
+                    color={bioStatus === "SCANNING" ? Colors.accent : Colors.primary}
                   />
                 )}
               </View>
@@ -741,10 +706,10 @@ export const LoginScreen: React.FC = () => {
 
             {/* Dynamic Title */}
             <Text style={styles.bioModalTitle}>
-              {bioStatus === "SUCCESS" 
-                ? "Kimlik Doğrulandı!" 
-                : bioStatus === "FAILED" 
-                ? "Doğrulama Başarısız" 
+              {bioStatus === "SUCCESS"
+                ? "Kimlik Doğrulandı!"
+                : bioStatus === "FAILED"
+                ? "Doğrulama Başarısız"
                 : bioStatus === "SCANNING"
                 ? (selectedBioTab === "FACE_ID" ? "Yüz Taranıyor..." : "Parmak İzi Okunuyor...")
                 : (selectedBioTab === "FACE_ID" ? "Face ID İsteniyor" : "Parmak İzi İsteniyor")}
@@ -757,8 +722,8 @@ export const LoginScreen: React.FC = () => {
                 : bioStatus === "FAILED"
                 ? (bioError || "Sensör eşleşmeyi doğrulayamadı. Lütfen tekrar deneyin.")
                 : bioStatus === "SCANNING"
-                ? (selectedBioTab === "FACE_ID" 
-                    ? "TrueDepth 3D yüz haritası analiz ediliyor, lütfen kameraya bakın..." 
+                ? (selectedBioTab === "FACE_ID"
+                    ? "TrueDepth 3D yüz haritası analiz ediliyor, lütfen kameraya bakın..."
                     : "Parmak izi hatları taranıyor, parmağınızı kaldırmayın...")
                 : (selectedBioTab === "FACE_ID"
                     ? "Kameraya doğrudan bakın ve yüz doğrulaması için aşağıdaki butona dokunun."
@@ -768,8 +733,8 @@ export const LoginScreen: React.FC = () => {
             {/* Explicit Prompt Actions - Requiring User Action */}
             {bioStatus === "IDLE" && (
               selectedBioTab === "FACE_ID" ? (
-                <TouchableOpacity 
-                  style={styles.bioActionPrimaryBtn} 
+                <TouchableOpacity
+                  style={styles.bioActionPrimaryBtn}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.8}
                 >
@@ -777,8 +742,8 @@ export const LoginScreen: React.FC = () => {
                   <Text style={styles.bioActionPrimaryText}>Yüzümü Tara ve Doğrula</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity 
-                  style={styles.bioTouchSensorPad} 
+                <TouchableOpacity
+                  style={styles.bioTouchSensorPad}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.7}
                 >
@@ -817,8 +782,8 @@ export const LoginScreen: React.FC = () => {
                     {bioError || "Doğrulama gerçekleştirilemedi."}
                   </Text>
                 </View>
-                <TouchableOpacity 
-                  style={styles.bioRetryBtn} 
+                <TouchableOpacity
+                  style={styles.bioRetryBtn}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.8}
                 >
@@ -833,7 +798,7 @@ export const LoginScreen: React.FC = () => {
             {/* Subtle Simulation & Cancel Actions */}
             {bioStatus !== "SCANNING" && bioStatus !== "SUCCESS" && (
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.bioSimFailBtn}
                   onPress={() => startBiometricScan(true)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -841,8 +806,8 @@ export const LoginScreen: React.FC = () => {
                   <Text style={styles.bioSimFailText}>Başarısız Eşleşme Simülasyonu Test Et</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={styles.bioCancelBtn} 
+                <TouchableOpacity
+                  style={styles.bioCancelBtn}
                   onPress={() => setShowBiometricModal(false)}
                   activeOpacity={0.7}
                 >
@@ -879,21 +844,21 @@ export const LoginScreen: React.FC = () => {
               <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
             </View>
 
-            <TouchableOpacity 
-              style={styles.appleOptionRow} 
+            <TouchableOpacity
+              style={styles.appleOptionRow}
               onPress={() => setAppleHideEmail(!appleHideEmail)}
               activeOpacity={0.8}
             >
-              <Ionicons 
-                name={appleHideEmail ? "checkbox" : "square-outline"} 
-                size={18} 
-                color={Colors.primary} 
+              <Ionicons
+                name={appleHideEmail ? "checkbox" : "square-outline"}
+                size={18}
+                color={Colors.primary}
               />
               <Text style={styles.appleOptionText}>E-postamı Gizle (Özel Yönlendirme)</Text>
             </TouchableOpacity>
 
             <View style={styles.appleActionRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.appleCancelBtn}
                 onPress={() => setShowAppleModal(false)}
                 disabled={appleLoading}
@@ -901,7 +866,7 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.appleCancelText}>Vazgeç</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.appleSubmitBtn}
                 onPress={handleConfirmAppleLogin}
                 disabled={appleLoading}
@@ -938,7 +903,7 @@ export const LoginScreen: React.FC = () => {
               </View>
             ) : (
               <View style={styles.googleAccountsList}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.googleAccountItem}
                   onPress={() => handleConfirmGoogleLogin("ayberkcaliskan@gmail.com", "Ayberk Çalışkan (Google)")}
                   activeOpacity={0.7}
@@ -953,7 +918,7 @@ export const LoginScreen: React.FC = () => {
                   <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.googleAccountItem}
                   onPress={() => handleConfirmGoogleLogin("seo.agency@gmail.com", "SEO Ajansı (Google)")}
                   activeOpacity={0.7}
@@ -971,8 +936,8 @@ export const LoginScreen: React.FC = () => {
             )}
 
             {!googleLoading && (
-              <TouchableOpacity 
-                style={styles.googleCancelBtn} 
+              <TouchableOpacity
+                style={styles.googleCancelBtn}
                 onPress={() => setShowGoogleModal(false)}
               >
                 <Text style={styles.googleCancelText}>Kapat</Text>

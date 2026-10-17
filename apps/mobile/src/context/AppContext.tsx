@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { SiteSummary, CrawlRunItem } from "../types";
-import { fetchSites, MOCK_SITES, triggerCrawl, fetchDiscoveredPages, runQuickAudit } from "../services/api";
+import { fetchSites, createMobileSite, MOCK_SITES, triggerCrawl, fetchDiscoveredPages, runQuickAudit, fetchCrawlStatus } from "../services/api";
 import { useAuth } from "./AuthContext";
 
 export type TabKey = 
@@ -64,10 +64,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSites([]);
       setSelectedSite(null);
       setIsDemoMode(false);
+      if (crawlIntervalRef.current) clearInterval(crawlIntervalRef.current);
+      setActiveCrawl(null);
     } else {
       setSites([]);
       setSelectedSite(null);
       setIsDemoMode(false);
+      if (crawlIntervalRef.current) clearInterval(crawlIntervalRef.current);
+      setActiveCrawl(null);
     }
   }, [user?.id]);
 
@@ -76,46 +80,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanDomain = rawDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
     const cleanUrl = primaryUrl?.trim().startsWith("http") ? primaryUrl.trim() : `https://${cleanDomain}`;
 
-    // Sitenin gerçek sayfa sayısını ve sitemap URL'lerini keşfet
-    let discoveredPages = 14;
-    try {
-      const disc = await fetchDiscoveredPages(cleanUrl);
-      if (disc && disc.total_pages > 0) {
-        discoveredPages = disc.total_pages;
-      }
-    } catch {
-      // fallback
-    }
-
-    const newSite: SiteSummary = {
-      id: `site-${Date.now()}`,
-      name: name.trim() || cleanDomain,
-      domain: cleanDomain,
-      primary_url: cleanUrl,
-      health_score: 0, // Tarama bitene kadar oran 0 (analiz ediliyor)
-      last_crawled_at: undefined,
-      execution_mode: "AUTO_LOW_RISK",
-      total_pages: discoveredPages,
-      has_completed_crawl: false
-    };
+    const newSite = await createMobileSite(name.trim() || cleanDomain, cleanUrl);
     setSites(prev => [newSite, ...prev]);
     setSelectedSite(newSite);
     return newSite;
   };
 
   const refreshSites = async () => {
-    if (!user || user.id !== "guest-user") return;
+    if (!user) return;
     setIsLoading(true);
     try {
-      const data = await fetchSites();
+      const data = user.id === "guest-user" ? MOCK_SITES : await fetchSites();
       setSites(data);
-      if (data.length > 0 && (!selectedSite || !data.find(s => s.id === selectedSite.id))) {
-        setSelectedSite(data[0]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      setSelectedSite(previous => data.find(s => s.id === previous?.id) || data[0] || null);
+    } finally { setIsLoading(false); }
   };
+
+  useEffect(() => {
+    if (user && user.id !== "guest-user") void refreshSites().catch(() => {});
+  }, [user?.id]);
 
   const startCrawl = async (maxPages?: number, targetSite?: SiteSummary, customUrls?: string[]) => {
     const site = targetSite || selectedSite;
@@ -146,72 +129,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const initialRun = await triggerCrawl(site.id, targetPages, "FAST", urls);
-    initialRun.max_pages = targetPages;
-    initialRun.pages_crawled = 1; // Başlangıçta 1 sayfa taranmış başlar, yüzde anında ilerler
-    initialRun.current_url = urls[0];
-    initialRun.discovered_urls = urls;
-    setActiveCrawl(initialRun);
+    // Sunucu taramayı kabul etmediyse (çevrimdışı) sayfa sayacı simüle edilmez; yalnızca ana sayfa denetlenir.
+    const homepageOnly = initialRun.id.startsWith("crawl-sim-");
+    setActiveCrawl({
+      ...initialRun,
+      status: "RUNNING",
+      max_pages: homepageOnly ? 1 : targetPages,
+      pages_crawled: 0,
+      current_url: homepageOnly ? site.primary_url : undefined,
+      discovered_urls: urls,
+      homepage_only: homepageOnly,
+    });
 
-    // Akıcı ve hızlı canlı tarama simülatörü (450ms'de bir ilerler)
-    let crawled = 1;
-    if (crawlIntervalRef.current) clearInterval(crawlIntervalRef.current);
-    
-    crawlIntervalRef.current = setInterval(() => {
-      const step = Math.max(1, Math.floor(targetPages / 10)) + (Math.random() > 0.5 ? 1 : 0);
-      crawled += step;
-
-      if (crawled >= targetPages) {
-        crawled = targetPages;
-        clearInterval(crawlIntervalRef.current);
-        setActiveCrawl(prev => prev ? {
-          ...prev,
-          status: "COMPLETED",
-          pages_crawled: targetPages,
-          current_url: undefined,
-          completed_at: new Date().toISOString()
-        } : null);
-
-        // Tarama bittiğinde sitenin gerçek SEO puanını ve Core Web Vitals metriklerini hesapla
-        runQuickAudit(site.primary_url, site.id).then((audit) => {
-          const finalScore = audit?.health_score || (Math.floor(Math.random() * 12) + 82);
-          const cwvMetrics = audit?.core_web_vitals ? {
+    const finish = async (pagesCrawled: number) => {
+      let score = site.health_score;
+      let cwv = site.cwv;
+      let failed = false;
+      try {
+        const audit = await runQuickAudit(site.primary_url, site.id);
+        score = audit.health_score;
+        if (audit.core_web_vitals) {
+          cwv = {
             lcp: `${(audit.core_web_vitals.lcp_p75_ms / 1000).toFixed(2)}s`,
             cls: audit.core_web_vitals.cls_p75.toFixed(2),
-            inp: `${audit.core_web_vitals.inp_p75_ms}ms`
-          } : { lcp: "1.92s", cls: "0.03", inp: "88ms" };
-
-          const updatedSite: SiteSummary = {
-            ...(selectedSite || site),
-            last_crawled_at: new Date().toISOString(),
-            total_pages: targetPages,
-            health_score: finalScore,
-            has_completed_crawl: true,
-            cwv: cwvMetrics
+            inp: `${audit.core_web_vitals.inp_p75_ms}ms`,
           };
-          setSelectedSite(updatedSite);
-          setSites(curr => curr.map(s => s.id === updatedSite.id ? updatedSite : s));
-        }).catch(() => {
-          const updatedSite: SiteSummary = {
-            ...(selectedSite || site),
-            last_crawled_at: new Date().toISOString(),
-            total_pages: targetPages,
-            health_score: 86,
-            has_completed_crawl: true,
-            cwv: { lcp: "1.92s", cls: "0.03", inp: "88ms" }
-          };
-          setSelectedSite(updatedSite);
-          setSites(curr => curr.map(s => s.id === updatedSite.id ? updatedSite : s));
-        });
-      } else {
-        const nextUrl = urls && urls.length > 0 ? urls[crawled % urls.length] : undefined;
-        setActiveCrawl(prev => prev ? {
-          ...prev,
-          status: "RUNNING",
-          pages_crawled: crawled,
-          current_url: nextUrl
-        } : null);
+        }
+      } catch {
+        // Puan hesaplanamadı: önceki değer korunur, uydurma puan yazılmaz
+        failed = true;
       }
-    }, 450);
+      setActiveCrawl(prev => prev ? { ...prev, status: failed ? "FAILED" : "COMPLETED", pages_crawled: pagesCrawled, current_url: undefined, completed_at: new Date().toISOString() } : null);
+      if (failed) return;
+      const updatedSite: SiteSummary = {
+        ...site,
+        last_crawled_at: new Date().toISOString(),
+        total_pages: homepageOnly ? site.total_pages : pagesCrawled,
+        health_score: score,
+        has_completed_crawl: true,
+        cwv,
+      };
+      setSelectedSite(updatedSite);
+      setSites(curr => curr.map(s => s.id === updatedSite.id ? updatedSite : s));
+    };
+
+    if (homepageOnly) {
+      await finish(1);
+      return;
+    }
+
+    // Gerçek tarama: ilerleme sunucudan okunur
+    if (crawlIntervalRef.current) clearInterval(crawlIntervalRef.current);
+    crawlIntervalRef.current = setInterval(async () => {
+      try {
+        const st = await fetchCrawlStatus(site.id, initialRun.id);
+        setActiveCrawl(prev => prev ? { ...prev, status: st.status === "COMPLETED" || st.status === "FAILED" ? prev.status : st.status, pages_crawled: st.pages_crawled } : null);
+        if (st.status === "COMPLETED" || st.status === "FAILED") {
+          clearInterval(crawlIntervalRef.current);
+          if (st.status === "COMPLETED") await finish(st.pages_crawled);
+          else setActiveCrawl(prev => prev ? { ...prev, status: "FAILED" } : null);
+        }
+      } catch {
+        // Durum okunamadı: bir sonraki denemede tekrar sorulur
+      }
+    }, 3000);
   };
 
   const dismissCrawl = () => {

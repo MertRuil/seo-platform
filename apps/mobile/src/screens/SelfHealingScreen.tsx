@@ -19,7 +19,7 @@ import { fetchChangeSets, executeSelfHeal, rollbackChangeSet } from "../services
 import { ChangeSetItem, SelfHealRequest } from "../types";
 
 export const SelfHealingScreen: React.FC = () => {
-  const { selectedSite } = useApp();
+  const { selectedSite, isDemoMode } = useApp();
   const [activeSegment, setActiveSegment] = useState<"ISSUES" | "CHANGES" | "SECURITY">("ISSUES");
 
   const [changeSets, setChangeSets] = useState<ChangeSetItem[]>([]);
@@ -29,7 +29,7 @@ export const SelfHealingScreen: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Fixable Issues List
-  const FIXABLE_ISSUES = [
+  const FIXABLE_ISSUES = isDemoMode ? [
     {
       id: "fix-can-1",
       title: "Parametreli Filtre Sayfalarında Canonical Eksikliği",
@@ -78,7 +78,7 @@ export const SelfHealingScreen: React.FC = () => {
       state_after: "Status: 301 Moved Permanently -> /kampanyalar",
       hash: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b"
     }
-  ];
+  ] : [];
 
   useEffect(() => {
     loadChangeSets();
@@ -89,6 +89,9 @@ export const SelfHealingScreen: React.FC = () => {
     try {
       const data = await fetchChangeSets(selectedSite?.id || "site-1");
       setChangeSets(data);
+    } catch (err) {
+      setChangeSets([]);
+      setStatusMsg({type:"error",text:err instanceof Error?err.message:"Değişiklik kayıtları alınamadı."});
     } finally {
       setLoading(false);
     }

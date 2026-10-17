@@ -13,9 +13,9 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   { key: "dashboard", label: "Panel", iconActive: "speedometer", iconInactive: "speedometer-outline" },
-  { key: "quick_audit", label: "Audit", iconActive: "flash", iconInactive: "flash-outline" },
-  { key: "ai", label: "AI Asistan", iconActive: "sparkles", iconInactive: "sparkles-outline" },
-  { key: "geo", label: "GEO", iconActive: "globe", iconInactive: "globe-outline" },
+  { key: "quick_audit", label: "Denetim", iconActive: "flash", iconInactive: "flash-outline" },
+  { key: "ai", label: "Asistan", iconActive: "sparkles", iconInactive: "sparkles-outline" },
+  { key: "geo", label: "AI arama", iconActive: "globe", iconInactive: "globe-outline" },
   { key: "hub", label: "Diğer", iconActive: "grid", iconInactive: "grid-outline" },
 ];
 
@@ -49,6 +49,9 @@ export const TabBar: React.FC = () => {
               style={styles.tabButton}
               activeOpacity={0.7}
               onPress={() => setActiveTab(tab.key)}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: isActive }}
             >
               <View style={[styles.iconWrapper, isActive && styles.iconWrapperActive]}>
                 <Ionicons
@@ -111,7 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(99, 102, 241, 0.15)",
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
     color: Colors.textMuted,
     marginTop: 2,

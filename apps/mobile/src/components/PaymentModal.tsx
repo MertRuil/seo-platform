@@ -16,6 +16,12 @@ import { BillingSummary } from "../types";
 import { processSubscriptionUpgrade } from "../services/api";
 
 export type PlanTier = "STARTER" | "GROWTH" | "SCALE";
+
+/**
+ * Uygulama içi ödeme bir ödeme sağlayıcısına (App Store / Play Billing ya da Paddle) bağlanana kadar kapalı.
+ * Önceden bu form tam kart numarası ve CVC topluyor, ödeme almadan planı etkin gösteriyordu.
+ */
+const IN_APP_PAYMENTS_ENABLED = false;
 export type BillingInterval = "month" | "year";
 
 interface PlanConfig {
@@ -148,6 +154,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         card_last4: rawNumber.slice(-4)
       });
 
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
       setSuccessData({
         orderId: result.order_id,
         billing: result.billing
@@ -195,8 +205,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </View>
 
           <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* SUCCESS VIEW */}
-            {successData ? (
+            {!IN_APP_PAYMENTS_ENABLED ? (
+              <View style={styles.successContainer}>
+                <View style={styles.successIconCircle}>
+                  <Ionicons name="information-circle-outline" size={44} color={Colors.primary} />
+                </View>
+                <Text style={styles.successTitle}>Uygulama içi ödeme henüz yok</Text>
+                <Text style={styles.successDesc}>
+                  Planınızı web panelindeki Abonelik sayfasından güvenli ödeme adımıyla yükseltebilirsiniz. Bu ekranda kart bilgisi istenmez ve planınız değiştirilmez.
+                </Text>
+                <TouchableOpacity style={styles.finishBtn} onPress={onClose} accessibilityRole="button">
+                  <Text style={styles.finishBtnText}>Tamam</Text>
+                </TouchableOpacity>
+              </View>
+            ) : successData ? (
               <View style={styles.successContainer}>
                 <View style={styles.successIconCircle}>
                   <Ionicons name="checkmark-sharp" size={44} color={Colors.success} />

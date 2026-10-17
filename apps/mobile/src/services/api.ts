@@ -71,6 +71,60 @@ async function getMobileActiveOrgId(): Promise<string> {
   return "default";
 }
 
+export async function isDemoSession(): Promise<boolean> {
+  const token = await Storage.getItem("seo_auth_token");
+  return token === "guest-token";
+}
+
+async function requireDemoFallback() {
+  if (!(await isDemoSession())) throw new Error("Bu özellik için canlı veri alınamadı veya servis henüz bağlı değil. Örnek sonuç üretilmedi.");
+}
+
+async function mobileRequest(path: string, options: RequestInit = {}): Promise<any> {
+  const response = await safeNetworkFetch(`${API_BASE_URL}${path}`, {
+    ...options, headers: { "Content-Type":"application/json", ...await getMobileAuthHeaders(), ...options.headers },
+  }, 15000);
+  if (!response) throw new Error("Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : `İşlem tamamlanamadı (HTTP ${response.status}).`);
+  return data;
+}
+
+async function rememberSiteOrg(sites: Array<{id:string;organization_id:string}>) {
+  const mapping = Object.fromEntries(sites.map(s => [s.id,s.organization_id]));
+  await Storage.setItem("seo_site_orgs",JSON.stringify(mapping));
+}
+
+async function mobileSitePath(siteId: string): Promise<string> {
+  const mapping = JSON.parse(await Storage.getItem("seo_site_orgs") || "{}");
+  const orgId = mapping[siteId] || await getMobileActiveOrgId();
+  if (!orgId || orgId === "default") throw new Error("Çalışma alanı bulunamadı. Site listenizi yenileyin.");
+  return `/organizations/${encodeURIComponent(orgId)}/sites/${encodeURIComponent(siteId)}`;
+}
+
+function mapLiveCrawl(data: any, siteId: string): CrawlRunItem {
+  return {id:data.id,site_id:siteId,crawl_mode:"FAST",status:data.status,max_pages:data.max_pages,pages_crawled:data.total_urls_crawled||0,issues_found:data.total_errors||0,started_at:data.started_at||data.created_at,completed_at:data.finished_at};
+}
+
+async function fetchLiveSites(): Promise<SiteSummary[]> {
+  const orgs=await mobileRequest("/organizations");
+  const groups=await Promise.all(orgs.map((org: {id:string}) => mobileRequest(`/organizations/${org.id}/sites`)));
+  const sites=groups.flat();
+  await rememberSiteOrg(sites);
+  const user=JSON.parse(await Storage.getItem("seo_auth_user") || "{}");
+  if (orgs[0]) { user.organization_id=orgs[0].id; await Storage.setItem("seo_auth_user",JSON.stringify(user)); }
+  return sites.map((s:any) => ({...s,health_score:0,execution_mode:s.execution_mode==="AUTO_LOW_RISK"?"AUTO_LOW_RISK":"MANUAL",has_completed_crawl:false}));
+}
+
+export async function createMobileSite(name: string, primaryUrl: string): Promise<SiteSummary> {
+  if (await isDemoSession()) throw new Error("Kendi sitenizi kaydetmek için gerçek hesabınızla giriş yapın.");
+  let orgs=await mobileRequest("/organizations");
+  if (!orgs.length) orgs=[await mobileRequest("/organizations",{method:"POST",body:JSON.stringify({name:"Çalışma alanım",slug:`workspace-${Date.now()}`})})];
+  const result=await mobileRequest(`/organizations/${orgs[0].id}/sites`,{method:"POST",body:JSON.stringify({name,primary_url:primaryUrl,execution_mode:"REVIEW_ALL"})});
+  const sites=await fetchLiveSites();
+  return sites.find(s=>s.id===result.id)!;
+}
+
 // Default API URL (can be customized via EXPO_PUBLIC_API_URL or settings in app)
 let API_BASE_URL = 
   (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_API_URL) 
@@ -96,15 +150,16 @@ export async function safeNetworkFetch(
   options: RequestInit = {},
   timeoutMs: number = 5000
 ): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
     const signal = options.signal || controller.signal;
-    const res = await fetch(url, { ...options, signal });
-    clearTimeout(timer);
+    const res = await fetch(url, { ...options, headers:{...await getMobileAuthHeaders(),...options.headers}, signal });
     return res;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 // -------------------------------------------------------------
@@ -201,6 +256,8 @@ export const MOCK_BILLING: BillingSummary = {
 // -------------------------------------------------------------
 
 export async function fetchSites(): Promise<SiteSummary[]> {
+  if (!(await isDemoSession())) { return await fetchLiveSites(); }
+
   try {
     const res = await safeNetworkFetch(`${API_BASE_URL}/organizations`, {
       headers: { "Content-Type": "application/json" }
@@ -225,6 +282,8 @@ export async function fetchSites(): Promise<SiteSummary[]> {
 }
 
 export async function fetchRecommendations(siteId: string, domain?: string): Promise<RecommendationItem[]> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/recommendations"); }
+
   try {
     const res = await safeNetworkFetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/recommendations`);
     if (res && res.ok) {
@@ -307,6 +366,8 @@ export async function executeRecommendation(recId: string): Promise<{ success: b
   } catch {
     // fallback
   }
+  await requireDemoFallback();
+
   return { success: true, message: "Değişiklik Cloudflare CDN üzerinde başarıyla uygulandı." };
 }
 
@@ -323,9 +384,9 @@ export async function runQuickAudit(url: string, siteId?: string): Promise<Quick
     if (res.ok) {
       const data = await res.json();
       const pageInfo = data.page_info || {};
-      const loadTime = pageInfo.response_time_ms || data.response_time_ms || 340;
-      const title = pageInfo.title || data.title || `${cleanDomain} - Ana Sayfa`;
-      const metaDesc = pageInfo.meta_description || "Arama motoru için meta açıklaması tanımlanmamış.";
+      const loadTime = pageInfo.response_time_ms || data.response_time_ms || 0;
+      const title = pageInfo.title || data.title || "";
+      const metaDesc = pageInfo.meta_description || "";
       const hasCanonical = Boolean(pageInfo.canonical_url);
       const hasSchema = Boolean(pageInfo.has_structured_data || (pageInfo.structured_data && pageInfo.structured_data.length > 0));
       const wordCount = pageInfo.word_count || 0;
@@ -396,7 +457,8 @@ export async function runQuickAudit(url: string, siteId?: string): Promise<Quick
 
       return {
         url: data.url || url,
-        health_score: data.health_score ?? (realIssues.length === 0 ? 95 : 82),
+        // Puan sunucudan gelir; yoksa kontrol listesinden şeffaf biçimde hesaplanır
+        health_score: typeof data.health_score === "number" ? data.health_score : Math.round((checks.filter((c) => c.passed).length / Math.max(1, checks.length)) * 100),
         status_code: data.status_code ?? 200,
         load_time_ms: loadTime,
         title: title,
@@ -405,49 +467,16 @@ export async function runQuickAudit(url: string, siteId?: string): Promise<Quick
         canonical_url: pageInfo.canonical_url,
         has_schema: hasSchema,
         robots_txt_status: "ALLOWED",
-        core_web_vitals: {
-          lcp_p75_ms: Math.min(3000, Math.max(900, loadTime * 4)),
-          lcp_status: loadTime < 500 ? "GOOD" : "NEEDS_IMPROVEMENT",
-          cls_p75: 0.03,
-          cls_status: "GOOD",
-          inp_p75_ms: 95,
-          inp_status: "GOOD"
-        },
         checks: checks
       };
     }
-  } catch {
-    // Fallback simulation for offline testing
+    throw new Error(`Site kontrol edilemedi (HTTP ${res.status}).`);
+  } catch (err) {
+    // Sunucuya ulaşılamadığında uydurma "başarılı" sonuç gösterilmez
+    throw err instanceof Error && err.message.startsWith("Site kontrol edilemedi")
+      ? err
+      : new Error("Site kontrol edilemedi: sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.");
   }
-
-  // Simulated live result for quick response
-  return {
-    url,
-    health_score: 84,
-    status_code: 200,
-    load_time_ms: 280,
-    title: `${url.replace(/^https?:\/\//, "")} - Modern Web Deneyimi`,
-    meta_description: "Site meta açıklaması optimize edilmiş ve arama sonuçları için uygun uzunlukta (142 karakter).",
-    has_canonical: true,
-    canonical_url: url,
-    has_schema: true,
-    robots_txt_status: "ALLOWED",
-    core_web_vitals: {
-      lcp_p75_ms: 1720,
-      lcp_status: "GOOD",
-      cls_p75: 0.03,
-      cls_status: "GOOD",
-      inp_p75_ms: 95,
-      inp_status: "GOOD"
-    },
-    checks: [
-      { id: "c1", title: "HTTPS & SSL Şifreleme", passed: true, severity: "CRITICAL", detail: "Güvenli bağlantı sağlandı (TLS 1.3)." },
-      { id: "c2", title: "Kanonikleştirme (Canonical)", passed: true, severity: "CRITICAL", detail: "Self-referential canonical tanımlı." },
-      { id: "c3", title: "Robots.txt & İndekslenebilirlik", passed: true, severity: "CRITICAL", detail: "Googlebot erişimine izin veriliyor (HTTP 200)." },
-      { id: "c4", title: "Meta Açıklaması", passed: true, severity: "WARNING", detail: "Uzunluk ideal (142 karakter)." },
-      { id: "c5", title: "Core Web Vitals Performansı", passed: true, severity: "WARNING", detail: "LCP 1.72s (İyi), CLS 0.03 (İyi)." }
-    ]
-  };
 }
 
 export async function searchKnowledge(query: string): Promise<KnowledgeChunk[]> {
@@ -500,6 +529,8 @@ export async function searchKnowledge(query: string): Promise<KnowledgeChunk[]> 
 }
 
 export async function fetchBilling(): Promise<BillingSummary> {
+  if (!(await isDemoSession())) { const org=await getMobileActiveOrgId(); const data=await mobileRequest("/organizations/"+org+"/billing/subscription"); return {plan_name:data.plan_name,status:data.status,crawls_used:0,crawls_limit:0,pages_used:data.usages?.pages_crawled?.used||0,pages_limit:data.usages?.pages_crawled?.limit||0,ai_tokens_used:data.usages?.ai_credits?.used||0,ai_tokens_limit:data.usages?.ai_credits?.limit||0,renews_at:data.current_period_end||""}; }
+
   try {
     const res = await safeNetworkFetch(`${API_BASE_URL}/billing/subscription`);
     if (res && res.ok) {
@@ -539,36 +570,23 @@ export async function processSubscriptionUpgrade(
       const data = await res.json();
       return data;
     }
+    // Sunucu ödeme almadan plan etkinleştirmez (üretimde 501 döner); mesajı kullanıcıya iletilir.
+    const data = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      message: typeof data.detail === "string" ? data.detail : "Plan yükseltilemedi. Lütfen web panelindeki Abonelik sayfasını kullanın.",
+      order_id: "",
+      billing: await fetchBilling(),
+    };
   } catch {
-    // fallback
+    // Ödeme alınamadıysa plan etkinleşmiş gibi gösterilmez
+    return {
+      success: false,
+      message: "Sunucuya ulaşılamadı; ödeme alınmadı ve planınız değişmedi. Planınızı web panelindeki Abonelik sayfasından yükseltebilirsiniz.",
+      order_id: "",
+      billing: await fetchBilling(),
+    };
   }
-
-  const planUpper = params.plan_name.toUpperCase();
-  const limits: Record<string, { crawls: number; pages: number; tokens: number }> = {
-    STARTER: { crawls: 15, pages: 25000, tokens: 500000 },
-    GROWTH: { crawls: 50, pages: 100000, tokens: 2000000 },
-    PRO: { crawls: 50, pages: 100000, tokens: 2000000 },
-    SCALE: { crawls: 150, pages: 250000, tokens: 5000000 }
-  };
-  const cfg = limits[planUpper] || limits.GROWTH;
-  const days = params.interval === "year" ? 365 : 30;
-
-  return {
-    success: true,
-    message: `Tebrikler! ${planUpper} planı başarıyla aktif edildi.`,
-    order_id: `SEO-PAY-${Date.now().toString().slice(-6)}`,
-    billing: {
-      plan_name: (["STARTER", "GROWTH", "SCALE", "ENTERPRISE"].includes(planUpper) ? planUpper : "GROWTH") as BillingSummary["plan_name"],
-      status: "ACTIVE",
-      crawls_used: 0,
-      crawls_limit: cfg.crawls,
-      pages_used: 0,
-      pages_limit: cfg.pages,
-      ai_tokens_used: 0,
-      ai_tokens_limit: cfg.tokens,
-      renews_at: new Date(Date.now() + 86400000 * days).toISOString()
-    }
-  };
 }
 
 
@@ -596,6 +614,8 @@ export async function fetchDiscoveredPages(targetUrl: string): Promise<Discovere
   } catch {
     // Network fallback when backend is offline
   }
+  await requireDemoFallback();
+
 
   const domain = cleanUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const base = `https://${domain}`;
@@ -631,6 +651,8 @@ export async function triggerCrawl(
   crawlMode: "FAST" | "DEEP" | "CUSTOM" = "FAST",
   discoveredUrls?: string[]
 ): Promise<CrawlRunItem> {
+  if (!(await isDemoSession())) { const data=await mobileRequest(await mobileSitePath(siteId)+"/crawls",{method:"POST",body:JSON.stringify({max_pages:maxPages,max_depth:3,crawl_mode:"GOOGLEBOT_SIMULATION"})}); return mapLiveCrawl(data,siteId); }
+
   const startUrl = discoveredUrls && discoveredUrls.length > 0 ? discoveredUrls[0] : undefined;
   try {
     const controller = new AbortController();
@@ -680,6 +702,8 @@ export async function triggerCrawl(
 }
 
 export async function fetchCrawlStatus(siteId: string, crawlId: string): Promise<CrawlRunItem> {
+  if (!(await isDemoSession())) { return mapLiveCrawl(await mobileRequest(await mobileSitePath(siteId)+"/crawls/"+encodeURIComponent(crawlId)),siteId); }
+
   try {
     const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/crawls/${crawlId}`);
     if (res.ok) {
@@ -696,21 +720,11 @@ export async function fetchCrawlStatus(siteId: string, crawlId: string): Promise
         completed_at: data.completed_at
       };
     }
-  } catch {
-    // fallback
+    throw new Error(`Tarama durumu alınamadı (HTTP ${res.status})`);
+  } catch (err) {
+    // Durum bilinmiyorsa "tamamlandı" uydurulmaz; çağıran bir sonraki denemede tekrar sorar
+    throw err instanceof Error ? err : new Error("Tarama durumu alınamadı");
   }
-
-  return {
-    id: crawlId,
-    site_id: siteId,
-    crawl_mode: "FAST",
-    status: "COMPLETED",
-    max_pages: 50,
-    pages_crawled: 50,
-    issues_found: 3,
-    started_at: new Date(Date.now() - 15000).toISOString(),
-    completed_at: new Date().toISOString()
-  };
 }
 
 // -------------------------------------------------------------
@@ -776,6 +790,8 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
 ];
 
 export async function fetchSiteIssues(siteId: string, domain?: string): Promise<SiteIssueItem[]> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/issues"); }
+
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
 
   // 1. Return actual crawler-detected issues if this site was scanned
@@ -859,6 +875,7 @@ export let MOCK_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export async function fetchNotifications(): Promise<NotificationItem[]> {
+  if (!(await isDemoSession())) return [];
   try {
     const res = await fetch(`${API_BASE_URL}/notifications`);
     if (res.ok) {
@@ -868,14 +885,20 @@ export async function fetchNotifications(): Promise<NotificationItem[]> {
   } catch {
     // fallback
   }
+  await requireDemoFallback();
+
   return [...MOCK_NOTIFICATIONS];
 }
 
 export async function markNotificationAsRead(notifId: string): Promise<void> {
+  await requireDemoFallback();
+
   MOCK_NOTIFICATIONS = MOCK_NOTIFICATIONS.map(n => n.id === notifId ? { ...n, is_read: true } : n);
 }
 
 export async function markAllNotificationsAsRead(): Promise<void> {
+  await requireDemoFallback();
+
   MOCK_NOTIFICATIONS = MOCK_NOTIFICATIONS.map(n => ({ ...n, is_read: true }));
 }
 
@@ -956,6 +979,7 @@ export let MOCK_KEYWORDS: KeywordItem[] = [
 ];
 
 export async function fetchKeywords(siteId: string, domain?: string): Promise<KeywordItem[]> {
+  if (!(await isDemoSession())) return [];
   try {
     const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/keywords`);
     if (res.ok) {
@@ -965,6 +989,8 @@ export async function fetchKeywords(siteId: string, domain?: string): Promise<Ke
   } catch {
     // fallback
   }
+  await requireDemoFallback();
+
 
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
   if (!cleanDomain || siteId === "site-1") {
@@ -1033,18 +1059,21 @@ export async function fetchKeywords(siteId: string, domain?: string): Promise<Ke
 }
 
 export async function addKeyword(siteId: string, keyword: string): Promise<KeywordItem> {
+  await requireDemoFallback();
+
   const newKw: KeywordItem = {
     id: `kw-${Date.now()}`,
     keyword: keyword.trim(),
-    current_pos: Math.floor(Math.random() * 25) + 3,
-    prev_pos: Math.floor(Math.random() * 25) + 5,
-    change: 2,
-    volume: (Math.floor(Math.random() * 80) + 10) * 100,
-    difficulty: Math.floor(Math.random() * 50) + 20,
-    cpc: Number((Math.random() * 15 + 2).toFixed(2)),
+    // Sıra ve hacim bir veri kaynağından ölçülmeden bilinemez: 0 = ölçülmedi ("—" gösterilir)
+    current_pos: 0,
+    prev_pos: 0,
+    change: 0,
+    volume: 0,
+    difficulty: 0,
+    cpc: 0,
     intent: "COMMERCIAL",
     target_url: "/",
-    trend_7d: [12, 10, 9, 8, 7, 6, 5],
+    trend_7d: [],
     checked_at: new Date().toISOString()
   };
   MOCK_KEYWORDS = [newKw, ...MOCK_KEYWORDS];
@@ -1052,6 +1081,9 @@ export async function addKeyword(siteId: string, keyword: string): Promise<Keywo
 }
 
 export async function researchKeywords(query: string): Promise<KeywordResearchItem[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   const q = query.trim().toLowerCase();
   return [
     {
@@ -1142,6 +1174,7 @@ export let MOCK_COMPETITORS: CompetitorItem[] = [
 ];
 
 export async function fetchCompetitors(siteId: string, domain?: string): Promise<CompetitorItem[]> {
+  if (!(await isDemoSession())) return [];
   try {
     const res = await fetch(`${API_BASE_URL}/organizations/default/sites/${siteId}/competitors`);
     if (res.ok) {
@@ -1151,6 +1184,8 @@ export async function fetchCompetitors(siteId: string, domain?: string): Promise
   } catch {
     // fallback
   }
+  await requireDemoFallback();
+
 
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "";
   if (!cleanDomain || siteId === "site-1") {
@@ -1184,23 +1219,29 @@ export async function fetchCompetitors(siteId: string, domain?: string): Promise
 }
 
 export async function addCompetitor(siteId: string, domain: string): Promise<CompetitorItem> {
+  await requireDemoFallback();
+
   const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const newComp: CompetitorItem = {
     id: `comp-${Date.now()}`,
     name: cleanDomain,
     domain: cleanDomain,
-    seo_score: Math.floor(Math.random() * 25) + 70,
-    organic_traffic: Math.floor(Math.random() * 100000) + 15000,
-    ranked_keywords: Math.floor(Math.random() * 5000) + 1000,
-    backlinks: Math.floor(Math.random() * 50000) + 5000,
-    geo_visibility: Math.floor(Math.random() * 40) + 50,
-    top_keywords: ["online servis", "en ucuz teklif", "kullanıcı rehberi"]
+    // Rakip metrikleri veri sağlayıcısı olmadan bilinemez: 0 = ölçülmedi ("—" gösterilir)
+    seo_score: 0,
+    organic_traffic: 0,
+    ranked_keywords: 0,
+    backlinks: 0,
+    geo_visibility: 0,
+    top_keywords: []
   };
   MOCK_COMPETITORS = [newComp, ...MOCK_COMPETITORS];
   return newComp;
 }
 
 export async function fetchCompetitorGap(siteId: string): Promise<CompetitorGapItem[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   return [
     {
       keyword: "ai generative engine optimization",
@@ -1241,6 +1282,9 @@ export async function sendAiAssistantMessage(
   siteId?: string,
   domain?: string
 ): Promise<AiChatMessage> {
+  if (!(await isDemoSession())) return {id:`ai-${Date.now()}`,sender:"assistant",text:"Mobil AI asistanı henüz canlı sağlayıcıya bağlı değil. Bu sohbetten siteniz hakkında ölçülmüş sonuç veya otomatik değişiklik üretilmez. Web panelinden doğrulanmış tarama bulgularını inceleyebilirsiniz.",timestamp:new Date().toISOString(),sources:[],suggested_actions:[]};
+  await requireDemoFallback();
+
   const lastUserMsg = history.filter(m => m.sender === "user").slice(-1)[0]?.text || "";
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "siteniz";
 
@@ -1347,6 +1391,8 @@ export async function sendAiAssistantMessage(
 // 13 & 14. Content Optimizer & AI Content Generator
 // -------------------------------------------------------------
 export async function analyzeContentUrl(url: string, targetKeyword?: string): Promise<ContentOptimizationResult> {
+  await requireDemoFallback();
+
   const cleanKeyword = targetKeyword || "organik seo uzmanı";
   return {
     url,
@@ -1371,6 +1417,8 @@ export async function generateAiSeoContent(
   topic: string,
   targetKeyword: string
 ): Promise<GeneratedContentResult> {
+  await requireDemoFallback();
+
   await new Promise(r => setTimeout(r, 600));
 
   if (type === "META_TITLE") {
@@ -1412,6 +1460,7 @@ export async function generateAiSeoContent(
 // 15, 16 & 17. GEO (Generative Engine Optimization) Services
 // -------------------------------------------------------------
 export async function fetchGeoScores(siteId: string, domain?: string): Promise<GeoPlatformScore[]> {
+  if (!(await isDemoSession())) return [];
   try {
     const orgId = (await Storage.getItem("user_org_id")) || "default";
     const token = await Storage.getItem("auth_token");
@@ -1428,6 +1477,8 @@ export async function fetchGeoScores(siteId: string, domain?: string): Promise<G
       }
     }
   } catch {}
+  await requireDemoFallback();
+
   return [
     { platform: "ChatGPT", score: 86, mentions: 42, citations: 29, status: "DOMINANT" },
     { platform: "Google AI Overview", score: 78, mentions: 34, citations: 22, status: "VISIBLE" },
@@ -1480,6 +1531,7 @@ export let MOCK_GEO_PROMPTS: GeoPromptItem[] = [
 ];
 
 export async function fetchGeoPrompts(siteId: string, domain?: string): Promise<GeoPromptItem[]> {
+  if (!(await isDemoSession())) return [];
   try {
     const orgId = (await Storage.getItem("user_org_id")) || "default";
     const token = await Storage.getItem("auth_token");
@@ -1496,6 +1548,8 @@ export async function fetchGeoPrompts(siteId: string, domain?: string): Promise<
       }
     }
   } catch {}
+  await requireDemoFallback();
+
   return [...MOCK_GEO_PROMPTS];
 }
 
@@ -1534,18 +1588,17 @@ export async function addGeoPrompt(siteId: string, promptText: string): Promise<
       }
     }
   } catch {}
+  await requireDemoFallback();
+
 
   const newPrompt: GeoPromptItem = {
     id: `gp-${Date.now()}`,
     prompt: cleanPrompt,
-    frequency: "GÜNLÜK",
-    brand_mentioned: true,
-    citation_rank: Math.floor(Math.random() * 3) + 1,
-    platform_results: {
-      ChatGPT: { mentioned: true, snippet: "Soruya verilen yanıtta markanız güvenilir uzman kaynak olarak alıntılandı." },
-      Perplexity: { mentioned: true, snippet: "Domain URL'niz referans linkler arasına eklendi." },
-      Gemini: { mentioned: false, snippet: "Genel web sonuçları derlendi." }
-    }
+    // Sorgu takibe alındı ama henüz hiçbir motorda ölçülmedi; alıntı uydurulmaz
+    frequency: "ÖLÇÜLMEDİ",
+    brand_mentioned: false,
+    citation_rank: 0,
+    platform_results: {}
   };
   MOCK_GEO_PROMPTS = [newPrompt, ...MOCK_GEO_PROMPTS];
   return newPrompt;
@@ -1611,10 +1664,15 @@ export let MOCK_TASKS: SeoTaskItem[] = [
 ];
 
 export async function fetchTasks(siteId: string): Promise<SeoTaskItem[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   return [...MOCK_TASKS];
 }
 
 export async function createTask(siteId: string, task: Partial<SeoTaskItem>): Promise<SeoTaskItem> {
+  await requireDemoFallback();
+
   const newTask: SeoTaskItem = {
     id: `task-${Date.now()}`,
     title: task.title || "Yeni SEO Görevi",
@@ -1633,6 +1691,8 @@ export async function createTask(siteId: string, task: Partial<SeoTaskItem>): Pr
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+  await requireDemoFallback();
+
   MOCK_TASKS = MOCK_TASKS.map(t => t.id === taskId ? { ...t, status } : t);
 }
 
@@ -1640,6 +1700,9 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
 // 28. Reports & Native Export
 // -------------------------------------------------------------
 export async function fetchReports(siteId: string, domain?: string, siteName?: string): Promise<SeoReportSummary[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   const targetSite = MOCK_SITES.find(s => s.id === siteId);
   const name = siteName || targetSite?.name || domain || targetSite?.domain || "Web Siteniz";
   const score = targetSite?.health_score && targetSite.health_score > 0 ? targetSite.health_score : 87;
@@ -1711,10 +1774,14 @@ export let MOCK_SETTINGS: AppSettings = {
 };
 
 export async function fetchAppSettings(): Promise<AppSettings> {
+  await requireDemoFallback();
+
   return { ...MOCK_SETTINGS };
 }
 
 export async function updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+  await requireDemoFallback();
+
   MOCK_SETTINGS = { ...MOCK_SETTINGS, ...settings };
   return { ...MOCK_SETTINGS };
 }
@@ -1723,6 +1790,9 @@ export async function updateAppSettings(settings: Partial<AppSettings>): Promise
 // 50 & 51. Opportunity Feed & Morning Brief
 // -------------------------------------------------------------
 export async function fetchOpportunities(siteId: string, domain?: string): Promise<SeoOpportunityCard[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "siteniz";
   return [
     {
@@ -1770,6 +1840,8 @@ export interface MorningBriefData {
 }
 
 export async function fetchMorningBrief(siteId: string, domain?: string): Promise<MorningBriefData> {
+  await requireDemoFallback();
+
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Web Siteniz";
   return {
     greeting: "Günaydın! ☀️",
@@ -3017,10 +3089,15 @@ export function getBacklinksForSite(siteId?: string, domain?: string): BacklinkI
 }
 
 export async function fetchBacklinks(siteId?: string, domain?: string): Promise<BacklinkItem[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   return getBacklinksForSite(siteId, domain);
 }
 
 export async function fetchBacklinkSummary(siteId?: string, domain?: string): Promise<BacklinkSummary> {
+  await requireDemoFallback();
+
   const links = getBacklinksForSite(siteId, domain);
   const toxicCount = links.filter((b) => b.is_toxic).length;
   const dofollowCount = links.filter((b) => b.is_dofollow).length;
@@ -3255,6 +3332,11 @@ export const MOCK_GOOGLE_SYNC_DISCONNECTED: GoogleSyncTelemetry = {
 };
 
 export async function fetchGoogleSyncTelemetry(siteId?: string, orgId?: string): Promise<GoogleSyncTelemetry> {
+  if (!(await isDemoSession())) {
+    if (!siteId) return {...MOCK_GOOGLE_SYNC_DISCONNECTED,last_synced_at:""};
+    const data=await mobileRequest(await mobileSitePath(siteId)+"/integrations/google/status");
+    return {...MOCK_GOOGLE_SYNC_DISCONNECTED,...data,last_synced_at:data.last_synced_at||"",status:data.status==="HEALTHY"?"HEALTHY":data.status==="AUTH_FAILED"?"ERROR":"DISCONNECTED",gsc:{...MOCK_GOOGLE_SYNC_DISCONNECTED.gsc,...data.gsc},ga4:{...MOCK_GOOGLE_SYNC_DISCONNECTED.ga4,...data.ga4}};
+  }
   try {
     const headers = await getMobileAuthHeaders();
     const effectiveOrg = orgId || await getMobileActiveOrgId();
@@ -3316,6 +3398,8 @@ export async function fetchGoogleSyncTelemetry(siteId?: string, orgId?: string):
   } catch {
     // Offline / demo fallback
   }
+  await requireDemoFallback();
+
 
   if (currentGoogleConnectionState === "HEALTHY") {
     return MOCK_GOOGLE_SYNC;
@@ -3327,6 +3411,11 @@ export async function fetchGoogleSyncTelemetry(siteId?: string, orgId?: string):
 }
 
 export async function triggerGoogleSync(siteId?: string, orgId?: string): Promise<GoogleSyncTelemetry> {
+  if (!(await isDemoSession())) {
+    if (!siteId) throw new Error("Önce bir site seçin.");
+    await mobileRequest(await mobileSitePath(siteId)+"/integrations/sync",{method:"POST"});
+    return fetchGoogleSyncTelemetry(siteId,orgId);
+  }
   try {
     const headers = await getMobileAuthHeaders();
     const effectiveOrg = orgId || await getMobileActiveOrgId();
@@ -3365,6 +3454,8 @@ export async function triggerGoogleSync(siteId?: string, orgId?: string): Promis
   } catch {
     // Offline / demo fallback
   }
+  await requireDemoFallback();
+
 
   await new Promise((r) => setTimeout(r, 600));
 
@@ -3431,16 +3522,23 @@ export const MOCK_ALERT_CHANNELS: AlertChannelConfig[] = [
 ];
 
 export async function fetchAlertChannels(siteId?: string): Promise<AlertChannelConfig[]> {
+  if (!(await isDemoSession())) return [];
+  await requireDemoFallback();
+
   await new Promise((r) => setTimeout(r, 150));
   return MOCK_ALERT_CHANNELS;
 }
 
 export async function saveAlertChannel(channel: AlertChannelConfig): Promise<{ success: boolean; message: string }> {
+  await requireDemoFallback();
+
   await new Promise((r) => setTimeout(r, 300));
   return { success: true, message: `${channel.name} başarıyla güncellendi.` };
 }
 
 export async function sendTestAlert(channelId: string): Promise<{ success: boolean; message: string }> {
+  await requireDemoFallback();
+
   await new Promise((r) => setTimeout(r, 500));
   return {
     success: true,
@@ -3792,6 +3890,8 @@ export let MOCK_LEADS: LeadCard[] = [
 ];
 
 export async function fetchLeads(siteId?: string): Promise<LeadCard[]> {
+  if (!(await isDemoSession())) { if (!siteId) return []; return await mobileRequest(await mobileSitePath(siteId) + "/leads"); }
+
   try {
     const orgId = await getMobileActiveOrgId();
     const headers = await getMobileAuthHeaders();
@@ -3823,9 +3923,11 @@ export async function generateLead(
     currency?: string;
   }
 ): Promise<LeadCard> {
-  const traffic = params.monthly_traffic || 50000;
-  const cvr = params.conversion_rate || 0.02;
-  const aov = params.average_order_value || 120;
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/leads/generate", {method:"POST",body:JSON.stringify(params)}); }
+
+  const traffic = params.monthly_traffic ?? 50000;
+  const cvr = params.conversion_rate ?? 0.02;
+  const aov = params.average_order_value ?? 120;
   const curr = params.currency || "USD";
   const compName = params.company_name || "Yeni Müşteri Adayı";
   const url = params.url || "https://example.com";
@@ -3853,7 +3955,9 @@ export async function generateLead(
     }
   } catch {}
 
-  const healthScore = Math.floor(Math.random() * 20) + 60;
+  // Kayıp tahmini gerçek ana sayfa denetim puanına dayanır; puan alınamazsa tahmin üretilmez
+  const audit = await runQuickAudit(url);
+  const healthScore = audit.health_score;
   const atRisk = Math.round(traffic * (1 - healthScore / 100) * 0.45);
   const monthlyLoss = Math.round(atRisk * cvr * aov);
   const annualLoss = monthlyLoss * 12;
@@ -3900,6 +4004,8 @@ export async function exportLeadToCrm(
   siteId: string,
   req: ExportCrmRequest
 ): Promise<ExportCrmResponse> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/leads/export-crm", {method:"POST",body:JSON.stringify(req)}); }
+
   try {
     const orgId = await getMobileActiveOrgId();
     const headers = await getMobileAuthHeaders();
@@ -4021,6 +4127,8 @@ export let MOCK_CHANGE_SETS: ChangeSetItem[] = [
 ];
 
 export async function fetchChangeSets(siteId: string): Promise<ChangeSetItem[]> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/change-sets"); }
+
   try {
     const orgId = await getMobileActiveOrgId();
     const headers = await getMobileAuthHeaders();
@@ -4042,6 +4150,8 @@ export async function executeSelfHeal(
   siteId: string,
   req: SelfHealRequest
 ): Promise<SelfHealResponse> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/self-heal", {method:"POST",body:JSON.stringify(req)}); }
+
   try {
     const orgId = await getMobileActiveOrgId();
     const headers = await getMobileAuthHeaders();
@@ -4108,6 +4218,8 @@ export async function rollbackChangeSet(
   siteId: string,
   changeSetId: string
 ): Promise<{ success: boolean; message: string; change_set?: ChangeSetItem }> {
+  if (!(await isDemoSession())) { return await mobileRequest(await mobileSitePath(siteId) + "/change-sets/" + encodeURIComponent(changeSetId) + "/rollback", {method:"POST"}); }
+
   try {
     const orgId = await getMobileActiveOrgId();
     const headers = await getMobileAuthHeaders();
@@ -4170,45 +4282,11 @@ export async function simulateLiveGeoSearch(
       }
     }
   } catch {}
+  await requireDemoFallback();
 
-  // Deterministic realistic multi-LLM simulation
-  await new Promise(r => setTimeout(r, 650));
-  const isPositive = Math.random() > 0.25;
 
-  return {
-    prompt,
-    brand_mentioned: isPositive,
-    citation_rank: isPositive ? 1 : 4,
-    platform_results: {
-      ChatGPT: {
-        mentioned: isPositive,
-        snippet: isPositive
-          ? "Sorguya verilen yanıtta markanız sektördeki en güvenilir lider çözüm olarak ilk sırada alıntılandı."
-          : "Yanıtta genel kaynaklar listelendi, henüz doğrudan marka atfı bulunmuyor."
-      },
-      Perplexity: {
-        mentioned: true,
-        snippet: "Kaynaklar kutusunda alan adınız doğrudan 1. referans linki olarak indekslendi."
-      },
-      "Google AI Overviews": {
-        mentioned: isPositive,
-        snippet: isPositive
-          ? "Zengin kart ve özet paragrafında siteniz doğrudan referans otorite olarak alıntılanmıştır."
-          : "Resmi sektörel portallar alıntılandı."
-      },
-      Gemini: {
-        mentioned: isPositive,
-        snippet: isPositive
-          ? "Gemini 2.5 Flash yanıtında ürün ve hizmetleriniz tavsiye edilen alternatifler arasında sunuldu."
-          : "Genel ansiklopedik açıklamalar verildi."
-      },
-      Claude: {
-        mentioned: true,
-        snippet: "Ayrıntılı analitik yanıtında markanızın vaka çalışması ve istatistikleri alıntılandı."
-      }
-    },
-    top_competitor_cited: "semrush.com"
-  };
+  // Sunucu yoksa sonuç uydurulmaz ("markanız ilk sırada alıntılandı" gibi rastgele iddialar gösterilmez)
+  throw new Error("AI arama simülasyonu için sunucu bağlantısı gerekir. Not: bu simülasyon da gerçek AI yanıtı değildir.");
 }
 
 

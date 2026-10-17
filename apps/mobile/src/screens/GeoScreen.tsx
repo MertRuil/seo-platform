@@ -17,6 +17,7 @@ import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchGeoScores, fetchGeoPrompts, addGeoPrompt, simulateLiveGeoSearch } from "../services/api";
 import { GeoPlatformScore, GeoPromptItem } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const GeoScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -29,6 +30,7 @@ export const GeoScreen: React.FC = () => {
   // Live 5-LLM Simulation States
   const [simQuery, setSimQuery] = useState("2026'da Türkiye'nin en iyi organik SEO ve GEO platformu hangisi?");
   const [simResult, setSimResult] = useState<any | null>(null);
+  const [simError, setSimError] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
   // Add Prompt Modal
@@ -56,9 +58,13 @@ export const GeoScreen: React.FC = () => {
     const q = (customPrompt || simQuery).trim();
     if (!q) return;
     setIsSimulating(true);
+    setSimError(null);
     try {
       const res = await simulateLiveGeoSearch(selectedSite?.id || "site-1", q);
       setSimResult(res);
+    } catch (e: any) {
+      setSimResult(null);
+      setSimError(e?.message || "Simülasyon yapılamadı.");
     } finally {
       setIsSimulating(false);
     }
@@ -127,6 +133,7 @@ export const GeoScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <DemoNotice text="AI motorlarına gerçek sorgu gönderilmiyor; sonuçlar simülasyondur ve markanızın gerçekten alıntılandığını göstermez." />
         {/* SEGMENT 1: PLATFORM SCORES */}
         {activeSegment === "PLATFORMS" && (
           <>
@@ -274,6 +281,7 @@ export const GeoScreen: React.FC = () => {
               </ScrollView>
 
               {/* Simulation Result Preview */}
+              {simError && <Text style={{ color: Colors.danger, fontSize: 13, marginTop: 8 }}>{simError}</Text>}
               {simResult && (
                 <View style={styles.liveSimBox}>
                   <View style={styles.liveSimTop}>
@@ -290,7 +298,7 @@ export const GeoScreen: React.FC = () => {
                         ]}
                       >
                         {simResult.brand_mentioned
-                          ? `Marka Geçti (Atıf #${simResult.citation_rank})`
+                          ? `Simülasyonda marka geçti (#${simResult.citation_rank})`
                           : "Doğrudan Atıf Yok"}
                       </Text>
                     </View>
@@ -349,12 +357,12 @@ export const GeoScreen: React.FC = () => {
                   {item.brand_mentioned ? (
                     <View style={styles.citedBadge}>
                       <Ionicons name="checkmark-circle" size={13} color={Colors.success} />
-                      <Text style={styles.citedBadgeText}>Atıf Yapıldı (#{item.citation_rank || 1})</Text>
+                      <Text style={styles.citedBadgeText}>{item.citation_rank ? `Simülasyonda geçti (#${item.citation_rank})` : "Simülasyonda geçti"}</Text>
                     </View>
                   ) : (
                     <View style={styles.notCitedBadge}>
                       <Ionicons name="close-circle" size={13} color={Colors.danger} />
-                      <Text style={styles.notCitedText}>Atıf Bulunamadı</Text>
+                      <Text style={styles.notCitedText}>{item.frequency === "ÖLÇÜLMEDİ" ? "Henüz ölçülmedi" : "Simülasyonda geçmedi"}</Text>
                     </View>
                   )}
                 </View>

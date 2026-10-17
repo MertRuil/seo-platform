@@ -18,6 +18,7 @@ import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchReports } from "../services/api";
 import { SeoReportSummary } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const ReportsScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -125,6 +126,7 @@ ${footer}`;
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <DemoNotice text="Rapor değerleri örnektir; gerçek rapor için web panelindeki Raporlar sayfasını kullanın." />
         {loading || !activeReport ? (
           <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 30 }} />
         ) : (

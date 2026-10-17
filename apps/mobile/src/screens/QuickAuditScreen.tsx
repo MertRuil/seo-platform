@@ -41,7 +41,7 @@ export const QuickAuditScreen: React.FC = () => {
       const data = await runQuickAudit(trimmed);
       setResult(data);
     } catch (err: any) {
-      setErrorMsg("URL denetimi sırasında bir hata oluştu. Lütfen geçerli bir web adresi girdiğinizden emin olun.");
+      setErrorMsg(err?.message || "Site kontrol edilemedi. Adresi ve internet bağlantınızı kontrol edin.");
     } finally {
       setLoading(false);
     }
@@ -158,9 +158,9 @@ ${issueSummary ? `⚠️ Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : 
             {/* Meta Tags Details */}
             <View style={styles.metaBox}>
               <Text style={styles.metaLabel}>Başlık (Title):</Text>
-              <Text style={styles.metaValue}>{result.title}</Text>
+              <Text style={styles.metaValue}>{result.title || "Başlık yok"}</Text>
               <Text style={[styles.metaLabel, { marginTop: 8 }]}>Açıklama (Description):</Text>
-              <Text style={styles.metaValue}>{result.meta_description}</Text>
+              <Text style={styles.metaValue}>{result.meta_description || "Meta açıklama yok"}</Text>
             </View>
 
             {/* Share Report Button */}

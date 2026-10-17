@@ -26,7 +26,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "CALPEO oturumunuzu açmak için Face ID kullanımına izin verin."
+        }
+      ]
     ]
   }
 }

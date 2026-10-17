@@ -22,10 +22,11 @@ import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchSiteIssues, fetchMorningBrief, fetchOpportunities, fetchGoogleSyncTelemetry, MorningBriefData } from "../services/api";
 import { SiteIssueItem, IssueSeverity, SeoOpportunityCard, GoogleSyncTelemetry } from "../types";
+import { DemoNotice } from "../components/DemoNotice";
 
 export const DashboardScreen: React.FC = () => {
   const { user } = useAuth();
-  const { selectedSite, sites, addNewSite, startCrawl, setActiveTab, activeCrawl, refreshSites } = useApp();
+  const { selectedSite, sites, addNewSite, startCrawl, setActiveTab, activeCrawl, refreshSites, isDemoMode } = useApp();
   const [issues, setIssues] = React.useState<SiteIssueItem[]>([]);
   const [selectedIssue, setSelectedIssue] = React.useState<SiteIssueItem | null>(null);
   const [issueFilter, setIssueFilter] = React.useState<"ALL" | IssueSeverity>("ALL");
@@ -299,6 +300,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
         />
       }
     >
+      {isDemoMode && <DemoNotice text="Hesapsız deneme modundasınız; bu paneldeki site ve değerler örnektir. Kendi sitenizi görmek için hesap açın." />}
       {/* Site Banner */}
       <View style={styles.siteHeader}>
         <View style={styles.siteHeaderLeft}>
@@ -556,8 +558,8 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
           <View style={styles.telemetryItem}>
             <Text style={styles.telemetryNum}>
               {hasCompleted 
-                ? (selectedSite?.total_pages || activeCrawl?.max_pages || 14) 
-                : `${activeCrawl?.pages_crawled ?? 0}/${selectedSite?.total_pages || activeCrawl?.max_pages || 14}`}
+                ? (selectedSite?.total_pages ?? activeCrawl?.pages_crawled ?? "—")
+                : `${activeCrawl?.pages_crawled ?? 0}/${activeCrawl?.max_pages ?? "—"}`}
             </Text>
             <Text style={styles.telemetryLabel}>Taranan Sayfa</Text>
           </View>
@@ -577,8 +579,8 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
           </View>
           <View style={styles.dividerVertical} />
           <View style={styles.telemetryItem}>
-            <Text style={[styles.telemetryNum, { color: Colors.success }]}>
-              {hasCompleted ? "98%" : "--"}
+            <Text style={[styles.telemetryNum, { color: Colors.textMuted }]}>
+              {"—"}
             </Text>
             <Text style={styles.telemetryLabel}>Dizinlenme</Text>
           </View>
@@ -601,7 +603,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
               <Text style={styles.scanningDesc}>
                 {activeCrawl?.current_url
                   ? `Şu an taranan sayfa: ${activeCrawl.current_url}`
-                  : "Googlebot simülatörü sayfaları dolaşarak kanonik URL, meta açıklaması, kırık bağlantı ve indekslenebilirlik kriterlerini denetliyor."}
+                  : "Sayfalar kanonik URL, meta açıklama, kırık bağlantı ve dizinlenebilirlik açısından denetleniyor."}
               </Text>
             </View>
           </View>

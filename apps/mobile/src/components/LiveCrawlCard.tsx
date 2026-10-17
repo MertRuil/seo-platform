@@ -38,6 +38,7 @@ export const LiveCrawlCard: React.FC = () => {
     ? Math.min(100, Math.round((activeCrawl.pages_crawled / Math.max(1, activeCrawl.max_pages)) * 100))
     : 0;
   const isCompleted = activeCrawl?.status === "COMPLETED";
+  const isFailed = activeCrawl?.status === "FAILED";
   const isRunning = activeCrawl?.status === "RUNNING" || activeCrawl?.status === "QUEUED";
 
   const dynamicPresets = Array.from(new Set([selectedSite?.total_pages || 14, 25, 50, 100]))
@@ -56,10 +57,14 @@ export const LiveCrawlCard: React.FC = () => {
             <View style={styles.statusGroup}>
               <View style={[
                 styles.pulseDot, 
-                { backgroundColor: isCompleted ? Colors.success : Colors.warning }
+                { backgroundColor: isCompleted ? Colors.success : isFailed ? Colors.danger : Colors.warning }
               ]} />
               <Text style={styles.statusTitle}>
-                {isCompleted ? "Tarama Tamamlandı" : "Canlı Googlebot Taraması Sürüyor..."}
+                {isCompleted
+                  ? activeCrawl.homepage_only ? "Ana sayfa kontrol edildi" : "Tarama tamamlandı"
+                  : isFailed
+                    ? "Tarama tamamlanamadı"
+                    : activeCrawl.homepage_only ? "Ana sayfa kontrol ediliyor…" : "Tarama sürüyor…"}
               </Text>
             </View>
             <TouchableOpacity onPress={dismissCrawl} style={styles.closeBtn}>
@@ -69,7 +74,7 @@ export const LiveCrawlCard: React.FC = () => {
 
           <View style={styles.detailsRow}>
             <Text style={styles.pagesText}>
-              {`${activeCrawl.pages_crawled} / ${activeCrawl.max_pages} Sayfa Keşfedildi`}
+              {activeCrawl.homepage_only ? "Sunucuya ulaşılamadı; yalnızca ana sayfa" : `${activeCrawl.pages_crawled} / ${activeCrawl.max_pages} sayfa`}
             </Text>
             <Text style={styles.pctText}>{`%${pct}`}</Text>
           </View>
@@ -99,8 +104,13 @@ export const LiveCrawlCard: React.FC = () => {
 
           {isCompleted && (
             <Text style={styles.completedSub}>
-              {`Sitedeki ${activeCrawl.max_pages} sayfa eksiksiz denetlendi. SEO sağlık skoru ve bulgular güncellendi.`}
+              {activeCrawl.homepage_only
+                ? "Tüm site taranamadı; sağlık puanı yalnızca ana sayfa denetimine göre güncellendi."
+                : `${activeCrawl.pages_crawled} sayfa denetlendi. Sağlık puanı ve bulgular güncellendi.`}
             </Text>
+          )}
+          {isFailed && (
+            <Text style={styles.completedSub}>Site kontrol edilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin; önceki puanınız korunuyor.</Text>
           )}
         </GlassCard>
       )}

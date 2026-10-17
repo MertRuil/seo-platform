@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { UserProfile } from "../types";
 import { Storage } from "../services/storage";
-import { getApiBaseUrl } from "../services/api";
+import { getApiBaseUrl, safeNetworkFetch } from "../services/api";
+import { Platform } from "react-native";
+import * as LocalAuthentication from "expo-local-authentication";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -56,36 +58,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setEnrolledBiometricType((bioType as "FACE_ID" | "TOUCH_ID") || null);
       setHasAnsweredBiometricPrompt(promptAnswered === "true");
 
-      if (savedToken && savedUserStr) {
+      if (savedToken === "guest-token" && savedUserStr) {
+        const saved = JSON.parse(savedUserStr);
+        if (saved.id === "guest-user") { setToken(savedToken); setUser(saved); }
+      } else if (savedToken && savedUserStr) {
+        const profile = await fetchProfile(savedToken);
         setToken(savedToken);
-        setUser(JSON.parse(savedUserStr));
-      } else {
-        setToken(null);
-        setUser(null);
+        setUser(profile);
       }
+    } catch {
+      await Storage.removeItem(TOKEN_KEY);
+      await Storage.removeItem(USER_KEY);
+      setToken(null);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fetchProfile = async (access: string): Promise<UserProfile> => {
+    const response = await safeNetworkFetch(`${getApiBaseUrl()}/auth/me`, { headers: { Authorization: `Bearer ${access}` } });
+    if (!response?.ok) throw new Error("Oturum doğrulanamadı. E-posta ve şifrenizle giriş yapın.");
+    const profile = await response.json();
+    if (!profile.id || !profile.is_active) throw new Error("Hesap doğrulanamadı.");
+    return { id:profile.id, email:profile.email, name:profile.full_name || profile.email.split("@")[0] };
+  };
+
   const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/auth/login`, {
+      const res = await safeNetworkFetch(`${getApiBaseUrl()}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password: pass })
       });
 
+      if (!res) throw new Error("Sunucuya ulaşılamadı.");
       if (res.ok) {
         const data = await res.json();
         const access = data.access_token;
-        const profile: UserProfile = {
-          id: data.user_id || "u-1",
-          email: email.trim(),
-          name: email.split("@")[0],
-          role: "ADMIN"
-        };
+        if (typeof access !== "string" || !access) throw new Error("Sunucu geçerli oturum döndürmedi.");
+        const profile = await fetchProfile(access);
         await Storage.setItem(TOKEN_KEY, access);
         await Storage.setItem(USER_KEY, JSON.stringify(profile));
         setToken(access);
@@ -96,18 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: err.detail || "Geçersiz e-posta veya şifre." };
       }
     } catch {
-      // Fallback for offline / direct access
-      const userProfile: UserProfile = {
-        id: `user-${Date.now()}`,
-        email: email.trim(),
-        name: email.split("@")[0],
-        role: "OWNER"
-      };
-      await Storage.setItem(TOKEN_KEY, `user-token-${Date.now()}`);
-      await Storage.setItem(USER_KEY, JSON.stringify(userProfile));
-      setToken(`user-token-${Date.now()}`);
-      setUser(userProfile);
-      return { success: true };
+      return { success: false, error: "Sunucuya ulaşılamadı veya oturum doğrulanamadı. İnternet bağlantınızı kontrol edin." };
     } finally {
       setIsLoading(false);
     }
@@ -116,11 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, pass: string, name: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/auth/register`, {
+      const res = await safeNetworkFetch(`${getApiBaseUrl()}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password: pass, name: name.trim() })
+        body: JSON.stringify({ email: email.trim(), password: pass, full_name: name.trim() })
       });
+      if (!res) throw new Error("Sunucuya ulaşılamadı.");
       if (res.ok) {
         return await login(email, pass);
       } else {
@@ -128,18 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, error: err.detail || "Bu e-posta zaten kayıtlı olabilir." };
       }
     } catch {
-      // Local fallback for offline registration
-      const newProfile: UserProfile = {
-        id: `user-${Date.now()}`,
-        email: email.trim(),
-        name: name.trim() || email.split("@")[0],
-        role: "OWNER"
-      };
-      await Storage.setItem(TOKEN_KEY, `user-token-${Date.now()}`);
-      await Storage.setItem(USER_KEY, JSON.stringify(newProfile));
-      setToken(`user-token-${Date.now()}`);
-      setUser(newProfile);
-      return { success: true };
+      return { success: false, error: "Sunucuya ulaşılamadı; hesap oluşturulmadı. İnternet bağlantınızı kontrol edin." };
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await Storage.removeItem(TOKEN_KEY);
     await Storage.removeItem(USER_KEY);
+    await Storage.removeItem("seo_site_orgs");
     setToken(null);
     setUser(null);
   };
@@ -165,47 +158,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(guestUser);
   };
 
-  const loginAsDemo = async () => {
-    const demoUser: UserProfile = {
-      id: "user-admin",
-      email: "admin@seoplatform.io",
-      name: "Ayberk Çalışkan (Demo)",
-      role: "ADMIN"
-    };
-    await Storage.setItem(TOKEN_KEY, "demo-admin-token");
-    await Storage.setItem(USER_KEY, JSON.stringify(demoUser));
-    setToken("demo-admin-token");
-    setUser(demoUser);
+  const loginAsDemo = continueAsGuest;
+
+  const loginWithSocial = async (_provider: "Apple" | "Google", _email?: string, _name?: string) => {
+    throw new Error("Sosyal giriş henüz yapılandırılmadı. E-posta ve şifrenizi kullanın.");
   };
 
-  const loginWithSocial = async (provider: "Apple" | "Google", email?: string, name?: string) => {
-    const socialUser: UserProfile = {
-      id: `user-${provider.toLowerCase()}-${Date.now()}`,
-      email: email || (provider === "Apple" ? "ayberk@icloud.com" : "ayberkcaliskan@gmail.com"),
-      name: name || (provider === "Apple" ? "Ayberk Çalışkan (Apple)" : "Ayberk Çalışkan (Google)"),
-      role: "ADMIN"
-    };
-    await Storage.setItem(TOKEN_KEY, `${provider.toLowerCase()}-token-${Date.now()}`);
-    await Storage.setItem(USER_KEY, JSON.stringify(socialUser));
-    setToken(`${provider.toLowerCase()}-token-${Date.now()}`);
-    setUser(socialUser);
-  };
-
-  const loginWithBiometrics = async (method?: "FACE_ID" | "TOUCH_ID") => {
-    const isTouch = method === "TOUCH_ID";
-    const bioUser: UserProfile = {
-      id: "user-biometric",
-      email: "ayberk@seoplatform.io",
-      name: isTouch ? "Ayberk Çalışkan (Touch ID)" : "Ayberk Çalışkan (Face ID)",
-      role: "ADMIN"
-    };
-    await Storage.setItem(TOKEN_KEY, `bio-token-${Date.now()}`);
-    await Storage.setItem(USER_KEY, JSON.stringify(bioUser));
-    setToken(`bio-token-${Date.now()}`);
-    setUser(bioUser);
+  const loginWithBiometrics = async (_method?: "FACE_ID" | "TOUCH_ID") => {
+    if (Platform.OS === "web" || !await LocalAuthentication.hasHardwareAsync() || !await LocalAuthentication.isEnrolledAsync()) {
+      throw new Error("Bu cihazda biyometrik giriş kullanılamıyor.");
+    }
+    const enrolled = await Storage.getItem(BIOMETRIC_ENROLLED_KEY);
+    const access = await Storage.getItem(TOKEN_KEY);
+    if (enrolled !== "true" || !access || access === "guest-token") throw new Error("Önce şifrenizle giriş yapıp biyometrik girişi etkinleştirin.");
+    const result = await LocalAuthentication.authenticateAsync({ promptMessage:"CALPEO oturumunu aç", cancelLabel:"Vazgeç", disableDeviceFallback:true });
+    if (!result.success) throw new Error("Biyometrik doğrulama tamamlanmadı.");
+    const profile = await fetchProfile(access);
+    setToken(access);
+    setUser(profile);
   };
 
   const enableBiometrics = async (type: "FACE_ID" | "TOUCH_ID") => {
+    if (!token || token === "guest-token" || Platform.OS === "web") throw new Error("Biyometrik giriş için gerçek bir oturum ve desteklenen cihaz gerekir.");
+    if (!await LocalAuthentication.hasHardwareAsync() || !await LocalAuthentication.isEnrolledAsync()) throw new Error("Cihazda kayıtlı biyometrik kimlik bulunmuyor.");
     await Storage.setItem(BIOMETRIC_ENROLLED_KEY, "true");
     await Storage.setItem(BIOMETRIC_TYPE_KEY, type);
     await Storage.setItem(BIOMETRIC_PROMPT_KEY, "true");

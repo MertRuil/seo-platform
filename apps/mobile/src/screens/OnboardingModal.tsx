@@ -22,9 +22,11 @@ interface OnboardingModalProps {
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClose }) => {
-  const { addNewSite, startCrawl, setSelectedSite } = useApp();
+  const { addNewSite, startCrawl, setSelectedSite, selectedSite, activeCrawl } = useApp();
 
-  const [step, setStep] = useState<number>(1);
+  // İlk değer için yalnızca site adresi istenir: önceki üç profil sorusunun cevabı hiçbir yerde kullanılmıyordu.
+  const [step, setStep] = useState<number>(4);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [userType, setUserType] = useState<string>("BUSINESS_OWNER");
   const [skillLevel, setSkillLevel] = useState<string>("INTERMEDIATE");
   const [primaryGoal, setPrimaryGoal] = useState<string>("GEO_VISIBILITY");
@@ -67,11 +69,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
         siteUrl.trim()
       );
       setSelectedSite(site);
+      setSetupError(null);
       await startCrawl(site.total_pages || 50, site);
-      setStep(5); // Show congratulations / initial score preview
-    } catch {
-      // Proceed even if error
       setStep(5);
+    } catch (e: any) {
+      // Hata olursa kurulum tamamlanmış gibi gösterilmez
+      setSetupError(e?.message || "Site eklenemedi. Adresi kontrol edip tekrar deneyin.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -83,12 +86,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
         <View style={styles.container}>
           {/* Progress Indicator */}
           <View style={styles.progressBarWrapper}>
-            <View style={[styles.progressBar, { width: `${(step / 5) * 100}%` }]} />
+            <View style={[styles.progressBar, { width: step >= 5 ? "100%" : "50%" }]} />
           </View>
 
           {/* Header Bar */}
           <View style={styles.headerRow}>
-            <Text style={styles.stepBadge}>Adım {step} / 5</Text>
+            <Text style={styles.stepBadge}>{step >= 5 ? "Adım 2 / 2" : "Adım 1 / 2"}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={24} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -276,9 +279,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 </Text>
               </GlassCard>
 
+              {setupError && <Text style={{ color: Colors.danger, fontSize: 13, marginBottom: 8 }}>{setupError}</Text>}
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.backButton} onPress={() => setStep(3)}>
-                  <Text style={styles.backButtonText}>Geri</Text>
+                <TouchableOpacity style={styles.backButton} onPress={onClose}>
+                  <Text style={styles.backButtonText}>Sonra</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.nextButton, (!siteUrl.trim() || isAnalyzing) && { opacity: 0.6 }]}
@@ -304,32 +308,40 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
               <View style={styles.congratsBadge}>
                 <Ionicons name="checkmark-done" size={36} color={Colors.success} />
               </View>
-              <Text style={styles.title}>Kurulum Tamamlandı! 🎉</Text>
+              <Text style={styles.title}>Siteniz eklendi</Text>
               <Text style={styles.subtitle}>
-                {siteUrl} siteniz için başlangıç denetimi başlatıldı. Yapay zeka ve teknik tarama verileriniz hazırlandı.
+                {siteUrl} için ilk denetim başlatıldı. Sonuçlar hazır oldukça panelde görünecek.
               </Text>
 
-              {/* Initial Score Card */}
+              {/* Gerçek puan: yalnızca denetim tamamlandıysa gösterilir */}
               <GlassCard style={styles.scorePreviewCard}>
-                <Text style={styles.scorePrevLabel}>Başlangıç Tahmini SEO Skoru</Text>
-                <Text style={styles.scorePrevNumber}>84</Text>
-                <Text style={styles.scorePrevSub}>İlk tarama tamamlandığında kesinleşecektir.</Text>
+                <Text style={styles.scorePrevLabel}>Sağlık puanı</Text>
+                <Text style={styles.scorePrevNumber}>
+                  {activeCrawl?.status === "COMPLETED" && selectedSite?.has_completed_crawl ? selectedSite.health_score : "—"}
+                </Text>
+                <Text style={styles.scorePrevSub}>
+                  {activeCrawl?.status === "COMPLETED"
+                    ? activeCrawl.homepage_only ? "Yalnızca ana sayfa denetlendi." : `${activeCrawl.pages_crawled} sayfa denetlendi.`
+                    : activeCrawl?.status === "FAILED"
+                      ? "Site kontrol edilemedi; panelden yeniden deneyebilirsiniz."
+                      : "Tarama sürüyor; puan tamamlandığında burada ve panelde görünür."}
+                </Text>
               </GlassCard>
 
               {/* First Action Checklist */}
               <View style={styles.checklistSection}>
-                <Text style={styles.checkTitle}>Sizin İçin Hazırlanan İlk Görevler:</Text>
+                <Text style={styles.checkTitle}>Sonraki adımlar:</Text>
                 <View style={styles.checkItem}>
                   <Ionicons name="checkbox-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.checkText}>Kanonikleştirme & self-referential etiket kontrolü</Text>
+                  <Text style={styles.checkText}>Paneldeki acil sorunlara göz atın</Text>
                 </View>
                 <View style={styles.checkItem}>
                   <Ionicons name="checkbox-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.checkText}>ChatGPT & Perplexity için Schema.org JSON-LD ekleme</Text>
+                  <Text style={styles.checkText}>Web panelinden Search Console'u bağlayın</Text>
                 </View>
                 <View style={styles.checkItem}>
                   <Ionicons name="checkbox-outline" size={18} color={Colors.primary} />
-                  <Text style={styles.checkText}>İlk 5 hedef anahtar kelimeyi ekleyip sıralama takibini açma</Text>
+                  <Text style={styles.checkText}>Web panelindeki AI görünürlüğü sayfasında tarayıcı erişimini kontrol edin</Text>
                 </View>
               </View>
 
