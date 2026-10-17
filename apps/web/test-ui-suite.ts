@@ -2,6 +2,10 @@ import assert from "node:assert";
 import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
 import { scanTextForMenaCompliance } from "./src/lib/compliance-mena";
+import { detectIntent } from "./src/lib/assistant";
+import { AI_BOTS, buildChecks, evaluateBot, extractHtmlSignals, isPathAllowed, parseRobots, summarizeAnswerBotAccess } from "./src/lib/geo-readiness";
+import { readChangeSets, updateChangeSetStatus, writeChangeSets } from "./src/lib/changesets";
+import { DEMO_CHANGESETS } from "./src/lib/demo";
 
 async function run() {
   console.log("UI LOGIC TEST SUITE");
@@ -341,6 +345,86 @@ async function run() {
   assert.strictEqual(classifyTestIntent("İngiltere pazarı için botox reklamı yapılabilir mi?"), "UK");
   console.log("  classifyIntent (Strict UK word boundary & Asia precedence): ok");
 
+  // AI hazırlık denetimi: robots.txt değerlendirmesi RFC 9309 kurallarına uymalı
+  {
+    const bot = (t: string) => AI_BOTS.find((b) => b.token === t)!;
+    const robots = parseRobots(
+      "User-agent: GPTBot\nDisallow: /\n\nUser-agent: OAI-SearchBot\nUser-agent: PerplexityBot\nAllow: /\nDisallow: /admin\n\nUser-agent: *\nDisallow: /private/\nSitemap: https://x.com/sitemap.xml"
+    );
+    assert.strictEqual(evaluateBot(robots, bot("GPTBot")).status, "blocked");
+    assert.strictEqual(evaluateBot(robots, bot("GPTBot")).source, "specific");
+    assert.strictEqual(evaluateBot(robots, bot("OAI-SearchBot")).status, "partial");
+    assert.strictEqual(evaluateBot(robots, bot("PerplexityBot")).status, "partial", "grouped user-agents share rules");
+    assert.strictEqual(evaluateBot(robots, bot("ClaudeBot")).source, "wildcard");
+    assert.strictEqual(evaluateBot(robots, bot("ClaudeBot")).status, "partial");
+    assert.deepStrictEqual(robots.sitemaps, ["https://x.com/sitemap.xml"]);
+    assert.strictEqual(evaluateBot(null, bot("GPTBot")).status, "allowed", "no robots.txt = allowed");
+    // En uzun eşleşme kazanır; eşitlikte Allow
+    assert.strictEqual(isPathAllowed([{ allow: false, path: "/" }, { allow: true, path: "/blog" }], "/blog/a").allowed, true);
+    assert.strictEqual(isPathAllowed([{ allow: false, path: "/" }, { allow: true, path: "/" }], "/").allowed, true);
+    // Boş Disallow her şeye izin verir; Google-Extended engeli Googlebot'u etkilemez
+    const r2 = parseRobots("User-agent: *\nDisallow:\n\nUser-agent: Google-Extended\nDisallow: /");
+    assert.strictEqual(evaluateBot(r2, bot("Googlebot")).status, "allowed");
+    assert.strictEqual(evaluateBot(r2, bot("Google-Extended")).status, "blocked");
+    // Yalnızca eğitim botu engelliyse yanıt motoru erişimi "pass"
+    const checks = buildChecks({ robotsStatus: 200, bots: AI_BOTS.map((b) => evaluateBot(r2, b)), llmsTxt: false, sitemapFound: false, html: extractHtmlSignals("<title>T</title>"), homepageStatus: 200 });
+    assert.strictEqual(checks.find((c) => c.id === "search-bots")!.status, "pass");
+    const html = extractHtmlSignals('<meta name="robots" content="max-snippet:0"><script type="application/ld+json">{"@type":["Organization","WebSite"]}</script><p>hi</p>');
+    assert.deepStrictEqual(html.jsonLdTypes, ["Organization", "WebSite"]);
+    const c2 = buildChecks({ robotsStatus: 404, bots: [], llmsTxt: true, sitemapFound: true, html, homepageStatus: 200 });
+    assert.strictEqual(c2.find((c) => c.id === "snippet-directives")!.status, "fail");
+    assert.strictEqual(c2.find((c) => c.id === "server-text")!.status, "warn");
+    const unknownBots = AI_BOTS.map((b) => ({ ...b, status: "unknown" as const, source: "none" as const }));
+    const unknownAccess = summarizeAnswerBotAccess(unknownBots);
+    assert.strictEqual(unknownAccess.accessible, 0);
+    assert.strictEqual(unknownAccess.unknown.length, unknownAccess.total);
+    assert.match(unknownAccess.summary, /bilinmiyor/);
+    for (const robotsStatus of [503, null]) {
+      const failed = buildChecks({ robotsStatus, bots: unknownBots, llmsTxt: false, sitemapFound: false, html, homepageStatus: 200 });
+      assert.strictEqual(failed.find((c) => c.id === "search-bots")!.status, "warn");
+    }
+    const mixed = summarizeAnswerBotAccess([
+      { ...bot("Googlebot"), status: "allowed", source: "none" },
+      { ...bot("ChatGPT-User"), status: "unknown", source: "none" },
+      { ...bot("GPTBot"), status: "unknown", source: "none" },
+    ]);
+    assert.strictEqual(mixed.accessible, 1);
+    assert.strictEqual(mixed.total, 2);
+    assert.deepStrictEqual(mixed.unknown, ["ChatGPT-User"]);
+    console.log("  geo-readiness (robots.txt groups, longest match, signals): ok");
+  }
+
+  // Bir sitenin taslak durumu güncellenirken diğer sitelerin taslakları korunur.
+  const storageDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const stored = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+  } });
+  try {
+    const a = { ...DEMO_CHANGESETS[0], id: "draft-a", etkilenenSayfa: "https://a.example/page" };
+    const b = { ...DEMO_CHANGESETS[0], id: "draft-b", etkilenenSayfa: "https://b.example/page" };
+    writeChangeSets([a, b]);
+    updateChangeSetStatus(a.id, "UYGULANDI");
+    assert.deepStrictEqual(readChangeSets(), [{ ...a, durum: "UYGULANDI" }, b]);
+    updateChangeSetStatus("server-only-set", "GERİ_ALINDI");
+    assert.deepStrictEqual(readChangeSets(), [{ ...a, durum: "UYGULANDI" }, b]);
+  } finally {
+    if (storageDescriptor) Object.defineProperty(globalThis, "localStorage", storageDescriptor);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+  console.log("  changesets (other sites' drafts preserved): ok");
+
+  // Asistan: tam kelime eşleşmesi ("uyumluluk" içindeki "uk" İngiltere'ye gitmemeli)
+  assert.strictEqual(detectIntent("Mobil uyumluluk sorunlarım neler?"), "ISSUES");
+  assert.strictEqual(detectIntent("UK ASA kuralları nedir?"), "REG_UK");
+  assert.strictEqual(detectIntent("Bu reklam yasal mı?"), "REG_TR");
+  assert.strictEqual(detectIntent("Asya mevzuatında bu iddia yasal mı?"), "REG_ASIA");
+  assert.strictEqual(detectIntent("Mastercard ile ödeme seçenekleri"), "UNKNOWN");
+  assert.strictEqual(detectIntent("Son 14 günde trafik neden düştü?"), "TRAFFIC");
+  assert.strictEqual(detectIntent("ChatGPT sitemi okuyabiliyor mu?"), "AI_ACCESS");
+  console.log("  assistant detectIntent (whole-word routing): ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 
@@ -348,6 +432,5 @@ run().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-
 
 

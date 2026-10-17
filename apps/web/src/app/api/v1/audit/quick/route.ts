@@ -570,7 +570,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const healthScore = Math.max(10, Math.min(100, score));
+    // Puan, site taramasındaki kural motoruyla aynı yöntemle hesaplanır (sayfa başına düşüm:
+    // kritik 15, yüksek 8, orta 4, düşük 1). Böylece kayıt öncesi ve sonrası puanlar tutarlıdır.
+    void score;
+    const PENALTY = { CRITICAL: 15, HIGH: 8, MEDIUM: 4, LOW: 1 } as const;
+    const healthScore = Math.max(0, 100 - issues.reduce((acc, i) => acc + PENALTY[i.severity], 0));
 
     // AI Uzman Ajan Önerileri (Google Search Central Kılavuzu Esaslı)
     const aiRecommendations: AiRecommendation[] = [

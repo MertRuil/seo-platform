@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { serverlessStore } from "@/lib/serverless-store";
 import { tryBackendProxy } from "@/lib/backend-proxy";
 import { validateSafeAuditUrl, SSRFSecurityError } from "@/lib/ssrf";
+import { guardStoreOrg } from "@/lib/store-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ orgId: stri
   const proxied = await tryBackendProxy(req, `/organizations/${orgId}/sites`);
   if (proxied) return proxied;
 
+  const user = guardStoreOrg(req, orgId);
+  if (user instanceof NextResponse) return user;
+
   const sites = serverlessStore.getSites(orgId);
   return NextResponse.json(sites);
 }
@@ -51,6 +55,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ orgId: str
 
   const proxied = await tryBackendProxy(req, `/organizations/${orgId}/sites`);
   if (proxied) return proxied;
+
+  const user = guardStoreOrg(req, orgId);
+  if (user instanceof NextResponse) return user;
 
   const body = await req.json().catch(() => ({}));
   if (!body.primary_url || typeof body.primary_url !== "string") {

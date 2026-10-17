@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -13,88 +13,93 @@ interface ModalProps {
   className?: string;
 }
 
-/** Erişilebilir diyalog: role=dialog, Esc ile kapanır, açılınca odak içeri girer, gölge yalnızca burada. */
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Erişilebilir diyalog: role=dialog, Esc ile kapanır, odak içeride tutulur (Tab döngüsü),
+ * kapanınca odak açan öğeye döner, arka plan kaydırılamaz. Gölge yalnızca burada.
+ */
 export function Modal({ open, onClose, title, icon, children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const prevOpenRef = useRef(false);
+  const titleId = useId();
 
   useEffect(() => {
-    if (!open) {
-      prevOpenRef.current = false;
-      return;
-    }
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement as HTMLElement | null;
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", onKey);
 
-    // Sadece modal İLK KEZ açıldığında (false -> true) odaklama yap
-    // Formda yazı yazarken veya üst bileşen re-render olduğunda kullanıcının odağını asla çalma!
-    if (!prevOpenRef.current) {
-      prevOpenRef.current = true;
-      const timer = setTimeout(() => {
-        if (!panelRef.current) return;
-        // Odak zaten modal içindeki bir form elemanındaysa dokunma
-        if (panelRef.current.contains(document.activeElement)) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-        // 1. Varsa autofocus etiketli eleman
-        const auto = panelRef.current.querySelector<HTMLElement>("[autofocus], [data-autofocus]");
-        if (auto) {
-          auto.focus();
-          return;
-        }
+    // Yalnızca açılışta odakla; yazarken üst bileşen yeniden çizilse de odak çalınmaz.
+    const timer = setTimeout(() => {
+      const panel = panelRef.current;
+      if (!panel || panel.contains(document.activeElement)) return;
+      const target =
+        panel.querySelector<HTMLElement>("[autofocus], [data-autofocus]") ??
+        panel.querySelector<HTMLElement>("input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])") ??
+        panel.querySelector<HTMLElement>(FOCUSABLE);
+      target?.focus();
+    }, 40);
 
-        // 2. Modal gövdesindeki ilk form girdisi (kapat 'X' butonunu değil form alanını hedefle)
-        const formInput = panelRef.current.querySelector<HTMLElement>(
-          "input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])"
-        );
-        if (formInput) {
-          formInput.focus();
-          return;
-        }
-
-        // 3. Form girdisi yoksa panel içindeki ilk odaklanabilir eleman
-        const first = panelRef.current.querySelector<HTMLElement>("button, [tabindex]:not([tabindex='-1'])");
-        first?.focus();
-      }, 40);
-
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener("keydown", onKey);
-      };
-    }
-
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      if (opener && document.contains(opener)) opener.focus();
+    };
   }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <button type="button" aria-label="Kapat" onClick={onClose} className="absolute inset-0 bg-black/50 cursor-default" tabIndex={-1} />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
-        className={cn("relative w-full max-w-lg bg-surface border border-line rounded-lg shadow-pop", className)}
+        aria-labelledby={titleId}
+        className={cn(
+          "relative w-full max-w-lg bg-surface border border-line rounded-t-lg sm:rounded-lg shadow-pop flex flex-col max-h-[92dvh] sm:max-h-[calc(100dvh-2rem)]",
+          className
+        )}
       >
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 id="modal-title" className="text-base font-semibold text-ink flex items-center gap-2">
-            {icon && <span className="text-accent" aria-hidden>{icon}</span>}
-            {title}
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-line shrink-0">
+          <h2 id={titleId} className="text-base font-semibold text-ink flex items-center gap-2 min-w-0">
+            {icon && <span className="text-accent shrink-0" aria-hidden>{icon}</span>}
+            <span className="min-w-0">{title}</span>
           </h2>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="w-8 h-8 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+          <button type="button" onClick={onClose} aria-label="Kapat" className="w-9 h-9 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer shrink-0">
             <X className="w-4 h-4" aria-hidden />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-5 py-4 overflow-y-auto custom-scrollbar">{children}</div>
       </div>
     </div>
   );

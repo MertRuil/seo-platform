@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { authStore, isLocalAuthEnabled } from "@/lib/auth-users";
 import { sendEmail } from "@/lib/email-service";
+import { NextRequest } from "next/server";
+import { tryBackendProxy } from "@/lib/backend-proxy";
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +17,16 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
+    const resetting = Boolean(code || newPassword);
+    const backendRequest = new NextRequest(request.url, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(resetting ? { email: cleanEmail, token: code || "", new_password: newPassword || "" } : { email: cleanEmail }),
+    });
+    const backend = await tryBackendProxy(backendRequest, resetting ? "/auth/reset-password" : "/auth/forgot-password");
+    if (backend) {
+      const result = await backend.json().catch(() => ({}));
+      return NextResponse.json(backend.ok ? { success: true, message: result.message, step: resetting ? undefined : "code_sent" } : { error: result.detail || result.error || "Şifre sıfırlama tamamlanamadı" }, { status: backend.status });
+    }
 
     // Bu kod tabanlı sıfırlama akışı yalnızca yerel (geliştirme) kullanıcı deposu için çalışır.
     // Üretimde kullanıcılar PostgreSQL'dedir; arka uç e-posta ile sıfırlama akışına bağlanana kadar kapalı tutulur.

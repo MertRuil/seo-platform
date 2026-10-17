@@ -1,4 +1,4 @@
-import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "@/lib/ssrf";
+import { safeAuditFetch } from "@/lib/ssrf";
 import type {
   OrganizationResponse,
   SiteResponse,
@@ -13,21 +13,19 @@ import type {
   GscSearchMetricResponse,
   CruxMetricResponse,
   ChangeSetResponse,
-  ExperimentEvaluationResponse,
 } from "@/lib/api";
-import {
-  DEMO_HEALTH,
-  DEMO_ISSUES,
-  DEMO_PAGES,
-  DEMO_DASHBOARD,
-  DEMO_CHANGESETS,
-  DEMO_CONNECTORS,
-  type QueueItem,
-} from "@/lib/demo";
 
-// Global singleton in memory so state persists across serverless function calls in dev/runtime
+/**
+ * Arka uca (FastAPI) ulaşılamadığında kullanılan bellek içi depo.
+ * Yalnızca kullanıcının kendi eklediği siteleri ve gerçekten taranan verileri tutar:
+ * örnek site tohumlanmaz, Search Console/CrUX verisi uydurulmaz. Ekranlardaki örnek
+ * veriler istemci tarafında DemoBanner ile işaretlenerek gösterilir.
+ */
+type ConnectorRecord = Record<string, unknown> & { id: string; tur?: string; durum?: string };
+
 interface GlobalStore {
   organizations: Map<string, OrganizationResponse>;
+  orgMembers: Map<string, Set<string>>; // key: orgId -> userId'ler
   sites: Map<string, SiteResponse>;
   crawls: Map<string, CrawlRunResponse[]>;
   healthReports: Map<string, SiteHealthReportResponse>; // key: crawlId
@@ -35,235 +33,54 @@ interface GlobalStore {
   recommendations: Map<string, RecommendationResponse[]>; // key: siteId
   graphs: Map<string, SiteGraphResponse>; // key: siteId
   changeSets: Map<string, ChangeSetResponse[]>; // key: siteId
-  gsc: Map<string, GscSearchMetricResponse[]>; // key: siteId
-  crux: Map<string, CruxMetricResponse[]>; // key: siteId
-  connectors: Map<string, any[]>; // key: siteId
+  gsc: Map<string, GscSearchMetricResponse[]>; // key: siteId (yalnızca gerçek GSC senkronu doldurur)
+  crux: Map<string, CruxMetricResponse[]>; // key: siteId (yalnızca gerçek CrUX çağrısı doldurur)
+  connectors: Map<string, ConnectorRecord[]>; // key: siteId
 }
 
-const globalStore = global as unknown as { __calpeoStore?: GlobalStore };
+const globalStore = global as unknown as { __calpeoStoreV2?: GlobalStore };
 
-if (!globalStore.__calpeoStore) {
-  const defaultOrgId = "org_acme_default";
-  const demoSiteId = "site_demo_flagship";
-
-  const orgs = new Map<string, OrganizationResponse>();
-  orgs.set(defaultOrgId, {
-    id: defaultOrgId,
-    name: "Acme Digital Agency",
-    slug: "acme-agency",
-    monthly_token_budget: 500000,
-    tokens_used_this_month: 124500,
-  });
-
-  const sites = new Map<string, SiteResponse>();
-  sites.set(demoSiteId, {
-    id: demoSiteId,
-    organization_id: defaultOrgId,
-    name: "Flagship E-Commerce",
-    domain: "flagship-store.com",
-    normalized_domain: "flagship-store.com",
-    primary_url: "https://flagship-store.com",
-    site_type: "E-COMMERCE",
-    language: "tr",
-    country: "TR",
-    execution_mode: "AUTONOMOUS",
-    verification_status: "VERIFIED",
-  });
-
-  const demoCrawlId = "crw_demo_initial";
-  const crawls = new Map<string, CrawlRunResponse[]>();
-  crawls.set(demoSiteId, [
-    {
-      id: demoCrawlId,
-      site_id: demoSiteId,
-      crawl_mode: "GOOGLEBOT_SIMULATION",
-      status: "COMPLETED",
-      total_urls_discovered: 1420,
-      total_urls_crawled: 1420,
-      total_errors: 3,
-      max_pages: 2000,
-      max_depth: 5,
-      started_at: new Date(Date.now() - 3600000).toISOString(),
-      finished_at: new Date(Date.now() - 3300000).toISOString(),
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ]);
-
-  // Demo health report matching DEMO_HEALTH
-  const healthReports = new Map<string, SiteHealthReportResponse>();
-  healthReports.set(demoCrawlId, {
-    site_id: demoSiteId,
-    crawl_run_id: demoCrawlId,
-    health_score: DEMO_HEALTH.score,
-    total_pages_evaluated: DEMO_HEALTH.pages,
-    total_issues_found: DEMO_HEALTH.issues,
-    issues: DEMO_ISSUES.map((iss) => ({
-      rule_id: iss.id,
-      category: iss.category,
-      severity: iss.severity,
-      title: iss.title,
-      description: iss.diagnosis,
-      recommendation_template: iss.fix,
-      documentation_url: iss.docUrl,
-      affected_url_count: iss.affected ?? 1,
-    })),
-  });
-
-  // Demo pages
-  const pages = new Map<string, PageExplorerItem[]>();
-  pages.set(
-    demoCrawlId,
-    DEMO_PAGES.map((p, idx) => ({
-      id: `pg_demo_${idx + 1}`,
-      url: p.url,
-      normalized_url: p.url,
-      status_code: p.status,
-      depth: p.depth ?? 0,
-      title: p.title,
-      meta_description: null,
-      canonical_target: p.canonical,
-      has_noindex: false,
-      is_indexable_candidate: p.indexable,
-      word_count: p.words,
-      response_time_ms: p.responseMs ?? 180,
-    }))
-  );
-
-  // Demo recommendations
-  const recommendations = new Map<string, RecommendationResponse[]>();
-  recommendations.set(
-    demoSiteId,
-    DEMO_DASHBOARD.queue.map((q: QueueItem) => ({
-      id: q.id,
-      site_id: demoSiteId,
-      category: q.category,
-      title: q.title,
-      description: q.reason,
-      reason: q.reason,
-      expected_impact: q.impact,
-      confidence: q.confidence ?? 0.85,
-      priority_score: q.score,
-      risk_level: q.severity === "CRITICAL" ? "HIGH" : "LOW",
-      effort: "Düşük (Otonom uygulanabilir)",
-      evidence_json: JSON.stringify({ source: q.source }),
-      rag_sources_json: JSON.stringify([q.source]),
-      status: "OPEN",
-      created_at: new Date().toISOString(),
-    }))
-  );
-
-  // Demo site graph
-  const graphs = new Map<string, SiteGraphResponse>();
-  graphs.set(demoSiteId, {
-    site_id: demoSiteId,
-    total_nodes: 42,
-    total_edges: 184,
-    orphan_pages: ["https://flagship-store.com/eski-promosyon-2024"],
-    top_pagerank_pages: [
-      { url: "https://flagship-store.com/", pagerank: 0.28, in_degree: 38, out_degree: 22 },
-      { url: "https://flagship-store.com/urunler/elektronik", pagerank: 0.19, in_degree: 24, out_degree: 16 },
-      { url: "https://flagship-store.com/urunler/yeni-nesil-kulaklik", pagerank: 0.12, in_degree: 18, out_degree: 8 },
-      { url: "https://flagship-store.com/fiyatlandirma", pagerank: 0.08, in_degree: 3, out_degree: 5 },
-    ],
-    linking_opportunities: [
-      {
-        source_url: "https://flagship-store.com/blog/en-iyi-kulakliklar",
-        target_url: "https://flagship-store.com/urunler/yeni-nesil-kulaklik",
-        reason: "Yüksek otoriteli blog yazısından ticari ürün sayfasına yönlendirici anchor link eksik.",
-        source_pagerank: 0.14,
-        target_pagerank: 0.12,
-      },
-    ],
-  });
-
-  // Demo change sets
-  const changeSets = new Map<string, ChangeSetResponse[]>();
-  changeSets.set(
-    demoSiteId,
-    DEMO_CHANGESETS.map((cs) => ({
-      id: cs.id,
-      site_id: demoSiteId,
-      status: cs.durum === "UYGULANDI" ? "APPLIED" : "DRAFT",
-      risk_level: cs.onem || "LOW",
-      created_at: new Date().toISOString(),
-      items: [
-        {
-          id: `item_${cs.id}_1`,
-          target_url: cs.etkilenenSayfa,
-          operation: "UPDATE_TAGS",
-          state_before: cs.oncekiKod,
-          state_after: cs.yeniKod,
-          expected_hash_before: "sha256_mock_hash",
-          status: cs.durum === "UYGULANDI" ? "APPLIED" : "PENDING",
-        },
-      ],
-    }))
-  );
-
-  // Demo GSC
-  const gsc = new Map<string, GscSearchMetricResponse[]>();
-  gsc.set(
-    demoSiteId,
-    [
-      { id: "gsc_1", site_id: demoSiteId, metric_date: "2026-09-01", query: "otonom seo yazılımı", page: "https://flagship-store.com/", clicks: 1240, impressions: 42000, ctr: 0.0295, position: 4.2 },
-      { id: "gsc_2", site_id: demoSiteId, metric_date: "2026-09-01", query: "teknik seo denetimi", page: "https://flagship-store.com/kategori/elektronik", clicks: 840, impressions: 18500, ctr: 0.0454, position: 3.1 },
-      { id: "gsc_3", site_id: demoSiteId, metric_date: "2026-09-01", query: "yapay zeka seo araçları", page: "https://flagship-store.com/fiyatlandirma", clicks: 520, impressions: 12300, ctr: 0.0422, position: 5.4 },
-    ]
-  );
-
-  // Demo CrUX
-  const crux = new Map<string, CruxMetricResponse[]>();
-  crux.set(demoSiteId, [
-    { id: "crux_1", site_id: demoSiteId, url: "https://flagship-store.com/", form_factor: "DESKTOP", p75_lcp_ms: 1800, p75_inp_ms: 120, p75_cls: 0.04, fetched_at: new Date().toISOString() },
-    { id: "crux_2", site_id: demoSiteId, url: "https://flagship-store.com/", form_factor: "MOBILE", p75_lcp_ms: 2400, p75_inp_ms: 180, p75_cls: 0.08, fetched_at: new Date().toISOString() },
-  ]);
-
-  // Demo Connectors
-  const connectors = new Map<string, any[]>();
-  connectors.set(demoSiteId, [...DEMO_CONNECTORS]);
-
-  globalStore.__calpeoStore = {
-    organizations: orgs,
-    sites,
-    crawls,
-    healthReports,
-    pages,
-    recommendations,
-    graphs,
-    changeSets,
-    gsc,
-    crux,
-    connectors,
+if (!globalStore.__calpeoStoreV2) {
+  globalStore.__calpeoStoreV2 = {
+    organizations: new Map(),
+    orgMembers: new Map(),
+    sites: new Map(),
+    crawls: new Map(),
+    healthReports: new Map(),
+    pages: new Map(),
+    recommendations: new Map(),
+    graphs: new Map(),
+    changeSets: new Map(),
+    gsc: new Map(),
+    crux: new Map(),
+    connectors: new Map(),
   };
 }
 
-const store = globalStore.__calpeoStore;
+const store = globalStore.__calpeoStoreV2;
 
 // ==========================================
 // STORE API HELPER FUNCTIONS
 // ==========================================
 
 export const serverlessStore = {
-  getOrganizations(): OrganizationResponse[] {
-    return Array.from(store.organizations.values());
+  getOrganizationsForUser(userId: string): OrganizationResponse[] {
+    return Array.from(store.organizations.values()).filter((o) => store.orgMembers.get(o.id)?.has(userId));
   },
 
-  getOrCreateDefaultOrg(userId?: string): OrganizationResponse {
-    const orgs = this.getOrganizations();
-    if (orgs.length > 0) return orgs[0];
-    const newOrg: OrganizationResponse = {
-      id: "org_" + (userId ? userId.slice(-8) : "default"),
-      name: "Ana Çalışma Alanı",
-      slug: "ana-calisma-alani",
-      monthly_token_budget: 500000,
-      tokens_used_this_month: 0,
-    };
-    store.organizations.set(newOrg.id, newOrg);
-    return newOrg;
+  isOrgMember(orgId: string, userId: string): boolean {
+    return Boolean(store.orgMembers.get(orgId)?.has(userId));
   },
 
-  createOrganization(data: { name: string; slug: string }): OrganizationResponse {
-    const id = "org_" + Date.now().toString(36);
+  /** Kullanıcının çalışma alanı yoksa kişisel bir tane açar (arka uçtaki kayıt akışıyla aynı sonuç). */
+  getOrCreateDefaultOrg(userId: string): OrganizationResponse {
+    const own = this.getOrganizationsForUser(userId);
+    if (own.length > 0) return own[0];
+    return this.createOrganization({ name: "Çalışma alanım", slug: "calisma-alanim" }, userId);
+  },
+
+  createOrganization(data: { name: string; slug: string }, ownerId: string): OrganizationResponse {
+    const id = "org_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const org: OrganizationResponse = {
       id,
       name: data.name,
@@ -272,6 +89,7 @@ export const serverlessStore = {
       tokens_used_this_month: 0,
     };
     store.organizations.set(id, org);
+    store.orgMembers.set(id, new Set([ownerId]));
     return org;
   },
 
@@ -381,20 +199,7 @@ export const serverlessStore = {
 
   getOpportunities(siteId: string): OpportunityResponse[] {
     const gscList = this.getGscMetrics(siteId);
-    if (gscList.length === 0) {
-      return [
-        {
-          type: "HIGH_IMPRESSION_LOW_CTR",
-          query: "anahtar kelime analizi",
-          page: "/hizmetler",
-          impressions: 12400,
-          clicks: 180,
-          ctr: 0.0145,
-          position: 4.8,
-          recommended_action: "Başlık ve meta açıklamasını arama niyetine göre yeniden yazın.",
-        },
-      ];
-    }
+    if (gscList.length === 0) return [];
     return gscList.map((g) => ({
       type: g.ctr < 0.03 ? "HIGH_IMPRESSION_LOW_CTR" : "CONTENT_EXPANSION",
       query: g.query,
@@ -457,14 +262,20 @@ export const serverlessStore = {
     return cs;
   },
 
-  executeChangeSet(siteId: string, changeSetId: string): { success: boolean; status: string; rolled_back: boolean } {
+  /**
+   * Yerel modda siteye yazabilecek bir bağlayıcı çalışmaz; değişiklik uygulanmış gibi gösterilmez.
+   * Gerçek yayın arka uçtaki WordPress/Cloudflare/Git bağlayıcılarıyla yapılır.
+   */
+  executeChangeSet(siteId: string, changeSetId: string): { success: boolean; status: string; rolled_back: boolean; detail?: string } {
     const list = store.changeSets.get(siteId) || [];
     const cs = list.find((c) => c.id === changeSetId);
-    if (!cs) return { success: false, status: "NOT_FOUND", rolled_back: false };
-    cs.status = "APPLIED";
-    cs.executed_at = new Date().toISOString();
-    cs.items.forEach((it) => (it.status = "APPLIED"));
-    return { success: true, status: "APPLIED", rolled_back: false };
+    if (!cs) return { success: false, status: "NOT_FOUND", rolled_back: false, detail: "Değişiklik seti bulunamadı." };
+    return {
+      success: false,
+      status: "NO_CONNECTOR",
+      rolled_back: false,
+      detail: "Siteye yazabilecek bağlı bir bağlayıcı yok. Değişikliği kopyalayıp sitenize elle uygulayabilir veya Bağlayıcılar sayfasından WordPress/Git bağlantısı kurabilirsiniz.",
+    };
   },
 
   // ==========================================
@@ -503,10 +314,13 @@ export const serverlessStore = {
     let errorCount = 0;
 
     // Helper to register an issue
-    const addIssue = (ruleId: string, category: string, severity: IssueSummaryResponse["severity"], title: string, desc: string, rec: string, docUrl?: string) => {
+    const issuesByPage = new Map<string, IssueSummaryResponse["severity"][]>();
+    const addIssue = (ruleId: string, category: string, severity: IssueSummaryResponse["severity"], title: string, desc: string, rec: string, docUrl?: string, pageUrl?: string) => {
+      if (pageUrl) issuesByPage.set(pageUrl, [...(issuesByPage.get(pageUrl) ?? []), severity]);
       const existing = issuesMap.get(ruleId);
       if (existing) {
         existing.affected_url_count += 1;
+        if (pageUrl && existing.affected_urls && !existing.affected_urls.includes(pageUrl)) existing.affected_urls.push(pageUrl);
       } else {
         issuesMap.set(ruleId, {
           rule_id: ruleId,
@@ -517,6 +331,7 @@ export const serverlessStore = {
           recommendation_template: rec,
           documentation_url: docUrl || "https://developers.google.com/search/docs",
           affected_url_count: 1,
+          affected_urls: pageUrl ? [pageUrl] : [],
         });
       }
     };
@@ -581,47 +396,47 @@ export const serverlessStore = {
 
         // Deterministic Rule Evaluations
         if (statusCode >= 400) {
-          addIssue("HTTP_STATUS_ERROR", "INDEXABILITY", "CRITICAL", `Sayfa HTTP ${statusCode} Hatası Döndürüyor`, "Arama motoru botları bu sayfayı tararken hata ile karşılaştı.", "Sunucu yapılandırmasını veya kırık linkleri kontrol edin.");
+          addIssue("HTTP_STATUS_ERROR", "INDEXABILITY", "CRITICAL", "Sayfa hata kodu döndürüyor (4xx/5xx)", "Arama motorları bu sayfayı açmaya çalıştığında hata aldı; sayfa arama sonuçlarından düşebilir.", "Sayfa kalıcı olarak kaldırıldıysa ona verilen iç bağlantıları güncelleyin; olması gerekiyorsa sunucu hatasını giderin.", undefined, currentUrl);
         }
 
         if (!title) {
-          addIssue("TITLE_MISSING", "METADATA", "CRITICAL", "Sayfa Başlığı (<title>) Bulunamadı", "Sayfada <title> etiketi bulunmuyor.", "Sayfanın <head> bölümüne özgün bir başlık ekleyin.");
+          addIssue("TITLE_MISSING", "METADATA", "CRITICAL", "Sayfa başlığı (<title>) eksik", "Arama sonuçlarında gösterilecek başlık yok; Google başlığı sayfa içeriğinden kendisi üretir.", "Sayfanın <head> bölümüne özgün bir başlık ekleyin.", undefined, currentUrl);
         } else if (title.length < 20 || title.length > 70) {
-          addIssue("TITLE_LENGTH", "METADATA", "MEDIUM", "Sayfa Başlığı Uzunluğu İdeal Değil", `Başlık ${title.length} karakter. İdeal başlık 40-60 karakterdir.`, "Başlığınızı arama niyetine uygun olacak şekilde 40-60 karakter arasına optimize edin.");
+          addIssue("TITLE_LENGTH", "METADATA", "MEDIUM", "Sayfa başlığı çok kısa veya çok uzun", "Başlık 20 karakterden kısa ya da 70 karakterden uzun; uzun başlıklar arama sonuçlarında kesilir.", "Başlığınızı arama niyetine uygun olacak şekilde 40-60 karakter arasına optimize edin.", undefined, currentUrl);
         }
 
         if (!metaDesc) {
-          addIssue("META_DESC_MISSING", "METADATA", "HIGH", "Meta Açıklama (Description) Eksik", "Arama motoru snippet'inde görüntülenecek meta açıklama tanımlanmamış.", "120-155 karakter uzunluğunda eylem çağrısı içeren meta açıklama yazın.");
+          addIssue("META_DESC_MISSING", "METADATA", "HIGH", "Meta açıklama eksik", "Arama sonucunda başlığın altında görünecek açıklama tanımlanmamış; Google sayfadan rastgele bir metin seçer.", "120-155 karakter uzunluğunda eylem çağrısı içeren meta açıklama yazın.", undefined, currentUrl);
         }
 
         if (!canonicalUrl) {
-          addIssue("CANONICAL_MISSING", "INDEXABILITY", "MEDIUM", "Canonical Etiketi Eksik", "Sayfada rel='canonical' etiketi tanımlanmamış; yinelenen içerik riski taşır.", "Sayfanın kendine işaret eden açık canonical URL'sini ekleyin.");
+          addIssue("CANONICAL_MISSING", "INDEXABILITY", "MEDIUM", "Canonical etiketi eksik", "Sayfanın asıl adresi belirtilmemiş; parametreli veya kopya adresler ayrı sayfa gibi değerlendirilebilir.", "Sayfanın kendine işaret eden açık canonical URL'sini ekleyin.", undefined, currentUrl);
         }
 
         if (hasNoindex) {
-          addIssue("ROBOTS_NOINDEX", "INDEXABILITY", "HIGH", "Sayfada Noindex Yönergesi Var", "Sayfa arama motoru indeksine girmeyecek şekilde noindex etiketi taşıyor.", "Eğer sayfanın dizine eklenmesini istiyorsanız noindex etiketini kaldırın.");
+          addIssue("ROBOTS_NOINDEX", "INDEXABILITY", "HIGH", "Sayfa arama dizininden hariç tutulmuş (noindex)", "Sayfa noindex yönergesi taşıyor; Google bu sayfayı arama sonuçlarında göstermez.", "Eğer sayfanın dizine eklenmesini istiyorsanız noindex etiketini kaldırın.", undefined, currentUrl);
         }
 
         if (h1Count === 0) {
-          addIssue("H1_MISSING", "CONTENT", "HIGH", "Sayfada Ana Başlık (<h1>) Eksik", "Sayfa semantik hiyerarşisinde <h1> etiketi bulunmuyor.", "Sayfanın ana konusunu özetleyen tek bir <h1> başlığı ekleyin.");
+          addIssue("H1_MISSING", "CONTENT", "HIGH", "Ana başlık (<h1>) eksik", "Sayfanın konusunu belirten ana başlık yok; hem kullanıcılar hem arama motorları için konu belirsizleşir.", "Sayfanın ana konusunu özetleyen tek bir <h1> başlığı ekleyin.", undefined, currentUrl);
         } else if (h1Count > 1) {
-          addIssue("H1_MULTIPLE", "CONTENT", "LOW", "Sayfada Birden Fazla <h1> Etiketi Var", `Sayfada ${h1Count} adet <h1> tespit edildi.`, "Sayfa başına tek bir birincil <h1> kullanıp diğerlerini <h2> olarak yapılandırın.");
+          addIssue("H1_MULTIPLE", "CONTENT", "LOW", "Birden fazla ana başlık (<h1>)", "Sayfada birden fazla <h1> var; ana konu tek bir başlıkla daha net anlatılır.", "Sayfa başına tek bir birincil <h1> kullanıp diğerlerini <h2> olarak yapılandırın.", undefined, currentUrl);
         }
 
         if (missingAltCount > 0) {
-          addIssue("IMG_ALT_MISSING", "ACCESSIBILITY", "MEDIUM", `${missingAltCount} Görselde Alt Etiketi Eksik`, "Görsellerde ekran okuyucular ve arama motorları için açıklayıcı alt niteliği bulunmuyor.", "Tüm bilgi verici görsellere açıklayıcı alt metinleri ekleyin.");
+          addIssue("IMG_ALT_MISSING", "ACCESSIBILITY", "MEDIUM", "Görsellerde alt metni eksik", "Bazı görsellerde ekran okuyucular ve görsel arama için açıklayıcı alt metni yok.", "Tüm bilgi verici görsellere açıklayıcı alt metinleri ekleyin.", undefined, currentUrl);
         }
 
         if (wordCount < 150) {
-          addIssue("THIN_CONTENT", "CONTENT", "MEDIUM", "Zayıf İçerik (Thin Content)", `Sayfa yalnızca ${wordCount} kelime içeriyor.`, "Sayfanın konusunu derinlemesine ele alan özgün içerik oluşturun.");
+          addIssue("THIN_CONTENT", "CONTENT", "MEDIUM", "Az içerikli sayfa", "Sayfada 150 kelimeden az metin var; arama motorları sayfanın konusunu anlamakta zorlanabilir.", "Sayfanın konusunu derinlemesine ele alan özgün içerik oluşturun.", undefined, currentUrl);
         }
 
         if (!hasSchema) {
-          addIssue("SCHEMA_MISSING", "STRUCTURED_DATA", "LOW", "Yapılandırılmış Veri (JSON-LD) Yok", "Sayfada zengin snippet için Schema.org işaretlemesi bulunmuyor.", "Organization, Article, Product veya FAQPage şeması ekleyin.");
+          addIssue("SCHEMA_MISSING", "STRUCTURED_DATA", "LOW", "Yapılandırılmış veri (JSON-LD) yok", "Sayfada Schema.org işaretlemesi yok; zengin sonuçlar ve AI yanıt motorları sayfayı daha zor yorumlar.", "Organization, Article, Product veya FAQPage şeması ekleyin.", undefined, currentUrl);
         }
 
         if (elapsed > 1200) {
-          addIssue("SLOW_RESPONSE", "PERFORMANCE", "HIGH", "Yavaş Sunucu Yanıt Süresi (TTFB)", `Sunucu yanıt süresi ${elapsed}ms olarak ölçüldü.`, "Sunucu önbellekleme ve CDN katmanlarını optimize edin.");
+          addIssue("SLOW_RESPONSE", "PERFORMANCE", "HIGH", "Sunucu yavaş yanıt veriyor", "Tarama sırasında sayfanın yanıtı 1,2 saniyeden uzun sürdü (kullanıcı ölçümü değildir).", "Sunucu önbellekleme ve CDN katmanlarını optimize edin.", undefined, currentUrl);
         }
 
         // Add page record
@@ -661,13 +476,15 @@ export const serverlessStore = {
             // ignore malformed URLs
           }
         }
-      } catch (err) {
+      } catch {
         errorCount++;
+        addIssue("PAGE_FETCH_ERROR", "CRAWLABILITY", "CRITICAL", "Sayfaya ulaşılamadı", "Tarama sırasında sayfadan yanıt alınamadı; içerik kontrol edilemedi.", "Site adresini, DNS ve sunucu bağlantısını kontrol edip taramayı yeniden başlatın.", undefined, currentUrl);
+        // Sayfaya hiç ulaşılamadı: sunucu 500 döndürmüş gibi gösterilmez (0 = yanıt yok).
         crawledPages.push({
           id: "pg_err_" + Math.random().toString(36).slice(2, 8),
           url: currentUrl,
           normalized_url: currentUrl,
-          status_code: 500,
+          status_code: 0,
           depth: 1,
           has_noindex: false,
           is_indexable_candidate: false,
@@ -677,16 +494,13 @@ export const serverlessStore = {
       }
     }
 
-    // Compute Health Score (0-100)
-    let score = 100;
+    // Sağlık puanı: Python kural motoruyla aynı yöntem. Her sayfa 100'den başlar;
+    // kritik -15, yüksek -8, orta -4, düşük -1. Site puanı sayfa puanlarının ortalamasıdır.
     const issues = Array.from(issuesMap.values());
-    for (const iss of issues) {
-      if (iss.severity === "CRITICAL") score -= 20 * Math.min(iss.affected_url_count, 3);
-      else if (iss.severity === "HIGH") score -= 10 * Math.min(iss.affected_url_count, 3);
-      else if (iss.severity === "MEDIUM") score -= 5 * Math.min(iss.affected_url_count, 3);
-      else score -= 2;
-    }
-    score = Math.max(15, Math.min(100, Math.round(score)));
+    const penalty: Record<string, number> = { CRITICAL: 15, HIGH: 8, MEDIUM: 4, LOW: 1, INFO: 0 };
+    // Yanıt alınamayan sayfalara içerik puanı atanmaz; hiçbir sayfa okunamadıysa sağlıklı sayılmaz.
+    const pageScores = crawledPages.filter((p) => p.status_code > 0).map((p) => Math.max(0, 100 - (issuesByPage.get(p.url) ?? []).reduce((acc, sev) => acc + (penalty[sev] ?? 0), 0)));
+    const score = pageScores.length ? Math.round(pageScores.reduce((a, b) => a + b, 0) / pageScores.length) : 0;
 
     // Generate AI Recommendations
     const aiRecs: RecommendationResponse[] = [];
@@ -695,16 +509,16 @@ export const serverlessStore = {
         id: `rec_${crawlId}_${idx + 1}`,
         site_id: siteId,
         category: iss.category,
-        title: `${iss.title} (${iss.affected_url_count} Sayfa)`,
+        title: `${iss.title} (${iss.affected_url_count} sayfa)`,
         description: iss.description,
-        reason: `${iss.recommendation_template} Bu durum arama motoru dizinlemesini ve kullanıcı deneyimini doğrudan etkiler.`,
-        expected_impact: iss.severity === "CRITICAL" ? "+%15-20 dizin kalitesi" : "+%5-10 teknik skor artışı",
-        confidence: iss.severity === "CRITICAL" ? 0.98 : 0.88,
-        priority_score: iss.severity === "CRITICAL" ? 95 : iss.severity === "HIGH" ? 85 : 70,
+        reason: iss.recommendation_template,
+        expected_impact: null,
+        confidence: 1,
+        priority_score: iss.severity === "CRITICAL" ? 95 : iss.severity === "HIGH" ? 85 : iss.severity === "MEDIUM" ? 70 : 50,
         risk_level: iss.severity === "CRITICAL" ? "HIGH" : "LOW",
         effort: "Orta",
-        evidence_json: JSON.stringify({ affected_pages: crawledPages.map((p) => p.url) }),
-        rag_sources_json: JSON.stringify([iss.documentation_url || "Google Search Central: SEO Starter Guide"]),
+        evidence_json: JSON.stringify({ affected_pages: iss.affected_urls ?? [] }),
+        rag_sources_json: JSON.stringify([{ document_title: iss.documentation_url || "Google Search Central" }]),
         status: "OPEN",
         created_at: new Date().toISOString(),
       });
@@ -789,52 +603,6 @@ export const serverlessStore = {
       linking_opportunities: linkingOpps,
     });
 
-    // Update GSC baseline metrics for newly crawled site
-    store.gsc.set(
-      siteId,
-      crawledPages.slice(0, 8).map((p, idx) => {
-        const queryTerm = (p.title || site.normalized_domain).split(/[\s|-]+/)[0] || "site araması";
-        const clicks = Math.max(10, Math.floor(800 / (idx + 1)));
-        const impressions = clicks * (idx + 12);
-        return {
-          id: `gsc_${siteId}_${idx + 1}`,
-          site_id: siteId,
-          metric_date: new Date().toISOString().split("T")[0],
-          query: `${queryTerm} ${site.normalized_domain}`,
-          page: p.url,
-          clicks,
-          impressions,
-          ctr: Number((clicks / impressions).toFixed(4)),
-          position: Number((idx + 2.5).toFixed(1)),
-        };
-      })
-    );
-
-    // Update CrUX baseline metrics
-    const avgLatency = crawledPages.reduce((acc, p) => acc + (p.response_time_ms || 300), 0) / Math.max(1, crawledPages.length);
-    store.crux.set(siteId, [
-      {
-        id: `crux_${siteId}_desktop`,
-        site_id: siteId,
-        url: targetUrl,
-        form_factor: "DESKTOP",
-        p75_lcp_ms: Math.round(avgLatency * 2.2),
-        p75_inp_ms: 95,
-        p75_cls: 0.03,
-        fetched_at: new Date().toISOString(),
-      },
-      {
-        id: `crux_${siteId}_mobile`,
-        site_id: siteId,
-        url: targetUrl,
-        form_factor: "MOBILE",
-        p75_lcp_ms: Math.round(avgLatency * 3.4),
-        p75_inp_ms: 145,
-        p75_cls: 0.06,
-        fetched_at: new Date().toISOString(),
-      },
-    ]);
-
     // Finalize crawl run
     crawlRun.status = errorCount > 0 ? "COMPLETED_WITH_ERRORS" : "COMPLETED";
     crawlRun.total_urls_discovered = visitedUrls.size + urlsToVisit.length;
@@ -845,16 +613,11 @@ export const serverlessStore = {
     return crawlRun;
   },
 
-  listConnectors(siteId: string) {
-    const list = store.connectors.get(siteId);
-    if (!list) {
-      store.connectors.set(siteId, [...DEMO_CONNECTORS]);
-      return [...DEMO_CONNECTORS];
-    }
-    return list;
+  listConnectors(siteId: string): ConnectorRecord[] {
+    return store.connectors.get(siteId) ?? [];
   },
 
-  saveConnector(siteId: string, connector: any) {
+  saveConnector(siteId: string, connector: ConnectorRecord & Record<string, string | undefined>) {
     const list = this.listConnectors(siteId);
     const existingIdx = list.findIndex((c) => c.id === connector.id || (connector.connector_type && c.tur === connector.connector_type));
     let updated;

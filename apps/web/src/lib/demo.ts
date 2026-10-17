@@ -155,16 +155,23 @@ export const DEMO_HEALTH: HealthData = {
 
 export interface IssueItem {
   id: string;
+  ruleId?: string;
   title: string;
   category: string;
   severity: Severity;
+  /** İlk etkilenen sayfa (yoksa boş) */
   url: string;
+  /** Etkilenen sayfalar; arka uç en fazla 50 döndürür, toplam `affected` alanındadır */
+  urls?: string[];
   diagnosis: string;
   fix: string;
-  before: string;
-  after: string;
+  /** Yalnızca gerçek önce/sonra kodu bilindiğinde dolu (canlı sorunlarda uydurulmaz) */
+  before?: string;
+  after?: string;
   docUrl?: string;
   affected?: number;
+  /** Taramada değerlendirilen toplam sayfa; etki oranı için */
+  totalPages?: number;
 }
 
 export const DEMO_ISSUES: IssueItem[] = [

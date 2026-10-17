@@ -23,13 +23,18 @@
   --accent-hover: #2546c7;
   --accent-ink: #2442ad;
   --accent-soft: #e8edff;
+  --accent-on: #ffffff;     /* accent-fill üzerindeki metin */
 
   --evidence: #0e7c6b;      /* doğrulanmış olumlu sinyal */
   --evidence-soft: #dff4ef;
+  --evidence-fill: #0e7c6b; /* dolu buton zemini (beyaz metinle 5.1:1) */
+  --evidence-on: #ffffff;
   --warn: #9a5b00;
   --warn-soft: #fdf1d8;
+  --warn-fill: #9a5b00;     /* beyaz metinle 5.4:1 */
   --critical: #b42318;
   --critical-soft: #fde8e6;
+  --critical-fill: #b42318; /* beyaz metinle 6.6:1 */
 
   --shadow-pop: 0 1px 3px rgba(20, 23, 28, 0.08), 0 12px 32px -12px rgba(20, 23, 28, 0.28);
 }
@@ -49,13 +54,19 @@
   --accent-hover: #4468f0;
   --accent-ink: #a9bbff;
   --accent-soft: #1d2440;
+  --accent-on: #ffffff;
 
   --evidence: #2fd0bb;
   --evidence-soft: #133430;
+  /* Koyu temada da dolgu koyu kalır: açık turkuaz zemin üstünde beyaz metin 1.9:1 kalıyordu */
+  --evidence-fill: #0e7c6b;
+  --evidence-on: #ffffff;
   --warn: #e6b04a;
   --warn-soft: #34290f;
+  --warn-fill: #9a5b00;
   --critical: #f47f79;
   --critical-soft: #3d1b19;
+  --critical-fill: #b42318;
 
   --shadow-pop: 0 1px 3px rgba(0, 0, 0, 0.5), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
 }

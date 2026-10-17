@@ -68,20 +68,20 @@ const globalAuth = global as unknown as {
  * STRICT backend modu zorunlu kılınmadıkça arka uç yokluğunda kesintisiz çalışmayı sağlar.
  */
 export function isLocalAuthEnabled(): boolean {
-  if (process.env.REQUIRE_STRICT_BACKEND === "true") {
-    return (process.env.NODE_ENV as string) !== "production";
-  }
-  return true;
+  return (process.env.NODE_ENV as string) !== "production" || process.env.ALLOW_LOCAL_DEMO === "true";
 }
 
 function getInitialUsers(): UserRecord[] {
   if (!isLocalAuthEnabled()) return [];
 
+  const isProduction = (process.env.NODE_ENV as string) === "production";
   const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@calpeo.io").trim().toLowerCase();
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || "Admin12345!";
+  // Üretimde bilinen bir varsayılan şifreyle süper yönetici açılmaz: şifre ortam değişkeninden gelmeli.
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || (isProduction ? "" : "Admin12345!");
+  const users: UserRecord[] = [];
 
-  return [
-    {
+  if (adminPassword) {
+    users.push({
       id: "usr_admin_initial",
       email: adminEmail,
       passwordHash: hashPassword(adminPassword),
@@ -91,30 +91,38 @@ function getInitialUsers(): UserRecord[] {
       isSuperAdmin: true,
       permissions: ["*"],
       createdAt: new Date().toISOString(),
-    },
-    {
-      id: "usr_admin_local",
-      email: "admin@seo-platform.local",
-      passwordHash: hashPassword(adminPassword),
-      fullName: "Geliştirici Yönetici",
-      role: "Süper Yönetici",
-      isAdmin: true,
-      isSuperAdmin: true,
-      permissions: ["*"],
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "usr_demo_user",
-      email: "o@p.ai",
-      passwordHash: hashPassword("Password123!"),
-      fullName: "Örnek Kullanıcı",
-      role: "SEO Yöneticisi",
-      isAdmin: false,
-      isSuperAdmin: false,
-      permissions: ["read", "crawl", "audit", "recommendations"],
-      createdAt: new Date().toISOString(),
-    },
-  ];
+    });
+  }
+
+  // Geliştirme kolaylığı hesapları üretimde hiç oluşturulmaz.
+  if (!isProduction) {
+    users.push(
+      {
+        id: "usr_admin_local",
+        email: "admin@seo-platform.local",
+        passwordHash: hashPassword(adminPassword),
+        fullName: "Geliştirici Yönetici",
+        role: "Süper Yönetici",
+        isAdmin: true,
+        isSuperAdmin: true,
+        permissions: ["*"],
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "usr_demo_user",
+        email: "o@p.ai",
+        passwordHash: hashPassword("Password123!"),
+        fullName: "Örnek Kullanıcı",
+        role: "SEO Yöneticisi",
+        isAdmin: false,
+        isSuperAdmin: false,
+        permissions: ["read", "crawl", "audit", "recommendations"],
+        createdAt: new Date().toISOString(),
+      }
+    );
+  }
+
+  return users;
 }
 
 

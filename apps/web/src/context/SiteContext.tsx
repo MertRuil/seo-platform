@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, type CrawlRunResponse, type OrganizationResponse, type SiteResponse } from "@/lib/api";
 import { decideSource, type DataSource, type DemoReason } from "@/lib/dataSource";
 import { useAuth } from "@/context/AuthContext";
+import { clearPendingSite, readPendingSite } from "@/lib/pendingSite";
 
 export type Period = 7 | 28 | 90;
 
@@ -19,7 +20,16 @@ interface SiteState {
   period: Period;
   setPeriod: (p: Period) => void;
   selectSite: (siteId: string) => void;
-  refresh: () => Promise<void>;
+  /** Listeyi yeniden yükler; `siteId` verilirse o site seçilir (ör. yeni eklenen site). */
+  refresh: (opts?: { siteId?: string }) => Promise<void>;
+  /** Siteyi ekler, ilk taramayı başlatır ve seçer. Çalışma alanı yoksa önce onu oluşturur. */
+  addSite: (url: string, name?: string) => Promise<SiteResponse>;
+  /** Girişsiz denetimden gelen adresin arka planda içe aktarılma durumu. */
+  siteImport: { url: string; state: "running" | "error"; message?: string } | null;
+  dismissSiteImport: () => void;
+  /** "Yeni site ekle" diyaloğu: menü, boş durumlar ve örnek veri bandı aynı diyaloğu açar. */
+  addSiteOpen: boolean;
+  setAddSiteOpen: (open: boolean) => void;
 }
 
 const SiteContext = createContext<SiteState | undefined>(undefined);
@@ -40,6 +50,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [site, setSite] = useState<SiteResponse | null>(null);
   const [crawls, setCrawls] = useState<CrawlRunResponse[]>([]);
   const [period, setPeriodState] = useState<Period>(28);
+  const [siteImport, setSiteImport] = useState<SiteState["siteImport"]>(null);
+  const [addSiteOpen, setAddSiteOpen] = useState(false);
+  const importStarted = useRef(false);
 
   useEffect(() => {
     try {
@@ -56,8 +69,13 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     return list;
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { siteId?: string }) => {
     if (!user) {
+      setOrg(null);
+      setSite(null);
+      setSites([]);
+      setCrawls([]);
+      setInputs({ backendReachable: false, authorized: false, hasOrg: false, hasSite: false, hasCrawl: false });
       setStatus("ready");
       return;
     }
@@ -79,9 +97,14 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* yok say */
         }
-        const chosen = list.find((s) => s.id === saved) ?? list[0] ?? null;
+        const chosen = list.find((s) => s.id === opts?.siteId) ?? list.find((s) => s.id === saved) ?? list[0] ?? null;
         setSite(chosen);
         if (chosen) {
+          try {
+            localStorage.setItem(STORAGE_KEY_SITE, chosen.id);
+          } catch {
+            /* yok say */
+          }
           next.hasSite = true;
           const cl = await loadCrawls(o, chosen);
           next.hasCrawl = cl.some(isCompleted);
@@ -111,6 +134,58 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     // token değişince (yeni giriş) yeniden yükle
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, token]);
+
+  // Arka uçta kayıt organizasyon açmıyor; ilk site eklenirken kişisel çalışma alanı oluşturulur.
+  const ensureOrg = useCallback(async (): Promise<OrganizationResponse> => {
+    if (org) return org;
+    const existing = await api.getOrganizations().catch(() => [] as OrganizationResponse[]);
+    if (existing[0]) return existing[0];
+    const first = (user?.fullName || user?.email || "").split(/[\s@]/)[0] || "Benim";
+    return api.createOrganization({ name: `${first} çalışma alanı`, slug: `calisma-alani-${Date.now().toString(36)}` });
+  }, [org, user]);
+
+  const addSite = useCallback(
+    async (rawUrl: string, name?: string) => {
+      let url = rawUrl.trim();
+      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+      const host = new URL(url).hostname;
+      const o = await ensureOrg();
+      const created = await api.createSite(o.id, { name: name?.trim() || host.replace(/^www\./i, ""), primary_url: url });
+      try {
+        await api.triggerCrawl(o.id, created.id);
+      } catch (error) {
+        await refresh({ siteId: created.id });
+        throw new Error(`Siteniz kaydedildi, ancak tarama başlatılamadı: ${error instanceof Error ? error.message : "sunucu hatası"}. Taramalar sayfasından tekrar başlatabilirsiniz.`);
+      }
+      await refresh({ siteId: created.id });
+      return created;
+    },
+    [ensureOrg, refresh]
+  );
+
+  // Girişsiz denetimde analiz edilen adres kayıttan sonra ilk proje olarak eklenir (bir kez).
+  useEffect(() => {
+    if (!user || status !== "ready" || importStarted.current) return;
+    const pending = readPendingSite();
+    if (!pending) return;
+    importStarted.current = true;
+    clearPendingSite();
+    let host = "";
+    try {
+      host = new URL(pending).hostname.replace(/^www\./i, "");
+    } catch {
+      return;
+    }
+    const existing = sites.find((x) => (x.normalized_domain || x.domain).replace(/^www\./i, "") === host);
+    if (existing) {
+      refresh({ siteId: existing.id });
+      return;
+    }
+    setSiteImport({ url: pending, state: "running" });
+    addSite(pending)
+      .then(() => setSiteImport(null))
+      .catch((e) => setSiteImport({ url: pending, state: "error", message: e instanceof Error ? e.message : String(e) }));
+  }, [user, status, sites, refresh, addSite]);
 
   const selectSite = useCallback(
     (siteId: string) => {
@@ -161,6 +236,11 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
     setPeriod,
     selectSite,
     refresh,
+    addSite,
+    siteImport,
+    dismissSiteImport: () => setSiteImport(null),
+    addSiteOpen,
+    setAddSiteOpen,
   };
 
   return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;

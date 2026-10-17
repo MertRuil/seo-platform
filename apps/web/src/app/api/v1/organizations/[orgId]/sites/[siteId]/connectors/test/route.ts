@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tryBackendProxy } from "@/lib/backend-proxy";
+import { guardStoreSite } from "@/lib/store-auth";
 import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "@/lib/ssrf";
 
 export const dynamic = "force-dynamic";
@@ -16,19 +17,13 @@ export async function POST(
   );
   if (proxied) return proxied;
 
+  const guard = guardStoreSite(req, params.orgId, params.siteId);
+  if (guard instanceof NextResponse) return guard;
+
   // Fallback: Standalone live testing with SSRF protection
   const body = await req.json().catch(() => ({}));
   const { connector_type, base_url, credentials, endpoint } = body;
   const targetUrl = base_url || endpoint || "";
-
-  if (targetUrl.startsWith("mock://")) {
-    return NextResponse.json({
-      success: true,
-      status_code: 200,
-      message: "Simülasyon bağlantısı ve yetki testi başarılı. Tüm bağlayıcı fonksiyonları aktif.",
-      capabilities: ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CANONICAL", "CAN_EDIT_CONTENT"],
-    });
-  }
 
   if (!targetUrl) {
     return NextResponse.json({
@@ -51,8 +46,9 @@ export async function POST(
       return NextResponse.json({
         success: true,
         status_code: res.statusCode,
-        message: `Uç nokta başarıyla doğrulandı (HTTP ${res.statusCode}). Bağlayıcı veri aktarımına hazır.`,
-        capabilities: ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CANONICAL"],
+        message: `Adrese ulaşıldı (HTTP ${res.statusCode}). Sunucu bağlantısı olmadan kimlik bilgileri ve yazma yetkisi doğrulanamaz.`,
+        credentials_verified: false,
+        capabilities: [],
       });
     } else {
       return NextResponse.json({

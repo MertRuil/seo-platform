@@ -17,14 +17,13 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { LevelSelectorModal } from "@/components/ui/LevelSelectorModal";
-import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, HelpCircle } from "lucide-react";
+import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, HelpCircle, Sprout, Gauge } from "lucide-react";
 
 const STORAGE_KEY_NAV = "calpeo_nav";
 
 function SiteSwitcher() {
-  const { site, sites, selectSite, source, status, org, refresh } = useSite();
+  const { site, sites, selectSite, status, addSite, addSiteOpen: addOpen, setAddSiteOpen: setAddOpen } = useSite();
   const [open, setOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [newName, setNewName] = useState("");
   const [addBusy, setAddBusy] = useState(false);
@@ -34,7 +33,7 @@ function SiteSwitcher() {
   const handleCloseAdd = React.useCallback(() => {
     setAddOpen(false);
     setAddErr(null);
-  }, []);
+  }, [setAddOpen]);
 
   const handleSaveAndCrawl = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,20 +43,7 @@ function SiteSwitcher() {
     setAddBusy(true);
     setAddErr(null);
     try {
-      let targetOrgId = org?.id;
-      if (!targetOrgId) {
-        const orgs = await api.getOrganizations();
-        targetOrgId = orgs[0]?.id;
-      }
-      if (!targetOrgId) throw new Error("Organizasyon bulunamadı.");
-      const domain = new URL(url).hostname;
-      const created = await api.createSite(targetOrgId, {
-        name: newName.trim() || domain,
-        primary_url: url,
-      });
-      await api.triggerCrawl(targetOrgId, created.id);
-      await refresh();
-      selectSite(created.id);
+      await addSite(url, newName);
       setAddOpen(false);
       setNewUrl("");
       setNewName("");
@@ -84,8 +70,8 @@ function SiteSwitcher() {
     };
   }, [open]);
 
-  const label = site ? site.normalized_domain || site.domain : status === "loading" ? "Yükleniyor…" : "Örnek site";
-  const sub = site ? site.name : source === "demo" ? "flagship-store.com" : "";
+  const label = site ? site.normalized_domain || site.domain : status === "loading" ? "Yükleniyor…" : "Site ekleyin";
+  const sub = site && site.name !== (site.normalized_domain || site.domain) ? site.name : "";
 
   return (
     <div ref={ref} className="relative">
@@ -106,7 +92,7 @@ function SiteSwitcher() {
           {sites.length === 0 ? (
             <div className="px-3 py-2 text-xs text-muted flex items-center gap-2">
               <FlaskConical className="w-3.5 h-3.5" aria-hidden />
-              Kayıtlı site yok; örnek veri gösteriliyor.
+              Henüz site eklemediniz. Ekranlarda örnek veri gösteriliyor.
             </div>
           ) : (
             sites.map((s) => (
@@ -139,7 +125,7 @@ function SiteSwitcher() {
               className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-accent-ink hover:bg-surface-2 font-medium cursor-pointer"
             >
               <Plus className="w-4 h-4" aria-hidden />
-              + Yeni Site Ekle ve Canlı Tara
+              Yeni site ekle
             </button>
             <Link
               href="/crawls"
@@ -147,30 +133,32 @@ function SiteSwitcher() {
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-sm text-xs text-muted hover:text-ink hover:bg-surface-2"
             >
-              Tüm taramaları ve geçmişi gör →
+              Tarama geçmişi →
             </Link>
           </div>
         </div>
       )}
 
-      <Modal open={addOpen} onClose={handleCloseAdd} title="Yeni Site Ekle ve Canlı Analiz Başlat" icon={<Globe className="w-4 h-4 text-accent" />}>
+      <Modal open={addOpen} onClose={handleCloseAdd} title="Yeni site ekle" icon={<Globe className="w-4 h-4 text-accent" />}>
         {addErr && <Notice tone="error" className="mb-3">{addErr}</Notice>}
         <form onSubmit={handleSaveAndCrawl} className="space-y-4">
           <p className="text-xs text-muted">
-            Eklemek istediğiniz web sitesinin adresini girin. Sistem saniyeler içinde sayfaları, başlıkları, canonical ve robots etiketlerini canlı tarayıp teknik SEO raporunu oluşturacaktır.
+            Sitenin adresini girin. Kaydettiğinizde ilk tarama hemen başlar; sayfa başlıkları, meta açıklamaları, canonical ve robots ayarları kontrol edilir.
           </p>
           <div>
-            <Label htmlFor="switcher-site-url">Web Sitesi Adresi (URL)</Label>
+            <Label htmlFor="switcher-site-url">Site adresi</Label>
             <Input
               id="switcher-site-url"
-              placeholder="https://orneksiteniz.com"
+              placeholder="orneksiteniz.com"
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
+              inputMode="url"
+              autoComplete="url"
               required
             />
           </div>
           <div>
-            <Label htmlFor="switcher-site-name">Proje / Marka Adı (İsteğe bağlı)</Label>
+            <Label htmlFor="switcher-site-name" hint="(isteğe bağlı)">Proje adı</Label>
             <Input
               id="switcher-site-name"
               placeholder="Örn. Ana Mağaza"
@@ -183,7 +171,7 @@ function SiteSwitcher() {
               Vazgeç
             </Button>
             <Button type="submit" variant="primary" loading={addBusy} icon={<Plus className="w-4 h-4" />}>
-              Siteyi Kaydet & Canlı Tara
+              {addBusy ? "Taranıyor…" : "Kaydet ve tara"}
             </Button>
           </div>
         </form>
@@ -195,7 +183,7 @@ function SiteSwitcher() {
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
-  const { density, setDensity } = useDensity();
+  const { density, setDensity, setShowLevelModal } = useDensity();
   const { theme, setTheme } = useTheme();
   const { crawl, period, setPeriod, source } = useSite();
   const [collapsed, setCollapsed] = useState(false);
@@ -213,6 +201,21 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
+
+  // Mobil çekmece: Escape ile kapanır, açıkken arka plan kaydırılmaz
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDrawerOpen(false);
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawerOpen]);
 
   const toggleCollapse = () => {
     setCollapsed((c) => {
@@ -258,7 +261,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <button type="button" aria-label="Menüyü kapat" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-black/50 cursor-default" />
-          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-line shadow-pop animate-slide-in">
+          <aside role="dialog" aria-modal="true" aria-label="Ana menü" className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-line shadow-pop animate-slide-in">
             <Navigation currentPath={pathname} onNavigate={() => setDrawerOpen(false)} />
           </aside>
         </div>
@@ -299,36 +302,18 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                 { value: "dark", label: <Moon className="w-3.5 h-3.5" aria-hidden />, title: "Koyu mod" },
               ]}
             />
-            <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-md border border-line">
-              <button
-                type="button"
-                onClick={() => setDensity("summary")}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
-                  density === "summary"
-                    ? "bg-surface text-ink shadow-sm border border-line/60"
-                    : "text-muted hover:text-ink"
-                )}
-                title="Yeni Başlayanlar ve İşletmeler için Sade Görünüm"
-              >
-                <span>🌱</span>
-                <span className="hidden sm:inline">Sade Mod</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDensity("expert")}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
-                  density === "expert"
-                    ? "bg-surface text-ink shadow-sm border border-line/60"
-                    : "text-muted hover:text-ink"
-                )}
-                title="SEO Uzmanları ve Ajanslar için Detaylı Telemetri Görünümü"
-              >
-                <span>⚡</span>
-                <span className="hidden sm:inline">Uzman Modu</span>
-              </button>
-            </div>
+            <Segmented<"summary" | "expert">
+              label="Görünüm"
+              value={density}
+              onChange={setDensity}
+              options={[
+                { value: "summary", label: <><Sprout className="w-3.5 h-3.5" aria-hidden /><span className="hidden sm:inline">Sade</span><span className="sr-only sm:hidden">Sade görünüm</span></>, title: "Sade görünüm: durum özeti ve öncelikli işler" },
+                { value: "expert", label: <><Gauge className="w-3.5 h-3.5" aria-hidden /><span className="hidden sm:inline">Uzman</span><span className="sr-only sm:hidden">Uzman görünüm</span></>, title: "Uzman görünüm: grafikler, kod karşılaştırmaları ve ayrıntılar" },
+              ]}
+            />
+            <button type="button" onClick={() => setShowLevelModal(true)} aria-label="Görünüm modları hakkında" title="Görünüm modları hakkında" className="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+              <HelpCircle className="w-4 h-4" aria-hidden />
+            </button>
           </div>
         </header>
 

@@ -28,7 +28,7 @@ interface AuthContextType {
     preview_code?: string;
     is_simulation?: boolean;
   }>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,18 +45,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // İlk yüklemede kayıtlı oturumu oku
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-      const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-      if (savedUser && savedToken) {
-        setUser(JSON.parse(savedUser));
+    let cancelled = false;
+    (async () => {
+      try {
+        const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+        if (!savedToken) return;
+        const res = await fetch("/api/v1/auth/me", { headers: { Authorization: `Bearer ${savedToken}` }, cache: "no-store" });
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem(STORAGE_KEY_USER);
+            localStorage.removeItem(STORAGE_KEY_TOKEN);
+          }
+          return;
+        }
+        const me = await res.json();
+        if (cancelled) return;
+        const profile: UserProfile = { id: me.id, email: me.email, fullName: me.full_name || me.email.split("@")[0], role: me.is_platform_admin ? "Platform Yöneticisi" : "SEO Yöneticisi", isAdmin: Boolean(me.is_platform_admin), isSuperAdmin: Boolean(me.is_platform_admin) };
+        setUser(profile);
         setToken(savedToken);
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
+      } catch {
+        // A cached profile cannot establish a new authenticated session.
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (e) {
-      console.error("Oturum bilgisi yüklenemedi:", e);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Korumalı Rota Yönlendirmesi (Auth Guard)
@@ -184,12 +198,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const response = await fetch("/api/v1/auth/logout", { method: "POST" });
+    if (!response.ok) throw new Error("Oturum kapatılamadı. Lütfen tekrar deneyin.");
     setUser(null);
     setToken(null);
     localStorage.removeItem(STORAGE_KEY_USER);
     localStorage.removeItem(STORAGE_KEY_TOKEN);
-    document.cookie = "seo_platform_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.replace("/login");
   };
 

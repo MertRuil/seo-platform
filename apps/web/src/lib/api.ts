@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const API_BASE_URL = "/api/v1";
 
 export const STORAGE_KEY_TOKEN = "seo_auth_token";
 
@@ -57,6 +56,8 @@ export interface IssueSummaryResponse {
   recommendation_template: string;
   documentation_url?: string | null;
   affected_url_count: number;
+  /** Etkilenen sayfaların ilk bölümü (arka uç en fazla 50 döndürür). */
+  affected_urls?: string[];
 }
 
 export interface SiteHealthReportResponse {
@@ -171,6 +172,8 @@ export interface ExperimentEvaluationResponse {
   variant_relative_lift_percent: number;
   is_statistically_significant: boolean;
   conclusion: string;
+  variant_growth_percent?: number;
+  control_growth_percent?: number;
 }
 
 export class ApiError extends Error {
@@ -260,8 +263,9 @@ class ApiClient {
   getCrawlHealth(orgId: string, siteId: string, crawlId: string) {
     return this.request<SiteHealthReportResponse>(`/organizations/${orgId}/sites/${siteId}/crawls/${crawlId}/health`);
   }
-  getCrawlPages(orgId: string, siteId: string, crawlId: string, params: { limit?: number; offset?: number } = {}) {
+  getCrawlPages(orgId: string, siteId: string, crawlId: string, params: { limit?: number; offset?: number; q?: string } = {}) {
     const q = new URLSearchParams({ limit: String(params.limit ?? 100), offset: String(params.offset ?? 0) });
+    if (params.q) q.set("q", params.q);
     return this.request<PaginatedPagesResponse>(`/organizations/${orgId}/sites/${siteId}/crawls/${crawlId}/pages?${q}`);
   }
 
@@ -278,14 +282,31 @@ class ApiClient {
   getOpportunities(orgId: string, siteId: string) {
     return this.request<OpportunityResponse[]>(`/organizations/${orgId}/sites/${siteId}/integrations/opportunities`);
   }
-  getGscMetrics(orgId: string, siteId: string) {
-    return this.request<GscSearchMetricResponse[]>(`/organizations/${orgId}/sites/${siteId}/integrations/gsc`);
+  getGscMetrics(orgId: string, siteId: string, days = 28) {
+    return this.request<GscSearchMetricResponse[]>(`/organizations/${orgId}/sites/${siteId}/integrations/gsc?days=${days}`);
   }
   getCruxMetrics(orgId: string, siteId: string) {
     return this.request<CruxMetricResponse[]>(`/organizations/${orgId}/sites/${siteId}/integrations/crux`);
   }
   getSiteGraph(orgId: string, siteId: string) {
     return this.request<SiteGraphResponse>(`/organizations/${orgId}/sites/${siteId}/graph`);
+  }
+  getCrawlSchema(orgId: string, siteId: string, crawlId: string) {
+    return this.request<import("@/lib/demo").SchemaRow[]>(`/organizations/${orgId}/sites/${siteId}/crawls/${crawlId}/schema`);
+  }
+  getSiteVerification(orgId: string, siteId: string) {
+    return this.request<{site_id:string;token:string;instructions:{methods:Record<"DNS_TXT"|"HTML_FILE"|"META_TAG",{description:string;snippet?:string;host?:string;path?:string}>}}>(`/organizations/${orgId}/sites/${siteId}/verification`);
+  }
+  verifySite(orgId: string, siteId: string, method: string) {
+    return this.request<{success:boolean}>(`/organizations/${orgId}/sites/${siteId}/verify`, {method:"POST",body:JSON.stringify({method})});
+  }
+  getSiteAudit(orgId: string, siteId: string) {
+    return this.request<import("@/lib/demo").AuditRow[]>(`/organizations/${orgId}/sites/${siteId}/audit`);
+  }
+
+  // Siteye yazabilen bağlayıcılar (WordPress, Git, Cloudflare, webhook)
+  getConnectors(orgId: string, siteId: string) {
+    return this.request<Array<{ id: string; connector_type?: string; tur?: string; ad?: string; is_active?: boolean; durum?: string }>>(`/organizations/${orgId}/sites/${siteId}/connectors`);
   }
 
   // Güvenli uygulama
@@ -357,7 +378,7 @@ class ApiClient {
       body: JSON.stringify({ prompt, brand_name: brandName }),
     });
   }
-  evaluateExperiment(orgId: string, siteId: string, data: { name: string; variant_pages: string[]; control_pages: string[] }) {
+  evaluateExperiment(orgId: string, siteId: string, data: { name: string; variant_pages: string[]; control_pages: string[]; change_date?: string; window_days?: number }) {
     return this.request<ExperimentEvaluationResponse>(`/organizations/${orgId}/sites/${siteId}/experiments`, { method: "POST", body: JSON.stringify(data) });
   }
 
@@ -544,6 +565,7 @@ export interface ExportCrmPayload {
 }
 
 export interface ExportCrmResponse {
+  delivered?: boolean;
   success: boolean;
   crm_lead_id: string;
   activity_id: string;

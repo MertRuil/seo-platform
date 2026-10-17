@@ -12,10 +12,11 @@ const base =
   "inline-flex items-center justify-center gap-1.5 font-semibold rounded-sm transition-colors whitespace-nowrap select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent-fill text-white hover:bg-accent-hover",
+  primary: "bg-accent-fill text-accent-on hover:bg-accent-hover",
   secondary: "bg-surface text-ink border border-line hover:bg-surface-2 hover:border-line-strong",
   ghost: "text-muted hover:text-ink hover:bg-surface-2",
-  evidence: "bg-evidence text-white hover:opacity-90",
+  // evidence (açık turkuaz) metin rengidir; dolgu için ayrı, koyu token kullanılır (koyu temada 1.9:1 → 5.1:1)
+  evidence: "bg-evidence-fill text-evidence-on hover:opacity-90",
   danger: "bg-critical-soft text-critical border border-critical hover:opacity-90",
 };
 

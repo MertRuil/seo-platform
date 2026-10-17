@@ -13,8 +13,9 @@
     "test:ui": "tsx test-ui-suite.ts",
     "test:auth": "tsx test-auth-guards.ts",
     "test:security": "tsx test-security-suite.ts",
-    "test": "npm run test:ui && npm run test:auth && npm run test:security",
-    "typecheck": "tsc --noEmit"
+    "test": "npm run test:ui && npm run test:auth && npm run test:security && npm run test:release",
+    "typecheck": "tsc --noEmit",
+    "test:release": "tsx test-release-suite.ts && tsx test-proxy-suite.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

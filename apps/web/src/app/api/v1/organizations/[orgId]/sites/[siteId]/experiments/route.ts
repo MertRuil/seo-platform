@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tryBackendProxy } from "@/lib/backend-proxy";
+import { guardStoreSite } from "@/lib/store-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,13 @@ export async function POST(
   );
   if (proxied) return proxied;
 
-  const body = await req.json().catch(() => ({}));
-  return NextResponse.json({
-    experiment_name: body.name || "Başlık & Snippet Optimizasyon Testi",
-    diff_in_diff_lift: 14.2,
-    variant_relative_lift_percent: 18.6,
-    is_statistically_significant: true,
-    conclusion: "Varyant grup, kontrol grubuna göre organik arama trafiğinde istatistiksel olarak anlamlı (+%18.6) artış gösterdi.",
-  });
+  const guard = guardStoreSite(req, params.orgId, params.siteId);
+  if (guard instanceof NextResponse) return guard;
+
+  // Deney değerlendirmesi Search Console verisi ve arka uçtaki fark-içinde-fark motoru gerektirir.
+  // Yerel modda sonuç uydurulmaz.
+  return NextResponse.json(
+    { detail: "Deney değerlendirmesi için sunucu bağlantısı ve Search Console verisi gerekir. Şu anda sonuç hesaplanamıyor." },
+    { status: 503 }
+  );
 }

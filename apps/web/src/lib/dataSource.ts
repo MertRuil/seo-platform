@@ -1,6 +1,7 @@
 export type DataSource = "live" | "demo";
 
 export type DemoReason =
+  | "loading"
   | "no-backend"
   | "unauthorized"
   | "no-org"
@@ -33,11 +34,12 @@ export function decideSource(i: SourceInputs): SourceDecision {
 }
 
 export const DEMO_REASON_TEXT: Record<DemoReason, string> = {
-  "no-backend": "Arka uca ulaşılamıyor; örnek veri gösteriliyor.",
-  unauthorized: "Bu hesap arka uçta tanımlı değil; örnek veri gösteriliyor.",
-  "no-org": "Hesabınıza bağlı bir organizasyon yok; örnek veri gösteriliyor.",
-  "no-site": "Henüz kayıtlı site yok; örnek veri gösteriliyor.",
-  "no-crawl": "Henüz tamamlanmış tarama yok; örnek veri gösteriliyor.",
-  "fetch-failed": "Canlı veri alınamadı; örnek veri gösteriliyor.",
-  "no-endpoint": "Bu görünüm için arka uç ucu henüz yok; örnek veri gösteriliyor.",
+  loading: "Canlı veriler yükleniyor. Aşağıdaki geçici önizleme sitenize ait değildir.",
+  "no-backend": "Sunucuya ulaşılamıyor. Aşağıdaki veriler örnektir, sitenize ait değildir.",
+  unauthorized: "Oturumunuz bu verilere erişemiyor. Aşağıdaki veriler örnektir.",
+  "no-org": "Henüz site eklemediniz. Aşağıdaki veriler örnektir.",
+  "no-site": "Henüz site eklemediniz. Aşağıdaki veriler örnektir.",
+  "no-crawl": "İlk tarama henüz tamamlanmadı. Aşağıdaki veriler örnektir.",
+  "fetch-failed": "Sitenizin verisi alınamadı. Aşağıdaki veriler örnektir.",
+  "no-endpoint": "Bu ekran henüz gerçek veriye bağlı değil. Aşağıdaki veriler örnektir.",
 };

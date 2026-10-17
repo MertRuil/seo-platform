@@ -1,3 +1,13 @@
+/**
+ * CSS değişkeni renkleri Tailwind'e fonksiyon olarak verilir; böylece `bg-accent/10` gibi
+ * opaklık kısaltmaları da üretilir (color-mix). Kısaltmasız kullanımda düz var(--x) döner.
+ */
+const token = (name) => ({ opacityValue }) => {
+  if (opacityValue === undefined || String(opacityValue).startsWith("var(")) return `var(--${name})`;
+  const pct = Math.round(parseFloat(opacityValue) * 100);
+  return `color-mix(in srgb, var(--${name}) ${pct}%, transparent)`;
+};
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
@@ -13,24 +23,25 @@ module.exports = {
       current: "currentColor",
       white: "#ffffff",
       black: "#000000",
-      bg: "var(--bg)",
-      surface: "var(--surface)",
-      "surface-2": "var(--surface-2)",
-      ink: "var(--ink)",
-      muted: "var(--muted)",
-      faint: "var(--faint)",
-      line: "var(--line)",
-      "line-strong": "var(--line-strong)",
+      bg: token("bg"),
+      surface: token("surface"),
+      "surface-2": token("surface-2"),
+      ink: token("ink"),
+      muted: token("muted"),
+      faint: token("faint"),
+      line: token("line"),
+      "line-strong": token("line-strong"),
       accent: {
-        DEFAULT: "var(--accent)",
-        fill: "var(--accent-fill)",
-        hover: "var(--accent-hover)",
-        ink: "var(--accent-ink)",
-        soft: "var(--accent-soft)",
+        DEFAULT: token("accent"),
+        fill: token("accent-fill"),
+        hover: token("accent-hover"),
+        ink: token("accent-ink"),
+        soft: token("accent-soft"),
+        on: token("accent-on"),
       },
-      evidence: { DEFAULT: "var(--evidence)", soft: "var(--evidence-soft)" },
-      warn: { DEFAULT: "var(--warn)", soft: "var(--warn-soft)" },
-      critical: { DEFAULT: "var(--critical)", soft: "var(--critical-soft)" },
+      evidence: { DEFAULT: token("evidence"), soft: token("evidence-soft"), fill: token("evidence-fill"), on: token("evidence-on") },
+      warn: { DEFAULT: token("warn"), soft: token("warn-soft"), fill: token("warn-fill") },
+      critical: { DEFAULT: token("critical"), soft: token("critical-soft"), fill: token("critical-fill") },
     },
     // Tip ölçeği: gövde 13 px, alt sınır 12 px; 11 px yalnızca mono etiketler için.
     fontSize: {

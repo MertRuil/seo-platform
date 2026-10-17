@@ -1,4 +1,5 @@
 import React from "react";
+import { AlertCircle, AlertTriangle, Info, OctagonAlert } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SEVERITY_LABEL, type Severity } from "@/lib/demo";
 
@@ -40,8 +41,9 @@ export function severityStripeClass(s: Severity | string): string {
     case "CRITICAL":
       return "bg-critical";
     case "HIGH":
-    case "MEDIUM":
       return "bg-warn";
+    case "MEDIUM":
+      return "bg-warn/50";
     case "LOW":
       return "bg-accent";
     default:
@@ -49,10 +51,21 @@ export function severityStripeClass(s: Severity | string): string {
   }
 }
 
+// Önem yalnızca renkle anlatılmaz: her düzeyin kendi ikonu var (HIGH ve MEDIUM aynı renk tonunu paylaşır).
+const SEVERITY_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  CRITICAL: OctagonAlert,
+  HIGH: AlertTriangle,
+  MEDIUM: AlertCircle,
+  LOW: Info,
+  INFO: Info,
+};
+
 export function SeverityBadge({ severity }: { severity: Severity | string }) {
   const label = (SEVERITY_LABEL as Record<string, string>)[severity] ?? severity;
+  const Icon = SEVERITY_ICON[severity] ?? Info;
   return (
-    <Badge tone={severityTone(severity)} mono>
+    <Badge tone={severityTone(severity)} mono className={severity === "HIGH" ? "ring-1 ring-inset ring-warn/50" : undefined}>
+      <Icon className="w-3 h-3 shrink-0" aria-hidden />
       {label}
     </Badge>
   );

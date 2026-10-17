@@ -5,15 +5,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { useQueue } from "@/hooks/useQueue";
+import { useIssues } from "@/hooks/useIssues";
 import { cn } from "@/lib/cn";
 import {
   BarChart3,
   ShieldCheck,
   AlertTriangle,
   FileText,
+  Files,
   TrendingUp,
   Lightbulb,
   Link2,
+  Network,
   Code2,
   Zap,
   Layers,
@@ -28,6 +31,7 @@ import {
   PanelLeftOpen,
   KeyRound,
   Users,
+  Contact,
   PenTool,
   Bot,
   Sparkles,
@@ -45,64 +49,61 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// Bilgi mimarisi: önce "ne durumdayım ve ne yapmalıyım", sonra alanlara göre derinlik.
+// Rotalar değişmedi; yalnızca etiket, sıra ve gruplar sadeleştirildi.
 const navGroups: NavGroup[] = [
   {
-    label: "Genel",
+    label: "Başlangıç",
     items: [
-      { name: "Genel Görünüm", href: "/", icon: BarChart3 },
-      { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "pending" },
-      { name: "AI SEO Asistanı", href: "/ai", icon: Bot },
-    ],
-  },
-  {
-    label: "Görünürlük & Sıralama",
-    items: [
-      { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
-      { name: "Anahtar Kelimeler", href: "/keywords", icon: KeyRound },
-      { name: "GEO (AI Görünürlük)", href: "/geo", icon: Sparkles },
-    ],
-  },
-  {
-    label: "Rakipler & Pazar",
-    items: [
-      { name: "Rakip Analizi & Gap", href: "/competitors", icon: Users },
-      { name: "Backlink & Toksik Link", href: "/backlinks", icon: Link2 },
-    ],
-  },
-  {
-    label: "İçerik & Optimizasyon",
-    items: [
-      { name: "İçerik Optimizasyonu", href: "/content", icon: PenTool },
-    ],
-  },
-  {
-    label: "Site & Teknik Sağlık",
-    items: [
-      { name: "Teknik Sağlık", href: "/health", icon: ShieldCheck },
+      { name: "Genel görünüm", href: "/", icon: BarChart3 },
       { name: "Sorunlar", href: "/issues", icon: AlertTriangle, badge: "critical" },
-      { name: "Taranan Sayfalar", href: "/pages", icon: FileText },
-      { name: "Yapılandırılmış Veri", href: "/schema", icon: Code2 },
-      { name: "İç Link Grafı", href: "/links", icon: Link2 },
-      { name: "Web Vitals", href: "/cwv", icon: Zap },
+      { name: "Değişiklikler", href: "/changes", icon: GitCommit },
     ],
   },
   {
-    label: "Çalışma & Doğrulama",
+    label: "Site sağlığı",
     items: [
-      { name: "Değişiklikler & Diff", href: "/changes", icon: GitCommit },
-      { name: "SEO Deneyleri", href: "/experiments", icon: FlaskConical },
-      { name: "Site Taramaları", href: "/crawls", icon: Layers },
+      { name: "Teknik sağlık", href: "/health", icon: ShieldCheck },
+      { name: "Taranan sayfalar", href: "/pages", icon: Files },
+      { name: "Taramalar", href: "/crawls", icon: Layers },
+      { name: "Yapılandırılmış veri", href: "/schema", icon: Code2 },
+      { name: "İç bağlantılar", href: "/links", icon: Network },
+      { name: "Sayfa hızı", href: "/cwv", icon: Zap },
+    ],
+  },
+  {
+    label: "Arama görünürlüğü",
+    items: [
+      { name: "Arama performansı", href: "/performance", icon: TrendingUp },
+      { name: "Anahtar kelimeler", href: "/keywords", icon: KeyRound },
+      { name: "Fırsatlar", href: "/opportunities", icon: Lightbulb, badge: "pending" },
+      { name: "AI görünürlüğü", href: "/geo", icon: Sparkles },
+    ],
+  },
+  {
+    label: "İçerik ve rakipler",
+    items: [
+      { name: "İçerik", href: "/content", icon: PenTool },
+      { name: "Rakipler", href: "/competitors", icon: Users },
+      { name: "Backlink'ler", href: "/backlinks", icon: Link2 },
+    ],
+  },
+  {
+    label: "Araçlar",
+    items: [
+      { name: "SEO asistanı", href: "/ai", icon: Bot },
+      { name: "SEO deneyleri", href: "/experiments", icon: FlaskConical },
+      { name: "Raporlar", href: "/reports", icon: FileText },
     ],
   },
   {
     label: "Yönetim",
     items: [
-      { name: "Raporlar & Dışa Aktar", href: "/reports", icon: FileText },
-      { name: "Müşteri & CRM Köprüsü", href: "/leads", icon: Users },
-      { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
-      { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
-      { name: "Denetim Günlüğü", href: "/audit", icon: History },
-      { name: "Abonelik & Fatura", href: "/billing", icon: CreditCard },
+      { name: "Entegrasyonlar", href: "/integrations", icon: Sliders },
+      { name: "Abonelik", href: "/billing", icon: CreditCard },
+      { name: "Bilgi tabanı", href: "/knowledge", icon: BookOpen },
+      { name: "Denetim günlüğü", href: "/audit", icon: History },
+      { name: "Müşteri adayları", href: "/leads", icon: Contact },
     ],
   },
 ];
@@ -117,7 +118,12 @@ interface NavigationProps {
 export function Navigation({ currentPath = "/", collapsed = false, onToggleCollapse, onNavigate }: NavigationProps) {
   const { user, logout } = useAuth();
   const queue = useQueue();
-  const badges: Record<"pending" | "critical", number> = { pending: queue.pending, critical: queue.critical };
+  const issues = useIssues();
+  // Rozetler yalnızca canlı veride gösterilir; örnek verinin sayıları menüde gerçekmiş gibi durmasın.
+  const badges: Record<"pending" | "critical", number> = {
+    pending: queue.source === "live" ? queue.pending : 0,
+    critical: issues.source === "live" ? issues.urgent : 0,
+  };
 
   return (
     <div className="flex flex-col h-full bg-surface text-ink">
@@ -163,7 +169,9 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
                       aria-current={isActive ? "page" : undefined}
                       title={collapsed ? item.name : undefined}
                       className={cn(
-                        "flex items-center rounded-sm text-sm font-medium transition-colors min-h-[36px]",
+                        // Mobil çekmecede (onNavigate verilir) dokunmatik hedef 44 px
+                        "flex items-center rounded-sm text-sm font-medium transition-colors",
+                        onNavigate ? "min-h-[44px]" : "min-h-[36px]",
                         collapsed ? "justify-center px-0" : "justify-between px-2.5 gap-2",
                         isActive ? "bg-accent-soft text-accent-ink font-semibold shadow-[inset_2px_0_0_var(--accent)]" : "text-muted hover:text-ink hover:bg-surface-2"
                       )}
@@ -177,7 +185,8 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
                           {count}
                         </span>
                       )}
-                      {collapsed && count > 0 && <span className="sr-only">{count} kayıt</span>}
+                      {!collapsed && count > 0 && <span className="sr-only">{item.badge === "critical" ? "acil sorun" : "bekleyen iş"}</span>}
+                      {collapsed && count > 0 && <span className="sr-only">{count} {item.badge === "critical" ? "acil sorun" : "bekleyen iş"}</span>}
                     </Link>
                   </li>
                 );

@@ -14,9 +14,12 @@ process.env.BACKEND_API_URL = "http://127.0.0.1:1/api/v1";
 async function runTests() {
   // Rotalar env atamasindan SONRA yuklenmeli (statik import hoisting'e takilir)
   const { POST: oauthPost } = await import("./src/app/api/v1/auth/oauth/route");
-  const { POST: sitesPost } = await import(
+  const { POST: sitesPost, GET: sitesGet } = await import(
     "./src/app/api/v1/organizations/[orgId]/sites/route"
   );
+  const { GET: orgsGet } = await import("./src/app/api/v1/organizations/route");
+  const { serverlessStore } = await import("./src/lib/serverless-store");
+  const { createSignedToken } = await import("./src/lib/jwt");
   console.log("==================================================");
   console.log("NEXT.JS SECURITY AUDIT AUTOMATED TEST SUITE");
   console.log("==================================================\n");
@@ -176,12 +179,15 @@ async function runTests() {
 
   // TEST 4: Next.js Site Creation Security Hardening (Açık Kapatma: SSRF, XSS, Mükerrer Kayıt)
   console.log("Test 4: Site Creation Endpoint Security Hardening");
-  const testOrgId = "org_sec_suite_" + Date.now().toString(36);
+  // Yerel depo rotaları oturum ister: test kullanıcısı kendi çalışma alanında site oluşturur.
+  const ownerToken = createSignedToken({ id: "usr_sec_owner", email: "owner@example.com", role: "Kullanıcı" });
+  const authHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${ownerToken}` };
+  const testOrgId = serverlessStore.createOrganization({ name: "Güvenlik Test", slug: "guvenlik-test" }, "usr_sec_owner").id;
 
   // 4A: SSRF cloud metadata rejection
   const reqMetaSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "Metadata Site",
       primary_url: "http://169.254.169.254/latest/meta-data",
@@ -196,7 +202,7 @@ async function runTests() {
   // 4B: SSRF localhost rejection
   const reqLocalSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "Localhost Site",
       primary_url: "http://localhost:3000/admin",
@@ -209,7 +215,7 @@ async function runTests() {
   // 4C: Non-HTTP protocol rejection (javascript:)
   const reqJsSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "JS Site",
       primary_url: "javascript:alert(document.cookie)",
@@ -223,7 +229,7 @@ async function runTests() {
   const safeDomainUrl = "https://example.com";
   const reqXssSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "<script>alert('XSS')</script>Güvenli Mağaza",
       primary_url: safeDomainUrl,
@@ -238,7 +244,7 @@ async function runTests() {
   // 4E: Duplicate site rejection in same organization
   const reqDupSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "İkinci Kopya",
       primary_url: "https://www.example.com/alt",
@@ -249,6 +255,35 @@ async function runTests() {
   const dataDup = await resDupSite.json();
   assert(dataDup.detail.includes("zaten kayıtlı"));
   console.log("  [PASS] 4E: Duplicate domain creation prevented in organization.");
+
+
+  // TEST 5: Yerel depo rotaları oturumsuz ve başka kullanıcının çalışma alanında çalışmaz
+  console.log("\nTest 5: Serverless Store Tenant Isolation");
+  const resNoAuth = await sitesGet(new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`), { params: Promise.resolve({ orgId: testOrgId }) });
+  assert.strictEqual(resNoAuth.status, 401, "Unauthenticated site listing must return 401");
+  console.log("  [PASS] 5A: Site listing without session rejected with 401.");
+
+  const intruderToken = createSignedToken({ id: "usr_sec_intruder", email: "intruder@example.com", role: "Kullanıcı" });
+  const resIntruder = await sitesGet(
+    new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, { headers: { Authorization: `Bearer ${intruderToken}` } }),
+    { params: Promise.resolve({ orgId: testOrgId }) }
+  );
+  assert.strictEqual(resIntruder.status, 404, "Another user's organization must not be visible");
+  console.log("  [PASS] 5B: Another user's workspace hidden (404).");
+
+  const resIntruderOrgs = await orgsGet(new NextRequest("http://localhost:3000/api/v1/organizations", { headers: { Authorization: `Bearer ${intruderToken}` } }));
+  const intruderOrgs = (await resIntruderOrgs.json()) as Array<{ id: string }>;
+  assert(!intruderOrgs.some((o) => o.id === testOrgId), "Organization list must be scoped to the session user");
+  assert.strictEqual(intruderOrgs.length, 1, "A new user gets exactly one personal workspace");
+  console.log("  [PASS] 5C: Organization list scoped to session user; no shared seed workspace.");
+
+  const forged = ownerToken.slice(0, -4) + "AAAA";
+  const resForged = await sitesGet(
+    new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, { headers: { Authorization: `Bearer ${forged}` } }),
+    { params: Promise.resolve({ orgId: testOrgId }) }
+  );
+  assert.strictEqual(resForged.status, 401, "Tampered token must be rejected");
+  console.log("  [PASS] 5D: Tampered session token rejected with 401.");
 
   console.log("\n==================================================");
   console.log("ALL NEXT.JS SECURITY TESTS PASSED SUCCESSFULLY!");

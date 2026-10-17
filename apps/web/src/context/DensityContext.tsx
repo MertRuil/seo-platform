@@ -34,11 +34,8 @@ export function DensityProvider({ children }: { children: React.ReactNode }) {
       if (saved === "summary" || saved === "expert") {
         setDensityState(saved);
       }
-      const chosen = localStorage.getItem("calpeo_level_chosen");
-      if (!chosen) {
-        // Kullanıcı daha önce seviye seçimi yapmadıysa modalı aç
-        setShowLevelModal(true);
-      }
+      // Seçim modalı ilk girişte açılmaz: kullanıcı önce kendi verisini görmeli.
+      // Varsayılan sade görünüm; üst çubuktaki anahtar ve yardım düğmesi her an erişilebilir.
     }
   }, []);
 

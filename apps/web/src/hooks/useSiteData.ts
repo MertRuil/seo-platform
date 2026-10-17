@@ -68,7 +68,7 @@ export function useSiteData<T>(key: string, fetcher: (ctx: LiveContext) => Promi
   }
 
   if (query.isPending) {
-    return { data: demo, source: "live", loading: true, refetch };
+    return { data: demo, source: "demo", reason: "loading", loading: true, refetch };
   }
 
   if (query.isError || query.data === undefined) {

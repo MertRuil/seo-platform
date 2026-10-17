@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverlessStore } from "@/lib/serverless-store";
 import { tryBackendProxy } from "@/lib/backend-proxy";
+import { guardStoreSite } from "@/lib/store-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export async function POST(
     `/organizations/${params.orgId}/sites/${params.siteId}/change-sets/${params.changeSetId}/approve`
   );
   if (proxied) return proxied;
+
+  const guard = guardStoreSite(req, params.orgId, params.siteId);
+  if (guard instanceof NextResponse) return guard;
 
   const cs = serverlessStore.approveChangeSet(params.siteId, params.changeSetId);
   if (!cs) {

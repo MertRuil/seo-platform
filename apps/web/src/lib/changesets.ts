@@ -26,6 +26,10 @@ export function writeChangeSets(list: ChangeSetItem[]) {
   }
 }
 
+export function updateChangeSetStatus(id: string, durum: ChangeSetItem["durum"]) {
+  writeChangeSets(readChangeSets().map((s) => (s.id === id ? { ...s, durum } : s)));
+}
+
 export function readActiveId(): string | null {
   try {
     return localStorage.getItem(KEY_ACTIVE) || localStorage.getItem(LEGACY_ACTIVE);

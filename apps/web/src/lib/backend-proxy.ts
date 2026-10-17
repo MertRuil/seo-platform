@@ -17,15 +17,21 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
     const url = `${BACKEND}${endpointPath}`;
     const headers: Record<string, string> = {};
     req.headers.forEach((val, key) => {
-      if (key.toLowerCase() !== "host") {
+      if (!["host", "cookie", "connection", "content-length"].includes(key.toLowerCase())) {
         headers[key] = val;
       }
     });
+    if (!req.headers.has("authorization")) {
+      const cookieToken = req.cookies.get("seo_platform_token")?.value;
+      if (cookieToken) headers.Authorization = `Bearer ${cookieToken}`;
+    }
 
     const init: RequestInit = {
       method: req.method,
       headers,
       signal: AbortSignal.timeout(timeout),
+      redirect: "manual",
+      cache: "no-store",
     };
 
     if (isMutation) {
@@ -40,19 +46,25 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
 
     const res = await fetch(url, init);
     const data = await res.text();
-    return new NextResponse(data, {
+    const responseHeaders: Record<string, string> = {
+      "Content-Type": res.headers.get("content-type") || "application/json",
+      "Cache-Control": "no-store",
+    };
+    for (const key of ["location", "retry-after"]) {
+      const value = res.headers.get(key);
+      if (value) responseHeaders[key] = value;
+    }
+    const stateCookie = res.headers.getSetCookie().filter((cookie) => cookie.startsWith("calpeo_google_state="));
+    if (stateCookie.length) responseHeaders["Set-Cookie"] = stateCookie[0];
+    return new NextResponse(res.status === 204 || res.status === 304 ? null : data, {
       status: res.status,
-      headers: {
-        "Content-Type": res.headers.get("content-type") || "application/json",
-      },
+      headers: responseHeaders,
     });
   } catch (err: any) {
     const isTimeout = err?.name === "TimeoutError" || String(err).includes("timeout") || String(err).includes("aborted");
 
-    // Yalnızca REQUIRE_STRICT_BACKEND=true ise üretimde 502/504 döner.
-    // Varsayılan olarak (ör. Vercel bağımsız dağıtımlarında)
-    // arka uca ulaşılamadığında güvenli bir şekilde Next.js yerel mağazasına (serverlessStore) geçilir.
-    if (IS_PRODUCTION && process.env.REQUIRE_STRICT_BACKEND === "true") {
+    // Üretimde yerel demo yalnızca açıkça etkinleştirildiğinde kullanılabilir.
+    if (IS_PRODUCTION && process.env.ALLOW_LOCAL_DEMO !== "true") {
       if (isTimeout) {
         return NextResponse.json(
           { error: "Arka uç servisi zaman aşımına uğradı (504 Gateway Timeout).", detail: `İşlem ${timeout}ms süresince tamamlanamadı.` },

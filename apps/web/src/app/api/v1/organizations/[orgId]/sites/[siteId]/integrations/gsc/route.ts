@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { serverlessStore } from "@/lib/serverless-store";
 import { tryBackendProxy } from "@/lib/backend-proxy";
+import { guardStoreSite } from "@/lib/store-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,12 @@ export async function GET(
   const params = await ctx.params;
   const proxied = await tryBackendProxy(
     req,
-    `/organizations/${params.orgId}/sites/${params.siteId}/integrations/gsc`
+    `/organizations/${params.orgId}/sites/${params.siteId}/integrations/gsc${req.nextUrl.search}`
   );
   if (proxied) return proxied;
+
+  const guard = guardStoreSite(req, params.orgId, params.siteId);
+  if (guard instanceof NextResponse) return guard;
 
   const gsc = serverlessStore.getGscMetrics(params.siteId);
   return NextResponse.json(gsc);

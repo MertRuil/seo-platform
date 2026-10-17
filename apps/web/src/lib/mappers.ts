@@ -25,9 +25,11 @@ export function toSeverity(s: string | null | undefined): Severity {
 function hrefForCategory(category: string): string {
   const c = category.toUpperCase();
   if (c.includes("SCHEMA") || c.includes("STRUCTURED")) return "/schema";
-  if (c.includes("LINK") || c.includes("ORPHAN") || c.includes("ANCHOR")) return "/links";
-  if (c.includes("CONTENT") || c.includes("TITLE") || c.includes("META") || c.includes("CTR")) return "/opportunities";
-  return "/changes";
+  if (c.includes("ORPHAN") || c.includes("INTERNAL_LINK") || c.includes("ANCHOR")) return "/links";
+  if (c.includes("CTR") || c.includes("IMPRESSION") || c.includes("OPPORTUNITY")) return "/opportunities";
+  if (c.includes("PERFORMANCE") || c.includes("CWV")) return "/cwv";
+  // Taramadan gelen teknik ve içerik bulguları: etkilenen sayfalarıyla Sorunlar ekranında
+  return "/issues";
 }
 
 function firstSourceTitle(ragSourcesJson: string): string {
@@ -81,44 +83,49 @@ const RULE_LABELS: Record<string, string> = {
 };
 
 export function healthToView(h: SiteHealthReportResponse): HealthData {
-  const bySeverity = (sev: Severity) => h.issues.filter((i) => toSeverity(i.severity) === sev).length;
   const rules: HealthRule[] = Object.entries(RULE_LABELS).map(([ruleId, label]) => {
     const hit = h.issues.find((i) => i.rule_id === ruleId);
-    if (!hit) return { rule: label, status: "Mükemmel", score: "100/100", note: "İhlal bulunmadı." };
+    if (!hit) return { rule: label, status: "İyi", score: "—", note: "Bu taramada bu kurala ait bulgu bildirilmedi." };
     const sev = toSeverity(hit.severity);
     const status: HealthRule["status"] = sev === "CRITICAL" || sev === "HIGH" ? "Kritik" : sev === "MEDIUM" ? "Uyarı" : "İyi";
-    const penalty = sev === "CRITICAL" ? 40 : sev === "HIGH" ? 25 : sev === "MEDIUM" ? 15 : 5;
-    return { rule: label, status, score: `${Math.max(0, 100 - penalty)}/100`, note: `${hit.affected_url_count} URL etkilendi: ${hit.description}` };
+    return { rule: label, status, score: `${hit.affected_url_count} URL`, note: `${hit.affected_url_count} URL etkilendi: ${hit.description}` };
   });
-  const critical = bySeverity("CRITICAL") + bySeverity("HIGH");
-  const medium = bySeverity("MEDIUM");
+  const group = (id: string) => /REDIRECT|HTTP/.test(id) ? 2 : /META|TITLE|H1|THIN|CONTENT/.test(id) ? 1 : 0;
   return {
     score: h.health_score,
     pages: h.total_pages_evaluated,
     issues: h.total_issues_found,
     breakdown: [
-      { label: "Dizinlenebilirlik & taranabilirlik", pct: Math.max(0, 100 - critical * 15) },
-      { label: "Meta veri & içerik uyumu", pct: Math.max(0, 100 - medium * 8) },
-      { label: "Yönlendirmeler & HTTP durumu", pct: Math.max(0, 100 - h.issues.filter((i) => i.rule_id.includes("REDIRECT") || i.rule_id.includes("HTTP")).length * 12) },
+      ...["Teknik ve diğer bulgular", "Meta veri ve içerik bulguları", "Yönlendirme ve HTTP bulguları"].map((label, index) => ({ label, pct: h.issues.length ? Math.round(100 * h.issues.filter((issue) => group(issue.rule_id) === index).length / h.issues.length) : 0 })),
     ],
     rules,
   };
 }
 
+const SEVERITY_ORDER: Record<Severity, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+
+/** Sorunları önem ve etkilenen sayfa sayısına göre sıralar (en acil üstte). */
+export function sortIssues(list: IssueItem[]): IssueItem[] {
+  return [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || (b.affected ?? 0) - (a.affected ?? 0));
+}
+
 export function healthToIssues(h: SiteHealthReportResponse): IssueItem[] {
-  return h.issues.map((i, idx) => ({
-    id: `${i.rule_id}-${idx}`,
-    title: i.title,
-    category: i.category,
-    severity: toSeverity(i.severity),
-    url: `${i.affected_url_count} URL etkilendi`,
-    diagnosis: i.description,
-    fix: i.recommendation_template,
-    before: `<!-- ${i.rule_id}: ${i.affected_url_count} URL -->`,
-    after: `<!-- Öneri: ${i.recommendation_template} -->`,
-    docUrl: i.documentation_url ?? undefined,
-    affected: i.affected_url_count,
-  }));
+  return sortIssues(
+    h.issues.map((i) => ({
+      id: i.rule_id,
+      ruleId: i.rule_id,
+      title: i.title,
+      category: i.category,
+      severity: toSeverity(i.severity),
+      url: i.affected_urls?.[0] ?? "",
+      urls: i.affected_urls ?? [],
+      diagnosis: i.description,
+      fix: i.recommendation_template,
+      docUrl: i.documentation_url ?? undefined,
+      affected: i.affected_url_count,
+      totalPages: h.total_pages_evaluated,
+    }))
+  );
 }
 
 export function pagesToRows(p: PaginatedPagesResponse): PageRow[] {
@@ -146,12 +153,12 @@ export function gscToPerformance(rows: GscSearchMetricResponse[]): PerformanceDa
   for (const r of rows) {
     clicks += r.clicks;
     impressions += r.impressions;
-    posSum += r.position;
+    posSum += r.position * r.impressions;
     const q = byQuery.get(r.query) ?? { clicks: 0, impressions: 0, posSum: 0, n: 0 };
     q.clicks += r.clicks;
     q.impressions += r.impressions;
-    q.posSum += r.position;
-    q.n += 1;
+    q.posSum += r.position * r.impressions;
+    q.n += r.impressions;
     byQuery.set(r.query, q);
   }
   const queries = Array.from(byQuery.entries())
@@ -162,7 +169,7 @@ export function gscToPerformance(rows: GscSearchMetricResponse[]): PerformanceDa
     clicks,
     impressions,
     ctr: impressions ? clicks / impressions : 0,
-    position: rows.length ? posSum / rows.length : 0,
+    position: impressions ? posSum / impressions : 0,
     deltas: { clicks: "", impressions: "", position: "" },
     queries,
   };
