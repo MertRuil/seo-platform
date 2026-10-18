@@ -253,10 +253,19 @@ class HeadlessRenderEngine:
         if playwright_available and spa_profile.is_spa:
             try:
                 from playwright.async_api import async_playwright
+                from services.security.ssrf import validate_safe_url, SSRFSecurityException
+
                 async with async_playwright() as p:
                     browser = await p.chromium.launch(
                         headless=True,
-                        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+                        args=[
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox",
+                            "--disable-dev-shm-usage",
+                            "--disable-file-system",
+                            "--disable-extensions",
+                            "--disable-background-networking",
+                        ]
                     )
                     context_options = {
                         "viewport": {"width": 390, "height": 844} if device == "mobile" else {"width": 1280, "height": 720},
@@ -269,13 +278,33 @@ class HeadlessRenderEngine:
                         "has_touch": (device == "mobile"),
                     }
                     context = await browser.new_context(**context_options)
+
+                    async def _ssrf_route_guard(route):
+                        req_url = route.request.url
+                        if url and req_url == url and raw_html:
+                            await route.fulfill(status=200, body=raw_html, content_type="text/html")
+                            return
+                        if req_url == "about:blank":
+                            await route.continue_()
+                            return
+                        if not (req_url.startswith("http://") or req_url.startswith("https://")):
+                            await route.abort("accessdenied")
+                            return
+                        try:
+                            validate_safe_url(req_url)
+                            await route.continue_()
+                        except (SSRFSecurityException, Exception) as ssrf_exc:
+                            logger.warning(f"Blocked unsafe headless subresource request to '{req_url}': {ssrf_exc}")
+                            await route.abort("accessdenied")
+
+                    await context.route("**/*", _ssrf_route_guard)
                     page = await context.new_page()
 
                     rendered_candidate = None
                     # 1. Attempt intercepted navigation so raw_html is loaded under the correct origin
                     if url and (url.startswith("http://") or url.startswith("https://")) and raw_html:
                         try:
-                            await page.route(url, lambda route: route.fulfill(status=200, body=raw_html, content_type="text/html"))
+                            validate_safe_url(url)
                             await page.goto(url, wait_until="domcontentloaded", timeout=min(timeout_ms, 8000))
                             try:
                                 await page.wait_for_load_state("networkidle", timeout=2000)

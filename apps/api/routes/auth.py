@@ -133,11 +133,20 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
     # Login successful - reset failed attempts
     _clear_failed_attempts(clean_email)
 
-    token_data = {"sub": user.id, "email": user.email, "is_admin": user.is_platform_admin}
+    token_data = _build_user_token_data(user)
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data)
     )
+
+def _build_user_token_data(user: User) -> Dict[str, Any]:
+    pwd_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
+    return {
+        "sub": user.id,
+        "email": user.email,
+        "is_admin": user.is_platform_admin,
+        "pwd_fp": pwd_fp,
+    }
 
 def _reset_code_hash(email: str, code: str) -> str:
     return hmac.new(settings.APP_SECRET_KEY.encode(), f"{email}:{code}".encode(), hashlib.sha256).hexdigest()
@@ -226,9 +235,12 @@ async def oauth_login(req: OAuthLoginRequest, db: AsyncSession = Depends(get_db)
         await db.commit()
         await db.refresh(user)
 
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User account is deactivated")
+
     _clear_failed_attempts(clean_email)
 
-    token_data = {"sub": user.id, "email": user.email, "is_admin": user.is_platform_admin}
+    token_data = _build_user_token_data(user)
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data)
@@ -285,8 +297,19 @@ async def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token_data = {"sub": user.id, "email": user.email, "is_admin": user.is_platform_admin}
+    pwd_fp = payload.get("pwd_fp")
+    if pwd_fp:
+        current_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
+        if current_fp != pwd_fp:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Şifre değiştirildiği için oturum geçersiz kılındı. Lütfen tekrar giriş yapın.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    token_data = _build_user_token_data(user)
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data)
     )
+

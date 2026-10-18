@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
+    PERPLEXITY_API_KEY: Optional[str] = None
     DEFAULT_LLM_MODEL: str = "gemini-1.5-pro"
     DEFAULT_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
@@ -56,8 +57,11 @@ class Settings(BaseSettings):
     GOOGLE_OAUTH_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
     GITHUB_OAUTH_CLIENT_ID: Optional[str] = None
 
-    # CrUX
+    # CrUX & External SEO/Backlink Providers
     CRUX_API_KEY: Optional[str] = None
+    DATAFORSEO_LOGIN: Optional[str] = None
+    DATAFORSEO_PASSWORD: Optional[str] = None
+    OPENPAGERANK_API_KEY: Optional[str] = None
 
     # App URLs
     API_BASE_URL: str = "http://localhost:8000"
@@ -74,19 +78,18 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT.lower() != "test":
             self.ALLOW_TEST_OAUTH_TOKENS = False
 
-        if self.ENVIRONMENT.lower() in {"production", "prod"}:
+        if self.ENVIRONMENT.lower() in {"production", "prod", "staging"}:
             if self.APP_SECRET_KEY.startswith("default-insecure-") or len(self.APP_SECRET_KEY) < 32:
-                raise ValueError("APP_SECRET_KEY must be a non-default value of at least 32 characters in production")
+                raise ValueError("APP_SECRET_KEY must be a non-default value of at least 32 characters in production/staging")
             if self.ENCRYPTION_KEY == "0123456789abcdef" * 4:
-                raise ValueError("ENCRYPTION_KEY must be changed in production")
+                raise ValueError("ENCRYPTION_KEY must be changed in production/staging")
             try:
                 if len(bytes.fromhex(self.ENCRYPTION_KEY)) != 32:
                     raise ValueError
             except ValueError as exc:
                 raise ValueError("ENCRYPTION_KEY must be a 64-character hexadecimal AES-256 key") from exc
 
-        # PostgreSQL is the only supported data source outside local development/test
-        if self.ENVIRONMENT.lower() in {"production", "prod", "staging"}:
+            # PostgreSQL is the only supported data source outside local development/test
             if not self.DATABASE_URL.lower().startswith(("postgresql://", "postgresql+asyncpg://", "postgres://")):
                 raise ValueError("DATABASE_URL must point to PostgreSQL in production/staging (sqlite is not allowed)")
         return self

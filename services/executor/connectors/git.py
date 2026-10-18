@@ -9,6 +9,7 @@ import httpx
 from services.executor.base import SiteConnector
 from services.security.ssrf import validate_safe_url
 from services.crawler.html_extractor import HtmlExtractor
+from services.crawler.safe_client import SafeHttpClient
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class GitBasedConnector(SiteConnector):
             return False
 
     async def get_capabilities(self) -> List[str]:
-        return ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CONTENT", "CAN_EDIT_SCHEMA", "CAN_EDIT_ROBOTS"]
+        return ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CONTENT", "CAN_EDIT_SCHEMA", "CAN_EDIT_ROBOTS", "CAN_DEPLOY_LLMS_TXT"]
 
     async def read_page_state(self, url: str) -> Dict[str, Any]:
         if self.repo.startswith("mock/"):
@@ -65,15 +66,15 @@ class GitBasedConnector(SiteConnector):
         except Exception as e:
             logger.warning(f"Could not fetch Git head commit SHA for {self.repo}: {e}")
 
-        # If URL is live, also derive canonical SEO hash
+        # If URL is live, also derive canonical SEO hash via SSRF-safe hop-validated client
         canonical_seo_hash = commit_sha
         try:
             validate_safe_url(url)
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                page_res = await client.get(url)
-                if page_res.status_code == 200:
-                    extracted = HtmlExtractor.extract(page_res.text, url)
-                    canonical_seo_hash = extracted.canonical_seo_hash
+            safe_fetcher = SafeHttpClient(mode="OWNER_AUDIT", timeout_seconds=10.0)
+            page_res = await safe_fetcher.fetch(url)
+            if page_res.status_code == 200 and page_res.text:
+                extracted = HtmlExtractor.extract(page_res.text, url)
+                canonical_seo_hash = extracted.canonical_seo_hash
         except Exception:
             pass
 
@@ -88,11 +89,19 @@ class GitBasedConnector(SiteConnector):
         if self.repo.startswith("mock/"):
             return True
 
+        operation = (change_item.get("operation") or "").upper()
+        target_url = change_item.get("target_url", "")
+        parsed = urlparse(target_url)
+
         file_path = change_item.get("file_path") or change_item.get("file")
         if not file_path:
-            parsed = urlparse(change_item.get("target_url", ""))
-            slug = parsed.path.strip("/").replace("/", "_") or "index"
-            file_path = f"seo-metadata/{slug}.json"
+            if operation == "DEPLOY_LLMS_FULL_TXT" or parsed.path.endswith("/llms-full.txt"):
+                file_path = "public/llms-full.txt"
+            elif operation == "DEPLOY_LLMS_TXT" or parsed.path.endswith("/llms.txt"):
+                file_path = "public/llms.txt"
+            else:
+                slug = parsed.path.strip("/").replace("/", "_") or "index"
+                file_path = f"seo-metadata/{slug}.json"
 
         state_after = change_item.get("state_after", {})
         if isinstance(state_after, str):
@@ -101,7 +110,16 @@ class GitBasedConnector(SiteConnector):
             except Exception:
                 state_after = {"raw": state_after}
 
-        content_str = json.dumps(state_after, indent=2, ensure_ascii=False)
+        if file_path.endswith(".txt") and isinstance(state_after, dict):
+            content_str = (
+                state_after.get("llms_txt_content")
+                or state_after.get("static_body")
+                or state_after.get("raw")
+                or json.dumps(state_after, indent=2, ensure_ascii=False)
+            )
+        else:
+            content_str = json.dumps(state_after, indent=2, ensure_ascii=False)
+
         branch_name = f"seo-opt-{uuid.uuid4().hex[:8]}"
         headers = self._get_headers()
 

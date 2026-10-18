@@ -69,7 +69,10 @@ const globalAuth = global as unknown as {
  */
 export function isLocalAuthEnabled(): boolean {
   if (process.env.REQUIRE_STRICT_BACKEND === "true") {
-    return (process.env.NODE_ENV as string) !== "production";
+    return false;
+  }
+  if ((process.env.NODE_ENV as string) === "production") {
+    return process.env.ALLOW_LOCAL_AUTH_IN_PRODUCTION === "true";
   }
   return true;
 }
@@ -78,7 +81,13 @@ function getInitialUsers(): UserRecord[] {
   if (!isLocalAuthEnabled()) return [];
 
   const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || "admin@calpeo.io").trim().toLowerCase();
-  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD || "Admin12345!";
+  const adminPassword = (process.env.INITIAL_ADMIN_PASSWORD || "").trim();
+
+  // Sabit (hardcoded) parolalar güvenlik riski oluşturduğundan yalnızca
+  // INITIAL_ADMIN_PASSWORD ortam değişkeni açıkça tanımlandığında (en az 12 karakter) başlangıç yöneticisi oluşturulur.
+  if (!adminPassword || adminPassword.length < 12) {
+    return [];
+  }
 
   return [
     {
@@ -90,28 +99,6 @@ function getInitialUsers(): UserRecord[] {
       isAdmin: true,
       isSuperAdmin: true,
       permissions: ["*"],
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "usr_admin_local",
-      email: "admin@seo-platform.local",
-      passwordHash: hashPassword(adminPassword),
-      fullName: "Geliştirici Yönetici",
-      role: "Süper Yönetici",
-      isAdmin: true,
-      isSuperAdmin: true,
-      permissions: ["*"],
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "usr_demo_user",
-      email: "o@p.ai",
-      passwordHash: hashPassword("Password123!"),
-      fullName: "Örnek Kullanıcı",
-      role: "SEO Yöneticisi",
-      isAdmin: false,
-      isSuperAdmin: false,
-      permissions: ["read", "crawl", "audit", "recommendations"],
       createdAt: new Date().toISOString(),
     },
   ];

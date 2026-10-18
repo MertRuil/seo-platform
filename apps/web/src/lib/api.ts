@@ -340,21 +340,68 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
-  getGeoAnalytics(orgId: string, siteId: string) {
-    return this.request<any>(`/organizations/${orgId}/sites/${siteId}/geo`);
+  getGeoAnalytics(orgId: string, siteId: string, sampleRuns: number = 3) {
+    return this.request<any>(`/organizations/${orgId}/sites/${siteId}/geo?sample_runs=${sampleRuns}`);
   }
-  simulateGeoQuery(orgId: string, siteId: string, prompt: string, brandName?: string) {
+  simulateGeoQuery(
+    orgId: string,
+    siteId: string,
+    prompt: string,
+    brandName?: string,
+    sampleRuns: number = 3,
+    enableWebGrounding: boolean = true
+  ) {
     return this.request<{
       prompt: string;
       brand_mentioned: boolean;
       citation_rank: number;
       mentions_count: number;
       citations_count: number;
-      platform_results: Record<string, { mentioned: boolean; snippet: string }>;
+      platform_results: Record<string, any>;
       top_competitor_cited: string;
+      cited_sources?: any[];
+      monte_carlo?: any;
+      recommended_fix?: any;
+      is_simulated?: boolean;
+      data_source?: string;
     }>(`/organizations/${orgId}/sites/${siteId}/geo/simulate`, {
       method: "POST",
-      body: JSON.stringify({ prompt, brand_name: brandName }),
+      body: JSON.stringify({
+        prompt,
+        brand_name: brandName,
+        sample_runs: sampleRuns,
+        enable_web_grounding: enableWebGrounding,
+      }),
+    });
+  }
+  getLlmsTxtBundle(orgId: string, siteId: string, probeLive: boolean = false) {
+    return this.request<any>(`/organizations/${orgId}/sites/${siteId}/geo/llms-txt?probe_live=${probeLive}`);
+  }
+  deployGeoAction(
+    orgId: string,
+    siteId: string,
+    data: {
+      action_type: "DEPLOY_LLMS_TXT" | "DEPLOY_LLMS_FULL_TXT" | "INJECT_GEO_SCHEMA" | "INJECT_DIRECT_ANSWER" | "ALLOW_AI_BOTS_ROBOTS" | string;
+      target_url?: string;
+      title?: string;
+      prompt_context?: string;
+      custom_content?: string;
+      auto_execute?: boolean;
+    }
+  ) {
+    return this.request<{
+      success: boolean;
+      action_type: string;
+      target_url: string;
+      operation: string;
+      change_set_id: string;
+      status: string;
+      connector_type: string;
+      message: string;
+      preview_diff?: Record<string, any>;
+    }>(`/organizations/${orgId}/sites/${siteId}/geo/deploy-action`, {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
   evaluateExperiment(orgId: string, siteId: string, data: { name: string; variant_pages: string[]; control_pages: string[] }) {

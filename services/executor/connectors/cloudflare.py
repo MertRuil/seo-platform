@@ -4,6 +4,7 @@ import httpx
 from typing import Dict, Any, List, Optional
 from services.executor.base import SiteConnector
 from services.security.ssrf import validate_safe_url
+from services.crawler.safe_client import SSRFSafeAsyncHTTPTransport
 
 class CloudflareWorkerConnector(SiteConnector):
     """
@@ -41,6 +42,15 @@ class CloudflareWorkerConnector(SiteConnector):
         self.base_url = base_url or ""
         self._memory_kv: Dict[str, Any] = {}
 
+    def _safe_async_client(self, timeout: float = 15.0) -> httpx.AsyncClient:
+        transport = SSRFSafeAsyncHTTPTransport(verify=True, trust_env=False)
+        return httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False
+        )
+
     def _get_headers(self) -> Dict[str, str]:
         return {
             "Authorization": f"Bearer {self.api_token}",
@@ -59,7 +69,7 @@ class CloudflareWorkerConnector(SiteConnector):
         url = f"{self.CF_API_BASE}/zones/{self.zone_id}"
         try:
             validate_safe_url(url)
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with self._safe_async_client(timeout=10.0) as client:
                 resp = await client.get(url, headers=self._get_headers())
                 if resp.status_code == 200:
                     data = resp.json()
@@ -77,6 +87,7 @@ class CloudflareWorkerConnector(SiteConnector):
             "CAN_EDIT_SCHEMA",
             "CAN_EDIT_REDIRECT",
             "CAN_OVERRIDE_ROBOTS",
+            "CAN_DEPLOY_LLMS_TXT",
             "EDGE_HTML_REWRITE",
             "ZERO_ORIGIN_LATENCY"
         ]
@@ -105,7 +116,7 @@ class CloudflareWorkerConnector(SiteConnector):
             }
 
         validate_safe_url(url)
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+        async with self._safe_async_client(timeout=15.0) as client:
             resp = await client.get(url)
             content_hash = hashlib.sha256(resp.content).hexdigest()
             canonical_hash = content_hash
@@ -132,10 +143,21 @@ class CloudflareWorkerConnector(SiteConnector):
           - 301/302 Redirects
           - Meta descriptions / Title tags
           - JSON-LD schemas
+          - Static /llms.txt and /llms-full.txt Edge serving
+          - Direct Answer HTML block injection
         """
         target_url = change_item.get("target_url") or change_item.get("url") or "/"
         operation = change_item.get("operation") or change_item.get("action_type") or "EDGE_OVERRIDE"
-        state_after = change_item.get("state_after") or {}
+        raw_state_after = change_item.get("state_after") or {}
+        if isinstance(raw_state_after, str):
+            try:
+                state_after = json.loads(raw_state_after)
+                if not isinstance(state_after, dict):
+                    state_after = {"static_body": str(raw_state_after)}
+            except Exception:
+                state_after = {"static_body": raw_state_after}
+        else:
+            state_after = raw_state_after
 
         rule_key = hashlib.sha256(target_url.encode("utf-8")).hexdigest()[:16]
         edge_payload = {
@@ -145,6 +167,9 @@ class CloudflareWorkerConnector(SiteConnector):
             "title": state_after.get("title") or change_item.get("title"),
             "meta_description": state_after.get("meta_description") or change_item.get("meta_description"),
             "schema_json": state_after.get("schema_json") or change_item.get("schema_json"),
+            "direct_answer_html": state_after.get("direct_answer_html") or change_item.get("direct_answer_html"),
+            "static_body": state_after.get("static_body") or state_after.get("llms_txt_content") or change_item.get("static_body"),
+            "content_type": state_after.get("content_type", "text/plain; charset=utf-8"),
             "redirect_to": state_after.get("redirect_to") or change_item.get("redirect_to"),
             "redirect_status": state_after.get("redirect_status", 301),
             "custom_headers": state_after.get("custom_headers", {})
@@ -166,7 +191,7 @@ class CloudflareWorkerConnector(SiteConnector):
             kv_url = f"{self.CF_API_BASE}/accounts/{self.account_id}/storage/kv/namespaces/{self.kv_namespace_id}/values/{rule_key}"
             try:
                 validate_safe_url(kv_url)
-                async with httpx.AsyncClient(timeout=15.0) as client:
+                async with self._safe_async_client(timeout=15.0) as client:
                     resp = await client.put(
                         kv_url,
                         headers=self._get_headers(),
@@ -202,7 +227,7 @@ class CloudflareWorkerConnector(SiteConnector):
             kv_url = f"{self.CF_API_BASE}/accounts/{self.account_id}/storage/kv/namespaces/{self.kv_namespace_id}/values/{rule_key}"
             try:
                 validate_safe_url(kv_url)
-                async with httpx.AsyncClient(timeout=15.0) as client:
+                async with self._safe_async_client(timeout=15.0) as client:
                     resp = await client.delete(kv_url, headers=self._get_headers())
                     return resp.status_code in (200, 204, 404)
             except Exception:
@@ -214,11 +239,11 @@ class CloudflareWorkerConnector(SiteConnector):
     def generate_edge_worker_script(cls) -> str:
         """
         Generates production-ready Cloudflare Worker script leveraging HTMLRewriter
-        to dynamically inject SEO optimizations at the edge.
+        to dynamically inject SEO & GEO optimizations (/llms.txt, Direct Answer, JSON-LD) at the edge.
         """
         return """/**
- * Autonomous SEO Edge Worker (Cloudflare Workers + HTMLRewriter)
- * Intercepts incoming responses and applies zero-latency SEO rules.
+ * Autonomous SEO & GEO Edge Worker (Cloudflare Workers + HTMLRewriter)
+ * Intercepts incoming responses and applies zero-latency SEO/GEO rules.
  */
 
 addEventListener('fetch', event => {
@@ -232,11 +257,23 @@ async function handleRequest(request) {
     new TextEncoder().encode(url.href)
   ).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16));
 
-  // Retrieve Edge SEO rule from KV namespace
+  // Retrieve Edge SEO/GEO rule from KV namespace
   let rule = null;
   if (typeof SEO_EDGE_KV !== 'undefined') {
     const raw = await SEO_EDGE_KV.get(pathKey);
     if (raw) rule = JSON.parse(raw);
+  }
+
+  // Handle Static Edge Serving (/llms.txt and /llms-full.txt)
+  if (rule && rule.static_body) {
+    return new Response(rule.static_body, {
+      status: 200,
+      headers: {
+        'Content-Type': rule.content_type || 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600',
+        'X-GEO-Edge': 'Calpeo-LLMS-TXT'
+      }
+    });
   }
 
   // Handle Edge Redirect
@@ -291,6 +328,16 @@ async function handleRequest(request) {
     });
   }
 
+  // GEO Direct Answer block injection
+  if (rule.direct_answer_html) {
+    rewriter = rewriter.on('body', {
+      element(el) {
+        el.prepend(rule.direct_answer_html, { html: true });
+      }
+    });
+  }
+
   return rewriter.transform(response);
 }
 """
+

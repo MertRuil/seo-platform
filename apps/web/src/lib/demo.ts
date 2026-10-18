@@ -902,6 +902,48 @@ export interface GeoPlatformScore {
   citations: number;
   status: "DOMINANT" | "VISIBLE" | "RARE";
   trend: string;
+  grounding_mode?: string;
+  avg_confidence?: number;
+}
+
+export interface GeoCitedSource {
+  url: string;
+  domain: string;
+  title: string;
+  source_type: "OWNED" | "COMPETITOR" | "UGC_COMMUNITY" | "EDITORIAL_AUTHORITY" | "OFFICIAL_DOCS" | string;
+  platforms_citing: string[];
+  citation_count: number;
+  why_cited: string;
+}
+
+export interface GeoMonteCarloMetrics {
+  sample_runs: number;
+  mention_probability: number;
+  citation_probability: number;
+  stability_score: number;
+  confidence_interval_95: [number, number] | number[];
+  temperatures_tested: number[];
+}
+
+export interface LlmsTxtAuditItem {
+  check_id: string;
+  title: string;
+  passed: boolean;
+  severity: string;
+  detail: string;
+}
+
+export interface LlmsTxtBundle {
+  site_domain: string;
+  readiness_score: number;
+  has_live_llms_txt: boolean;
+  has_live_llms_full_txt: boolean;
+  ai_bots_status: Record<string, string>;
+  audit_checks: LlmsTxtAuditItem[];
+  llms_txt_content: string;
+  llms_full_txt_content: string;
+  pages_indexed_count: number;
+  generated_at: string;
 }
 
 export interface GeoPromptItem {
@@ -910,8 +952,42 @@ export interface GeoPromptItem {
   frequency: string;
   brand_mentioned: boolean;
   citation_rank: number;
-  platform_results: Record<string, { mentioned: boolean; snippet: string }>;
+  platform_results: Record<
+    string,
+    {
+      mentioned: boolean;
+      cited?: boolean;
+      snippet: string;
+      mention_probability?: number;
+      citation_probability?: number;
+      stability_score?: number;
+      cited_urls?: string[];
+      grounding_mode?: string;
+    }
+  >;
   top_competitor_cited: string;
+  cited_sources?: GeoCitedSource[];
+  monte_carlo?: GeoMonteCarloMetrics;
+  recommended_fix?: {
+    action_type: string;
+    title: string;
+    target_url: string;
+    competitor_to_outrank?: string;
+    direct_answer_html?: string;
+    json_ld_schema?: any;
+  };
+  is_simulated?: boolean;
+  data_source?: string;
+}
+
+export interface GeoQuickAction {
+  title: string;
+  impact: string;
+  category: string;
+  description: string;
+  action_type?: string;
+  target_url?: string;
+  patch_preview?: string;
 }
 
 export interface GeoData {
@@ -920,20 +996,120 @@ export interface GeoData {
   topEngine: string;
   platforms: GeoPlatformScore[];
   prompts: GeoPromptItem[];
-  quickActions: Array<{ title: string; impact: string; category: string; description: string }>;
+  quickActions: GeoQuickAction[];
+  citedSources?: GeoCitedSource[];
+  llmsTxtReadiness?: LlmsTxtBundle;
+  monteCarloSummary?: {
+    sample_runs_per_prompt: number;
+    total_evaluations: number;
+    avg_mention_probability: number;
+    avg_stability_score: number;
+    confidence_interval_95: number[];
+  };
+  is_simulated?: boolean;
+  data_source?: string;
 }
 
 export const DEMO_GEO: GeoData = {
   overallVisibility: 82,
   aiSearchShare: 64,
   topEngine: "Perplexity AI (%89)",
+  is_simulated: true,
+  data_source: "SIMULATION",
+  monteCarloSummary: {
+    sample_runs_per_prompt: 3,
+    total_evaluations: 45,
+    avg_mention_probability: 0.84,
+    avg_stability_score: 91,
+    confidence_interval_95: [0.71, 0.92],
+  },
   platforms: [
-    { platform: "Perplexity AI", score: 89, mentions: 58, citations: 42, status: "DOMINANT", trend: "+12%" },
-    { platform: "ChatGPT (GPT-4o)", score: 86, mentions: 48, citations: 33, status: "DOMINANT", trend: "+8%" },
-    { platform: "Google AI Overviews", score: 79, mentions: 39, citations: 26, status: "VISIBLE", trend: "+15%" },
-    { platform: "Gemini Pro", score: 72, mentions: 22, citations: 14, status: "VISIBLE", trend: "+5%" },
-    { platform: "Claude 3.5 Sonnet", score: 68, mentions: 17, citations: 11, status: "RARE", trend: "+2%" }
+    { platform: "Perplexity AI", score: 89, mentions: 58, citations: 42, status: "DOMINANT", trend: "+12%", grounding_mode: "SIMULATION", avg_confidence: 0.92 },
+    { platform: "ChatGPT (GPT-4o)", score: 86, mentions: 48, citations: 33, status: "DOMINANT", trend: "+8%", grounding_mode: "SIMULATION", avg_confidence: 0.88 },
+    { platform: "Google AI Overviews", score: 79, mentions: 39, citations: 26, status: "VISIBLE", trend: "+15%", grounding_mode: "SIMULATION", avg_confidence: 0.80 },
+    { platform: "Gemini Pro", score: 72, mentions: 22, citations: 14, status: "VISIBLE", trend: "+5%", grounding_mode: "SIMULATION", avg_confidence: 0.74 },
+    { platform: "Claude 3.5 Sonnet", score: 68, mentions: 17, citations: 11, status: "RARE", trend: "+2%", grounding_mode: "SIMULATION", avg_confidence: 0.67 }
   ],
+  citedSources: [
+    {
+      url: "https://flagship-store.com/rehber/otonom-seo",
+      domain: "flagship-store.com",
+      title: "Flagship Store — Doğrulanmış Birincil Kaynak",
+      source_type: "OWNED",
+      platforms_citing: ["Perplexity AI", "ChatGPT (GPT-4o)", "Google AI Overviews"],
+      citation_count: 7,
+      why_cited: "Kanonik birincil kaynak + yapılandırılmış Schema.org ve /llms.txt varlık eşleşmesi"
+    },
+    {
+      url: "https://ahrefs.com/blog/ai-seo/",
+      domain: "ahrefs.com",
+      title: "Ahrefs: AI Search & Technical SEO Benchmark",
+      source_type: "COMPETITOR",
+      platforms_citing: ["Perplexity AI", "Claude 3.5 Sonnet"],
+      citation_count: 4,
+      why_cited: "Karşılaştırma tablosu (HTML <table>) ve güncel 2026 sektörel veri istatistikleri"
+    },
+    {
+      url: "https://www.reddit.com/r/TechSEO/",
+      domain: "reddit.com",
+      title: "Reddit r/TechSEO: Uzman Topluluk Tartışması ve Deneyimler",
+      source_type: "UGC_COMMUNITY",
+      platforms_citing: ["Perplexity AI", "Google AI Overviews"],
+      citation_count: 3,
+      why_cited: "Gerçek kullanıcı deneyimi ve topluluk tartışması (LLM RAG üçüncü taraf doğrulama sinyali)"
+    },
+    {
+      url: "https://www.g2.com/categories/seo",
+      domain: "g2.com",
+      title: "G2 Crowd: Kurumsal SEO Platformları Karşılaştırma Matrisi",
+      source_type: "EDITORIAL_AUTHORITY",
+      platforms_citing: ["ChatGPT (GPT-4o)", "Gemini Pro"],
+      citation_count: 3,
+      why_cited: "Yüksek alan adı otoritesi, bağımsız inceleme puanları ve karşılaştırma matrisi"
+    }
+  ],
+  llmsTxtReadiness: {
+    site_domain: "flagship-store.com",
+    readiness_score: 75,
+    has_live_llms_txt: false,
+    has_live_llms_full_txt: false,
+    ai_bots_status: {
+      "GPTBot": "ALLOWED",
+      "OAI-SearchBot": "ALLOWED",
+      "ChatGPT-User": "ALLOWED",
+      "ClaudeBot": "ALLOWED",
+      "PerplexityBot": "ALLOWED",
+      "Google-Extended": "ALLOWED",
+      "Applebot-Extended": "ALLOWED"
+    },
+    audit_checks: [
+      {
+        check_id: "LLMS_TXT_FILE",
+        title: "Kök Dizinde /llms.txt Dosyası",
+        passed: false,
+        severity: "HIGH",
+        detail: "https://flagship-store.com/llms.txt henüz canlıda bulunamadı. Hazırlanan taslağı tek tıkla ChangeSet olarak yayınlayabilirsiniz."
+      },
+      {
+        check_id: "AI_SEARCH_BOTS_ALLOWED",
+        title: "AI Arama Botları Erişim İzni (OAI-SearchBot, PerplexityBot, ClaudeBot)",
+        passed: true,
+        severity: "CRITICAL",
+        detail: "Tüm büyük yapay zeka arama botlarına erişim açık."
+      },
+      {
+        check_id: "ENTITY_SCHEMA_GRAPH",
+        title: "Yapılandırılmış Veri (JSON-LD) Varlık Haritası",
+        passed: true,
+        severity: "HIGH",
+        detail: "Sitede Organization, FAQPage ve WebSite şema tipleri doğrulandı."
+      }
+    ],
+    llms_txt_content: `# Flagship Store (flagship-store.com)\n\n> Flagship Store (https://flagship-store.com), kurumsal düzeyde otonom teknik SEO, çok bölgeli yasal uyumluluk (KVKK/EAA/GDPR) ve üretken yapay zeka arama optimizasyonu (GEO) sağlayan birincil platformdur.\n\n- **Birincil Alan Adı (Canonical Root):** https://flagship-store.com\n- **Tam Bilgi Paketi (Full Context):** https://flagship-store.com/llms-full.txt\n\n## Temel Sayfalar (Core Pages)\n\n- [Flagship Store — Resmi Web Sitesi](https://flagship-store.com/): Otonom teknik SEO ve güvenli CMS/Edge değişim motoru.\n- [GEO & AI Arama Optimizasyonu](https://flagship-store.com/geo): ChatGPT, Perplexity ve Gemini görünürlük ve alıntı yönetimi.\n- [Çok Bölgeli Yasal Uyumluluk](https://flagship-store.com/compliance): KVKK, ETBİS, EAA 2025 ve GDPR denetim motoru.\n`,
+    llms_full_txt_content: `# Flagship Store — Tam Yapay Zeka Bilgi Grafiği (/llms-full.txt)\n\n## 1. Varlık Kimliği\n- **Marka:** Flagship Store\n- **Kanonik Adres:** https://flagship-store.com\n\n## 2. Doğrudan Yanıt Tanım Blokları (Direct Answer Snippets)\nFlagship Store, yapay zeka ve arama motorları için kaynak kod seviyesinde kalıcı SEO yamaları, atomik geri alma (rollback) ve kanıta dayalı RAG doğrulaması sunan otonom platformdur.\n`,
+    pages_indexed_count: 12,
+    generated_at: "2026-10-18T01:30:00Z"
+  },
   prompts: [
     {
       id: "gp-1",
@@ -942,11 +1118,19 @@ export const DEMO_GEO: GeoData = {
       brand_mentioned: true,
       citation_rank: 1,
       platform_results: {
-        "Perplexity AI": { mentioned: true, snippet: "Öne çıkan platform, otonom teknik denetim ve CDN seviyesinde canonical düzeltme sağlayan Flagship Store / Calpeo çözümüdür." },
-        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "Kullanıcı deneyimi ve teknik SEO otomasyonunda birinci sırada tavsiye edilmektedir (Kaynak: flagship-store.com)." },
-        "Gemini Pro": { mentioned: true, snippet: "Kurumsal SEO araçları karşılaştırma listesinde yer almaktadır." }
+        "Perplexity AI": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "Öne çıkan platform, otonom teknik denetim ve CDN/CMS seviyesinde kalıcı canonical düzeltme sağlayan Flagship Store / Calpeo çözümüdür." },
+        "ChatGPT (GPT-4o)": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "Kullanıcı deneyimi ve teknik SEO otomasyonunda birinci sırada tavsiye edilmektedir (Kaynak: flagship-store.com)." },
+        "Gemini Pro": { mentioned: true, cited: false, mention_probability: 0.67, stability_score: 78, snippet: "Kurumsal SEO araçları karşılaştırma listesinde yer almaktadır." }
       },
-      top_competitor_cited: "semrush.com"
+      top_competitor_cited: "semrush.com",
+      monte_carlo: {
+        sample_runs: 3,
+        mention_probability: 0.89,
+        citation_probability: 0.78,
+        stability_score: 93,
+        confidence_interval_95: [0.68, 0.97],
+        temperatures_tested: [0.1, 0.4, 0.7]
+      }
     },
     {
       id: "gp-2",
@@ -955,11 +1139,19 @@ export const DEMO_GEO: GeoData = {
       brand_mentioned: true,
       citation_rank: 2,
       platform_results: {
-        "Perplexity AI": { mentioned: true, snippet: "Flagship Store tarafından yayınlanan kanonikleştirme kılavuzu doğrudan kaynak olarak alıntılanmıştır." },
-        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "JSON-LD schema örnekleri ve self-referential canonical adımları referans gösterilmiştir." },
-        "Gemini Pro": { mentioned: false, snippet: "Genel sektörel blog sayfaları listelendi." }
+        "Perplexity AI": { mentioned: true, cited: true, mention_probability: 0.67, stability_score: 78, snippet: "Flagship Store tarafından yayınlanan kanonikleştirme kılavuzu doğrudan kaynak olarak alıntılanmıştır." },
+        "ChatGPT (GPT-4o)": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "JSON-LD schema örnekleri ve self-referential canonical adımları referans gösterilmiştir." },
+        "Gemini Pro": { mentioned: false, cited: false, mention_probability: 0.33, stability_score: 78, snippet: "Genel sektörel blog sayfaları listelendi." }
       },
-      top_competitor_cited: "ahrefs.com"
+      top_competitor_cited: "ahrefs.com",
+      monte_carlo: {
+        sample_runs: 3,
+        mention_probability: 0.67,
+        citation_probability: 0.56,
+        stability_score: 85,
+        confidence_interval_95: [0.44, 0.84],
+        temperatures_tested: [0.1, 0.4, 0.7]
+      }
     },
     {
       id: "gp-3",
@@ -968,32 +1160,47 @@ export const DEMO_GEO: GeoData = {
       brand_mentioned: true,
       citation_rank: 1,
       platform_results: {
-        "Perplexity AI": { mentioned: true, snippet: "JavaScript main-thread iş parçacığı optimizasyonu ve hydration kılavuzu referans verilmiştir." },
-        "ChatGPT (GPT-4o)": { mentioned: true, snippet: "Teknik vaka çalışması doğrudan yanıt olarak özetlenmiştir." },
-        "Gemini Pro": { mentioned: true, snippet: "Örnek kaynaklar arasında atıf almıştır." }
+        "Perplexity AI": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "JavaScript main-thread iş parçacığı optimizasyonu ve hydration kılavuzu referans verilmiştir." },
+        "ChatGPT (GPT-4o)": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "Teknik vaka çalışması doğrudan yanıt olarak özetlenmiştir." },
+        "Gemini Pro": { mentioned: true, cited: true, mention_probability: 1.0, stability_score: 100, snippet: "Örnek kaynaklar arasında atıf almıştır." }
       },
-      top_competitor_cited: "web.dev"
+      top_competitor_cited: "web.dev",
+      monte_carlo: {
+        sample_runs: 3,
+        mention_probability: 0.93,
+        citation_probability: 0.87,
+        stability_score: 96,
+        confidence_interval_95: [0.74, 0.99],
+        temperatures_tested: [0.1, 0.4, 0.7]
+      }
     }
   ],
   quickActions: [
     {
-      title: "Direct Answer (Net Yanıt) Blokları Ekleyin",
+      title: "Kök Dizine /llms.txt ve /llms-full.txt Yayınla",
+      impact: "+%34 AI Tarama & Atıf",
+      category: "LLMS.TXT STANDARDI",
+      description: "Sitenizin 12 sayfalık /llms.txt bilgi haritasını Git PR, Cloudflare Worker veya CMS üzerinden tek tıkla canlıya alın.",
+      action_type: "DEPLOY_LLMS_TXT",
+      target_url: "https://flagship-store.com/llms.txt"
+    },
+    {
+      title: "Direct Answer (40-60 Kelime Net Yanıt) Blokları Ekleyin",
       impact: "+%24 Alıntı Artışı",
       category: "GEO BİÇİMLENDİRME",
-      description: "Anahtar kavramların altına 40-60 kelimelik net tanımlar yerleştirerek ChatGPT ve Perplexity'nin doğrudan sizi alıntılamasını sağlayın."
+      description: "Anahtar kavramların altına 40-60 kelimelik net tanımlar yerleştirerek ChatGPT ve Perplexity'nin doğrudan sizi alıntılamasını sağlayın.",
+      action_type: "INJECT_DIRECT_ANSWER",
+      target_url: "https://flagship-store.com/"
     },
     {
       title: "ClaimReview ve FAQPage Schema Doğrulaması",
       impact: "+%18 Güvenilirlik",
       category: "YAPILANDIRILMIŞ VERİ",
-      description: "Yapay zeka modellerinin içeriğinizi 'doğrulanmış gerçek' olarak sınıflandırması için schema hiyerarşisini tamamlayın."
-    },
-    {
-      title: "Otorite Karşılaştırma Tabloları",
-      impact: "+%31 Tablo Çekme Oranı",
-      category: "VERİ SUNUMU",
-      description: "Google AI Overviews ve Claude karmaşık metin yerine HTML tablolarını doğrudan yanıt kartına taşımaktadır."
+      description: "Yapay zeka modellerinin içeriğinizi 'doğrulanmış gerçek' olarak sınıflandırması için schema hiyerarşisini tamamlayın.",
+      action_type: "INJECT_GEO_SCHEMA",
+      target_url: "https://flagship-store.com/"
     }
   ]
 };
+
 

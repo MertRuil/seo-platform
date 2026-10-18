@@ -73,7 +73,7 @@ def _check_google_audience(data: Dict[str, Any]):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Google belirteci hedef kitle (aud) uyuşmazlığı: Belirteç bu uygulama için üretilmemiş."
             )
-    elif settings.ENVIRONMENT.lower() == "production":
+    elif settings.is_production_like:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Sunucu güvenlik yapılandırma hatası: GOOGLE_OAUTH_CLIENT_ID üretim ortamında tanımlanmalıdır."
@@ -179,7 +179,7 @@ async def _verify_generic_bearer_token(provider: str, token: str, expected_email
                             status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="GitHub belirteci bu uygulama için üretilmemiş (client id uyuşmazlığı)."
                         )
-                elif settings.ENVIRONMENT.lower() in {"production", "prod"}:
+                elif settings.is_production_like:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail="Sunucu güvenlik yapılandırma hatası: GITHUB_OAUTH_CLIENT_ID üretim ortamında tanımlanmalıdır."

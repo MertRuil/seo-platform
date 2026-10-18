@@ -105,6 +105,7 @@ export function createSignedToken(user: { id: string; email: string; role: strin
       email: user.email,
       role: user.role,
       type: "access",
+      auth_source: "nextjs_local",
       is_admin: Boolean(user.isAdmin),
       exp: Math.floor(Date.now() / 1000) + 86400,
       iat: Math.floor(Date.now() / 1000),
@@ -117,7 +118,7 @@ export function createSignedToken(user: { id: string; email: string; role: strin
   return `${header}.${payload}.${signature}`;
 }
 
-export function verifySignedToken(token: string): { sub: string; email: string; role: string; is_admin: boolean } | null {
+export function verifySignedToken(token: string): { sub: string; email: string; role: string; is_admin: boolean; type?: string } | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
@@ -138,8 +139,47 @@ export function verifySignedToken(token: string): { sub: string; email: string; 
     if (data.exp && data.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
+    if (data.type && data.type !== "access") {
+      return null;
+    }
+    if (!data.sub) {
+      return null;
+    }
     return data;
   } catch {
     return null;
   }
 }
+
+export function extractAndVerifyRequestToken(req: Request & { cookies?: { get?: (name: string) => { value?: string } | undefined } }): {
+  sub: string;
+  email: string;
+  role: string;
+  is_admin: boolean;
+} | null {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    const rawToken = authHeader.slice(7).trim();
+    if (rawToken) {
+      const verified = verifySignedToken(rawToken);
+      if (verified) return verified;
+    }
+  }
+
+  // Fallback to httpOnly cookie (seo_platform_token)
+  const cookieVal = req.cookies?.get?.("seo_platform_token")?.value;
+  if (cookieVal) {
+    const verified = verifySignedToken(cookieVal);
+    if (verified) return verified;
+  }
+
+  const rawCookieHeader = req.headers.get("cookie") || "";
+  const match = rawCookieHeader.match(/(?:^|;\s*)seo_platform_token=([^;]+)/);
+  if (match && match[1]) {
+    const verified = verifySignedToken(decodeURIComponent(match[1].trim()));
+    if (verified) return verified;
+  }
+
+  return null;
+}
+

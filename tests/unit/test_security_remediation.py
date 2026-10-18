@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 import uuid
 from unittest.mock import patch, AsyncMock
 from httpx import AsyncClient, ASGITransport, Response
@@ -13,6 +14,14 @@ from services.security.ssrf import (
     SSRFSecurityException
 )
 from services.crawler.safe_client import SSRFSafeNetworkBackend
+from packages.shared.database import engine, Base
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def prepare_database():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 @pytest.mark.anyio
 async def test_oauth_tokenless_request_is_strictly_rejected():
@@ -243,3 +252,94 @@ async def test_github_token_from_other_oauth_app_is_rejected():
          patch.object(settings, "GITHUB_OAUTH_CLIENT_ID", "our-app-id"):
         data = await _verify_generic_bearer_token("github", "ghu_token", "victim@example.com")
         assert data["email"] == "victim@example.com"
+
+
+def test_normalize_domain_name_blocks_resolved_private_ips_and_rebinding(monkeypatch):
+    """ORTA-08: normalize_domain_name must not swallow HTTPException when DNS resolves to private/metadata IPs."""
+    from apps.api.routes.sites import normalize_domain_name
+
+    # Wildcard DNS rebinding domains must be rejected immediately
+    with pytest.raises(HTTPException) as exc_nip:
+        normalize_domain_name("https://169.254.169.254.nip.io/latest")
+    assert exc_nip.value.status_code == 400
+
+    # Domain resolving to private IP via DNS must raise 400 (not be swallowed by broad except)
+    monkeypatch.setattr(
+        "socket.getaddrinfo",
+        lambda host, port: [(2, 1, 6, "", ("169.254.169.254", 0))],
+    )
+    with pytest.raises(HTTPException) as exc_dns:
+        normalize_domain_name("https://evil-rebind.example.com")
+    assert exc_dns.value.status_code == 400
+    assert "private or cloud metadata IP" in exc_dns.value.detail
+
+
+def test_staging_environment_rejects_default_secrets(monkeypatch):
+    """ORTA-09: Staging environment must enforce non-default APP_SECRET_KEY and ENCRYPTION_KEY."""
+    # conftest.py ve yerel .env geçerli anahtarlar tanımlar; varsayılan değerlerin denetlenmesi için devre dışı bırakılır
+    monkeypatch.delenv("APP_SECRET_KEY", raising=False)
+    monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
+    with pytest.raises(ValueError, match="APP_SECRET_KEY"):
+        Settings(
+            _env_file=None,
+            ENVIRONMENT="staging",
+            DATABASE_URL="postgresql+asyncpg://u:p@db:5432/seo",
+            ENCRYPTION_KEY="fedcba9876543210" * 4,
+        )
+    with pytest.raises(ValueError, match="ENCRYPTION_KEY"):
+        Settings(
+            _env_file=None,
+            ENVIRONMENT="staging",
+            DATABASE_URL="postgresql+asyncpg://u:p@db:5432/seo",
+            APP_SECRET_KEY="a" * 32,
+        )
+
+
+@pytest.mark.anyio
+async def test_password_change_revokes_existing_jwt_and_nextjs_local_blocked_in_prod():
+    """DÜŞÜK-12 & KRİTİK-02: Password change invalidates prior JWTs via pwd_fp, and nextjs_local tokens are blocked in production."""
+    from services.security.jwt_auth import create_access_token
+    from services.security.crypto import hash_password
+    from packages.shared.database import engine, Base, AsyncSessionLocal
+    from packages.shared.models import User
+    from sqlalchemy import select
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    email = f"revoke_{uuid.uuid4().hex[:8]}@example.com"
+    transport = ASGITransport(app=api_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        reg = await client.post("/api/v1/auth/register", json={"email": email, "password": "OldPassword123!"})
+        assert reg.status_code == 201
+
+        login = await client.post("/api/v1/auth/login", json={"email": email, "password": "OldPassword123!"})
+        assert login.status_code == 200
+        old_token = login.json()["access_token"]
+
+        # Token works before password change
+        me_ok = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+        assert me_ok.status_code == 200
+
+        # Simulate password change in database
+        async with AsyncSessionLocal() as db:
+            res_u = await db.execute(select(User).where(User.email == email))
+            user_obj = res_u.scalars().first()
+            user_obj.hashed_password = hash_password("NewPassword456!")
+            await db.commit()
+
+        # Old token must now be rejected with 401
+        me_revoked = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+        assert me_revoked.status_code == 401
+
+        # KRİTİK-02: nextjs_local token rejected when ENVIRONMENT is production
+        local_token = create_access_token({
+            "sub": me_ok.json()["id"],
+            "email": email,
+            "role": "SUPER_ADMIN",
+            "auth_source": "nextjs_local",
+        })
+        with patch.object(settings, "ENVIRONMENT", "production"):
+            res_local = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {local_token}"})
+            assert res_local.status_code == 401
+

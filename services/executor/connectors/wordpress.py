@@ -8,6 +8,7 @@ import httpx
 from services.executor.base import SiteConnector
 from services.security.ssrf import validate_safe_url
 from services.crawler.html_extractor import HtmlExtractor
+from services.crawler.safe_client import SafeHttpClient, SSRFSafeAsyncHTTPTransport
 
 class WordPressConnector(SiteConnector):
     """
@@ -27,12 +28,21 @@ class WordPressConnector(SiteConnector):
             "Content-Type": "application/json"
         }
 
+    def _safe_async_client(self, timeout: float = 10.0) -> httpx.AsyncClient:
+        transport = SSRFSafeAsyncHTTPTransport(verify=True, trust_env=False)
+        return httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False
+        )
+
     async def verify_connection(self) -> bool:
         if self.wp_url.startswith("mock://"):
             return True
         try:
             validate_safe_url(self.wp_url)
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with self._safe_async_client(timeout=10.0) as client:
                 res = await client.get(f"{self.wp_url}/wp-json/wp/v2/users/me", headers=self._get_headers())
                 return res.status_code == 200
         except Exception:
@@ -60,7 +70,7 @@ class WordPressConnector(SiteConnector):
         validate_safe_url(self.wp_url)
         headers = self._get_headers()
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with self._safe_async_client(timeout=10.0) as client:
             if slug:
                 # 1. Look up in Posts
                 try:
@@ -82,11 +92,12 @@ class WordPressConnector(SiteConnector):
                 except Exception:
                     pass
 
-            # 3. Fallback: inspect page head for shortlink or wp-json link
+            # 3. Fallback: inspect page head for shortlink or wp-json link via SSRF-safe hop-validated client
             try:
                 validate_safe_url(url)
-                page_res = await client.get(url, follow_redirects=True)
-                if page_res.status_code == 200:
+                safe_fetcher = SafeHttpClient(mode="OWNER_AUDIT", timeout_seconds=10.0)
+                page_res = await safe_fetcher.fetch(url)
+                if page_res.status_code == 200 and page_res.text:
                     text = page_res.text
                     m = re.search(r'rel=[\'"]shortlink[\'"][^>]*[\?&]p=(\d+)', text, re.IGNORECASE)
                     if m:
@@ -109,7 +120,7 @@ class WordPressConnector(SiteConnector):
                 "is_valid": True
             }
         validate_safe_url(url)
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+        async with self._safe_async_client(timeout=10.0) as client:
             response = await client.get(url)
             extracted = HtmlExtractor.extract(response.text, url)
             return {
@@ -171,7 +182,7 @@ class WordPressConnector(SiteConnector):
 
         headers = self._get_headers()
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with self._safe_async_client(timeout=15.0) as client:
                 # First attempt posts endpoint
                 endpoint = f"{self.wp_url}/wp-json/wp/v2/posts/{target_id}"
                 res = await client.post(endpoint, headers=headers, json=payload)

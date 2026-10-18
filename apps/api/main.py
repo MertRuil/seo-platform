@@ -26,18 +26,36 @@ from apps.api.routes import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.redis = None
     # Setup tables on startup if in dev/test; in production/staging rely on Alembic migrations
     try:
-        if settings.ENVIRONMENT not in ("production", "staging"):
+        if not settings.is_production_like:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
         else:
             import logging
             logging.getLogger("uvicorn").info("Production environment: Database schema managed strictly via Alembic migrations.")
+            if settings.REDIS_URL:
+                try:
+                    import redis.asyncio as aioredis
+                    redis_client = aioredis.from_url(
+                        settings.REDIS_URL,
+                        socket_connect_timeout=1.5,
+                        decode_responses=True,
+                    )
+                    await redis_client.ping()
+                    app.state.redis = redis_client
+                except Exception as redis_err:
+                    logging.getLogger("uvicorn").warning(f"Redis rate-limit store unavailable at startup, using in-memory fallback: {redis_err}")
     except Exception as e:
         import logging
         logging.getLogger("uvicorn").warning(f"Database connection warning at startup: {e}")
     yield
+    try:
+        if getattr(app.state, "redis", None) is not None:
+            await app.state.redis.aclose()
+    except Exception:
+        pass
     try:
         await engine.dispose()
     except Exception:

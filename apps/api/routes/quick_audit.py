@@ -223,16 +223,33 @@ class DiscoverPagesResponse(BaseModel):
     discovered_urls: List[str]
     source: str  # "SITEMAP", "INTERNAL_LINKS", or "ESTIMATED"
 
-@router.post("/discover-pages", response_model=DiscoverPagesResponse, status_code=status.HTTP_200_OK)
-async def discover_site_pages(req: DiscoverPagesRequest):
+@router.post(
+    "/discover-pages",
+    response_model=DiscoverPagesResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(quick_audit_limiter)],
+)
+async def discover_site_pages(req: DiscoverPagesRequest, request: Request):
     """
     Hedef web sitesinin robots.txt, sitemap.xml ve dahili bağlantılarını
     otonom olarak tarayarak sitenin gerçek sayfa sayısını ve URL listesini keşfeder.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    _enforce_audit_rate_limit(client_ip)
+
     try:
         normalized_url = UrlNormalizer.normalize(req.url)
-    except Exception:
-        normalized_url = req.url if req.url.startswith("http") else f"https://{req.url}"
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    from services.security.ssrf import validate_safe_url, SSRFSecurityException
+    try:
+        validate_safe_url(normalized_url)
+    except (SSRFSecurityException, ValueError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Siteye erişilemedi veya güvenlik kuralı (SSRF) engelledi: {str(exc)}"
+        ) from exc
 
     parsed = urlparse(normalized_url)
     base_origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -245,53 +262,54 @@ async def discover_site_pages(req: DiscoverPagesRequest):
         f"{base_origin}/sitemap-index.xml"
     ]
 
-    # 1. Sitemap ile gerçek sayfaları keşfet
-    for sm_url in sitemap_candidates:
-        try:
-            resp = await client.fetch(sm_url)
-            if resp.status_code == 200 and resp.text:
-                parsed_sm = SitemapParser.parse_xml(resp.text, base_url=base_origin)
-                if parsed_sm.is_valid and len(parsed_sm.urls) > 0:
-                    urls = [u.loc for u in parsed_sm.urls if u.loc]
-                    if urls:
-                        return DiscoverPagesResponse(
-                            url=normalized_url,
-                            domain=domain,
-                            total_pages=len(urls),
-                            has_sitemap=True,
-                            sitemap_url=sm_url,
-                            discovered_urls=urls[:50],
-                            source="SITEMAP"
-                        )
-        except Exception:
-            continue
+    async with AUDIT_CAPACITY:
+        # 1. Sitemap ile gerçek sayfaları keşfet
+        for sm_url in sitemap_candidates:
+            try:
+                resp = await client.fetch(sm_url)
+                if resp.status_code == 200 and resp.text:
+                    parsed_sm = SitemapParser.parse_xml(resp.text, base_url=base_origin)
+                    if parsed_sm.is_valid and len(parsed_sm.urls) > 0:
+                        urls = [u.loc for u in parsed_sm.urls if u.loc]
+                        if urls:
+                            return DiscoverPagesResponse(
+                                url=normalized_url,
+                                domain=domain,
+                                total_pages=len(urls),
+                                has_sitemap=True,
+                                sitemap_url=sm_url,
+                                discovered_urls=urls[:50],
+                                source="SITEMAP"
+                            )
+            except Exception:
+                continue
 
-    # 2. Sitemap bulunamazsa ana sayfadaki dahili bağlantıları çıkar
-    try:
-        resp = await client.fetch(normalized_url)
-        if resp.status_code == 200 and resp.text:
-            extracted = HtmlExtractor.extract(resp.text, resp.final_url)
-            internal_links = set()
-            internal_links.add(resp.final_url)
-            for l in (extracted.links if extracted else []):
-                if l.is_internal and l.href and not l.href.startswith("mailto:") and not l.href.startswith("tel:"):
-                    clean_href = l.href.split("#")[0]
-                    if clean_href:
-                        internal_links.add(clean_href)
-            
-            if len(internal_links) >= 1:
-                urls = sorted(list(internal_links))
-                return DiscoverPagesResponse(
-                    url=normalized_url,
-                    domain=domain,
-                    total_pages=len(urls),
-                    has_sitemap=False,
-                    sitemap_url=None,
-                    discovered_urls=urls[:50],
-                    source="INTERNAL_LINKS"
-                )
-    except Exception:
-        pass
+        # 2. Sitemap bulunamazsa ana sayfadaki dahili bağlantıları çıkar
+        try:
+            resp = await client.fetch(normalized_url)
+            if resp.status_code == 200 and resp.text:
+                extracted = HtmlExtractor.extract(resp.text, resp.final_url)
+                internal_links = set()
+                internal_links.add(resp.final_url)
+                for l in (extracted.links if extracted else []):
+                    if l.is_internal and l.href and not l.href.startswith("mailto:") and not l.href.startswith("tel:"):
+                        clean_href = l.href.split("#")[0]
+                        if clean_href:
+                            internal_links.add(clean_href)
+                
+                if len(internal_links) >= 1:
+                    urls = sorted(list(internal_links))
+                    return DiscoverPagesResponse(
+                        url=normalized_url,
+                        domain=domain,
+                        total_pages=len(urls),
+                        has_sitemap=False,
+                        sitemap_url=None,
+                        discovered_urls=urls[:50],
+                        source="INTERNAL_LINKS"
+                    )
+        except Exception:
+            pass
 
     # 3. Canlı siteye ulaşılamıyorsa sektör ve domaine uygun gerçekçi sayfalar türet
     fallback_pages = [

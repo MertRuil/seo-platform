@@ -42,12 +42,15 @@ def normalize_domain_name(url: str) -> tuple[str, str, str]:
         raise HTTPException(status_code=400, detail="URL credentials are not permitted")
     domain = parsed.hostname.lower().rstrip(".")
 
-    # SSRF / Boundary Defense: Reject internal, loopback, and metadata targets
+    # SSRF / Boundary Defense: Reject internal, loopback, metadata, and wildcard DNS-rebinding targets
     if (
         domain in BLOCKED_HOSTNAMES
         or domain.endswith(".localhost")
         or domain.endswith(".local")
         or domain.endswith(".internal")
+        or domain.endswith(".nip.io")
+        or domain.endswith(".sslip.io")
+        or domain.endswith(".xip.io")
     ):
         raise HTTPException(status_code=400, detail="Loopback, local, or internal domains are not permitted")
 
@@ -64,10 +67,14 @@ def normalize_domain_name(url: str) -> tuple[str, str, str]:
             resolved_ips = resolve_domain_ips(domain)
             for rip in resolved_ips:
                 if is_ip_blocked(rip):
-                    raise HTTPException(status_code=400, detail="Domain resolves to private or cloud metadata IP address")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Domain resolves to private or cloud metadata IP address not permitted"
+                    )
+        except HTTPException:
+            raise
         except SSRFSecurityException:
-            pass
-        except Exception:
+            # Offline/test environments may register synthetic domains (.example / .local test fixtures)
             pass
 
     # Normalized domain: strip 'www.' for identity grouping

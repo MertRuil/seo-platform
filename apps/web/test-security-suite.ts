@@ -174,14 +174,38 @@ async function runTests() {
     server.close();
   }
 
-  // TEST 4: Next.js Site Creation Security Hardening (Açık Kapatma: SSRF, XSS, Mükerrer Kayıt)
-  console.log("Test 4: Site Creation Endpoint Security Hardening");
+  // TEST 4: Next.js Site Creation Security Hardening (Açık Kapatma: Fallback Auth Guard, SSRF, XSS, Mükerrer Kayıt)
+  console.log("Test 4: Site Creation Endpoint Security Hardening & Fallback Auth Guard");
   const testOrgId = "org_sec_suite_" + Date.now().toString(36);
+  const { createSignedToken } = await import("./src/lib/jwt");
+  const authToken = createSignedToken({
+    id: "sec_suite_admin",
+    email: "sec@calpeo.com",
+    role: "SUPER_ADMIN",
+    isAdmin: true,
+  });
+  const authHeaders = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${authToken}`,
+  };
+
+  // 4.0: Unauthenticated fallback request MUST be rejected with 401 (KRİTİK-01)
+  const reqUnauthSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Unauth Site",
+      primary_url: "https://example.com",
+    }),
+  });
+  const resUnauthSite = await sitesPost(reqUnauthSite, { params: Promise.resolve({ orgId: testOrgId }) });
+  assert.strictEqual(resUnauthSite.status, 401, "Unauthenticated fallback request must be rejected with 401");
+  console.log("  [PASS] 4.0: Unauthenticated BFF fallback request rejected with 401.");
 
   // 4A: SSRF cloud metadata rejection
   const reqMetaSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "Metadata Site",
       primary_url: "http://169.254.169.254/latest/meta-data",
@@ -196,7 +220,7 @@ async function runTests() {
   // 4B: SSRF localhost rejection
   const reqLocalSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "Localhost Site",
       primary_url: "http://localhost:3000/admin",
@@ -209,7 +233,7 @@ async function runTests() {
   // 4C: Non-HTTP protocol rejection (javascript:)
   const reqJsSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "JS Site",
       primary_url: "javascript:alert(document.cookie)",
@@ -223,7 +247,7 @@ async function runTests() {
   const safeDomainUrl = "https://example.com";
   const reqXssSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "<script>alert('XSS')</script>Güvenli Mağaza",
       primary_url: safeDomainUrl,
@@ -238,7 +262,7 @@ async function runTests() {
   // 4E: Duplicate site rejection in same organization
   const reqDupSite = new NextRequest(`http://localhost:3000/api/v1/organizations/${testOrgId}/sites`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders,
     body: JSON.stringify({
       name: "İkinci Kopya",
       primary_url: "https://www.example.com/alt",

@@ -51,10 +51,43 @@ async def get_current_user_payload(credentials: Optional[HTTPAuthorizationCreden
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not payload.get("sub"):
+    if payload.get("auth_source") == "nextjs_local" and settings.is_production_like:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Local fallback tokens are not accepted in production backend",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    sub = payload.get("sub")
+    if not sub:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token subject missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Revocation check: if token includes password fingerprint (pwd_fp), verify user is still active and password unchanged
+    pwd_fp = payload.get("pwd_fp")
+    if pwd_fp:
+        import hashlib
+        from sqlalchemy.future import select
+        from packages.shared.database import AsyncSessionLocal
+        from packages.shared.models import User
+
+        async with AsyncSessionLocal() as db:
+            user = (await db.execute(select(User).where(User.id == sub))).scalars().first()
+            if not user or not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User account is inactive or no longer exists",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            current_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
+            if current_fp != pwd_fp:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been invalidated due to password change",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
     return payload
+

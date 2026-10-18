@@ -165,7 +165,7 @@ async def execute_change_set(
         )
 
     # Mülkiyet doğrulaması kontrolü: Doğrulanmamış sitelere canlı ortamda değişiklik uygulanması engellenir
-    if settings.ENVIRONMENT == "production" and site.verification_status != "VERIFIED" and site.execution_mode not in ("SUGGEST_ONLY", "DRY_RUN"):
+    if settings.is_production_like and site.verification_status != "VERIFIED" and site.execution_mode not in ("SUGGEST_ONLY", "DRY_RUN"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"'{site.domain}' alan adı mülkiyeti henüz doğrulanmamıştır (DURUM: {site.verification_status}). "

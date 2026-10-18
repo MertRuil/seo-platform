@@ -1,22 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSafeAuditUrl, safeAuditFetch, SSRFSecurityError } from "@/lib/ssrf";
+import { extractAndVerifyRequestToken } from "@/lib/jwt";
 
 export const dynamic = "force-dynamic";
 
-// IP tabanlı istek kotası: 60 saniyede maksimum 5 analiz
+// IP / Kullanıcı tabanlı istek kotası: 60 saniyede maksimum 5 analiz (bellek sızıntısı korumalı)
 const IP_AUDIT_HISTORY = new Map<string, number[]>();
 const MAX_AUDITS_PER_MINUTE = 5;
+const MAX_IP_TRACKING_ENTRIES = 5000;
 
-function checkRateLimit(clientIp: string): boolean {
+function cleanupAuditHistory(now: number) {
+  if (IP_AUDIT_HISTORY.size > 500) {
+    for (const [key, timestamps] of IP_AUDIT_HISTORY.entries()) {
+      if (!timestamps.length || now - timestamps[timestamps.length - 1] >= 60000) {
+        IP_AUDIT_HISTORY.delete(key);
+      }
+    }
+  }
+  if (IP_AUDIT_HISTORY.size > MAX_IP_TRACKING_ENTRIES) {
+    let removed = 0;
+    for (const key of IP_AUDIT_HISTORY.keys()) {
+      IP_AUDIT_HISTORY.delete(key);
+      removed++;
+      if (removed >= 1000) break;
+    }
+  }
+}
+
+function resolveClientRateKey(req: NextRequest): string {
+  const verifiedUser = extractAndVerifyRequestToken(req);
+  if (verifiedUser?.sub) {
+    return `user:${verifiedUser.sub}`;
+  }
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) {
+    return `ip:${realIp.slice(0, 64)}`;
+  }
+  // Reverse proxies append the actual connecting IP to the end of X-Forwarded-For;
+  // taking the rightmost hop prevents trivial spoofing via client-prepended X-Forwarded-For values.
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const hops = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length > 0) {
+      return `ip:${hops[hops.length - 1].slice(0, 64)}`;
+    }
+  }
+  return "ip:127.0.0.1";
+}
+
+function checkRateLimit(rateKey: string): boolean {
   const now = Date.now();
-  const history = IP_AUDIT_HISTORY.get(clientIp) || [];
-  const recent = history.filter(t => now - t < 60000);
+  cleanupAuditHistory(now);
+  const history = IP_AUDIT_HISTORY.get(rateKey) || [];
+  const recent = history.filter((t) => now - t < 60000);
   if (recent.length >= MAX_AUDITS_PER_MINUTE) {
-    IP_AUDIT_HISTORY.set(clientIp, recent);
+    IP_AUDIT_HISTORY.set(rateKey, recent);
     return false;
   }
   recent.push(now);
-  IP_AUDIT_HISTORY.set(clientIp, recent);
+  IP_AUDIT_HISTORY.set(rateKey, recent);
   return true;
 }
 
@@ -39,11 +81,11 @@ interface AiRecommendation {
 
 export async function POST(req: NextRequest) {
   try {
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
-    if (!checkRateLimit(clientIp)) {
+    const rateKey = resolveClientRateKey(req);
+    if (!checkRateLimit(rateKey)) {
       return NextResponse.json(
         { detail: "Hızlı denetim istek kotasına ulaştınız (dakikada maksimum 5 analiz). Lütfen biraz bekleyin." },
-        { status: 429 }
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 
@@ -76,15 +118,23 @@ export async function POST(req: NextRequest) {
     const pythonBackend = process.env.BACKEND_API_URL;
     if (pythonBackend) {
       try {
+        const proxyHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        const authHeader = req.headers.get("authorization");
+        if (authHeader) proxyHeaders["Authorization"] = authHeader;
+
         const pyRes = await fetch(`${pythonBackend}/audit/quick`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: proxyHeaders,
           body: JSON.stringify({ url: targetUrl, max_pages: body.max_pages || 5 }),
           signal: AbortSignal.timeout(6000)
         });
         if (pyRes.ok) {
           const pyData = await pyRes.json();
           return NextResponse.json(pyData);
+        }
+        if (pyRes.status === 429 || pyRes.status === 400) {
+          const errData = await pyRes.json().catch(() => ({ detail: "İstek reddedildi." }));
+          return NextResponse.json(errData, { status: pyRes.status });
         }
       } catch {
         // Python backend yoksa doğrudan yerleşik motorla devam et

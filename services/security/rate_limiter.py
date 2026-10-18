@@ -51,10 +51,15 @@ class RateLimiter:
         self.scope = scope
 
     def _get_client_key(self, request: Request) -> str:
-        # Prefer authenticated user ID if present in request state or authorization header
+        # Prefer authenticated user ID if present in authorization header or session cookie
+        token: Optional[str] = None
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ", 1)[1]
+            token = auth_header.split(" ", 1)[1].strip()
+        elif "seo_platform_token" in request.cookies:
+            token = request.cookies.get("seo_platform_token")
+
+        if token:
             try:
                 from services.security.jwt_auth import decode_token
                 payload = decode_token(token)
@@ -64,10 +69,14 @@ class RateLimiter:
             except Exception:
                 pass
 
-        # Otherwise use client IP
+        # Otherwise use client IP (use rightmost X-Forwarded-For hop added by trusted proxy to prevent spoofing)
+        real_ip = request.headers.get("x-real-ip")
         forwarded_for = request.headers.get("x-forwarded-for")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
+        if real_ip and real_ip.strip():
+            client_ip = real_ip.strip()
+        elif forwarded_for:
+            hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+            client_ip = hops[-1] if hops else (request.client.host if request.client else "unknown")
         else:
             client_ip = request.client.host if request.client else "unknown"
 
@@ -82,19 +91,25 @@ class RateLimiter:
         if redis_client:
             try:
                 redis_key = f"ratelimit:{key}"
+                member = f"{now}:{id(request)}"
                 pipe = redis_client.pipeline()
                 # Remove timestamps older than window
                 pipe.zremrangebyscore(redis_key, 0, now - self.window_seconds)
                 # Count remaining
                 pipe.zcard(redis_key)
                 # Add current timestamp
-                pipe.zadd(redis_key, {str(now): now})
+                pipe.zadd(redis_key, {member: now})
                 # Set TTL for key expiry
                 pipe.expire(redis_key, self.window_seconds + 10)
                 results = await pipe.execute()
                 current_count = results[1]
 
                 if current_count >= self.max_requests:
+                    # Remove the rejected request timestamp so 429 responses do not extend the lockout window
+                    try:
+                        await redis_client.zrem(redis_key, member)
+                    except Exception:
+                        pass
                     retry_after = self.window_seconds
                     raise HTTPException(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,

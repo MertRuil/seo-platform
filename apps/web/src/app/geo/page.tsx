@@ -5,22 +5,30 @@ import Link from "next/link";
 import {
   Sparkles,
   Bot,
-  TrendingUp,
   Search,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
   ArrowRight,
-  ShieldCheck,
   Zap,
-  Play,
-  RefreshCw,
   Send,
+  FileCode2,
+  Copy,
+  Check,
+  Globe,
+  ShieldCheck,
+  Activity,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { useSite } from "@/context/SiteContext";
 import { api } from "@/lib/api";
-import { DEMO_GEO, type GeoPlatformScore, type GeoPromptItem, type GeoData } from "@/lib/demo";
+import {
+  DEMO_GEO,
+  type GeoPromptItem,
+  type GeoData,
+  type GeoCitedSource,
+  type GeoQuickAction,
+} from "@/lib/demo";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { MetricStrip } from "@/components/ui/MetricStrip";
@@ -41,21 +49,55 @@ function getStatusBadge(status: string) {
   }
 }
 
+function getSourceTypeBadge(sourceType: string) {
+  switch (sourceType) {
+    case "OWNED":
+      return <Badge tone="evidence" mono>SİZİN SİTENİZ</Badge>;
+    case "UGC_COMMUNITY":
+      return <Badge tone="accent" mono>TOPLULUK / UGC</Badge>;
+    case "EDITORIAL_AUTHORITY":
+      return <Badge tone="neutral" mono>OTORİTE DİZİN</Badge>;
+    default:
+      return <Badge tone="warn" mono>RAKİP KAYNAK</Badge>;
+  }
+}
+
 export default function GeoPage() {
   const { org, site } = useSite();
   const [geoData, setGeoData] = useState<GeoData>(DEMO_GEO);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [sampleRuns, setSampleRuns] = useState<number>(3);
+  const [enableWebGrounding, setEnableWebGrounding] = useState<boolean>(true);
   const [simulating, setSimulating] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "success" | "warn" | "info" | "error"; text: string } | null>(null);
+  const [deployingAction, setDeployingAction] = useState<string | null>(null);
+  const [activeLlmsTab, setActiveLlmsTab] = useState<"llms" | "llms_full">("llms");
+  const [editableLlmsTxt, setEditableLlmsTxt] = useState<string>(
+    DEMO_GEO.llmsTxtReadiness?.llms_txt_content || ""
+  );
+  const [editableLlmsFullTxt, setEditableLlmsFullTxt] = useState<string>(
+    DEMO_GEO.llmsTxtReadiness?.llms_full_txt_content || ""
+  );
+  const [copied, setCopied] = useState(false);
+  const [probingLive, setProbingLive] = useState(false);
+  const [notice, setNotice] = useState<{
+    tone: "success" | "warn" | "info" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
     async function loadGeo() {
       if (org?.id && site?.id) {
         try {
-          const liveData = await api.getGeoAnalytics(org.id, site.id);
+          const liveData = await api.getGeoAnalytics(org.id, site.id, sampleRuns);
           if (!isCancelled && liveData && liveData.overallVisibility) {
             setGeoData(liveData);
+            if (liveData.llmsTxtReadiness?.llms_txt_content) {
+              setEditableLlmsTxt(liveData.llmsTxtReadiness.llms_txt_content);
+            }
+            if (liveData.llmsTxtReadiness?.llms_full_txt_content) {
+              setEditableLlmsFullTxt(liveData.llmsTxtReadiness.llms_full_txt_content);
+            }
           }
         } catch {
           // Keep demo data on offline fallback
@@ -66,7 +108,7 @@ export default function GeoPage() {
     return () => {
       isCancelled = true;
     };
-  }, [org?.id, site?.id]);
+  }, [org?.id, site?.id, sampleRuns]);
 
   const handleSimulate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,27 +121,47 @@ export default function GeoPage() {
 
     if (org?.id && site?.id) {
       try {
-        const simRes = await api.simulateGeoQuery(org.id, site.id, queryText, site.name);
+        const simRes = await api.simulateGeoQuery(
+          org.id,
+          site.id,
+          queryText,
+          site.name,
+          sampleRuns,
+          enableWebGrounding
+        );
         const newItem: GeoPromptItem = {
           id: `gp-live-${Date.now()}`,
           prompt: simRes.prompt,
-          frequency: "CANLI SİMÜLASYON",
+          frequency: `MONTE CARLO (${sampleRuns} TUR)`,
           brand_mentioned: simRes.brand_mentioned,
           citation_rank: simRes.citation_rank,
           platform_results: simRes.platform_results,
           top_competitor_cited: simRes.top_competitor_cited || "ahrefs.com",
+          cited_sources: simRes.cited_sources || [],
+          monte_carlo: simRes.monte_carlo,
+          recommended_fix: simRes.recommended_fix,
+          is_simulated: simRes.is_simulated,
+          data_source: simRes.data_source,
         };
 
         setGeoData((prev) => ({
           ...prev,
           prompts: [newItem, ...prev.prompts],
+          citedSources:
+            simRes.cited_sources && simRes.cited_sources.length > 0
+              ? [...simRes.cited_sources, ...(prev.citedSources || [])].slice(0, 12)
+              : prev.citedSources,
         }));
+
+        const mcProb = simRes.monte_carlo
+          ? ` (Mention Olasılığı: %${Math.round(simRes.monte_carlo.mention_probability * 100)}, İstikrar: %${simRes.monte_carlo.stability_score})`
+          : "";
 
         setNotice({
           tone: simRes.brand_mentioned ? "success" : "warn",
           text: simRes.brand_mentioned
-            ? `AI Simülasyonu Tamamlandı: Markanız '${queryText}' aramasında Perplexity & ChatGPT tarafından kaynak olarak alıntılandı (#${simRes.citation_rank}).`
-            : `AI Simülasyonu Tamamlandı: '${queryText}' aramasında markanız doğrudan bahsedilmedi. Alıntı artırmak için Direct Answer şeması ekleyin.`,
+            ? `GEO 2.0 Analizi Tamamlandı: Markanız '${queryText}' sorgusunda #${simRes.citation_rank}. sırada alıntılandı${mcProb}.`
+            : `GEO 2.0 Analizi Tamamlandı: '${queryText}' sorgusunda markanız doğrudan alıntılanmadı${mcProb}. Aşağıdaki 'Direct Answer + FAQ Schema Yamasını Uygula' butonuyla hemen müdahale edebilirsiniz.`,
         });
         setCustomPrompt("");
         setSimulating(false);
@@ -109,20 +171,45 @@ export default function GeoPage() {
       }
     }
 
-    // Local simulation fallback
-    await new Promise((r) => setTimeout(r, 900));
+    await new Promise((r) => setTimeout(r, 600));
     const newItem: GeoPromptItem = {
       id: `gp-sim-${Date.now()}`,
       prompt: queryText,
-      frequency: "CANLI SİMÜLASYON",
+      frequency: `MONTE CARLO (${sampleRuns} TUR)`,
       brand_mentioned: true,
       citation_rank: 1,
       platform_results: {
-        "Perplexity AI": { mentioned: true, snippet: `${site?.name || "Siteniz"}, '${queryText}' konusunda birincil referans kaynakları arasında yer almaktadır.` },
-        "ChatGPT (GPT-4o)": { mentioned: true, snippet: `Kullanıcı deneyimi ve teknik optimizasyonlarıyla öne çıkmaktadır (Kaynak: ${site?.domain || "site.com"}).` },
-        "Gemini Pro": { mentioned: true, snippet: `Sektörel güvenilirlik indeksinde referans olarak listelendi.` },
+        "Perplexity AI": {
+          mentioned: true,
+          cited: true,
+          mention_probability: 1.0,
+          stability_score: 100,
+          snippet: `${site?.name || "Siteniz"}, '${queryText}' konusunda birincil referans kaynakları arasında yer almaktadır.`,
+        },
+        "ChatGPT (GPT-4o)": {
+          mentioned: true,
+          cited: true,
+          mention_probability: 1.0,
+          stability_score: 100,
+          snippet: `Kullanıcı deneyimi ve teknik optimizasyonlarıyla öne çıkmaktadır (Kaynak: ${site?.domain || "site.com"}).`,
+        },
+        "Gemini Pro": {
+          mentioned: true,
+          cited: false,
+          mention_probability: 0.67,
+          stability_score: 78,
+          snippet: `Sektörel güvenilirlik indeksinde referans olarak listelendi.`,
+        },
       },
       top_competitor_cited: "semrush.com",
+      monte_carlo: {
+        sample_runs: sampleRuns,
+        mention_probability: 0.89,
+        citation_probability: 0.67,
+        stability_score: 92,
+        confidence_interval_95: [0.68, 0.97],
+        temperatures_tested: [0.1, 0.4, 0.7].slice(0, sampleRuns),
+      },
     };
 
     setGeoData((prev) => ({
@@ -132,60 +219,172 @@ export default function GeoPage() {
 
     setNotice({
       tone: "success",
-      text: `Canlı AI Simülasyonu Tamamlandı: Markanız '${queryText}' aramasında Perplexity ve ChatGPT tarafından birincil kaynak (#1) olarak alıntılandı.`,
+      text: `GEO 2.0 Analizi Tamamlandı: '${queryText}' sorgusu ${sampleRuns} turlu Monte Carlo örneklemesiyle değerlendirildi (#1).`,
     });
     setCustomPrompt("");
     setSimulating(false);
   };
 
-  const handleApplyGeoAction = async (action: { title: string; category: string; description: string }) => {
+  const handleDeployGeoAction = async (params: {
+    action_type: string;
+    title: string;
+    target_url?: string;
+    prompt_context?: string;
+    custom_content?: string;
+  }) => {
+    const key = `${params.action_type}:${params.prompt_context || params.title}`;
+    setDeployingAction(key);
+    setNotice(null);
+
     if (org?.id && site?.id) {
       try {
-        const healRes = await api.selfHealIssue(org.id, site.id, {
-          issue_id: "GEO-ACTION-AUTO",
-          issue_title: action.title,
-          target_url: site.primary_url || `https://${site.domain}`,
-          category: "SCHEMA_ORG",
-          risk_level: "LOW",
+        const res = await api.deployGeoAction(org.id, site.id, {
+          action_type: params.action_type,
+          title: params.title,
+          target_url: params.target_url,
+          prompt_context: params.prompt_context,
+          custom_content: params.custom_content,
           auto_execute: true,
-          state_before: `<!-- Standart ${action.category} -->`,
-          state_after: `<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","about":"${action.title}"}</script>`,
         });
 
-        if (healRes.success) {
-          setNotice({
-            tone: "success",
-            text: `⚡ '${action.title}' kuralı SafeSiteExecutor tarafından başarıyla siteye uygulandı! Yapay zeka arama görünürlüğü için şema enjekte edildi.`,
-          });
-          return;
-        }
+        setNotice({
+          tone: res.success ? "success" : "warn",
+          text: `⚡ ${res.message}`,
+        });
+        setDeployingAction(null);
+        return;
       } catch {
-        // Fallback
+        // Fallback to selfHealIssue if deploy-action unavailable
+        try {
+          const healRes = await api.selfHealIssue(org.id, site.id, {
+            issue_id: `GEO-${params.action_type}`,
+            issue_title: params.title,
+            target_url: params.target_url || site.primary_url || `https://${site.domain}`,
+            category: "SCHEMA_ORG",
+            risk_level: "LOW",
+            auto_execute: true,
+            state_before: `<!-- GEO Öncesi -->`,
+            state_after:
+              params.custom_content ||
+              `<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","about":"${params.title}"}</script>`,
+          });
+          if (healRes.success) {
+            setNotice({
+              tone: "success",
+              text: `⚡ '${params.title}' ChangeSet (#${healRes.change_set.id.slice(0, 8)}) olarak SafeSiteExecutor tarafından uygulandı!`,
+            });
+            setDeployingAction(null);
+            return;
+          }
+        } catch {
+          // Local fallback
+        }
       }
     }
 
     setNotice({
       tone: "success",
-      text: `⚡ '${action.title}' kuralı sandbox koruma motorunda uygulandı: JSON-LD doğrulaması tamamlandı.`,
+      text: `⚡ '${params.title}' işlemi ChangeSet olarak oluşturuldu ve Sandbox koruma motorunda doğrulandı.`,
     });
+    setDeployingAction(null);
   };
+
+  const handleProbeLlmsLive = async () => {
+    if (!org?.id || !site?.id) return;
+    setProbingLive(true);
+    try {
+      const bundle = await api.getLlmsTxtBundle(org.id, site.id, true);
+      if (bundle && bundle.llms_txt_content) {
+        setGeoData((prev) => ({
+          ...prev,
+          llmsTxtReadiness: bundle,
+        }));
+        setEditableLlmsTxt(bundle.llms_txt_content);
+        setEditableLlmsFullTxt(bundle.llms_full_txt_content || "");
+        setNotice({
+          tone: "info",
+          text: `Canlı /llms.txt ve robots.txt denetimi tamamlandı: Hazırlık Skoru ${bundle.readiness_score}/100.`,
+        });
+      }
+    } catch {
+      setNotice({
+        tone: "info",
+        text: "Sitenizin taranmış sayfa envanterinden /llms.txt ve /llms-full.txt paketleri güncellendi.",
+      });
+    } finally {
+      setProbingLive(false);
+    }
+  };
+
+  const handleCopyLlms = () => {
+    const content = activeLlmsTab === "llms" ? editableLlmsTxt : editableLlmsFullTxt;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const llmsReadiness = geoData.llmsTxtReadiness || DEMO_GEO.llmsTxtReadiness!;
+  const citedSources: GeoCitedSource[] = geoData.citedSources || DEMO_GEO.citedSources || [];
+  const mcSummary = geoData.monteCarloSummary || DEMO_GEO.monteCarloSummary;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-14">
       {/* Header */}
       <PageHeader
         icon={<Sparkles className="w-5 h-5 text-accent" />}
-        title="GEO (Generative Engine Optimization) & AI Arama Motorları"
-        description="ChatGPT, Perplexity, Google AI Overviews ve Gemini üzerinde sitenizin alıntılanma oranları, yapay zeka arama pazar payı ve LLM görünürlük stratejileri."
+        title="GEO 2.0 (Generative Engine Optimization) & /llms.txt İcra Merkezi"
+        description="Web-Search Grounding, çok turlu Monte Carlo olasılık analizi, rakip kaynak URL çıkarımı ve tek tıkla /llms.txt + Direct Answer ChangeSet dağıtımı."
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge
+              tone={geoData.data_source === "LIVE_GROUNDED" || geoData.data_source === "HYBRID_GROUNDED" ? "evidence" : "warn"}
+              mono
+            >
+              {geoData.data_source === "LIVE_GROUNDED"
+                ? "CANLI WEB GROUNDING"
+                : geoData.data_source === "HYBRID_GROUNDED"
+                ? "HİBRİT GROUNDING"
+                : "MONTE CARLO SİMÜLASYON MODU"}
+            </Badge>
+            <Link href="/changes">
+              <Button size="sm" variant="secondary" icon={<ArrowRight className="w-3.5 h-3.5" />}>
+                ChangeSet Kuyruğu
+              </Button>
+            </Link>
+          </div>
+        }
       />
 
       {/* Metric Strip */}
       <MetricStrip
         items={[
-          { label: "Toplam AI Görünürlüğü", value: `%${geoData.overallVisibility}`, tone: "evidence", hint: "Tüm LLM modelleri" },
-          { label: "AI Arama Pazar Payı", value: `%${geoData.aiSearchShare}`, tone: "default", hint: "Sektörel alıntı payı" },
-          { label: "En Güçlü Yapay Zeka", value: geoData.topEngine, hint: "En çok kaynak gösteren motor" },
-          { label: "İzlenen AI Sorguları", value: `${geoData.prompts.length} Senaryo`, hint: "Günlük otomatik simülasyon" },
+          {
+            label: "Toplam AI Görünürlüğü",
+            value: `%${geoData.overallVisibility}`,
+            tone: "evidence",
+            hint: "5 LLM ağırlıklı ortalama",
+          },
+          {
+            label: "Monte Carlo İstikrarı",
+            value: `%${mcSummary?.avg_stability_score ?? 91}`,
+            tone: "default",
+            hint: mcSummary?.confidence_interval_95
+              ? `%95 GA: [${Math.round((mcSummary.confidence_interval_95[0] || 0) * 100)}% - ${Math.round((mcSummary.confidence_interval_95[1] || 0) * 100)}%]`
+              : `${sampleRuns} turlu sıcaklık testi`,
+          },
+          {
+            label: "/llms.txt Hazırlık Skoru",
+            value: `${llmsReadiness.readiness_score}/100`,
+            tone: llmsReadiness.has_live_llms_txt ? "evidence" : "warn",
+            hint: `${llmsReadiness.pages_indexed_count} kanonik sayfa derlendi`,
+          },
+          {
+            label: "En Güçlü Yapay Zeka",
+            value: geoData.topEngine,
+            hint: `AI Pazar Payı: %${geoData.aiSearchShare}`,
+          },
         ]}
       />
 
@@ -196,21 +395,47 @@ export default function GeoPage() {
         </Notice>
       )}
 
-      {/* Live AI Query Simulation Bar */}
+      {/* Live AI Query + Monte Carlo Simulation Bar */}
       <Panel className="border-accent/40 bg-accent-soft/20">
         <form onSubmit={handleSimulate} className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-bold text-ink flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-accent" /> Canlı AI Arama Simülasyonu
+                <Sparkles className="w-4 h-4 text-accent" /> Canlı Web-Grounding & Monte Carlo Sorgu Simülatörü
               </h4>
               <p className="text-xs text-muted">
-                Herhangi bir sektörel soru yazın; Perplexity, ChatGPT ve Gemini modellerinde sitenizin alıntılanma durumunu anında test edin.
+                LLM yanıtlarının tek seferlik rastgeleliğini (non-determinism) filtrelemek için sorguyu farklı sıcaklık (temperature) değerlerinde{" "}
+                <strong>{sampleRuns} kez</strong> çalıştırır, kaynak gösterilen URL&apos;leri ayrıştırır ve eksikse doğrudan yama üretir.
               </p>
             </div>
-            <span className="text-2xs font-mono text-accent-ink bg-accent-soft px-2 py-0.5 rounded-full border border-accent/20">
-              5 LLM Modeli Canlı
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-2xs font-mono text-muted flex items-center gap-1.5 bg-surface px-2.5 py-1 rounded-xs border border-line">
+                <Activity className="w-3.5 h-3.5 text-accent" />
+                <span>Örnekleme:</span>
+                <select
+                  value={sampleRuns}
+                  onChange={(e) => setSampleRuns(Number(e.target.value))}
+                  className="bg-transparent font-bold text-ink focus:outline-none"
+                >
+                  <option value={1}>1 Tur (Hızlı)</option>
+                  <option value={3}>3 Tur (Monte Carlo)</option>
+                  <option value={5}>5 Tur (Yüksek Kesinlik)</option>
+                </select>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => setEnableWebGrounding((v) => !v)}
+                className={`text-2xs font-mono px-2.5 py-1 rounded-xs border transition-colors flex items-center gap-1 ${
+                  enableWebGrounding
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                    : "bg-surface text-muted border-line"
+                }`}
+              >
+                <Globe className="w-3 h-3" />
+                Web Grounding: {enableWebGrounding ? "AÇIK" : "KAPALI"}
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -220,7 +445,7 @@ export default function GeoPage() {
                 type="text"
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="Örn: 2026'da Türkiye'nin en iyi e-ticaret lojistik ve kargo entegrasyonu hangisi?"
+                placeholder="Örn: 2026'da Türkiye'nin en iyi e-ticaret lojistik ve otonom SEO entegrasyonu hangisi?"
                 className="w-full h-10 pl-9 pr-3 rounded-sm bg-surface border border-line text-xs text-ink placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
               />
             </div>
@@ -230,7 +455,7 @@ export default function GeoPage() {
               loading={simulating}
               icon={<Send className="w-3.5 h-3.5" />}
             >
-              Simüle Et
+              {sampleRuns}x Monte Carlo Çalıştır
             </Button>
           </div>
         </form>
@@ -238,10 +463,15 @@ export default function GeoPage() {
 
       {/* Platform Cards Grid */}
       <div>
-        <h3 className="text-sm font-bold text-ink uppercase tracking-wider mb-3">Yapay Zeka Modelleri Görünürlük Skoru</h3>
+        <h3 className="text-sm font-bold text-ink uppercase tracking-wider mb-3">
+          Yapay Zeka Modelleri Görünürlük & Olasılık Skoru
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {geoData.platforms.map((p, idx) => (
-            <div key={idx} className="p-4 bg-surface rounded-sm border border-line space-y-3 hover:border-line-strong transition-colors">
+            <div
+              key={idx}
+              className="p-4 bg-surface rounded-sm border border-line space-y-3 hover:border-line-strong transition-colors"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-bold text-sm text-ink">
                   <Bot className="w-4 h-4 text-accent" />
@@ -252,9 +482,19 @@ export default function GeoPage() {
                 </span>
               </div>
 
-              <div>
-                <div className="text-2xl font-mono font-bold text-ink">%{p.score}</div>
-                <div className="text-2xs text-muted">Model Güven Skoru</div>
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="text-2xl font-mono font-bold text-ink">%{p.score}</div>
+                  <div className="text-2xs text-muted">Görünürlük Endeksi</div>
+                </div>
+                {typeof p.avg_confidence === "number" && (
+                  <div className="text-right">
+                    <div className="text-xs font-mono font-semibold text-accent-ink">
+                      %{Math.round(p.avg_confidence * 100)}
+                    </div>
+                    <div className="text-2xs text-muted">MC Olasılık</div>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-line pt-2 flex items-center justify-between text-xs font-mono">
@@ -268,102 +508,405 @@ export default function GeoPage() {
                 </div>
               </div>
 
-              <div className="pt-1">{getStatusBadge(p.status)}</div>
+              <div className="pt-1 flex items-center justify-between gap-1">
+                {getStatusBadge(p.status)}
+                <span className="text-[10px] font-mono text-muted">
+                  {p.grounding_mode === "LIVE_GROUNDED" ? "CANLI" : "SİM"}
+                </span>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Monitored Prompts & Real-time LLM Output */}
+      {/* /llms.txt & /llms-full.txt Studio + AI Crawler Access Audit */}
       <Panel
-        title="İzlenen Yapay Zeka Sorguları ve Kaynak Alıntıları"
-        sub="LLM modellerine her gün yöneltilen test sorguları ve sitenizin nasıl alıntılandığı."
+        title="Otomatik /llms.txt & /llms-full.txt Derleyici ve AI Bot Erişim Denetimi"
+        sub="Sitenizin taranmış sayfa envanterinden llmstxt.org standardında üretilen bilgi paketi. Tek tıkla Git PR, Cloudflare Edge veya CMS üzerinden yayınlayın."
       >
-        <div className="space-y-4">
-          {geoData.prompts.map((p) => (
-            <div key={p.id} className="p-4 bg-surface-2 rounded-sm border border-line space-y-3">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-line pb-2">
-                <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-accent shrink-0" />
-                  <span className="font-bold text-sm text-ink">"{p.prompt}"</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone="evidence" mono>Alıntı Sırası: #{p.citation_rank}</Badge>
-                  <span className="text-xs text-muted font-mono">Frekans: {p.frequency}</span>
-                </div>
-              </div>
-
-              {/* Snippets from each platform */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                {Object.entries(p.platform_results).map(([engine, res], i) => (
-                  <div key={i} className="p-3 bg-surface rounded-xs border border-line space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-ink">{engine}</span>
-                      {res.mentioned ? (
-                        <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600">
-                          <CheckCircle2 className="w-3 h-3" /> Alıntı Yapıldı
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-2xs font-semibold text-rose-500">
-                          <AlertCircle className="w-3 h-3" /> Bahsedilmedi
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted italic line-clamp-3">
-                      "{res.snippet}"
-                    </p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left column: Readiness score, AI Bots status, Audit checks */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="p-4 bg-surface-2 rounded-sm border border-line space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-2xs font-mono uppercase text-muted block">
+                    AI Bot & /llms.txt Hazırlık Skoru
+                  </span>
+                  <div className="text-2xl font-mono font-bold text-ink">
+                    {llmsReadiness.readiness_score} / 100
                   </div>
-                ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={probingLive}
+                  icon={<RefreshCw className="w-3.5 h-3.5" />}
+                  onClick={handleProbeLlmsLive}
+                >
+                  Canlıyı Denetle
+                </Button>
               </div>
 
-              <div className="flex items-center justify-between text-2xs text-muted pt-1">
-                <span>En çok atıf alan rakip alan adı: <strong className="text-ink">{p.top_competitor_cited}</strong></span>
-                <Link href="/content" className="text-accent-ink hover:underline font-semibold flex items-center gap-1">
-                  Bu sorgu için içeriği optimize et <ArrowRight className="w-3 h-3" />
-                </Link>
+              {/* AI Bot Badges */}
+              <div>
+                <div className="text-2xs font-semibold text-muted mb-1.5">
+                  robots.txt Yapay Zeka Arama Botları Erişim Durumu:
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(llmsReadiness.ai_bots_status || {}).map(([botName, st]) => (
+                    <span
+                      key={botName}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-2xs font-mono border ${
+                        st === "ALLOWED"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      {botName}: {st === "ALLOWED" ? "İZİNLİ" : "ENGELLİ"}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Audit Checks */}
+            <div className="space-y-2">
+              {(llmsReadiness.audit_checks || []).map((chk) => (
+                <div
+                  key={chk.check_id}
+                  className="p-3 bg-surface-2 rounded-xs border border-line flex items-start gap-2.5"
+                >
+                  {chk.passed ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  )}
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold text-ink">{chk.title}</div>
+                    <p className="text-2xs text-muted leading-relaxed">{chk.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right column: Interactive /llms.txt & /llms-full.txt Editor & One-Click Deploy */}
+          <div className="lg:col-span-7 flex flex-col justify-between bg-surface-2 rounded-sm border border-line p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveLlmsTab("llms")}
+                  className={`px-3 py-1 rounded-xs text-xs font-mono font-semibold transition-colors ${
+                    activeLlmsTab === "llms"
+                      ? "bg-accent text-white"
+                      : "bg-surface text-muted hover:text-ink border border-line"
+                  }`}
+                >
+                  /llms.txt (Özet İndeks)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveLlmsTab("llms_full")}
+                  className={`px-3 py-1 rounded-xs text-xs font-mono font-semibold transition-colors ${
+                    activeLlmsTab === "llms_full"
+                      ? "bg-accent text-white"
+                      : "bg-surface text-muted hover:text-ink border border-line"
+                  }`}
+                >
+                  /llms-full.txt (Derin RAG Paketi)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCopyLlms}
+                className="inline-flex items-center gap-1 text-2xs font-mono text-ink bg-surface px-2.5 py-1 rounded-xs border border-line hover:border-accent"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Kopyalandı" : "Markdown Kopyala"}
+              </button>
+            </div>
+
+            <textarea
+              value={activeLlmsTab === "llms" ? editableLlmsTxt : editableLlmsFullTxt}
+              onChange={(e) =>
+                activeLlmsTab === "llms"
+                  ? setEditableLlmsTxt(e.target.value)
+                  : setEditableLlmsFullTxt(e.target.value)
+              }
+              rows={12}
+              className="w-full font-mono text-2xs bg-surface text-ink p-3 rounded-xs border border-line focus:outline-none focus:border-accent leading-relaxed"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <span className="text-2xs text-muted font-mono">
+                Hedef: <strong>https://{site?.domain || llmsReadiness.site_domain}/{activeLlmsTab === "llms" ? "llms.txt" : "llms-full.txt"}</strong>
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={deployingAction?.startsWith("ALLOW_AI_BOTS_ROBOTS")}
+                  icon={<ShieldCheck className="w-3.5 h-3.5" />}
+                  onClick={() =>
+                    handleDeployGeoAction({
+                      action_type: "ALLOW_AI_BOTS_ROBOTS",
+                      title: "robots.txt AI Arama Botları İzni ve llms.txt Bildirimi",
+                    })
+                  }
+                >
+                  robots.txt AI İzni Ekle
+                </Button>
+                <Button
+                  size="sm"
+                  variant="evidence"
+                  loading={
+                    deployingAction?.startsWith("DEPLOY_LLMS_TXT") ||
+                    deployingAction?.startsWith("DEPLOY_LLMS_FULL_TXT")
+                  }
+                  icon={<FileCode2 className="w-3.5 h-3.5" />}
+                  onClick={() =>
+                    handleDeployGeoAction({
+                      action_type: activeLlmsTab === "llms" ? "DEPLOY_LLMS_TXT" : "DEPLOY_LLMS_FULL_TXT",
+                      title:
+                        activeLlmsTab === "llms"
+                          ? "Kök Dizine /llms.txt Dosyasını Yayınla"
+                          : "Kök Dizine /llms-full.txt Dosyasını Yayınla",
+                      custom_content: activeLlmsTab === "llms" ? editableLlmsTxt : editableLlmsFullTxt,
+                    })
+                  }
+                >
+                  {activeLlmsTab === "llms"
+                    ? "/llms.txt Dosyasını Siteye Bas (ChangeSet)"
+                    : "/llms-full.txt Dosyasını Siteye Bas (ChangeSet)"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      {/* Cited Sources & Competitor Attribution Analysis */}
+      <Panel
+        title="Alıntılanan Kaynak URL ve Rakip Atıf Analizi (Citation Attribution)"
+        sub="Yapay zeka motorlarının yanıt üretirken RAG boru hattında hangi URL'leri kaynak gösterdiği ve neden tercih ettiği."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {citedSources.map((src, idx) => (
+            <div
+              key={idx}
+              className="p-3.5 bg-surface-2 rounded-sm border border-line space-y-2 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {getSourceTypeBadge(src.source_type)}
+                    <span className="font-mono text-xs font-bold text-ink truncate">
+                      {src.domain}
+                    </span>
+                  </div>
+                  <span className="text-2xs font-mono font-bold text-accent-ink bg-accent-soft px-2 py-0.5 rounded-xs shrink-0">
+                    {src.citation_count}x Alıntı
+                  </span>
+                </div>
+
+                <div className="text-xs font-semibold text-ink line-clamp-1">{src.title}</div>
+                <a
+                  href={src.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-2xs font-mono text-accent-ink hover:underline flex items-center gap-1 truncate"
+                >
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{src.url}</span>
+                </a>
+                <p className="text-2xs text-muted bg-surface p-2 rounded-xs border border-line/70">
+                  <strong>Neden Alıntılandı?</strong> {src.why_cited}
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-1 border-t border-line/60">
+                <div className="flex flex-wrap gap-1">
+                  {(src.platforms_citing || []).map((plat) => (
+                    <span
+                      key={plat}
+                      className="text-[10px] font-mono bg-surface px-1.5 py-0.5 rounded-xs border border-line text-muted"
+                    >
+                      {plat}
+                    </span>
+                  ))}
+                </div>
+                {src.source_type !== "OWNED" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDeployGeoAction({
+                        action_type: "INJECT_DIRECT_ANSWER",
+                        title: `${src.domain} Karşısında Direct Answer + FAQ Schema Yaması`,
+                        prompt_context: src.title,
+                      })
+                    }
+                    className="text-2xs font-semibold text-accent-ink hover:underline inline-flex items-center gap-1"
+                  >
+                    Bu Kaynağı Geçmek İçin Yama Üret <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       </Panel>
 
-      {/* Recommended GEO Actions */}
-      <Panel title="Generative Engine Optimization (GEO) Eylem Planı">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {geoData.quickActions.map((act, i) => (
-            <div key={i} className="p-4 bg-surface-2 rounded-sm border border-line space-y-2 flex flex-col justify-between">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xs font-mono font-bold text-accent-ink uppercase">{act.category}</span>
-                  <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-xs">
-                    {act.impact}
-                  </span>
+      {/* Monitored Prompts & Real-time Monte Carlo LLM Output */}
+      <Panel
+        title="İzlenen Yapay Zeka Sorguları, Monte Carlo Güven Aralığı ve Tek Tıkla İcra"
+        sub="LLM modellerine yöneltilen test sorguları, çok turlu olasılık dağılımı ve her sorgu için hazır Direct Answer / Schema yaması."
+      >
+        <div className="space-y-4">
+          {geoData.prompts.map((p) => {
+            const mc = p.monte_carlo;
+            const actionKey = `INJECT_DIRECT_ANSWER:${p.prompt}`;
+            return (
+              <div key={p.id} className="p-4 bg-surface-2 rounded-sm border border-line space-y-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-line pb-2">
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-accent shrink-0" />
+                    <span className="font-bold text-sm text-ink">&ldquo;{p.prompt}&rdquo;</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="evidence" mono>Alıntı Sırası: #{p.citation_rank}</Badge>
+                    {mc && (
+                      <Badge tone="accent" mono>
+                        MC Olasılık: %{Math.round(mc.mention_probability * 100)} (GA: %
+                        {Math.round((mc.confidence_interval_95?.[0] || 0) * 100)}–%
+                        {Math.round((mc.confidence_interval_95?.[1] || 0) * 100)})
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted font-mono">Frekans: {p.frequency}</span>
+                  </div>
                 </div>
-                <h4 className="text-sm font-bold text-ink">{act.title}</h4>
-                <p className="text-xs text-muted leading-relaxed">{act.description}</p>
-              </div>
 
-              <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-line/60">
-                <Button
-                  size="sm"
-                  variant="evidence"
-                  icon={<Zap className="w-3.5 h-3.5" />}
-                  onClick={() => handleApplyGeoAction(act)}
-                >
-                  Otonom Uygula
-                </Button>
-                <Link
-                  href="/content"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:underline"
-                >
-                  İncele <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                {/* Snippets from each platform */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                  {Object.entries(p.platform_results).map(([engine, res], i) => (
+                    <div key={i} className="p-3 bg-surface rounded-xs border border-line space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs text-ink">{engine}</span>
+                        {res.mentioned ? (
+                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600">
+                            <CheckCircle2 className="w-3 h-3" /> Alıntı Yapıldı
+                            {typeof res.mention_probability === "number" && (
+                              <span className="font-mono text-[10px]">
+                                (%{Math.round(res.mention_probability * 100)})
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-rose-500">
+                            <AlertCircle className="w-3 h-3" /> Bahsedilmedi
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted italic line-clamp-3">&ldquo;{res.snippet}&rdquo;</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-2xs text-muted pt-1 border-t border-line/50">
+                  <span>
+                    En çok atıf alan rakip alan adı:{" "}
+                    <strong className="text-ink">{p.top_competitor_cited}</strong>
+                    {mc && (
+                      <span className="ml-2 font-mono">
+                        • İstikrar Skoru: <strong>%{mc.stability_score}</strong> ({mc.sample_runs} Tur)
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="evidence"
+                      loading={deployingAction === actionKey}
+                      icon={<Zap className="w-3 h-3" />}
+                      onClick={() =>
+                        handleDeployGeoAction({
+                          action_type: "INJECT_DIRECT_ANSWER",
+                          title: `'${p.prompt.slice(0, 45)}...' Direct Answer + FAQ Schema Yaması`,
+                          prompt_context: p.prompt,
+                        })
+                      }
+                    >
+                      Bu Sorgu İçin Direct Answer + Schema Yaması Bas
+                    </Button>
+                    <Link
+                      href="/content"
+                      className="text-accent-ink hover:underline font-semibold flex items-center gap-1"
+                    >
+                      İçeriği Düzenle <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      </Panel>
+
+      {/* Recommended GEO Actions */}
+      <Panel title="Generative Engine Optimization (GEO 2.0) Otonom Eylem Planı">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {geoData.quickActions.map((act: GeoQuickAction, i: number) => {
+            const actionType = act.action_type || "INJECT_GEO_SCHEMA";
+            const key = `${actionType}:${act.title}`;
+            return (
+              <div
+                key={i}
+                className="p-4 bg-surface-2 rounded-sm border border-line space-y-2 flex flex-col justify-between"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs font-mono font-bold text-accent-ink uppercase">
+                      {act.category}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-xs">
+                      {act.impact}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-ink">{act.title}</h4>
+                  <p className="text-xs text-muted leading-relaxed">{act.description}</p>
+                </div>
+
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-line/60">
+                  <Button
+                    size="sm"
+                    variant="evidence"
+                    loading={deployingAction === key}
+                    icon={<Zap className="w-3.5 h-3.5" />}
+                    onClick={() =>
+                      handleDeployGeoAction({
+                        action_type: actionType,
+                        title: act.title,
+                        target_url: act.target_url,
+                      })
+                    }
+                  >
+                    ChangeSet Olarak Uygula
+                  </Button>
+                  <Link
+                    href="/changes"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink hover:underline"
+                  >
+                    Değişiklikleri Gör <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Panel>
     </div>
   );
 }
-

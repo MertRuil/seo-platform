@@ -6,6 +6,7 @@ import httpx
 from typing import Dict, Any, List
 from services.executor.base import SiteConnector
 from services.security.ssrf import validate_safe_url
+from services.crawler.safe_client import SSRFSafeAsyncHTTPTransport
 
 class GenericWebhookConnector(SiteConnector):
     """
@@ -15,6 +16,15 @@ class GenericWebhookConnector(SiteConnector):
     def __init__(self, webhook_url: str, secret_key: str):
         self.webhook_url = webhook_url
         self.secret_key = secret_key
+
+    def _safe_async_client(self, timeout: float = 15.0) -> httpx.AsyncClient:
+        transport = SSRFSafeAsyncHTTPTransport(verify=True, trust_env=False)
+        return httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False
+        )
 
     def _sign_payload(self, body: str, timestamp: str) -> str:
         data = f"{timestamp}.{body}".encode("utf-8")
@@ -43,7 +53,7 @@ class GenericWebhookConnector(SiteConnector):
                 "is_valid": True
             }
         validate_safe_url(url)
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+        async with self._safe_async_client(timeout=15.0) as client:
             response = await client.get(url)
             content_hash = hashlib.sha256(response.content).hexdigest()
             canonical_hash = content_hash
@@ -77,8 +87,8 @@ class GenericWebhookConnector(SiteConnector):
             return True
 
         validate_safe_url(self.webhook_url)
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
-            resp = await client.post(self.webhook_url, headers=headers, data=body_json)
+        async with self._safe_async_client(timeout=15.0) as client:
+            resp = await client.post(self.webhook_url, headers=headers, content=body_json.encode("utf-8"))
             return resp.status_code in (200, 201, 204)
 
     async def rollback_change(self, backup_state: Dict[str, Any]) -> bool:

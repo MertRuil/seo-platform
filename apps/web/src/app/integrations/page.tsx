@@ -43,7 +43,15 @@ interface ExtendedConnectorItem extends ConnectorItem {
 export default function BaglayicilarPage() {
   const { user } = useAuth();
   const { org, site } = useSite();
-  const isAdmin = Boolean(!user || user.isAdmin || user.isSuperAdmin || user.role === "OWNER" || user.role === "ADMIN" || true);
+  const isAdmin = Boolean(
+    user &&
+      (user.isAdmin ||
+        user.isSuperAdmin ||
+        user.role === "OWNER" ||
+        user.role === "ADMIN" ||
+        user.role === "Süper Yönetici" ||
+        user.role === "SEO Yöneticisi")
+  );
 
   const [activeTab, setActiveTab] = useState<"google" | "connectors" | "alerts">("google");
 
