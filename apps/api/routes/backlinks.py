@@ -6,15 +6,18 @@ Strictly ensures backlink profiles and disavow files are scoped to the requestin
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.routes.sites import verify_site_access
 from packages.shared.database import get_db
+from packages.shared.models import Backlink, Site, generate_uuid
 from services.security.jwt_auth import get_current_user_payload
 from services.seo_engine.backlink_engine import (
     AnchorCategory,
@@ -109,8 +112,151 @@ class BacklinkSyncResultResponse(BaseModel):
     summary: BacklinkSummaryResponse
 
 
-# In-memory site-scoped backlink cache to prevent cross-site data leakage
-_SITE_BACKLINKS_CACHE: Dict[str, List[BacklinkItem]] = {}
+_UPSERT_UPDATE_COLUMNS = (
+    "source_domain", "anchor_text", "anchor_category", "is_dofollow", "domain_authority",
+    "page_authority", "spam_score", "is_toxic", "toxicity_risk", "toxicity_reasons",
+    "status", "data_source", "verified_live", "http_status", "rel_attributes",
+)
+
+
+# PostgreSQL btree index rows are capped at ~2.7 KB; longer URL pairs cannot enter the unique index.
+_MAX_URL_LENGTH = 2048
+_MAX_UNIQUE_KEY_BYTES = 2600
+
+
+def _fits_unique_index(source_url: str, target_url: str) -> bool:
+    if len(source_url) > _MAX_URL_LENGTH or len(target_url) > _MAX_URL_LENGTH:
+        return False
+    return len(source_url.encode()) + len(target_url.encode()) <= _MAX_UNIQUE_KEY_BYTES
+
+
+def _clean_domain(site_domain: str) -> str:
+    return site_domain.replace("https://", "").replace("http://", "").split("/")[0].lower()
+
+
+def _enum_value(value: Any) -> str:
+    return value.value if hasattr(value, "value") else str(value)
+
+
+def _row_to_item(row: Backlink) -> BacklinkItem:
+    return BacklinkItem(
+        id=row.id,
+        source_url=row.source_url,
+        source_domain=row.source_domain,
+        target_url=row.target_url,
+        anchor_text=row.anchor_text,
+        anchor_category=AnchorCategory(row.anchor_category),
+        is_dofollow=row.is_dofollow,
+        domain_authority=row.domain_authority,
+        page_authority=row.page_authority,
+        spam_score=row.spam_score,
+        is_toxic=row.is_toxic,
+        toxicity_risk=ToxicityRisk(row.toxicity_risk),
+        toxicity_reasons=list(row.toxicity_reasons or []),
+        first_seen=row.first_seen,
+        status=row.status,
+        data_source=row.data_source,
+        verified_live=row.verified_live,
+        http_status=row.http_status,
+        rel_attributes=list(row.rel_attributes or []),
+    )
+
+
+def _item_values(site_id: str, item: BacklinkItem, created_at: datetime) -> Dict[str, Any]:
+    return {
+        "id": generate_uuid(),
+        "site_id": site_id,
+        "source_url": item.source_url,
+        "source_domain": item.source_domain,
+        "target_url": item.target_url,
+        "anchor_text": item.anchor_text,
+        "anchor_category": _enum_value(item.anchor_category),
+        "is_dofollow": item.is_dofollow,
+        "domain_authority": item.domain_authority,
+        "page_authority": item.page_authority,
+        "spam_score": item.spam_score,
+        "is_toxic": item.is_toxic,
+        "toxicity_risk": _enum_value(item.toxicity_risk),
+        "toxicity_reasons": list(item.toxicity_reasons or []),
+        "first_seen": item.first_seen,
+        "status": item.status,
+        "data_source": item.data_source,
+        "verified_live": item.verified_live,
+        "http_status": item.http_status,
+        "rel_attributes": list(item.rel_attributes or []),
+        "created_at": created_at,
+    }
+
+
+def _dialect_insert(db: AsyncSession):
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as dialect_insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as dialect_insert
+    else:
+        raise RuntimeError(f"Unsupported database dialect for backlink upsert: {dialect}")
+    return dialect_insert
+
+
+async def _site_backlink_rows(db: AsyncSession, site_id: str) -> List[Backlink]:
+    # populate_existing: rows refreshed by a Core upsert must not come back stale from the identity map.
+    result = await db.execute(
+        select(Backlink)
+        .where(Backlink.site_id == site_id)
+        .order_by(Backlink.created_at.desc(), Backlink.id)
+        .execution_options(populate_existing=True)
+    )
+    return list(result.scalars().all())
+
+
+async def _upsert_backlinks(db: AsyncSession, site_id: str, items: List[BacklinkItem], update_existing: bool) -> int:
+    """
+    Inserts backlinks keyed by (site_id, source_url, target_url) and returns how many were new.
+    Existing rows are refreshed when update_existing is set, otherwise left untouched.
+    Items earlier in the list are listed first (newest created_at).
+    """
+    unique_items: Dict[tuple, BacklinkItem] = {}
+    for item in items:
+        if _fits_unique_index(item.source_url, item.target_url):
+            unique_items.setdefault((item.source_url, item.target_url), item)
+    if not unique_items:
+        return 0
+
+    existing = await db.execute(
+        select(Backlink.source_url, Backlink.target_url).where(Backlink.site_id == site_id)
+    )
+    existing_keys = {(r.source_url, r.target_url) for r in existing}
+
+    base_time = datetime.now(timezone.utc)
+    values = [
+        _item_values(site_id, item, base_time - timedelta(microseconds=idx))
+        for idx, item in enumerate(unique_items.values())
+    ]
+    stmt = _dialect_insert(db)(Backlink).values(values)
+    conflict_cols = ["site_id", "source_url", "target_url"]
+    if update_existing:
+        stmt = stmt.on_conflict_do_update(
+            index_elements=conflict_cols,
+            set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_COLUMNS},
+        )
+    else:
+        stmt = stmt.on_conflict_do_nothing(index_elements=conflict_cols)
+    await db.execute(stmt)
+    return sum(1 for key in unique_items if key not in existing_keys)
+
+
+async def _load_site_backlinks(db: AsyncSession, site: Site) -> List[Backlink]:
+    """Returns the stored backlinks of the site; demo sites get their seed profile on first access."""
+    rows = await _site_backlink_rows(db, site.id)
+    if rows:
+        return rows
+    seed = _demo_seed_items(site.id, site.domain)
+    if not seed:
+        return rows
+    await _upsert_backlinks(db, site.id, seed, update_existing=False)
+    await db.commit()
+    return await _site_backlink_rows(db, site.id)
 
 
 def _serialize_item(b: BacklinkItem) -> BacklinkResponse:
@@ -120,13 +266,13 @@ def _serialize_item(b: BacklinkItem) -> BacklinkResponse:
         source_domain=b.source_domain,
         target_url=b.target_url,
         anchor_text=b.anchor_text,
-        anchor_category=b.anchor_category.value if hasattr(b.anchor_category, "value") else str(b.anchor_category),
+        anchor_category=_enum_value(b.anchor_category),
         is_dofollow=b.is_dofollow,
         domain_authority=b.domain_authority,
         page_authority=b.page_authority,
         spam_score=b.spam_score,
         is_toxic=b.is_toxic,
-        toxicity_risk=b.toxicity_risk.value if hasattr(b.toxicity_risk, "value") else str(b.toxicity_risk),
+        toxicity_risk=_enum_value(b.toxicity_risk),
         toxicity_reasons=b.toxicity_reasons,
         first_seen=b.first_seen,
         status=b.status,
@@ -158,15 +304,12 @@ def _serialize_summary(raw_links: List[BacklinkItem]) -> BacklinkSummaryResponse
     )
 
 
-def _get_or_init_site_backlinks(site_id: str, site_domain: str, primary_url: Optional[str] = None) -> List[BacklinkItem]:
+def _demo_seed_items(site_id: str, site_domain: str) -> List[BacklinkItem]:
     """
-    Returns the isolated backlink list for the specified site.
-    Ensures Acme Store links are NEVER returned for AnalyticsHub or other customer sites.
+    Returns the demo backlink profile for the built-in demo sites (acmestore.io / analyticshub.com).
+    Customer sites get an empty list: no fabricated links are stored for them.
     """
-    if site_id in _SITE_BACKLINKS_CACHE:
-        return _SITE_BACKLINKS_CACHE[site_id]
-
-    clean_domain = site_domain.replace("https://", "").replace("http://", "").split("/")[0].lower()
+    clean_domain = _clean_domain(site_domain)
 
     # Demo Site 1: Acme Ecommerce Store (has 3 toxic demo links for testing disavow)
     if clean_domain == "acmestore.io" or site_id == "site-1":
@@ -274,7 +417,6 @@ def _get_or_init_site_backlinks(site_id: str, site_domain: str, primary_url: Opt
                 data_source=BacklinkDataSource.DEMO_SEED.value,
             ),
         ]
-        _SITE_BACKLINKS_CACHE[site_id] = links
         return links
 
     # Demo Site 2: SaaS Analytics Hub (Clean profile - ZERO toxic backlinks)
@@ -366,14 +508,11 @@ def _get_or_init_site_backlinks(site_id: str, site_domain: str, primary_url: Opt
                 data_source=BacklinkDataSource.DEMO_SEED.value,
             ),
         ]
-        _SITE_BACKLINKS_CACHE[site_id] = links
         return links
 
     # Müşteri siteleri boş listeyle başlar: gerçek bir bağlantı kaynağı (GSC bağlantı dışa aktarımı,
     # DataForSEO API veya canlı HTML taraması) bağlanana kadar sahte/uydurma bağlantı eklenmez.
-    links: List[BacklinkItem] = []
-    _SITE_BACKLINKS_CACHE[site_id] = links
-    return links
+    return []
 
 
 @router.get("", response_model=List[BacklinkResponse])
@@ -386,7 +525,7 @@ async def get_site_backlinks(
     """Fetches backlinks strictly belonging to the requested site."""
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    raw_links = [_row_to_item(r) for r in await _load_site_backlinks(db, site)]
     return [_serialize_item(b) for b in raw_links]
 
 
@@ -400,7 +539,7 @@ async def get_site_backlink_summary(
     """Calculates summary, toxicity metrics, and data provenance strictly for the requested site."""
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    raw_links = [_row_to_item(r) for r in await _load_site_backlinks(db, site)]
     return _serialize_summary(raw_links)
 
 
@@ -418,9 +557,9 @@ async def get_site_disavow_file(
     """
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    raw_links = [_row_to_item(r) for r in await _load_site_backlinks(db, site)]
 
-    clean_domain = site.domain.replace("https://", "").replace("http://", "").split("/")[0].lower()
+    clean_domain = _clean_domain(site.domain)
     toxic_links = [
         b
         for b in raw_links
@@ -483,7 +622,7 @@ async def add_site_backlink(
     """
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    await _load_site_backlinks(db, site)
 
     parsed_source = urlparse(req.source_url)
     source_domain = (parsed_source.netloc or "external-source.com").lower().removeprefix("www.")
@@ -525,7 +664,7 @@ async def add_site_backlink(
     category = classify_anchor_text(anchor_text, site.name, target_url)
 
     new_item = BacklinkItem(
-        id=f"bl-{site_id}-{len(raw_links) + 1}",
+        id="",
         source_url=req.source_url,
         source_domain=source_domain,
         target_url=target_url,
@@ -543,10 +682,20 @@ async def add_site_backlink(
         http_status=http_status,
         rel_attributes=rel_attributes,
     )
-    raw_links.insert(0, new_item)
-    _SITE_BACKLINKS_CACHE[site_id] = raw_links
+    if not _fits_unique_index(new_item.source_url, new_item.target_url):
+        raise HTTPException(status_code=400, detail="Kaynak veya hedef URL çok uzun; en fazla 2048 karakter olabilir.")
+    await _upsert_backlinks(db, site_id, [new_item], update_existing=True)
+    await db.commit()
 
-    return _serialize_item(new_item)
+    stored = await db.execute(
+        select(Backlink).where(
+            Backlink.site_id == site_id,
+            Backlink.source_url == new_item.source_url,
+            Backlink.target_url == new_item.target_url,
+        )
+        .execution_options(populate_existing=True)
+    )
+    return _serialize_item(_row_to_item(stored.scalars().one()))
 
 
 @router.post("/sync-live", response_model=BacklinkSyncResultResponse)
@@ -563,7 +712,7 @@ async def sync_live_site_backlinks(
     """
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    await _load_site_backlinks(db, site)
 
     dfs_items = await BacklinkDataProvider.fetch_from_dataforseo(
         target_domain=site.domain,
@@ -571,13 +720,9 @@ async def sync_live_site_backlinks(
         limit=req.limit,
     )
 
-    existing_urls = {b.source_url for b in raw_links}
-    added_count = 0
-    for item in dfs_items:
-        if item.source_url not in existing_urls:
-            raw_links.insert(0, item)
-            existing_urls.add(item.source_url)
-            added_count += 1
+    # Provider data is authoritative: refresh rows that already exist instead of duplicating them.
+    added_count = await _upsert_backlinks(db, site_id, dfs_items, update_existing=True)
+    raw_links = await _site_backlink_rows(db, site_id)
 
     # Enrich Domain Authority via OpenPageRank if configured
     all_domains = [b.source_domain for b in raw_links]
@@ -601,8 +746,9 @@ async def sync_live_site_backlinks(
                 if b.data_source in (BacklinkDataSource.MANUAL_ENTRY.value, BacklinkDataSource.GSC_LINKS_IMPORT.value):
                     b.data_source = BacklinkDataSource.LIVE_CRAWL_VERIFIED.value
 
-    _SITE_BACKLINKS_CACHE[site_id] = raw_links
-    summary_resp = _serialize_summary(raw_links)
+    await db.commit()
+    items = [_row_to_item(b) for b in raw_links]
+    summary_resp = _serialize_summary(items)
     configured = get_configured_backlink_providers()
 
     if dfs_items:
@@ -623,7 +769,7 @@ async def sync_live_site_backlinks(
         data_source=summary_resp.data_source,
         providers_configured=configured,
         message=msg,
-        items=[_serialize_item(b) for b in raw_links],
+        items=[_serialize_item(b) for b in items],
         summary=summary_resp,
     )
 
@@ -642,7 +788,7 @@ async def import_gsc_site_backlinks(
     """
     user_id = payload.get("sub")
     site = await verify_site_access(org_id, site_id, user_id, db)
-    raw_links = _get_or_init_site_backlinks(site_id, site.domain, site.primary_url)
+    await _load_site_backlinks(db, site)
 
     parsed_items = BacklinkDataProvider.parse_gsc_links_export(
         raw_text_or_lines=req.raw_csv_or_urls,
@@ -662,16 +808,11 @@ async def import_gsc_site_backlinks(
                 item.rel_attributes = check.get("rel_attributes") or []
                 item.data_source = BacklinkDataSource.LIVE_CRAWL_VERIFIED.value
 
-    existing_urls = {b.source_url for b in raw_links}
-    added_count = 0
-    for item in reversed(parsed_items):
-        if item.source_url not in existing_urls:
-            raw_links.insert(0, item)
-            existing_urls.add(item.source_url)
-            added_count += 1
-
-    _SITE_BACKLINKS_CACHE[site_id] = raw_links
-    summary_resp = _serialize_summary(raw_links)
+    # A GSC export carries fewer signals than stored rows, so re-imports only add links not seen before.
+    added_count = await _upsert_backlinks(db, site_id, parsed_items, update_existing=False)
+    await db.commit()
+    items = [_row_to_item(b) for b in await _site_backlink_rows(db, site_id)]
+    summary_resp = _serialize_summary(items)
 
     return BacklinkSyncResultResponse(
         synced_count=added_count,
@@ -679,6 +820,6 @@ async def import_gsc_site_backlinks(
         data_source=summary_resp.data_source,
         providers_configured=get_configured_backlink_providers(),
         message=f"Google Search Console dışa aktarımından {added_count} yeni bağlantı başarıyla analiz edilerek eklendi.",
-        items=[_serialize_item(b) for b in raw_links],
+        items=[_serialize_item(b) for b in items],
         summary=summary_resp,
     )

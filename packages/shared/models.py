@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone, date
 from typing import List, Optional
 from sqlalchemy import (
-    Boolean, Column, DateTime, Date, Enum, ForeignKey, Integer,
+    JSON, Boolean, Column, DateTime, Date, Enum, ForeignKey, Integer,
     Numeric, String, Text, UniqueConstraint, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -610,4 +610,34 @@ class LeadRecord(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     site_id = Column(String(36), ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
     payload_json = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class Backlink(Base):
+    """Site-scoped external backlink; mirrors services.seo_engine.backlink_engine.BacklinkItem."""
+    __tablename__ = "backlinks"
+    __table_args__ = (
+        UniqueConstraint("site_id", "source_url", "target_url", name="uq_backlink_site_source_target"),
+    )
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    site_id = Column(String(36), ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_url = Column(String(2048), nullable=False)
+    source_domain = Column(String(255), nullable=False, index=True)
+    target_url = Column(String(2048), nullable=False)
+    anchor_text = Column(Text, nullable=False, default="")
+    anchor_category = Column(String(30), nullable=False)
+    is_dofollow = Column(Boolean, default=True, nullable=False)
+    domain_authority = Column(Integer, default=0, nullable=False)
+    page_authority = Column(Integer, default=0, nullable=False)
+    spam_score = Column(Integer, default=0, nullable=False)
+    is_toxic = Column(Boolean, default=False, nullable=False)
+    toxicity_risk = Column(String(20), nullable=False)
+    toxicity_reasons = Column(JSON, nullable=False, default=list)
+    first_seen = Column(String(10), nullable=False)  # YYYY-MM-DD
+    status = Column(String(20), default="ACTIVE", nullable=False)
+    data_source = Column(String(50), nullable=False)
+    verified_live = Column(Boolean, default=False, nullable=False)
+    http_status = Column(Integer, nullable=True)
+    rel_attributes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
