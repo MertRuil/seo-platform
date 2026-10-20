@@ -88,6 +88,28 @@ export default function OncelikliIslerPage() {
                       <span className="text-sm font-semibold text-ink">{q.title}</span>
                     </div>
                     <p className="text-sm text-muted">{q.reason}</p>
+                    {q.proposed && (
+                      <dl className="mt-2 rounded-sm border border-line bg-surface-2 px-3 py-2 text-xs space-y-1">
+                        {q.proposed.title && (
+                          <div>
+                            <dt className="font-semibold text-ink">Önerilen başlık</dt>
+                            <dd className="text-muted break-words">{q.proposed.title}</dd>
+                          </div>
+                        )}
+                        {q.proposed.metaDescription && (
+                          <div>
+                            <dt className="font-semibold text-ink">Önerilen meta açıklaması</dt>
+                            <dd className="text-muted break-words">{q.proposed.metaDescription}</dd>
+                          </div>
+                        )}
+                        {q.proposed.schemaJson && (
+                          <details>
+                            <summary className="font-semibold text-ink cursor-pointer">Düzeltilmiş JSON-LD</summary>
+                            <pre className="mt-1 overflow-x-auto font-mono text-2xs text-muted">{q.proposed.schemaJson}</pre>
+                          </details>
+                        )}
+                      </dl>
+                    )}
                     <div className="font-mono text-2xs text-muted flex flex-wrap gap-x-3">
                       <span>
                         Kanıt: <span className="text-evidence">{q.source}</span>

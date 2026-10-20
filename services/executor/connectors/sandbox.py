@@ -25,6 +25,7 @@ class SandboxSimulationConnector(SiteConnector):
             "CAN_EDIT_META",
             "CAN_EDIT_CANONICAL",
             "CAN_EDIT_SCHEMA",
+            "CAN_REPLACE_SCHEMA",
             "CAN_EDIT_REDIRECT",
             "CAN_EDIT_CONTENT",
         ]

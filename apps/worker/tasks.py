@@ -14,6 +14,7 @@ from services.crawler.crawler_service import CrawlerService
 from services.seo_engine.engine import SeoRuleEngine
 from services.agents.orchestrator import AiOrchestrator, MAX_ISSUES_PER_RUN, issue_key
 from services.agents.base import get_llm_provider, is_placeholder_provider
+from services.agents.proposed_change import plan_auto_change
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
@@ -23,6 +24,25 @@ from services.executor.connectors.webhook import GenericWebhookConnector
 from services.integrations.indexing_client import IndexNowClient
 
 logger = logging.getLogger("worker.tasks")
+
+def _page_facts(page: CrawlPage) -> Dict[str, Any]:
+    """Ajanların ve önerilen değer kontrollerinin kullandığı sayfa bilgileri."""
+    try:
+        structured_data = json.loads(page.structured_data_json) if page.structured_data_json else []
+    except (TypeError, ValueError):
+        structured_data = []
+    return {
+        "url": page.url,
+        "status_code": page.status_code,
+        "title": page.title,
+        "meta_description": page.meta_description,
+        "h1": page.h1,
+        "html_lang": page.html_lang,
+        "word_count": page.word_count,
+        "canonical_target": page.canonical_target,
+        "structured_data": structured_data if isinstance(structured_data, list) else [structured_data],
+    }
+
 
 async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_run_id: str) -> int:
     """
@@ -44,7 +64,7 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
                 Recommendation.site_id == site.id,
                 Recommendation.status == "PENDING",
                 Recommendation.risk_level == "LOW"
-            )
+            ).order_by(Recommendation.priority_score.desc(), Recommendation.created_at)
         )
         low_risk_recs = recs_res.scalars().all()
         if not low_risk_recs:
@@ -74,6 +94,7 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
             return 0
 
         executor = SafeSiteExecutor(connector)
+        capabilities = set(await connector.get_capabilities())
         auto_executed = 0
 
         # Pre-load crawl pages hash map for concurrency hash matching
@@ -84,6 +105,9 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
             )
         )
         pages_map = {p.url: p for p in pages_res.scalars().all()}
+        # Yeni başlık/meta sitedeki başka bir sayfayla ya da bu çalıştırmada yazılan bir değerle çakışmasın.
+        taken_titles = {p.title for p in pages_map.values() if p.title}
+        taken_metas = {p.meta_description for p in pages_map.values() if p.meta_description}
 
         for rec in low_risk_recs:
             try:
@@ -91,24 +115,34 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
             except Exception:
                 evidence = {}
 
-            target_url = evidence.get("url") or evidence.get("page_url") or site.primary_url
+            # Kanıtta sayfa yoksa ana sayfaya düşülmez; değişiklik yanlış sayfaya yazılabilir.
+            target_url = evidence.get("url") or evidence.get("page_url")
+            if not target_url:
+                continue
             host = (urlparse(target_url).hostname or "").lower().removeprefix("www.")
             if host != site.normalized_domain:
                 # Do not execute if outside tenant domain boundary
                 continue
 
             page = pages_map.get(target_url)
-            expected_hash = (page.canonical_seo_hash or page.raw_html_hash or "") if page else ""
-
-            # Yalnızca yeni değeri kesin olan değişiklik otomatik uygulanır. Önerinin başlığı ve teşhisi sayfa
-            # içeriği değildir; bağlayıcılar state_after.title'ı yazı başlığına yazar. Başlık, meta ve şema
-            # önerileri somut bir değer taşımadığı sürece insan onayına kalır.
-            issue_upper = (rec.issue_id or "").upper()
-            if not ("CANONICAL" in issue_upper or rec.category == "CANONICALIZATION"):
+            if page is None:
                 continue
-            operation = "UPDATE_CANONICAL"
-            state_before = json.dumps({"canonical": evidence.get("target") or evidence.get("canonical_target", "")})
-            state_after = json.dumps({"canonical": target_url})
+            expected_hash = page.canonical_seo_hash or page.raw_html_hash or ""
+
+            # Yalnızca kontrollerden geçmiş somut değer yazılır; önerinin başlığı ve teşhisi sayfa içeriği değildir.
+            try:
+                proposed = json.loads(rec.proposed_change_json) if rec.proposed_change_json else {}
+            except (TypeError, ValueError):
+                proposed = {}
+            plan = plan_auto_change(
+                rec.issue_id or "", rec.category, proposed, _page_facts(page), target_url,
+                capabilities, taken_titles, taken_metas,
+            )
+            if plan is None:
+                continue
+            operation, before, after = plan
+            state_before = json.dumps(before, ensure_ascii=False)
+            state_after = json.dumps(after, ensure_ascii=False)
 
             # Create Atomic ChangeSet
             cs = ChangeSet(
@@ -175,6 +209,10 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
                 )
                 db.add(audit)
                 await db.commit()
+                if after.get("title"):
+                    taken_titles.add(after["title"])
+                if after.get("meta_description"):
+                    taken_metas.add(after["meta_description"])
 
                 # Dispatch Instant IndexNow Notification
                 try:
@@ -315,7 +353,7 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                 knowledge_store=knowledge_store
             )
 
-            pages_by_url = {p.url: {"title": p.title, "word_count": p.word_count, "status_code": p.status_code} for p in pages}
+            pages_by_url = {p.url: _page_facts(p) for p in pages}
             recs_data = await orchestrator.process_crawl_issues(
                 site_id=site_id,
                 issues=new_issues,
@@ -342,6 +380,7 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                     effort=r["effort"],
                     evidence_json=r["evidence_json"],
                     rag_sources_json=r["rag_sources_json"],
+                    proposed_change_json=r.get("proposed_change_json"),
                     status="PENDING"
                 )
                 db.add(rec_entity)

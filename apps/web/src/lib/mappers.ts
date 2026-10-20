@@ -12,7 +12,7 @@ import type {
   SiteGraphResponse,
   SiteHealthReportResponse,
 } from "@/lib/api";
-import type { CrawlRow, CwvData, HealthData, HealthRule, IssueItem, LinksData, OpportunityItem, PageRow, PerformanceData, QueueItem, Severity } from "@/lib/demo";
+import type { CrawlRow, CwvData, HealthData, HealthRule, IssueItem, LinksData, OpportunityItem, PageRow, PerformanceData, ProposedChange, QueueItem, Severity } from "@/lib/demo";
 import { formatDateTime, formatPercent } from "@/lib/format";
 
 const SEVERITIES: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
@@ -39,6 +39,20 @@ function firstSourceTitle(ragSourcesJson: string): string {
   }
 }
 
+export function parseProposedChange(json: string | null | undefined): ProposedChange | undefined {
+  if (!json) return undefined;
+  try {
+    const raw = JSON.parse(json) as { title?: unknown; meta_description?: unknown; schema_json?: unknown };
+    const proposed: ProposedChange = {};
+    if (typeof raw.title === "string") proposed.title = raw.title;
+    if (typeof raw.meta_description === "string") proposed.metaDescription = raw.meta_description;
+    if (raw.schema_json && typeof raw.schema_json === "object") proposed.schemaJson = JSON.stringify(raw.schema_json, null, 2);
+    return Object.keys(proposed).length ? proposed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function recommendationsToQueue(recs: RecommendationResponse[]): QueueItem[] {
   return recs
     .filter((r) => r.status !== "RESOLVED" && r.status !== "REJECTED")
@@ -54,6 +68,7 @@ export function recommendationsToQueue(recs: RecommendationResponse[]): QueueIte
       confidence: r.confidence,
       href: hrefForCategory(r.category),
       actionLabel: "İncele",
+      proposed: parseProposedChange(r.proposed_change_json),
     }));
 }
 

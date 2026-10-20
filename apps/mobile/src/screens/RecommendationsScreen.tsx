@@ -18,6 +18,20 @@ import { useApp } from "../context/AppContext";
 
 type CategoryFilter = "ALL" | "TECHNICAL" | "SCHEMA" | "CONTENT" | "INTERNAL_LINKING";
 
+function proposedLines(json?: string | null): string[] {
+  if (!json) return [];
+  try {
+    const raw = JSON.parse(json) as { title?: unknown; meta_description?: unknown; schema_json?: unknown };
+    const lines: string[] = [];
+    if (typeof raw.title === "string") lines.push(`Önerilen başlık: ${raw.title}`);
+    if (typeof raw.meta_description === "string") lines.push(`Önerilen meta açıklaması: ${raw.meta_description}`);
+    if (raw.schema_json && typeof raw.schema_json === "object") lines.push("Düzeltilmiş JSON-LD hazır");
+    return lines;
+  } catch {
+    return [];
+  }
+}
+
 export const RecommendationsScreen: React.FC = () => {
   const { selectedSite, activeCrawl } = useApp();
   const [items, setItems] = useState<RecommendationItem[]>([]);
@@ -198,6 +212,9 @@ export const RecommendationsScreen: React.FC = () => {
 
               <Text style={styles.recTitle}>{rec.title}</Text>
               <Text style={styles.recDesc}>{rec.description}</Text>
+              {proposedLines(rec.proposed_change_json).map((line) => (
+                <Text key={line} style={styles.recProposed}>{line}</Text>
+              ))}
 
               {/* Action Buttons */}
               <View style={styles.recBottom}>
@@ -352,6 +369,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
     marginBottom: 14,
+  },
+  recProposed: {
+    fontSize: 12,
+    color: Colors.textPrimary,
+    lineHeight: 18,
+    marginTop: -8,
+    marginBottom: 12,
   },
   recBottom: {
     flexDirection: "row",

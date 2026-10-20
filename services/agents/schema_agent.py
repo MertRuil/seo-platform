@@ -1,5 +1,6 @@
-from typing import Dict, Any, List
-from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation, TURKISH_OUTPUT_RULE
+from typing import Dict, Any, List, Optional
+import json
+from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation, TURKISH_OUTPUT_RULE, PROPOSED_VALUES_RULE
 from services.rag.hybrid_store import HybridKnowledgeStore
 
 class StructuredDataAgent:
@@ -12,7 +13,8 @@ class StructuredDataAgent:
         self,
         target_url: str,
         current_schema_json: str,
-        detected_page_type: str
+        detected_page_type: str,
+        page_data: Optional[Dict[str, Any]] = None
     ) -> RecommendationOutput:
         rag_results = self.rag.search_hybrid("Schema org structured data Google rich results json-ld", top_k=2)
 
@@ -31,17 +33,26 @@ class StructuredDataAgent:
             "Validate JSON-LD syntax according to schema.org standards. "
             "DO NOT fabricate facts, fake reviews, fake ratings, or prices. "
             "All structured data must reflect verifiable content on the page. "
-            + TURKISH_OUTPUT_RULE
+            + TURKISH_OUTPUT_RULE + " " + PROPOSED_VALUES_RULE
         )
 
+        page_data = page_data or {}
         prompt = f"""
 SCHEMA TARGET:
 URL: {target_url}
 Detected Type: {detected_page_type}
+Page Language (html_lang): {page_data.get('html_lang') or 'unknown'}
 
-<CURRENT_SCHEMA_JSON>
+<ISSUE_EVIDENCE>
 {current_schema_json}
-</CURRENT_SCHEMA_JSON>
+</ISSUE_EVIDENCE>
+
+<UNTRUSTED_PAGE_FACTS>
+Title: {page_data.get('title') or ''}
+H1: {page_data.get('h1') or ''}
+Meta Description: {page_data.get('meta_description') or ''}
+Existing JSON-LD blocks: {json.dumps(page_data.get('structured_data') or [], ensure_ascii=False)[:6000]}
+</UNTRUSTED_PAGE_FACTS>
 """
 
         res = await self.llm.generate_structured(

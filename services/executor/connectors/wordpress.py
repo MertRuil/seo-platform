@@ -132,6 +132,32 @@ class WordPressConnector(SiteConnector):
                 "is_valid": response.status_code < 500,
             }
 
+    @staticmethod
+    def build_update_payload(state_after: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        "title" SEO başlığıdır (<title>): yalnızca Yoast/RankMath alanına yazılır, yazının görünen
+        başlığı değişmez. Görünen başlık için açıkça "post_title" gönderilmelidir.
+        """
+        payload: Dict[str, Any] = {}
+        if "post_title" in state_after:
+            payload["title"] = state_after["post_title"]
+        if "content" in state_after:
+            payload["content"] = state_after["content"]
+
+        meta: Dict[str, Any] = {}
+        if state_after.get("title"):
+            meta["_yoast_wpseo_title"] = state_after["title"]
+            meta["rank_math_title"] = state_after["title"]
+        if state_after.get("meta_description"):
+            meta["_yoast_wpseo_metadesc"] = state_after["meta_description"]
+            meta["rank_math_description"] = state_after["meta_description"]
+        if state_after.get("canonical"):
+            meta["_yoast_wpseo_canonical"] = state_after["canonical"]
+            meta["rank_math_canonical_url"] = state_after["canonical"]
+        if meta:
+            payload["meta"] = meta
+        return payload
+
     async def apply_change(self, change_item: Dict[str, Any]) -> bool:
         target_id = change_item.get("post_id")
         if target_id is None:
@@ -148,37 +174,24 @@ class WordPressConnector(SiteConnector):
         except (ValueError, TypeError):
             return False
 
-        if self.wp_url.startswith("mock://"):
-            return True
-
-        validate_safe_url(self.wp_url)
-
         state_after = change_item.get("state_after", {})
         if isinstance(state_after, str):
             try:
                 state_after = json.loads(state_after)
             except Exception:
                 state_after = {}
+        if not isinstance(state_after, dict):
+            return False
 
-        payload: Dict[str, Any] = {}
-        if "title" in state_after:
-            payload["title"] = state_after["title"]
-        if "content" in state_after:
-            payload["content"] = state_after["content"]
+        # WordPress'in yazamadığı bir değişiklik (ör. JSON-LD) boş istekle "başarılı" sayılmasın.
+        payload = self.build_update_payload(state_after)
+        if not payload:
+            return False
 
-        # Support Yoast & RankMath meta fields
-        meta: Dict[str, Any] = {}
-        if "title" in state_after:
-            meta["_yoast_wpseo_title"] = state_after["title"]
-            meta["rank_math_title"] = state_after["title"]
-        if "meta_description" in state_after:
-            meta["_yoast_wpseo_metadesc"] = state_after["meta_description"]
-            meta["rank_math_description"] = state_after["meta_description"]
-        if "canonical" in state_after:
-            meta["_yoast_wpseo_canonical"] = state_after["canonical"]
-            meta["rank_math_canonical_url"] = state_after["canonical"]
-        if meta:
-            payload["meta"] = meta
+        if self.wp_url.startswith("mock://"):
+            return True
+
+        validate_safe_url(self.wp_url)
 
         headers = self._get_headers()
         try:
@@ -198,4 +211,9 @@ class WordPressConnector(SiteConnector):
             return False
 
     async def rollback_change(self, backup_state: Dict[str, Any]) -> bool:
-        return await self.apply_change(backup_state)
+        # Yedek read_page_state çıktısıdır: hedef "url" anahtarında, değerler en üst seviyededir.
+        return await self.apply_change({
+            "target_url": backup_state.get("target_url") or backup_state.get("url", ""),
+            "post_id": backup_state.get("post_id"),
+            "state_after": {k: backup_state[k] for k in ("title", "meta_description", "canonical") if backup_state.get(k)},
+        })

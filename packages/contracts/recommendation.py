@@ -19,6 +19,7 @@ class RecommendationResponse(BaseModel):
     effort: str
     evidence_json: str
     rag_sources_json: str
+    proposed_change_json: Optional[str] = None
     status: str
     created_at: datetime
 

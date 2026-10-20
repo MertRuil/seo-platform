@@ -322,6 +322,8 @@ class Recommendation(Base):
     effort = Column(String(20), default='LOW', nullable=False)
     evidence_json = Column(Text, nullable=False, default="{}")
     rag_sources_json = Column(Text, nullable=False, default="[]")
+    # Doğrulanmış somut değerler: {"title", "meta_description", "schema_json"}; otomatik pilot yalnızca bunları yazar.
+    proposed_change_json = Column(Text, nullable=True)
     status = Column(String(50), default='PENDING', nullable=False)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 

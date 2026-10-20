@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Type
 from pydantic import BaseModel, Field
 
+from services.agents.proposed_change import META_MAX, META_MIN, TITLE_MAX, TITLE_MIN
+
 class GroundedCitation(BaseModel):
     source_id: str
     document_title: str
@@ -20,11 +22,26 @@ class RecommendationOutput(BaseModel):
     risk_level: str = Field(..., pattern=r"^(INFO|LOW|MEDIUM|HIGH|CRITICAL)$")
     citations: List[GroundedCitation]
     diff_preview: Optional[Dict[str, Any]] = None
+    # Siteye yazılabilecek somut değerler. Uzunluk ve dayanak kontrolü services/agents/proposed_change.py'de;
+    # burada sınır konmaz ki tek alan taşınca önerinin tamamı düşmesin.
+    proposed_title: Optional[str] = Field(None, description="New <title> text for the page, or null.")
+    proposed_meta_description: Optional[str] = Field(None, description="New meta description text for the page, or null.")
+    proposed_schema_json: Optional[Dict[str, Any]] = Field(None, description="Complete corrected JSON-LD object, or null.")
 
 # Öneriler panelde kullanıcıya olduğu gibi gösterilir; enum alanları şema ve puanlama için İngilizce kalır.
 TURKISH_OUTPUT_RULE = (
     "Write every free-text field (title, problem_diagnosis, proposed_solution, technical_reason, "
     "expected_impact) in Turkish. Keep category, effort, risk_level, URLs and citation fields unchanged."
+)
+
+PROPOSED_VALUES_RULE = (
+    "Fill proposed_title, proposed_meta_description or proposed_schema_json only when the issue is about that "
+    "value and the page data contains enough facts; otherwise leave them null. Write proposed_title and "
+    "proposed_meta_description in the page language (html_lang), not necessarily Turkish. Use only facts present "
+    "in the page data: never invent prices, discounts, ratings, reviews, authors, dates, numbers or claims. "
+    f"proposed_title: {TITLE_MIN}-{TITLE_MAX} characters, proposed_meta_description: {META_MIN}-{META_MAX} "
+    "characters, plain text without HTML. proposed_schema_json: keep the existing block's @type and properties, "
+    "only add the missing required ones from the page's title or H1."
 )
 
 class LLMProvider(ABC):

@@ -42,7 +42,8 @@ class GenericWebhookConnector(SiteConnector):
             return False
 
     async def get_capabilities(self) -> List[str]:
-        return ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_SCHEMA", "CAN_EDIT_REDIRECT"]
+        # Değişiklik olduğu gibi alıcıya iletilir; işlemi alıcı uygular.
+        return ["CAN_EDIT_TITLE", "CAN_EDIT_META", "CAN_EDIT_CANONICAL", "CAN_EDIT_SCHEMA", "CAN_REPLACE_SCHEMA", "CAN_EDIT_REDIRECT"]
 
     async def read_page_state(self, url: str) -> Dict[str, Any]:
         if self.webhook_url.startswith("mock://"):

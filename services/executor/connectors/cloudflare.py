@@ -246,6 +246,15 @@ class CloudflareWorkerConnector(SiteConnector):
  * Intercepts incoming responses and applies zero-latency SEO/GEO rules.
  */
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
@@ -292,28 +301,52 @@ async function handleRequest(request) {
   let rewriter = new HTMLRewriter();
 
   // Title tag injection
+  let titleSeen = false;
   if (rule.title) {
     rewriter = rewriter.on('title', {
       element(el) {
+        titleSeen = true;
         el.setInnerContent(rule.title);
       }
     });
   }
 
   // Meta description
+  let metaSeen = false;
   if (rule.meta_description) {
     rewriter = rewriter.on('meta[name="description"]', {
       element(el) {
+        metaSeen = true;
         el.setAttribute('content', rule.meta_description);
       }
     });
   }
 
-  // Canonical tag injection
-  if (rule.canonical) {
+  // Missing <title> / meta description: insert before </head> so "missing tag" fixes take effect
+  if (rule.title || rule.meta_description) {
     rewriter = rewriter.on('head', {
       element(el) {
-        el.append(`<link rel="canonical" href="${rule.canonical}" />`, { html: true });
+        el.onEndTag(end => {
+          if (rule.title && !titleSeen) {
+            end.before(`<title>${escapeHtml(rule.title)}</title>`, { html: true });
+          }
+          if (rule.meta_description && !metaSeen) {
+            end.before(`<meta name="description" content="${escapeHtml(rule.meta_description)}">`, { html: true });
+          }
+        });
+      }
+    });
+  }
+
+  // Canonical tag injection: replace any existing canonical instead of adding a conflicting second one
+  if (rule.canonical) {
+    rewriter = rewriter.on('link[rel="canonical"]', {
+      element(el) {
+        el.remove();
+      }
+    }).on('head', {
+      element(el) {
+        el.append(`<link rel="canonical" href="${escapeHtml(rule.canonical)}" />`, { html: true });
       }
     });
   }

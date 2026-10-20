@@ -26,6 +26,14 @@ export interface QueueItem {
   confidence?: number;
   href: string;
   actionLabel: string;
+  /** Doğrulanmış, siteye yazılabilecek değerler; otomatik pilot yalnızca bunları uygular. */
+  proposed?: ProposedChange;
+}
+
+export interface ProposedChange {
+  title?: string;
+  metaDescription?: string;
+  schemaJson?: string;
 }
 
 export interface DashboardData {
@@ -78,6 +86,7 @@ export const DEMO_DASHBOARD: DashboardData = {
       confidence: 0.82,
       href: "/opportunities",
       actionLabel: "Başlığı optimize et",
+      proposed: { title: "Otonom SEO Yazılımı: Teknik Denetim ve Otomatik Düzeltme" },
     },
     {
       id: "REC-03",
@@ -98,7 +107,7 @@ export const DEMO_DASHBOARD: DashboardData = {
       category: "SCHEMA",
       severity: "LOW",
       score: 72,
-      reason: "Ana varlık ilişkilendirmesini netleştirmek için JSON-LD ekleyin; düşük riskli, otomatik uygulanabilir.",
+      reason: "Ana varlık ilişkilendirmesini netleştirmek için JSON-LD ekleyin; değerler sayfadaki bilgilerle doğrulandıktan sonra onayınızla uygulanır.",
       source: "schema.org & Google yapılandırılmış veri rehberi",
       impact: "14 sayfa",
       confidence: 0.9,

@@ -109,6 +109,7 @@ export interface RecommendationResponse {
   effort: string;
   evidence_json: string;
   rag_sources_json: string;
+  proposed_change_json?: string | null;
   status: string;
   created_at: string;
 }

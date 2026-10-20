@@ -97,6 +97,8 @@ export interface RecommendationItem {
   estimated_impact: number;
   status: "PENDING" | "APPROVED" | "EXECUTED" | "DISMISSED";
   change_set_id?: string;
+  /** Doğrulanmış somut değerler (JSON): title, meta_description, schema_json. */
+  proposed_change_json?: string | null;
   created_at: string;
 }
 

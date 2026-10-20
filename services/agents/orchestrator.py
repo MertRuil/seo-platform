@@ -7,6 +7,7 @@ from services.agents.content_agent import ContentSEOAgent
 from services.agents.link_agent import InternalLinkingAgent
 from services.agents.schema_agent import StructuredDataAgent
 from services.agents.strategy_agent import SEOStrategyAgent
+from services.agents.proposed_change import build_proposed_change
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.seo_engine.base import RuleCheckResult
 
@@ -125,6 +126,9 @@ class AiOrchestrator:
             )
 
             citations_json = json.dumps([c.model_dump() for c in rec_output.citations])
+            proposed, rejected = build_proposed_change(issue.rule_id, rec_output, page_data, target_url)
+            if rejected:
+                logger.info("Önerilen değer reddedildi (%s, %s): %s", issue.rule_id, target_url, "; ".join(rejected))
 
             recommendations.append({
                 "site_id": site_id,
@@ -140,6 +144,7 @@ class AiOrchestrator:
                 "effort": rec_output.effort,
                 "evidence_json": json.dumps(issue.evidence),
                 "rag_sources_json": citations_json,
+                "proposed_change_json": json.dumps(proposed, ensure_ascii=False) if proposed else None,
                 "status": "PENDING"
             })
 
@@ -153,12 +158,14 @@ class AiOrchestrator:
             return await self.schema_agent.analyze_schema(
                 target_url=target_url,
                 current_schema_json=str(issue.evidence),
-                detected_page_type=page_data.get("page_type", "WebPage")
+                detected_page_type=page_data.get("page_type", "WebPage"),
+                page_data=page_data
             )
         if any(k in rule_upper for k in ["CONTENT", "THIN", "TITLE", "META", "HEADING", "KEYWORD"]):
             return await self.content_agent.analyze_content(
                 target_url=target_url,
-                page_data=page_data
+                page_data=page_data,
+                issue={"rule_id": issue.rule_id, "title": issue.title, "description": issue.description}
             )
         if any(k in rule_upper for k in ["LINK", "ORPHAN", "ANCHOR"]):
             source_url = issue.evidence.get("source_url") or target_url
