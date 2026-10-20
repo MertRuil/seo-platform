@@ -26,5 +26,7 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"
       - key: FRONTEND_URL
         sync: false

@@ -380,22 +380,8 @@ export const serverlessStore = {
   },
 
   getOpportunities(siteId: string): OpportunityResponse[] {
-    const gscList = this.getGscMetrics(siteId);
-    if (gscList.length === 0) {
-      return [
-        {
-          type: "HIGH_IMPRESSION_LOW_CTR",
-          query: "anahtar kelime analizi",
-          page: "/hizmetler",
-          impressions: 12400,
-          clicks: 180,
-          ctr: 0.0145,
-          position: 4.8,
-          recommended_action: "Başlık ve meta açıklamasını arama niyetine göre yeniden yazın.",
-        },
-      ];
-    }
-    return gscList.map((g) => ({
+    // GSC verisi yoksa fırsat da yoktur; uydurma gösterim/tıklama sayısı üretilmez
+    return this.getGscMetrics(siteId).map((g) => ({
       type: g.ctr < 0.03 ? "HIGH_IMPRESSION_LOW_CTR" : "CONTENT_EXPANSION",
       query: g.query,
       page: g.page,

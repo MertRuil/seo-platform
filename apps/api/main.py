@@ -35,6 +35,11 @@ async def lifespan(app: FastAPI):
         else:
             import logging
             logging.getLogger("uvicorn").info("Production environment: Database schema managed strictly via Alembic migrations.")
+            if settings.TRUSTED_PROXY_HOPS == 0:
+                logging.getLogger("uvicorn").warning(
+                    "TRUSTED_PROXY_HOPS=0: rate limit soket IP'sine göre çalışıyor. "
+                    "Yük dengeleyici arkasındaysanız tüm istemciler aynı kotayı paylaşır."
+                )
             if settings.REDIS_URL:
                 try:
                     import redis.asyncio as aioredis

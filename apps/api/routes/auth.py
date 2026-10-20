@@ -17,7 +17,14 @@ from packages.contracts.auth import (
     ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, OAuthLoginRequest
 )
 from services.security.crypto import hash_password, verify_password
-from services.security.jwt_auth import create_access_token, create_refresh_token, decode_token, get_current_user_payload
+from services.security.jwt_auth import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user_payload,
+    invalidate_user_auth_cache,
+    password_fingerprint,
+)
 from services.security.oauth_verifier import verify_oauth_token
 from services.security.password_mailer import send_password_code
 from services.security.rate_limiter import RateLimiter
@@ -140,7 +147,7 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
     )
 
 def _build_user_token_data(user: User) -> Dict[str, Any]:
-    pwd_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
+    pwd_fp = password_fingerprint(user.hashed_password)
     return {
         "sub": user.id,
         "email": user.email,
@@ -202,6 +209,7 @@ async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(g
     user.hashed_password = hash_password(req.new_password)
     await db.delete(challenge)
     await db.commit()
+    invalidate_user_auth_cache(user.id)
     _clear_failed_attempts(user.email)
     return {"success": True, "message": "Şifreniz başarıyla güncellendi. Yeni şifrenizle giriş yapabilirsiniz."}
 
@@ -299,8 +307,7 @@ async def refresh_access_token(
 
     pwd_fp = payload.get("pwd_fp")
     if pwd_fp:
-        current_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
-        if current_fp != pwd_fp:
+        if password_fingerprint(user.hashed_password) != pwd_fp:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Şifre değiştirildiği için oturum geçersiz kılındı. Lütfen tekrar giriş yapın.",

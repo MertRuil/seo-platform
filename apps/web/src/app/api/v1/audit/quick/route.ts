@@ -32,9 +32,12 @@ function resolveClientRateKey(req: NextRequest): string {
   if (verifiedUser?.sub) {
     return `user:${verifiedUser.sub}`;
   }
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) {
-    return `ip:${realIp.slice(0, 64)}`;
+  // Vercel x-real-ip başlığını istemcinin gerçek IP'siyle ezer; başka ortamlarda istemci bu başlığı taklit edebilir.
+  if (process.env.VERCEL) {
+    const realIp = req.headers.get("x-real-ip")?.trim();
+    if (realIp) {
+      return `ip:${realIp.slice(0, 64)}`;
+    }
   }
   // Reverse proxies append the actual connecting IP to the end of X-Forwarded-For;
   // taking the rightmost hop prevents trivial spoofing via client-prepended X-Forwarded-For values.

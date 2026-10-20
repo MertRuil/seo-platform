@@ -24,6 +24,7 @@ import {
 import { DEMO_CONTENT, type ContentOptimizationData } from "@/lib/demo";
 import { formatNumber } from "@/lib/format";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 import { Panel } from "@/components/ui/Panel";
 import { MetricStrip } from "@/components/ui/MetricStrip";
 import { Badge } from "@/components/ui/Badge";
@@ -290,6 +291,8 @@ export default function ContentOptimizerPage() {
   const [targetUrl, setTargetUrl] = useState(DEMO_CONTENT.url);
   const [targetKeyword, setTargetKeyword] = useState(DEMO_CONTENT.targetKeyword);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [isLiveAnalysis, setIsLiveAnalysis] = useState(false);
 
   // Content Draft & Compliance Shield state
   const [complianceRegion, setComplianceRegion] = useState<"TR" | "EU" | "US" | "UK" | "ASIA" | "MENA">("TR");
@@ -301,10 +304,9 @@ export default function ContentOptimizerPage() {
   const [genType, setGenType] = useState<"META_TITLE" | "META_DESCRIPTION" | "FAQ" | "OUTLINE">("META_TITLE");
   const [genTopic, setGenTopic] = useState("Otonom SEO ve CDN Optimizasyonu");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedOutput, setGeneratedOutput] = useState<{ title: string; content: string; tokens: number } | null>({
+  const [generatedOutput, setGeneratedOutput] = useState<{ title: string; content: string } | null>({
     title: "Optimize Meta Başlık Önerisi",
     content: "Otonom SEO Platformu ve CDN Optimizasyonu | 2026 Calpeo Rehberi",
-    tokens: 120,
   });
   const [copied, setCopied] = useState(false);
 
@@ -335,23 +337,43 @@ export default function ContentOptimizerPage() {
 
   const criticalViolations = complianceViolations.filter((v) => v.severity === "CRITICAL");
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  // Sayfa canlı olarak çekilir (SSRF korumalı hızlı denetim ucu); yalnızca ölçülebilen değerler doldurulur.
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUrl.trim() || !targetKeyword.trim()) return;
 
     setIsAnalyzing(true);
-    setTimeout(() => {
+    setAnalyzeError(null);
+    try {
+      const res = await fetch("/api/v1/audit/quick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl.trim() }),
+      });
+      const audit = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAnalyzeError(typeof audit.detail === "string" ? audit.detail : `Sayfa analiz edilemedi (HTTP ${res.status}).`);
+        return;
+      }
+      const issues: Array<{ recommendation?: string }> = Array.isArray(audit.issues) ? audit.issues : [];
       setData({
         ...data,
-        url: targetUrl,
-        targetKeyword: targetKeyword,
-        contentScore: Math.floor(Math.random() * 15) + 80,
-        geoScore: Math.floor(Math.random() * 15) + 82,
-        readabilityScore: 84,
-        wordCount: Math.floor(Math.random() * 500) + 1400,
+        url: audit.page_info?.url || targetUrl.trim(),
+        targetKeyword: targetKeyword.trim(),
+        contentScore: null,
+        geoScore: null,
+        readabilityScore: null,
+        wordCount: Number(audit.page_info?.word_count) || 0,
+        missingEntities: [],
+        missingHeadings: [],
+        aiSuggestions: issues.map((i) => i.recommendation).filter((r): r is string => Boolean(r)),
       });
+      setIsLiveAnalysis(true);
+    } catch {
+      setAnalyzeError("Sayfa analiz edilemedi: sunucuya ulaşılamıyor.");
+    } finally {
       setIsAnalyzing(false);
-    }, 700);
+    }
   };
 
   const handleApplyFix = (violation: { matchedPattern: string; suggestedFix: string }) => {
@@ -368,25 +390,21 @@ export default function ContentOptimizerPage() {
         setGeneratedOutput({
           title: "Optimize Meta Başlık",
           content: `${genTopic} - Kapsamlı Stratejiler ve ${targetKeyword} 2026`,
-          tokens: 95,
         });
       } else if (genType === "META_DESCRIPTION") {
         setGeneratedOutput({
           title: "Optimize Meta Açıklama",
           content: `${genTopic} hakkında aradığınız tüm teknik detaylar ve ${targetKeyword} rehberi. Sitenizin görünürlüğünü anında artırın!`,
-          tokens: 165,
         });
       } else if (genType === "FAQ") {
         setGeneratedOutput({
           title: "FAQ Schema.org JSON-LD Bloğu",
           content: `{\n  "@context": "https://schema.org",\n  "@type": "FAQPage",\n  "mainEntity": [{\n    "@type": "Question",\n    "name": "${genTopic} nedir ve nasıl çalışır?",\n    "acceptedAnswer": {\n      "@type": "Answer",\n      "text": "${genTopic}, sitelerin arama motoru ve yapay zeka indeksleme kalitesini otomatik olarak yükselten otonom bir sistemdir."\n    }\n  }]\n}`,
-          tokens: 280,
         });
       } else {
         setGeneratedOutput({
           title: "Kapsamlı İçerik Taslağı",
           content: `## H1: ${genTopic}: 2026 Stratejik Kılavuzu\n\n### H2: 1. Giriş ve ${targetKeyword} Temelleri\n- Modern arama motoru beklentileri\n- Doğrudan yanıt formatının önemi\n\n### H2: 2. Teknik Uygulama & Schema Standartları\n- JSON-LD yapılandırılmış veri entegrasyonu\n- Self-referential canonical yapılandırması\n\n### H2: 3. Sık Yapılan Hatalar ve Kontrol Listesi\n- Aşırı anahtar kelime doldurmadan kaçınma\n- Sayfa açılış hızı (INP & LCP) sinyalleri`,
-          tokens: 420,
         });
       }
       setIsGenerating(false);
@@ -461,20 +479,27 @@ export default function ContentOptimizerPage() {
             </Button>
           </div>
         </form>
+        {analyzeError && (
+          <p role="alert" className="mt-3 text-xs text-critical">
+            {analyzeError}
+          </p>
+        )}
       </Panel>
+
+      <DemoBanner source={isLiveAnalysis ? "live" : "demo"} reason="no-endpoint" />
 
       {/* Metric Strip */}
       <MetricStrip
         items={[
           {
             label: "İçerik Kalite Skoru",
-            value: `${data.contentScore} / 100`,
-            tone: data.contentScore >= 80 ? "evidence" : "warn",
+            value: data.contentScore === null ? "—" : `${data.contentScore} / 100`,
+            tone: data.contentScore === null ? "default" : data.contentScore >= 80 ? "evidence" : "warn",
             hint: "Surfer SEO NLP standardı",
           },
           {
             label: "GEO (AI Arama) Skoru",
-            value: `${data.geoScore} / 100`,
+            value: data.geoScore === null ? "—" : `${data.geoScore} / 100`,
             tone: "default",
             hint: "ChatGPT ve Perplexity alıntı uyumu",
           },
@@ -491,7 +516,7 @@ export default function ContentOptimizerPage() {
           },
           {
             label: "Okunabilirlik İndeksi",
-            value: `${data.readabilityScore} / 100`,
+            value: data.readabilityScore === null ? "—" : `${data.readabilityScore} / 100`,
             hint: "Kullanıcı deneyimi",
           },
         ]}
@@ -1039,6 +1064,13 @@ export default function ContentOptimizerPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
+                    {data.missingEntities.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-4 px-3 text-xs text-muted">
+                          Semantik varlık analizi henüz yapılmadı.
+                        </td>
+                      </tr>
+                    )}
                     {data.missingEntities.map((ent, idx) => (
                       <tr key={idx} className="hover:bg-surface-2 transition-colors">
                         <td className="py-3 px-3 font-semibold text-ink">{ent.name}</td>
@@ -1068,6 +1100,9 @@ export default function ContentOptimizerPage() {
             {/* Missing Headings & Structure */}
             <Panel title="Eksik Başlıklar & İçerik Hiyerarşisi (H2 / H3)">
               <div className="space-y-2.5">
+                {data.missingHeadings.length === 0 && (
+                  <p className="text-xs text-muted">Başlık hiyerarşisi önerisi henüz yok.</p>
+                )}
                 {data.missingHeadings.map((hd, i) => (
                   <div key={i} className="p-3 bg-surface-2 rounded-sm border border-line flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 font-mono font-medium text-ink">
@@ -1209,7 +1244,7 @@ export default function ContentOptimizerPage() {
                     {generatedOutput.content}
                   </pre>
                   <div className="text-right text-2xs text-faint font-mono">
-                    Token harcaması: {generatedOutput.tokens} tokens
+                    Şablondan üretildi; AI modeli çağrılmadı. Yayınlamadan önce düzenleyin.
                   </div>
                 </div>
               )}

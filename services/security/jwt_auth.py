@@ -1,5 +1,7 @@
+import hashlib
+import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -10,6 +12,46 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 security = HTTPBearer(auto_error=False)
+
+# İptal kontrolü için kullanıcı durumu önbelleği: sub -> (son_geçerlilik, is_active, pwd_fp).
+# Her istekte DB sorgusunu önler. Şifre değişikliği aynı süreçte anında, diğer worker/instance'larda
+# en geç AUTH_STATE_TTL_SECONDS içinde etkili olur.
+AUTH_STATE_TTL_SECONDS = 30
+_AUTH_STATE_CACHE_MAX = 10000
+_auth_state_cache: Dict[str, Tuple[float, bool, str]] = {}
+
+
+def password_fingerprint(hashed_password: Optional[str]) -> str:
+    return hashlib.sha256((hashed_password or "").encode("utf-8")).hexdigest()[:16]
+
+
+def invalidate_user_auth_cache(user_id: str) -> None:
+    _auth_state_cache.pop(user_id, None)
+
+
+async def _load_user_auth_state(user_id: str) -> Optional[Tuple[bool, str]]:
+    now = time.monotonic()
+    cached = _auth_state_cache.get(user_id)
+    if cached and cached[0] > now:
+        return cached[1], cached[2]
+
+    from sqlalchemy.future import select
+    from packages.shared.database import AsyncSessionLocal
+    from packages.shared.models import User
+
+    async with AsyncSessionLocal() as db:
+        user = (await db.execute(select(User).where(User.id == user_id))).scalars().first()
+    if not user:
+        _auth_state_cache.pop(user_id, None)
+        return None
+
+    if len(_auth_state_cache) >= _AUTH_STATE_CACHE_MAX:
+        expired = [k for k, v in _auth_state_cache.items() if v[0] <= now]
+        for key in expired or list(_auth_state_cache)[:1000]:
+            _auth_state_cache.pop(key, None)
+    state = (bool(user.is_active), password_fingerprint(user.hashed_password))
+    _auth_state_cache[user_id] = (now + AUTH_STATE_TTL_SECONDS, *state)
+    return state
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -68,26 +110,19 @@ async def get_current_user_payload(credentials: Optional[HTTPAuthorizationCreden
     # Revocation check: if token includes password fingerprint (pwd_fp), verify user is still active and password unchanged
     pwd_fp = payload.get("pwd_fp")
     if pwd_fp:
-        import hashlib
-        from sqlalchemy.future import select
-        from packages.shared.database import AsyncSessionLocal
-        from packages.shared.models import User
-
-        async with AsyncSessionLocal() as db:
-            user = (await db.execute(select(User).where(User.id == sub))).scalars().first()
-            if not user or not user.is_active:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User account is inactive or no longer exists",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            current_fp = hashlib.sha256((user.hashed_password or "").encode("utf-8")).hexdigest()[:16]
-            if current_fp != pwd_fp:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token has been invalidated due to password change",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
+        state = await _load_user_auth_state(sub)
+        if state is None or not state[0]:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is inactive or no longer exists",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if state[1] != pwd_fp:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been invalidated due to password change",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     return payload
 

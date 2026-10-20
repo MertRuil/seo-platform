@@ -23,6 +23,7 @@ import { DEMO_KEYWORDS, type KeywordItem, type KeywordResearchItem } from "@/lib
 import { formatCompact, formatNumber } from "@/lib/format";
 import { useSite } from "@/context/SiteContext";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 import { Panel } from "@/components/ui/Panel";
 import { MetricStrip } from "@/components/ui/MetricStrip";
 import { Badge, type Tone } from "@/components/ui/Badge";
@@ -66,7 +67,8 @@ function getIntentLabel(intent: string): string {
   }
 }
 
-function getKdColor(kd: number): { text: string; bg: string; label: string } {
+function getKdColor(kd: number | null): { text: string; bg: string; label: string } {
+  if (kd === null) return { text: "text-muted", bg: "bg-line-strong", label: "Ölçülmedi" };
   if (kd < 30) return { text: "text-emerald-500", bg: "bg-emerald-500", label: "Kolay" };
   if (kd < 60) return { text: "text-amber-500", bg: "bg-amber-500", label: "Orta" };
   return { text: "text-rose-500", bg: "bg-rose-500", label: "Zor" };
@@ -96,10 +98,13 @@ export default function KeywordsPage() {
     return matchesQuery && matchesIntent;
   });
 
-  const top3 = keywords.filter((k) => k.current_pos <= 3).length;
-  const top10 = keywords.filter((k) => k.current_pos <= 10).length;
-  const avgPos = (keywords.reduce((acc, curr) => acc + curr.current_pos, 0) / (keywords.length || 1)).toFixed(1);
-  const totalVol = keywords.reduce((acc, curr) => acc + curr.volume, 0);
+  const ranked = keywords.filter((k): k is KeywordItem & { current_pos: number } => k.current_pos !== null);
+  const top3 = ranked.filter((k) => k.current_pos <= 3).length;
+  const top10 = ranked.filter((k) => k.current_pos <= 10).length;
+  const avgPos = ranked.length
+    ? (ranked.reduce((acc, curr) => acc + curr.current_pos, 0) / ranked.length).toFixed(1)
+    : "—";
+  const totalVol = keywords.reduce((acc, curr) => acc + (curr.volume ?? 0), 0);
 
   const handleAddKeyword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,17 +113,17 @@ export default function KeywordsPage() {
     const newItem: KeywordItem = {
       id: `kw-${Date.now()}`,
       keyword: newKeyword.trim(),
-      current_pos: Math.floor(Math.random() * 15) + 2,
-      prev_pos: Math.floor(Math.random() * 20) + 4,
-      change: 2,
-      volume: (Math.floor(Math.random() * 60) + 10) * 100,
-      difficulty: Math.floor(Math.random() * 45) + 20,
-      cpc: Number((Math.random() * 18 + 4).toFixed(2)),
+      current_pos: null,
+      prev_pos: null,
+      change: null,
+      volume: null,
+      difficulty: null,
+      cpc: null,
       intent: newIntent,
-      target_url: newTargetUrl.trim() || site?.primary_url || "https://flagship-store.com",
-      trend_7d: [8, 7, 6, 5, 4, 3, 2],
-      serp_features: ["AI Overview", "People Also Ask"],
-      checked_at: "Yeni eklendi",
+      target_url: newTargetUrl.trim() || site?.primary_url || "",
+      trend_7d: [],
+      serp_features: [],
+      checked_at: "Henüz ölçülmedi",
     };
 
     setKeywords([newItem, ...keywords]);
@@ -134,17 +139,17 @@ export default function KeywordsPage() {
     const newItem: KeywordItem = {
       id: `kw-${Date.now()}`,
       keyword: item.keyword,
-      current_pos: Math.floor(Math.random() * 18) + 4,
-      prev_pos: Math.floor(Math.random() * 25) + 6,
-      change: 2,
+      current_pos: null,
+      prev_pos: null,
+      change: null,
       volume: item.volume,
       difficulty: item.difficulty,
       cpc: item.cpc,
       intent: item.intent,
-      target_url: site?.primary_url || "https://flagship-store.com",
-      trend_7d: [9, 8, 7, 7, 6, 5, 4],
-      serp_features: item.has_ai_overview ? ["AI Overview", "People Also Ask"] : ["Featured Snippet"],
-      checked_at: "Yeni eklendi",
+      target_url: site?.primary_url || "",
+      trend_7d: [],
+      serp_features: item.has_ai_overview ? ["AI Overview"] : [],
+      checked_at: "Henüz ölçülmedi",
     };
 
     setKeywords([newItem, ...keywords]);
@@ -170,6 +175,8 @@ export default function KeywordsPage() {
           </div>
         }
       />
+
+      <DemoBanner source="demo" reason="no-endpoint" />
 
       {/* Metric Strip */}
       <MetricStrip
@@ -340,6 +347,9 @@ export default function KeywordsPage() {
 
                       {/* Rank Position */}
                       <td className="py-3.5 px-3 text-center">
+                        {item.current_pos === null ? (
+                          <span className="text-xs text-muted" title="SERP pozisyonu henüz ölçülmedi">—</span>
+                        ) : (
                         <span
                           className={`inline-flex items-center justify-center w-8 h-8 rounded-sm font-mono font-bold text-sm ${
                             item.current_pos <= 3
@@ -351,15 +361,16 @@ export default function KeywordsPage() {
                         >
                           {item.current_pos}
                         </span>
+                        )}
                       </td>
 
                       {/* Rank Change */}
                       <td className="py-3.5 px-3 text-center">
-                        {item.change > 0 ? (
+                        {item.change !== null && item.change > 0 ? (
                           <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600 font-mono">
                             <ArrowUpRight className="w-3.5 h-3.5" /> +{item.change}
                           </span>
-                        ) : item.change < 0 ? (
+                        ) : item.change !== null && item.change < 0 ? (
                           <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-rose-500 font-mono">
                             <ArrowDownRight className="w-3.5 h-3.5" /> {item.change}
                           </span>
@@ -392,7 +403,7 @@ export default function KeywordsPage() {
 
                       {/* Search Volume */}
                       <td className="py-3.5 px-3 text-right font-mono font-medium text-ink">
-                        {formatNumber(item.volume)}
+                        {item.volume === null ? "—" : formatNumber(item.volume)}
                       </td>
 
                       {/* KD % */}
@@ -401,18 +412,18 @@ export default function KeywordsPage() {
                           <div className="w-16 bg-line rounded-full h-1.5 overflow-hidden">
                             <div
                               className={`h-full rounded-full ${kdInfo.bg}`}
-                              style={{ width: `${item.difficulty}%` }}
+                              style={{ width: `${item.difficulty ?? 0}%` }}
                             />
                           </div>
                           <span className={`text-xs font-mono font-semibold ${kdInfo.text}`}>
-                            %{item.difficulty}
+                            {item.difficulty === null ? "—" : `%${item.difficulty}`}
                           </span>
                         </div>
                       </td>
 
                       {/* CPC */}
                       <td className="py-3.5 px-3 text-right font-mono text-muted">
-                        ₺{item.cpc.toFixed(2)}
+                        {item.cpc === null ? "—" : `₺${item.cpc.toFixed(2)}`}
                       </td>
 
                       {/* SERP Features */}

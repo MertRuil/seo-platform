@@ -250,40 +250,6 @@ export function getSiteBacklinks(site?: { id?: string; domain?: string; primary_
   if (domain === "acmestore.io" || siteId === "site-1" || !domain) {
     return INITIAL_BACKLINKS;
   }
-  const baseUrl = site?.primary_url || `https://${domain}`;
-  return [
-    {
-      id: `bl-${siteId || "custom"}-1`,
-      source_url: "https://google.com/search",
-      source_domain: "google.com",
-      target_url: baseUrl,
-      anchor_text: domain,
-      anchor_category: "BRAND",
-      is_dofollow: true,
-      domain_authority: 98,
-      page_authority: 85,
-      spam_score: 1,
-      is_toxic: false,
-      toxicity_reasons: [],
-      first_seen: "2026-03-01",
-      status: "ACTIVE",
-    },
-    {
-      id: `bl-${siteId || "custom"}-2`,
-      source_url: "https://webdirectory-clean.org/listing",
-      source_domain: "webdirectory-clean.org",
-      target_url: baseUrl,
-      anchor_text: `${domain} ana sayfa`,
-      anchor_category: "PARTIAL_MATCH",
-      is_dofollow: true,
-      domain_authority: 45,
-      page_authority: 38,
-      spam_score: 4,
-      is_toxic: false,
-      toxicity_reasons: [],
-      first_seen: "2026-03-10",
-      status: "ACTIVE",
-    },
-  ];
+  // Gerçek müşteri siteleri için örnek link uydurulmaz; arka uç da boş listeyle başlar
+  return [];
 }
-

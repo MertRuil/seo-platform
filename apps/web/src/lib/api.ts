@@ -1,3 +1,5 @@
+import type { WebBacklinkItem } from "@/lib/backlinks-data";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
@@ -297,6 +299,15 @@ class ApiClient {
   }
   createChangeSet(orgId: string, siteId: string, data: { recommendation_id?: string; risk_level?: string; items: Array<{ target_url: string; operation: string; state_before: string; state_after: string; expected_hash_before: string }> }) {
     return this.request<ChangeSetResponse>(`/organizations/${orgId}/sites/${siteId}/change-sets`, { method: "POST", body: JSON.stringify(data) });
+  }
+  getBacklinks(orgId: string, siteId: string) {
+    return this.request<WebBacklinkItem[]>(`/organizations/${orgId}/sites/${siteId}/backlinks`);
+  }
+  addBacklink(orgId: string, siteId: string, data: { source_url: string; anchor_text?: string; verify_live?: boolean }) {
+    return this.request<WebBacklinkItem>(`/organizations/${orgId}/sites/${siteId}/backlinks`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
   approveChangeSet(orgId: string, siteId: string, changeSetId: string) {
     return this.request<ChangeSetResponse>(`/organizations/${orgId}/sites/${siteId}/change-sets/${changeSetId}/approve`, { method: "POST" });

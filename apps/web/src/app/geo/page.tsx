@@ -29,6 +29,8 @@ import {
   type GeoCitedSource,
   type GeoQuickAction,
 } from "@/lib/demo";
+import type { DataSource, DemoReason } from "@/lib/dataSource";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { MetricStrip } from "@/components/ui/MetricStrip";
@@ -65,6 +67,10 @@ function getSourceTypeBadge(sourceType: string) {
 export default function GeoPage() {
   const { org, site } = useSite();
   const [geoData, setGeoData] = useState<GeoData>(DEMO_GEO);
+  const [geoSource, setGeoSource] = useState<{ source: DataSource; reason?: DemoReason }>({
+    source: "demo",
+    reason: "no-site",
+  });
   const [customPrompt, setCustomPrompt] = useState("");
   const [sampleRuns, setSampleRuns] = useState<number>(3);
   const [enableWebGrounding, setEnableWebGrounding] = useState<boolean>(true);
@@ -87,21 +93,27 @@ export default function GeoPage() {
   useEffect(() => {
     let isCancelled = false;
     async function loadGeo() {
-      if (org?.id && site?.id) {
-        try {
-          const liveData = await api.getGeoAnalytics(org.id, site.id, sampleRuns);
-          if (!isCancelled && liveData && liveData.overallVisibility) {
-            setGeoData(liveData);
-            if (liveData.llmsTxtReadiness?.llms_txt_content) {
-              setEditableLlmsTxt(liveData.llmsTxtReadiness.llms_txt_content);
-            }
-            if (liveData.llmsTxtReadiness?.llms_full_txt_content) {
-              setEditableLlmsFullTxt(liveData.llmsTxtReadiness.llms_full_txt_content);
-            }
-          }
-        } catch {
-          // Keep demo data on offline fallback
+      if (!org?.id || !site?.id) {
+        setGeoSource({ source: "demo", reason: org?.id ? "no-site" : "no-org" });
+        return;
+      }
+      try {
+        const liveData = await api.getGeoAnalytics(org.id, site.id, sampleRuns);
+        if (isCancelled) return;
+        if (!liveData || !liveData.overallVisibility) {
+          setGeoSource({ source: "demo", reason: "fetch-failed" });
+          return;
         }
+        setGeoData(liveData);
+        setGeoSource({ source: "live" });
+        if (liveData.llmsTxtReadiness?.llms_txt_content) {
+          setEditableLlmsTxt(liveData.llmsTxtReadiness.llms_txt_content);
+        }
+        if (liveData.llmsTxtReadiness?.llms_full_txt_content) {
+          setEditableLlmsFullTxt(liveData.llmsTxtReadiness.llms_full_txt_content);
+        }
+      } catch {
+        if (!isCancelled) setGeoSource({ source: "demo", reason: "fetch-failed" });
       }
     }
     loadGeo();
@@ -136,7 +148,7 @@ export default function GeoPage() {
           brand_mentioned: simRes.brand_mentioned,
           citation_rank: simRes.citation_rank,
           platform_results: simRes.platform_results,
-          top_competitor_cited: simRes.top_competitor_cited || "ahrefs.com",
+          top_competitor_cited: simRes.top_competitor_cited || "",
           cited_sources: simRes.cited_sources || [],
           monte_carlo: simRes.monte_carlo,
           recommended_fix: simRes.recommended_fix,
@@ -157,11 +169,12 @@ export default function GeoPage() {
           ? ` (Mention Olasılığı: %${Math.round(simRes.monte_carlo.mention_probability * 100)}, İstikrar: %${simRes.monte_carlo.stability_score})`
           : "";
 
+        const modePrefix = simRes.is_simulated ? "Simülasyon (canlı AI sorgusu yapılmadı) – " : "";
         setNotice({
           tone: simRes.brand_mentioned ? "success" : "warn",
-          text: simRes.brand_mentioned
+          text: modePrefix + (simRes.brand_mentioned
             ? `GEO 2.0 Analizi Tamamlandı: Markanız '${queryText}' sorgusunda #${simRes.citation_rank}. sırada alıntılandı${mcProb}.`
-            : `GEO 2.0 Analizi Tamamlandı: '${queryText}' sorgusunda markanız doğrudan alıntılanmadı${mcProb}. Aşağıdaki 'Direct Answer + FAQ Schema Yamasını Uygula' butonuyla hemen müdahale edebilirsiniz.`,
+            : `GEO 2.0 Analizi Tamamlandı: '${queryText}' sorgusunda markanız doğrudan alıntılanmadı${mcProb}. Aşağıdaki 'Direct Answer + FAQ Schema Yamasını Uygula' butonuyla hemen müdahale edebilirsiniz.`),
         });
         setCustomPrompt("");
         setSimulating(false);
@@ -171,57 +184,12 @@ export default function GeoPage() {
       }
     }
 
-    await new Promise((r) => setTimeout(r, 600));
-    const newItem: GeoPromptItem = {
-      id: `gp-sim-${Date.now()}`,
-      prompt: queryText,
-      frequency: `MONTE CARLO (${sampleRuns} TUR)`,
-      brand_mentioned: true,
-      citation_rank: 1,
-      platform_results: {
-        "Perplexity AI": {
-          mentioned: true,
-          cited: true,
-          mention_probability: 1.0,
-          stability_score: 100,
-          snippet: `${site?.name || "Siteniz"}, '${queryText}' konusunda birincil referans kaynakları arasında yer almaktadır.`,
-        },
-        "ChatGPT (GPT-4o)": {
-          mentioned: true,
-          cited: true,
-          mention_probability: 1.0,
-          stability_score: 100,
-          snippet: `Kullanıcı deneyimi ve teknik optimizasyonlarıyla öne çıkmaktadır (Kaynak: ${site?.domain || "site.com"}).`,
-        },
-        "Gemini Pro": {
-          mentioned: true,
-          cited: false,
-          mention_probability: 0.67,
-          stability_score: 78,
-          snippet: `Sektörel güvenilirlik indeksinde referans olarak listelendi.`,
-        },
-      },
-      top_competitor_cited: "semrush.com",
-      monte_carlo: {
-        sample_runs: sampleRuns,
-        mention_probability: 0.89,
-        citation_probability: 0.67,
-        stability_score: 92,
-        confidence_interval_95: [0.68, 0.97],
-        temperatures_tested: [0.1, 0.4, 0.7].slice(0, sampleRuns),
-      },
-    };
-
-    setGeoData((prev) => ({
-      ...prev,
-      prompts: [newItem, ...prev.prompts],
-    }));
-
     setNotice({
-      tone: "success",
-      text: `GEO 2.0 Analizi Tamamlandı: '${queryText}' sorgusu ${sampleRuns} turlu Monte Carlo örneklemesiyle değerlendirildi (#1).`,
+      tone: "error",
+      text: org?.id && site?.id
+        ? "GEO analizi şu an çalıştırılamadı: arka uç servisine ulaşılamıyor. Lütfen biraz sonra tekrar deneyin."
+        : "GEO analizi için önce bir organizasyon ve site seçin.",
     });
-    setCustomPrompt("");
     setSimulating(false);
   };
 
@@ -254,37 +222,15 @@ export default function GeoPage() {
         setDeployingAction(null);
         return;
       } catch {
-        // Fallback to selfHealIssue if deploy-action unavailable
-        try {
-          const healRes = await api.selfHealIssue(org.id, site.id, {
-            issue_id: `GEO-${params.action_type}`,
-            issue_title: params.title,
-            target_url: params.target_url || site.primary_url || `https://${site.domain}`,
-            category: "SCHEMA_ORG",
-            risk_level: "LOW",
-            auto_execute: true,
-            state_before: `<!-- GEO Öncesi -->`,
-            state_after:
-              params.custom_content ||
-              `<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","about":"${params.title}"}</script>`,
-          });
-          if (healRes.success) {
-            setNotice({
-              tone: "success",
-              text: `⚡ '${params.title}' ChangeSet (#${healRes.change_set.id.slice(0, 8)}) olarak SafeSiteExecutor tarafından uygulandı!`,
-            });
-            setDeployingAction(null);
-            return;
-          }
-        } catch {
-          // Local fallback
-        }
+        // Aşağıdaki hata bildirimine düşer; yer tutucu içerik canlı siteye uygulanmaz
       }
     }
 
     setNotice({
-      tone: "success",
-      text: `⚡ '${params.title}' işlemi ChangeSet olarak oluşturuldu ve Sandbox koruma motorunda doğrulandı.`,
+      tone: "error",
+      text: org?.id && site?.id
+        ? `'${params.title}' işlemi oluşturulamadı: arka uç servisine ulaşılamıyor. Sitede hiçbir değişiklik yapılmadı.`
+        : "İşlemi uygulamak için önce bir organizasyon ve site seçin.",
     });
     setDeployingAction(null);
   };
@@ -308,8 +254,8 @@ export default function GeoPage() {
       }
     } catch {
       setNotice({
-        tone: "info",
-        text: "Sitenizin taranmış sayfa envanterinden /llms.txt ve /llms-full.txt paketleri güncellendi.",
+        tone: "error",
+        text: "Canlı /llms.txt ve robots.txt denetimi yapılamadı: arka uç servisine ulaşılamıyor.",
       });
     } finally {
       setProbingLive(false);
@@ -356,6 +302,8 @@ export default function GeoPage() {
           </div>
         }
       />
+
+      <DemoBanner source={geoSource.source} reason={geoSource.reason} />
 
       {/* Metric Strip */}
       <MetricStrip

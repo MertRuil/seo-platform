@@ -469,12 +469,13 @@ export const DEMO_AUDIT: AuditRow[] = [
 export interface KeywordItem {
   id: string;
   keyword: string;
-  current_pos: number;
-  prev_pos: number;
-  change: number;
-  volume: number;
-  difficulty: number;
-  cpc: number;
+  // null: henüz ölçülmedi (SERP/hacim verisi sağlayıcıdan gelmeden uydurma değer gösterilmez)
+  current_pos: number | null;
+  prev_pos: number | null;
+  change: number | null;
+  volume: number | null;
+  difficulty: number | null;
+  cpc: number | null;
   intent: "TRANSACTIONAL" | "COMMERCIAL" | "INFORMATIONAL" | "NAVIGATIONAL";
   target_url: string;
   trend_7d: number[];
@@ -686,11 +687,12 @@ export interface CompetitorItem {
   id: string;
   name: string;
   domain: string;
-  seo_score: number;
-  organic_traffic: number;
-  ranked_keywords: number;
-  backlinks: number;
-  geo_visibility: number;
+  // null: henüz ölçülmedi
+  seo_score: number | null;
+  organic_traffic: number | null;
+  ranked_keywords: number | null;
+  backlinks: number | null;
+  geo_visibility: number | null;
   top_keywords: string[];
 }
 
@@ -806,9 +808,10 @@ export const DEMO_COMPETITORS: CompetitorsData = {
 export interface ContentOptimizationData {
   url: string;
   targetKeyword: string;
-  contentScore: number;
-  geoScore: number;
-  readabilityScore: number;
+  // null: bu metriği hesaplayan bir motor henüz yok, uydurma skor gösterilmez
+  contentScore: number | null;
+  geoScore: number | null;
+  readabilityScore: number | null;
   wordCount: number;
   targetWordCount: number;
   keywordDensity: number;

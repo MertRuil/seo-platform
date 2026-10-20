@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { tryBackendProxy } from "@/lib/backend-proxy";
+import { NextRequest } from "next/server";
+import { tryBackendProxy, demoFallbackOrUnavailable } from "@/lib/backend-proxy";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function POST(
   const brand = String(body.brand_name || "Flagship Store").trim();
   const sampleRuns = Math.max(1, Math.min(10, Number(body.sample_runs) || 3));
 
-  return NextResponse.json({
+  return demoFallbackOrUnavailable(() => ({
     prompt,
     brand_mentioned: true,
     citation_rank: 1,
@@ -109,5 +109,5 @@ export async function POST(
     },
     is_simulated: true,
     data_source: "SIMULATION",
-  });
+  }));
 }

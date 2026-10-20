@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
+    # Önündeki güvenilir reverse proxy sayısı (Render/Railway yük dengeleyicisi = 1).
+    # 0 iken X-Forwarded-For okunmaz; proxy arkasında 0 bırakılırsa tüm istemciler tek IP görünür.
+    TRUSTED_PROXY_HOPS: int = 0
+
     # S3 / MinIO
     S3_ENDPOINT: str = "localhost:9000"
     S3_ACCESS_KEY: str = "minioadmin"

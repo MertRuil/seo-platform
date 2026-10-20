@@ -39,6 +39,23 @@ def _cleanup_memory_store():
             _MEMORY_STORE.pop(k, None)
 
 
+def get_client_ip(request: Request) -> str:
+    """
+    İstemci IP'si. TRUSTED_PROXY_HOPS=0 iken başlıklara bakılmaz, soket adresi kullanılır.
+    N>0 iken X-Forwarded-For'un sağdan N. girdisi alınır: her güvenilir proxy bir girdi ekler,
+    istemcinin kendi yazdığı girdiler solda kalır. X-Real-IP istemci tarafından taklit edilebildiği için okunmaz.
+    """
+    peer = request.client.host if request.client else "unknown"
+    hops_to_trust = max(0, settings.TRUSTED_PROXY_HOPS)
+    if hops_to_trust == 0:
+        return peer
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+    if not hops:
+        return peer
+    return hops[-hops_to_trust] if len(hops) >= hops_to_trust else hops[0]
+
+
 class RateLimiter:
     """
     Sliding-window rate limiter supporting Redis (when available) with
@@ -69,16 +86,7 @@ class RateLimiter:
             except Exception:
                 pass
 
-        # Otherwise use client IP (use rightmost X-Forwarded-For hop added by trusted proxy to prevent spoofing)
-        real_ip = request.headers.get("x-real-ip")
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if real_ip and real_ip.strip():
-            client_ip = real_ip.strip()
-        elif forwarded_for:
-            hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
-            client_ip = hops[-1] if hops else (request.client.host if request.client else "unknown")
-        else:
-            client_ip = request.client.host if request.client else "unknown"
+        client_ip = get_client_ip(request)
 
         return f"ip:{client_ip}:{self.scope}"
 

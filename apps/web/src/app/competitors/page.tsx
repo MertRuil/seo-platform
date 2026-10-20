@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 
 export default function CompetitorsPage() {
   const { site } = useSite();
@@ -47,12 +48,12 @@ export default function CompetitorsPage() {
       id: `comp-${Date.now()}`,
       name: newCompetitorName.trim() || cleanDomain,
       domain: cleanDomain,
-      seo_score: Math.floor(Math.random() * 20) + 75,
-      organic_traffic: Math.floor(Math.random() * 80000) + 20000,
-      ranked_keywords: Math.floor(Math.random() * 6000) + 1200,
-      backlinks: Math.floor(Math.random() * 45000) + 6000,
-      geo_visibility: Math.floor(Math.random() * 35) + 55,
-      top_keywords: ["online servis", "en ucuz teklif", "kullanıcı rehberi"],
+      seo_score: null,
+      organic_traffic: null,
+      ranked_keywords: null,
+      backlinks: null,
+      geo_visibility: null,
+      top_keywords: [],
     };
 
     setCompetitors([...competitors, newComp]);
@@ -79,6 +80,8 @@ export default function CompetitorsPage() {
           </Button>
         }
       />
+
+      <DemoBanner source="demo" reason="no-endpoint" />
 
       {/* Metric Strip */}
       <MetricStrip
@@ -166,19 +169,19 @@ export default function CompetitorsPage() {
                     </div>
                   </td>
                   <td className="py-3.5 px-3 text-center font-mono font-semibold text-ink">
-                    {comp.seo_score} / 100
+                    {comp.seo_score === null ? "—" : `${comp.seo_score} / 100`}
                   </td>
                   <td className="py-3.5 px-3 text-right font-mono text-ink">
-                    {formatCompact(comp.organic_traffic)}
+                    {comp.organic_traffic === null ? "—" : formatCompact(comp.organic_traffic)}
                   </td>
                   <td className="py-3.5 px-3 text-right font-mono text-ink">
-                    {formatCompact(comp.ranked_keywords)}
+                    {comp.ranked_keywords === null ? "—" : formatCompact(comp.ranked_keywords)}
                   </td>
                   <td className="py-3.5 px-3 text-right font-mono text-muted">
-                    {formatCompact(comp.backlinks)}
+                    {comp.backlinks === null ? "—" : formatCompact(comp.backlinks)}
                   </td>
                   <td className="py-3.5 px-3 text-center font-mono font-semibold text-accent-ink">
-                    %{comp.geo_visibility}
+                    {comp.geo_visibility === null ? "—" : `%${comp.geo_visibility}`}
                   </td>
                   <td className="py-3.5 px-4">
                     <div className="flex flex-wrap gap-1">

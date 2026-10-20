@@ -78,7 +78,7 @@ def _build_knowledge_store() -> HybridKnowledgeStore:
             store.add_chunk(chunk_id=f"{seed['id']}-{idx}", document_title=seed["title"], heading_path=c.heading_path, content=c.content, vector=[0.05] * 128, status=seed["status"])
     return store
 
-from services.security.rate_limiter import quick_audit_limiter
+from services.security.rate_limiter import quick_audit_limiter, get_client_ip
 from fastapi import Depends
 
 KNOWLEDGE_STORE = _build_knowledge_store()
@@ -90,7 +90,7 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
     Canlı bir web sitesinin URL'sini alarak anında tarar,
     deterministik SEO kurallarını ve AI uzman ajanlarını çalıştırır.
     """
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     _enforce_audit_rate_limit(client_ip)
 
     try:
@@ -234,7 +234,7 @@ async def discover_site_pages(req: DiscoverPagesRequest, request: Request):
     Hedef web sitesinin robots.txt, sitemap.xml ve dahili bağlantılarını
     otonom olarak tarayarak sitenin gerçek sayfa sayısını ve URL listesini keşfeder.
     """
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     _enforce_audit_rate_limit(client_ip)
 
     try:

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { tryBackendProxy } from "@/lib/backend-proxy";
+import { NextRequest } from "next/server";
+import { tryBackendProxy, demoFallbackOrUnavailable } from "@/lib/backend-proxy";
 import { DEMO_GEO } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
@@ -16,5 +16,5 @@ export async function GET(
   );
   if (proxied) return proxied;
 
-  return NextResponse.json(DEMO_GEO);
+  return demoFallbackOrUnavailable(() => DEMO_GEO);
 }

@@ -122,3 +122,16 @@ export async function tryBackendProxy(req: NextRequest, endpointPath: string): P
   }
 }
 
+/**
+ * Arka uç yanıt vermediğinde örnek (DEMO_*) veri yalnızca geliştirme ortamında dönebilir.
+ * Üretimde kullanıcının kendi sitesi için uydurma sonuç gösterilmez; 503 döner.
+ */
+export function demoFallbackOrUnavailable(build: () => unknown): NextResponse {
+  if (IS_PRODUCTION) {
+    return NextResponse.json(
+      { detail: "Bu servis şu an kullanılamıyor: arka uç servisine ulaşılamadı. Lütfen biraz sonra tekrar deneyin." },
+      { status: 503, headers: { "Retry-After": "30" } }
+    );
+  }
+  return NextResponse.json(build());
+}

@@ -298,7 +298,7 @@ def test_staging_environment_rejects_default_secrets(monkeypatch):
 @pytest.mark.anyio
 async def test_password_change_revokes_existing_jwt_and_nextjs_local_blocked_in_prod():
     """DÜŞÜK-12 & KRİTİK-02: Password change invalidates prior JWTs via pwd_fp, and nextjs_local tokens are blocked in production."""
-    from services.security.jwt_auth import create_access_token
+    from services.security.jwt_auth import create_access_token, invalidate_user_auth_cache
     from services.security.crypto import hash_password
     from packages.shared.database import engine, Base, AsyncSessionLocal
     from packages.shared.models import User
@@ -327,6 +327,8 @@ async def test_password_change_revokes_existing_jwt_and_nextjs_local_blocked_in_
             user_obj = res_u.scalars().first()
             user_obj.hashed_password = hash_password("NewPassword456!")
             await db.commit()
+            # Doğrudan DB yazımı şifre sıfırlama ucunu atladığı için önbelleği o ucun yaptığı gibi temizle
+            invalidate_user_auth_cache(user_obj.id)
 
         # Old token must now be rejected with 401
         me_revoked = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"})
@@ -343,3 +345,75 @@ async def test_password_change_revokes_existing_jwt_and_nextjs_local_blocked_in_
             res_local = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {local_token}"})
             assert res_local.status_code == 401
 
+
+
+def _fake_request(peer: str, headers: dict):
+    from starlette.requests import Request
+    scope = {
+        "type": "http",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        "client": (peer, 1234),
+    }
+    return Request(scope)
+
+
+def test_get_client_ip_ignores_spoofable_headers_without_trusted_proxy():
+    from services.security.rate_limiter import get_client_ip
+
+    req = _fake_request("10.0.0.5", {"x-real-ip": "1.1.1.1", "x-forwarded-for": "2.2.2.2"})
+    with patch.object(settings, "TRUSTED_PROXY_HOPS", 0):
+        assert get_client_ip(req) == "10.0.0.5"
+
+
+def test_get_client_ip_uses_proxy_appended_hop():
+    from services.security.rate_limiter import get_client_ip
+
+    # İstemci soldaki girdiyi taklit eder, yük dengeleyici gerçek IP'yi sona ekler
+    req = _fake_request("10.0.0.5", {"x-real-ip": "1.1.1.1", "x-forwarded-for": "6.6.6.6, 203.0.113.7"})
+    with patch.object(settings, "TRUSTED_PROXY_HOPS", 1):
+        assert get_client_ip(req) == "203.0.113.7"
+    with patch.object(settings, "TRUSTED_PROXY_HOPS", 2):
+        assert get_client_ip(req) == "6.6.6.6"
+    with patch.object(settings, "TRUSTED_PROXY_HOPS", 1):
+        assert get_client_ip(_fake_request("10.0.0.5", {})) == "10.0.0.5"
+
+
+@pytest.mark.anyio
+async def test_auth_state_cache_avoids_repeat_queries_and_invalidates():
+    from services.security import jwt_auth
+
+    calls = {"n": 0}
+
+    class _User:
+        is_active = True
+        hashed_password = "hash-1"
+
+    class _Result:
+        def scalars(self):
+            return self
+
+        def first(self):
+            return _User()
+
+    class _Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, _query):
+            calls["n"] += 1
+            return _Result()
+
+    jwt_auth.invalidate_user_auth_cache("cache-user")
+    with patch("packages.shared.database.AsyncSessionLocal", _Session):
+        first = await jwt_auth._load_user_auth_state("cache-user")
+        second = await jwt_auth._load_user_auth_state("cache-user")
+        assert first == second == (True, jwt_auth.password_fingerprint("hash-1"))
+        assert calls["n"] == 1
+
+        jwt_auth.invalidate_user_auth_cache("cache-user")
+        await jwt_auth._load_user_auth_state("cache-user")
+        assert calls["n"] == 2
+    jwt_auth.invalidate_user_auth_cache("cache-user")

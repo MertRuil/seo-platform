@@ -21,7 +21,7 @@ export async function POST(
   const { connector_type, base_url, credentials, endpoint } = body;
   const targetUrl = base_url || endpoint || "";
 
-  if (targetUrl.startsWith("mock://")) {
+  if (targetUrl.startsWith("mock://") && process.env.NODE_ENV !== "production") {
     return NextResponse.json({
       success: true,
       status_code: 200,

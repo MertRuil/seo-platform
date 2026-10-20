@@ -24,10 +24,19 @@ import { Input, Label } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { useSite } from "@/context/SiteContext";
 import { getSiteBacklinks, type WebBacklinkItem } from "@/lib/backlinks-data";
+import { api } from "@/lib/api";
+import type { DataSource, DemoReason } from "@/lib/dataSource";
+import { DemoBanner } from "@/components/ui/DemoBanner";
 
 export default function BacklinksPage() {
-  const { site } = useSite();
+  const { org, site } = useSite();
   const [backlinks, setBacklinks] = useState<WebBacklinkItem[]>(() => getSiteBacklinks(site));
+  const [linkSource, setLinkSource] = useState<{ source: DataSource; reason?: DemoReason }>({
+    source: "demo",
+    reason: "no-site",
+  });
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
   const [cleanDisavowNotice, setCleanDisavowNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | "TOXIC" | "DOFOLLOW" | "NOFOLLOW" | "HIGH_DR">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,9 +45,29 @@ export default function BacklinksPage() {
   const [newAnchor, setNewAnchor] = useState("");
 
   React.useEffect(() => {
-    setBacklinks(getSiteBacklinks(site));
+    let cancelled = false;
     setCleanDisavowNotice(null);
-  }, [site?.id, site?.domain]);
+    if (!org?.id || !site?.id) {
+      setBacklinks(getSiteBacklinks(site));
+      setLinkSource({ source: "demo", reason: org?.id ? "no-site" : "no-org" });
+      return;
+    }
+    api
+      .getBacklinks(org.id, site.id)
+      .then((live) => {
+        if (cancelled) return;
+        setBacklinks(live);
+        setLinkSource({ source: "live" });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBacklinks(getSiteBacklinks(site));
+        setLinkSource({ source: "demo", reason: "fetch-failed" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [org?.id, site?.id, site?.domain]);
 
   const toxicCount = backlinks.filter((b) => b.is_toxic).length;
   const dofollowCount = backlinks.filter((b) => b.is_dofollow).length;
@@ -66,6 +95,12 @@ export default function BacklinksPage() {
   }, [backlinks, filter, searchQuery]);
 
   const handleDownloadDisavow = () => {
+    if (linkSource.source !== "live") {
+      setCleanDisavowNotice(
+        "Disavow dosyası yalnızca sitenizin gerçek backlink verisinden üretilir. Örnek veriden üretilen bir dosya Google'a yüklenirse sitenize zarar verebilir."
+      );
+      return;
+    }
     const domain = (site?.domain || "acmestore.io").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
     // CRITICAL: Strictly filter toxic links that actually target domain!
     const toxicItems = backlinks.filter((b) => b.is_toxic && b.target_url.toLowerCase().includes(domain));
@@ -113,65 +148,32 @@ export default function BacklinksPage() {
     URL.revokeObjectURL(url);
   };
 
-  const handleAddBacklink = (e: React.FormEvent) => {
+  // Toksisite, DR ve canlı doğrulama arka uçta hesaplanır (OpenPageRank + kaynak sayfa taraması)
+  const handleAddBacklink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSourceUrl.trim()) return;
-
-    let domain = newSourceUrl.trim();
+    setAddError(null);
+    if (linkSource.source !== "live" || !org?.id || !site?.id) {
+      setAddError("Backlink servisine bağlı değilsiniz; yeni bağlantı şu an analiz edilemiyor.");
+      return;
+    }
+    const sourceUrl = newSourceUrl.trim().startsWith("http") ? newSourceUrl.trim() : `https://${newSourceUrl.trim()}`;
+    setIsAdding(true);
     try {
-      const parsed = new URL(newSourceUrl.trim().startsWith("http") ? newSourceUrl.trim() : `https://${newSourceUrl.trim()}`);
-      domain = parsed.hostname;
-    } catch {
-      domain = newSourceUrl.trim().replace(/^https?:\/\//, "").split("/")[0];
+      const created = await api.addBacklink(org.id, site.id, {
+        source_url: sourceUrl,
+        anchor_text: newAnchor.trim(),
+        verify_live: true,
+      });
+      setBacklinks((prev) => [created, ...prev]);
+      setNewSourceUrl("");
+      setNewAnchor("");
+      setIsAddModalOpen(false);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Backlink eklenemedi.");
+    } finally {
+      setIsAdding(false);
     }
-
-    const SPAM_TLDS = [
-      ".xyz", ".top", ".click", ".link", ".buzz", ".work", ".bar", ".rest",
-      ".monster", ".icu", ".cfd", ".sbs", ".cam", ".beauty", ".hair", ".skin",
-      ".quest", ".boats", ".cyou", ".pw", ".cc", ".press",
-    ];
-    const SPAM_KEYWORDS = [
-      "casino", "viagra", "cialis", "betting", "bahis", "kumar", "slot", "rulet",
-      "porn", "escort", "replica", "payday", "pbn", "hack", "crack", "pharmacy",
-    ];
-
-    const isSpamTld = SPAM_TLDS.some((tld) => domain.toLowerCase().endsWith(tld));
-    const anchorLower = (newAnchor || "").toLowerCase();
-    const hasSpamKeyword = SPAM_KEYWORDS.some((kw) => anchorLower.includes(kw));
-    const isRawIp = /^https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/i.test(newSourceUrl.trim()) || /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(domain);
-
-    const isSuspicious = isSpamTld || hasSpamKeyword || isRawIp;
-    const spamScore = isSuspicious ? Math.floor(Math.random() * 20) + 75 : Math.floor(Math.random() * 8) + 1;
-
-    const toxicityReasons: string[] = [];
-    if (isSpamTld) toxicityReasons.push("Yüksek riskli spam TLD uzantısı");
-    if (hasSpamKeyword) toxicityReasons.push("Yasaklı spam / kumar anahtar kelimesi");
-    if (isRawIp) toxicityReasons.push("Ham IP adresi üzerinden güvensiz bağlantı");
-    if (isSuspicious && toxicityReasons.length === 0) {
-      toxicityReasons.push("Şüpheli link profili");
-    }
-
-    const newItem: WebBacklinkItem = {
-      id: `bl-${Date.now()}`,
-      source_url: newSourceUrl.trim().startsWith("http") ? newSourceUrl.trim() : `https://${newSourceUrl.trim()}`,
-      source_domain: domain,
-      target_url: site?.primary_url || "https://acmestore.io",
-      anchor_text: newAnchor.trim() || domain,
-      anchor_category: hasSpamKeyword ? "SPAM" : "BRAND",
-      is_dofollow: true,
-      domain_authority: isSuspicious ? Math.floor(Math.random() * 10) + 2 : Math.floor(Math.random() * 40) + 40,
-      page_authority: isSuspicious ? 5 : 35,
-      spam_score: spamScore,
-      is_toxic: isSuspicious,
-      toxicity_reasons: toxicityReasons,
-      first_seen: new Date().toISOString().slice(0, 10),
-      status: "ACTIVE",
-    };
-
-    setBacklinks([newItem, ...backlinks]);
-    setNewSourceUrl("");
-    setNewAnchor("");
-    setIsAddModalOpen(false);
   };
 
   return (
@@ -202,6 +204,8 @@ export default function BacklinksPage() {
           </div>
         }
       />
+
+      <DemoBanner source={linkSource.source} reason={linkSource.reason} />
 
       {/* KPI Metric Strip */}
       <MetricStrip
@@ -464,11 +468,17 @@ export default function BacklinksPage() {
             />
           </div>
 
+          {addError && (
+            <p role="alert" className="text-xs text-critical">
+              {addError}
+            </p>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" type="button" onClick={() => setIsAddModalOpen(false)}>
               İptal
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" loading={isAdding}>
               Analiz Et ve Ekle
             </Button>
           </div>
