@@ -40,6 +40,15 @@ class CopilotChatResponse(BaseModel):
     context_sources: List[str]
 
 
+def build_copilot_prompt(context: str, history: List[tuple[str, str]], message: str) -> str:
+    # scripts/model_eval aynı fonksiyonu kullanır; model karşılaştırması üretimdeki prompt ile yapılır.
+    turns = "\n".join(f"{'Kullanıcı' if role == 'user' else 'Asistan'}: {text}" for role, text in history[-6:])
+    prompt = f"<site_verisi>\n{context}\n</site_verisi>\n\n"
+    if turns:
+        prompt += f"Önceki konuşma:\n{turns}\n\n"
+    return prompt + f"Kullanıcı: {message}"
+
+
 async def _build_site_context(db: AsyncSession, site) -> tuple[str, List[str]]:
     lines = [f"Site: {site.name} ({site.domain})"]
     sources: List[str] = []
@@ -135,11 +144,7 @@ async def copilot_chat(
         )
 
     context, sources = await _build_site_context(db, site)
-    history = "\n".join(f"{'Kullanıcı' if t.role == 'user' else 'Asistan'}: {t.text}" for t in req.history[-6:])
-    prompt = f"<site_verisi>\n{context}\n</site_verisi>\n\n"
-    if history:
-        prompt += f"Önceki konuşma:\n{history}\n\n"
-    prompt += f"Kullanıcı: {req.message}"
+    prompt = build_copilot_prompt(context, [(t.role, t.text) for t in req.history], req.message)
 
     try:
         reply = await provider.generate(prompt, system_instruction=SYSTEM_INSTRUCTION, temperature=0.3)
