@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import pytest
 import pytest_asyncio
 import json
@@ -19,8 +21,25 @@ async def prepare_database():
         await conn.run_sync(Base.metadata.drop_all)
 
 
+WEBHOOK_SECRET = "pdl_sec_integration_test"
+
+
+async def _post_signed_webhook(client: AsyncClient, payload: dict):
+    body = json.dumps(payload).encode("utf-8")
+    ts = int(time.time())
+    h1 = hmac.new(WEBHOOK_SECRET.encode("utf-8"), f"{ts}:".encode("utf-8") + body, hashlib.sha256).hexdigest()
+    return await client.post(
+        "/api/v1/billing/webhooks/paddle",
+        content=body,
+        headers={"Content-Type": "application/json", "Paddle-Signature": f"ts={ts};h1={h1}"},
+    )
+
+
 @pytest.mark.asyncio
-async def test_billing_checkout_portal_and_webhook_flow():
+async def test_billing_checkout_portal_and_webhook_flow(monkeypatch):
+    # Test ortamında sağlayıcı yalnızca mock_ anahtarla simüle checkout/portal döner; webhook imzası zorunlu.
+    monkeypatch.setenv("PADDLE_API_KEY", "mock_integration")
+    monkeypatch.setenv("PADDLE_WEBHOOK_SECRET", WEBHOOK_SECRET)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Register & Login
@@ -96,10 +115,10 @@ async def test_billing_checkout_portal_and_webhook_flow():
                 }
             }
         }
-        wh_res = await client.post(
-            "/api/v1/billing/webhooks/paddle",
-            json=webhook_payload
-        )
+        unsigned_res = await client.post("/api/v1/billing/webhooks/paddle", json=webhook_payload)
+        assert unsigned_res.status_code == 400
+
+        wh_res = await _post_signed_webhook(client, webhook_payload)
         assert wh_res.status_code == 200
         wh_data = wh_res.json()
         assert wh_data["status"] == "success"
@@ -140,10 +159,7 @@ async def test_billing_checkout_portal_and_webhook_flow():
                 }
             }
         }
-        txn_wh_res = await client.post(
-            "/api/v1/billing/webhooks/paddle",
-            json=txn_payload
-        )
+        txn_wh_res = await _post_signed_webhook(client, txn_payload)
         assert txn_wh_res.status_code == 200
 
         # 9. List Invoices - newly created invoice should be returned
