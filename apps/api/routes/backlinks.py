@@ -122,6 +122,8 @@ _UPSERT_UPDATE_COLUMNS = (
 # PostgreSQL btree index rows are capped at ~2.7 KB; longer URL pairs cannot enter the unique index.
 _MAX_URL_LENGTH = 2048
 _MAX_UNIQUE_KEY_BYTES = 2600
+# asyncpg ve SQLite sorgu başına ~32.7 bin parametre kabul eder; satır başına 21 sütunla 500 satır sınırın altında kalır.
+_UPSERT_BATCH_SIZE = 500
 
 
 def _fits_unique_index(source_url: str, target_url: str) -> bool:
@@ -233,16 +235,18 @@ async def _upsert_backlinks(db: AsyncSession, site_id: str, items: List[Backlink
         _item_values(site_id, item, base_time - timedelta(microseconds=idx))
         for idx, item in enumerate(unique_items.values())
     ]
-    stmt = _dialect_insert(db)(Backlink).values(values)
+    insert = _dialect_insert(db)
     conflict_cols = ["site_id", "source_url", "target_url"]
-    if update_existing:
-        stmt = stmt.on_conflict_do_update(
-            index_elements=conflict_cols,
-            set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_COLUMNS},
-        )
-    else:
-        stmt = stmt.on_conflict_do_nothing(index_elements=conflict_cols)
-    await db.execute(stmt)
+    for start in range(0, len(values), _UPSERT_BATCH_SIZE):
+        stmt = insert(Backlink).values(values[start:start + _UPSERT_BATCH_SIZE])
+        if update_existing:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=conflict_cols,
+                set_={col: stmt.excluded[col] for col in _UPSERT_UPDATE_COLUMNS},
+            )
+        else:
+            stmt = stmt.on_conflict_do_nothing(index_elements=conflict_cols)
+        await db.execute(stmt)
     return sum(1 for key in unique_items if key not in existing_keys)
 
 

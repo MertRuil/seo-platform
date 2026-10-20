@@ -215,3 +215,18 @@ async def test_overlong_source_url_is_rejected(client):
     res = await client.post(base, json={"source_url": "https://example.com/" + "a" * 2100}, headers=headers)
     assert res.status_code == 400
     assert await _stored_count() == 0
+
+
+@pytest.mark.asyncio
+async def test_large_gsc_import_is_written_in_batches(client):
+    # 2.000 satır x 21 sütun tek INSERT'te SQLite/asyncpg parametre sınırını (32.766) aşar.
+    headers = await _auth_headers(client)
+    base = await _create_site(client, headers, "https://bulk-import.example")
+    csv_text = "\n".join(f"s{i}.co" for i in range(2000))
+
+    res = await client.post(f"{base}/import-gsc", json={"raw_csv_or_urls": csv_text}, headers=headers)
+
+    assert res.status_code == 200, res.text
+    assert res.json()["synced_count"] == 2000
+    async with AsyncSessionLocal() as db:
+        assert (await db.execute(select(func.count()).select_from(Backlink))).scalar() == 2000
