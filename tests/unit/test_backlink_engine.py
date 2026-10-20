@@ -171,23 +171,21 @@ def test_generate_google_disavow_file_site_scoped_prevents_leakage():
     assert not any(line.strip().startswith("domain:") for line in ah_disavow.splitlines())
 
 
-def test_site_isolated_backlinks_retrieval():
-    from apps.api.routes.backlinks import _get_or_init_site_backlinks
+def test_site_isolated_demo_seed_profiles():
+    from apps.api.routes.backlinks import _demo_seed_items
 
     # Acme Store profile: contains toxic links
-    acme_links = _get_or_init_site_backlinks("site-1", "acmestore.io")
+    acme_links = _demo_seed_items("site-1", "acmestore.io")
     assert any(b.is_toxic for b in acme_links)
     assert all("acmestore.io" in b.target_url for b in acme_links)
 
     # AnalyticsHub profile: completely clean, ZERO toxic links
-    ah_links = _get_or_init_site_backlinks("site-2", "analyticshub.com")
+    ah_links = _demo_seed_items("site-2", "analyticshub.com")
     assert not any(b.is_toxic for b in ah_links)
     assert all("analyticshub.com" in b.target_url for b in ah_links)
 
-    # Custom site profile: completely clean, domain-tailored, ZERO toxic links
-    custom_links = _get_or_init_site_backlinks("site-custom-99", "brandstore.com.tr", "https://brandstore.com.tr")
-    assert not any(b.is_toxic for b in custom_links)
-    assert all("brandstore.com.tr" in b.target_url for b in custom_links)
+    # Customer sites get no fabricated links
+    assert _demo_seed_items("site-custom-99", "brandstore.com.tr") == []
 
 
 def test_spam_keyword_and_category_classification():
