@@ -100,23 +100,15 @@ async def autonomous_auto_execute_low_risk(db: AsyncSession, site: Site, crawl_r
             page = pages_map.get(target_url)
             expected_hash = (page.canonical_seo_hash or page.raw_html_hash or "") if page else ""
 
+            # Yalnızca yeni değeri kesin olan değişiklik otomatik uygulanır. Önerinin başlığı ve teşhisi sayfa
+            # içeriği değildir; bağlayıcılar state_after.title'ı yazı başlığına yazar. Başlık, meta ve şema
+            # önerileri somut bir değer taşımadığı sürece insan onayına kalır.
             issue_upper = (rec.issue_id or "").upper()
-            if "CANONICAL" in issue_upper or rec.category == "CANONICALIZATION":
-                operation = "UPDATE_CANONICAL"
-                state_before = json.dumps({"canonical": evidence.get("target") or evidence.get("canonical_target", "")})
-                state_after = json.dumps({"canonical": target_url})
-            elif "TITLE" in issue_upper or "META" in issue_upper:
-                operation = "UPDATE_META"
-                state_before = json.dumps({"title": evidence.get("title", ""), "meta_description": evidence.get("meta_description", "")})
-                state_after = json.dumps({"title": rec.title, "meta_description": rec.description[:160]})
-            elif "SCHEMA" in issue_upper:
-                operation = "INJECT_SCHEMA"
-                state_before = json.dumps({})
-                state_after = json.dumps({"schema_type": "WebPage", "url": target_url})
-            else:
-                operation = "AUTO_FIX"
-                state_before = json.dumps({"issue": rec.issue_id})
-                state_after = json.dumps({"resolved": True, "title": rec.title})
+            if not ("CANONICAL" in issue_upper or rec.category == "CANONICALIZATION"):
+                continue
+            operation = "UPDATE_CANONICAL"
+            state_before = json.dumps({"canonical": evidence.get("target") or evidence.get("canonical_target", "")})
+            state_after = json.dumps({"canonical": target_url})
 
             # Create Atomic ChangeSet
             cs = ChangeSet(

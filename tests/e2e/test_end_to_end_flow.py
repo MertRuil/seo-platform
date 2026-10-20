@@ -206,7 +206,7 @@ async def test_zero_touch_autonomous_lifecycle():
     Site Onboarding (AUTO_LOW_RISK) -> Page Crawl Simulation ->
     Automatic Audit & AI Orchestrator ->
     Autonomous Low-Risk Execution -> Auto ChangeSet Creation & Safe Execution ->
-    Automatic Rollback Safety Check -> State RESOLVED without human clicks.
+    Only changes with a concrete new value (self canonical) are applied; title/meta stay PENDING.
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -321,7 +321,8 @@ async def test_zero_touch_autonomous_lifecycle():
         recs_count = await run_audit_and_ai_job(site_id=site_id, crawl_run_id=crawl_id)
         assert recs_count > 0, "Recommendations must be generated"
 
-        # Verify: Low-risk recommendation must be automatically RESOLVED by auto-pilot
+        # Başlık/meta önerileri uygulanabilir yeni bir değer taşımaz (önerinin başlığı sayfa başlığı değildir);
+        # otomatik pilot bunları siteye yazmaz, insan onayına bırakır.
         recs_res = await client.get(
             f"/api/v1/organizations/{org_id}/sites/{site_id}/recommendations",
             headers=auth_headers
@@ -329,42 +330,53 @@ async def test_zero_touch_autonomous_lifecycle():
         assert recs_res.status_code == 200
         recs = recs_res.json()
         assert len(recs) >= 1
+        assert all(r["status"] == "PENDING" for r in recs)
 
-        resolved_recs = [r for r in recs if r["status"] == "RESOLVED"]
-        assert len(resolved_recs) >= 1, "At least one low-risk recommendation must be automatically RESOLVED"
-
-        # Verify: ChangeSet was automatically generated and marked SUCCESS
+        import json
         from packages.shared.database import AsyncSessionLocal
-        from packages.shared.models import ChangeSet, ChangeItem, AuditLog
+        from packages.shared.models import AuditLog
         from sqlalchemy.future import select
+        from apps.worker.tasks import autonomous_auto_execute_low_risk
 
         async with AsyncSessionLocal() as session:
-            cs_res = await session.execute(
-                select(ChangeSet).where(ChangeSet.site_id == site_id)
-            )
-            change_sets = cs_res.scalars().all()
-            assert len(change_sets) >= 1
-            auto_cs = change_sets[0]
+            assert (await session.execute(select(ChangeSet).where(ChangeSet.site_id == site_id))).scalars().all() == []
+
+            # Yeni değeri kesin olan değişiklik (kendine işaret eden canonical) otomatik uygulanır.
+            catalog_url = "https://auto-store.com/catalog"
+            session.add(Recommendation(
+                site_id=site_id,
+                issue_id="RULE_CANONICAL_MISSING",
+                category="CANONICALIZATION",
+                title="Canonical etiketi ekleyin",
+                description="Sayfada canonical etiketi yok.",
+                reason="Canonical, yinelenen URL sinyallerini birleştirir.",
+                risk_level="LOW",
+                effort="LOW",
+                evidence_json=json.dumps({"url": catalog_url}),
+                status="PENDING",
+            ))
+            await session.commit()
+            site = (await session.execute(select(Site).where(Site.id == site_id))).scalars().one()
+
+            assert await autonomous_auto_execute_low_risk(session, site, crawl_id) == 1
+
+            auto_cs = (await session.execute(select(ChangeSet).where(ChangeSet.site_id == site_id))).scalars().one()
             assert auto_cs.status == "SUCCESS"
             assert auto_cs.created_by == "autonomous-seo-pilot"
-            assert auto_cs.approved_by == "autonomous-seo-pilot"
+            item = (await session.execute(select(ChangeItem).where(ChangeItem.change_set_id == auto_cs.id))).scalars().one()
+            assert item.operation == "UPDATE_CANONICAL"
+            assert json.loads(item.state_after) == {"canonical": catalog_url}
+            assert item.status == "SUCCESS"
 
-            # Check ChangeItem
-            ci_res = await session.execute(
-                select(ChangeItem).where(ChangeItem.change_set_id == auto_cs.id)
-            )
-            items = ci_res.scalars().all()
-            assert len(items) >= 1
-            assert items[0].status == "SUCCESS"
-            assert items[0].operation in ("UPDATE_META", "UPDATE_CANONICAL", "INJECT_SCHEMA")
+            statuses = {
+                r.issue_id: r.status
+                for r in (await session.execute(select(Recommendation).where(Recommendation.site_id == site_id))).scalars().all()
+            }
+            assert statuses.pop("RULE_CANONICAL_MISSING") == "RESOLVED"
+            assert set(statuses.values()) == {"PENDING"}
 
-            # Check AuditLog
-            audit_res = await session.execute(
-                select(AuditLog).where(
-                    AuditLog.site_id == site_id,
-                    AuditLog.action == "AUTONOMOUS_EXECUTE_LOW_RISK"
-                )
-            )
-            audits = audit_res.scalars().all()
-            assert len(audits) >= 1
+            audits = (await session.execute(
+                select(AuditLog).where(AuditLog.site_id == site_id, AuditLog.action == "AUTONOMOUS_EXECUTE_LOW_RISK")
+            )).scalars().all()
+            assert len(audits) == 1
 

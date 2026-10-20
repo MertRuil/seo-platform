@@ -109,3 +109,14 @@ async def test_all_agents_request_turkish_output(rag_store):
 
     assert len(llm.system_instructions) == 5
     assert all(TURKISH_OUTPUT_RULE in s for s in llm.system_instructions)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("schema_json", [
+    '{"@context": "https://schema.org", "@type": "FAQPage"}',
+    '{"@context": "https://schema.org", "@type": "Article"}',
+])
+async def test_schema_agent_does_not_fabricate_injectable_schema(llm, rag_store, schema_json):
+    # Ajan sayfanın gerçek soru-cevaplarını ya da yazarını bilmiyor; siteye eklenecek içerik uydurmamalı.
+    res = await StructuredDataAgent(llm, rag_store).analyze_schema("https://example.com/sss", schema_json, "WebPage")
+    assert res.diff_preview is None
