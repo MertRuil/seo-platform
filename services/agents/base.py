@@ -298,6 +298,12 @@ class AnthropicProvider(LLMProvider):
             return output_schema.model_validate(parsed_json)
 
 
+def is_placeholder_provider(provider: LLMProvider) -> bool:
+    """Üretimde sabit test yanıtı gerçek öneri gibi kaydedilmemeli ya da gösterilmemeli."""
+    from packages.config.settings import settings
+    return isinstance(provider, DeterministicTestLLMProvider) and settings.is_production_like
+
+
 def get_llm_provider(rate_limiter=None) -> LLMProvider:
     """
     Factory function returning the configured LLM provider.

@@ -9,7 +9,7 @@ from services.crawler.headless_renderer import HeadlessRenderEngine
 from services.crawler.url_normalizer import UrlNormalizer
 from services.seo_engine.engine import SeoRuleEngine
 from services.agents.orchestrator import AiOrchestrator
-from services.agents.base import get_llm_provider
+from services.agents.base import get_llm_provider, is_placeholder_provider
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/audit", tags=["Hızlı Site Denetimi"])
 # Per-IP Rate Limiting: max 5 quick audits per 60 seconds (with memory leak protection)
 _IP_AUDIT_HISTORY: Dict[str, List[float]] = {}
 MAX_AUDITS_PER_MINUTE = 5
+QUICK_AUDIT_MAX_AI_ISSUES = 5
 MAX_IP_TRACKING_ENTRIES = 5000
 
 def _cleanup_ip_audit_history():
@@ -158,17 +159,20 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
     engine = SeoRuleEngine()
     audit_results = engine.evaluate_site([page_context])
 
-    # 2. RAG Bilgi Beyni & AI Ajanları
-    orchestrator = AiOrchestrator(
-        llm_provider=get_llm_provider(),
-        knowledge_store=KNOWLEDGE_STORE
-    )
-
-    recs = await orchestrator.process_crawl_issues(
-        site_id="quick-audit",
-        issues=audit_results["issues"],
-        pages_by_url={normalized_url: page_context}
-    )
+    # 2. RAG Bilgi Beyni & AI Ajanları. Uç herkese açık; denetim başına model çağrısı düşük tutulur.
+    llm_provider = get_llm_provider()
+    recs = []
+    if not is_placeholder_provider(llm_provider):
+        orchestrator = AiOrchestrator(
+            llm_provider=llm_provider,
+            knowledge_store=KNOWLEDGE_STORE
+        )
+        recs = await orchestrator.process_crawl_issues(
+            site_id="quick-audit",
+            issues=audit_results["issues"],
+            pages_by_url={normalized_url: page_context},
+            max_issues=QUICK_AUDIT_MAX_AI_ISSUES
+        )
 
     formatted_issues = [
         IssueDetail(

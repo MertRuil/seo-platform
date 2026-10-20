@@ -12,8 +12,8 @@ from packages.shared.models import (
 )
 from services.crawler.crawler_service import CrawlerService
 from services.seo_engine.engine import SeoRuleEngine
-from services.agents.orchestrator import AiOrchestrator
-from services.agents.base import get_llm_provider
+from services.agents.orchestrator import AiOrchestrator, MAX_ISSUES_PER_RUN, issue_key
+from services.agents.base import get_llm_provider, is_placeholder_provider
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
@@ -290,8 +290,28 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                         status=seed["status"]
                     )
 
+            llm_provider = get_llm_provider()
+            if is_placeholder_provider(llm_provider):
+                logger.warning(f"LLM yapılandırılmadı, sahte öneri kaydedilmemesi için AI adımı atlandı ({site_id})")
+                return 0
+
+            # Açık önerisi olan sorun her taramada yeniden modele gönderilmez; aynı öneri çoğalmaz.
+            open_recs = (
+                await db.execute(
+                    select(Recommendation.issue_id, Recommendation.evidence_json).where(
+                        Recommendation.site_id == site_id,
+                        Recommendation.status.notin_(["RESOLVED", "REJECTED"])
+                    )
+                )
+            ).all()
+            open_keys = {issue_key(issue_id, json.loads(evidence or "{}")) for issue_id, evidence in open_recs}
+            new_issues = [i for i in results.get("issues", []) if issue_key(i.rule_id, i.evidence) not in open_keys]
+            if not new_issues:
+                logger.info(f"Yeni sorun yok, AI öneri üretimi atlandı ({site_id})")
+                return 0
+
             from services.security.token_budget import TokenBudgetService
-            estimated = len(results.get("issues", [])) * 350 + 500
+            estimated = min(len(new_issues), MAX_ISSUES_PER_RUN) * 350 + 500
             try:
                 await TokenBudgetService.check_budget_for_site(db, site_id, estimated_tokens=estimated)
             except Exception as e:
@@ -299,14 +319,14 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                 return 0
 
             orchestrator = AiOrchestrator(
-                llm_provider=get_llm_provider(),
+                llm_provider=llm_provider,
                 knowledge_store=knowledge_store
             )
 
             pages_by_url = {p.url: {"title": p.title, "word_count": p.word_count, "status_code": p.status_code} for p in pages}
             recs_data = await orchestrator.process_crawl_issues(
                 site_id=site_id,
-                issues=results.get("issues", []),
+                issues=new_issues,
                 pages_by_url=pages_by_url
             )
 

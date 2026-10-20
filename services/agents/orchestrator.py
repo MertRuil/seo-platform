@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import List, Dict, Any, Optional
 from services.agents.base import LLMProvider, RecommendationOutput
 from services.agents.technical_agent import TechnicalSEOAgent
@@ -8,6 +9,37 @@ from services.agents.schema_agent import StructuredDataAgent
 from services.agents.strategy_agent import SEOStrategyAgent
 from services.rag.hybrid_store import HybridKnowledgeStore
 from services.seo_engine.base import RuleCheckResult
+
+logger = logging.getLogger(__name__)
+
+# Her sorun bir model çağrısı demek. Aynı kural yüzlerce sayfada tekrarlandığında
+# listeyi tek kural doldurmasın diye kural başına da sınır var.
+MAX_ISSUES_PER_RUN = 40
+MAX_ISSUES_PER_RULE = 3
+MAX_CONSECUTIVE_FAILURES = 3
+SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+
+
+def issue_key(rule_id: str, evidence: Dict[str, Any]) -> tuple:
+    return rule_id, evidence.get("url") or evidence.get("page_url", "")
+
+
+def select_issues_for_ai(
+    issues: List[RuleCheckResult],
+    max_issues: int = MAX_ISSUES_PER_RUN,
+    max_per_rule: int = MAX_ISSUES_PER_RULE,
+) -> List[RuleCheckResult]:
+    per_rule: Dict[str, int] = {}
+    selected: List[RuleCheckResult] = []
+    for issue in sorted(issues, key=lambda i: SEVERITY_ORDER.get(i.severity.value, len(SEVERITY_ORDER))):
+        if len(selected) >= max_issues:
+            break
+        if per_rule.get(issue.rule_id, 0) >= max_per_rule:
+            continue
+        per_rule[issue.rule_id] = per_rule.get(issue.rule_id, 0) + 1
+        selected.append(issue)
+    return selected
+
 
 class PriorityEngine:
     RISK_MODIFIERS = {
@@ -53,49 +85,31 @@ class AiOrchestrator:
         self,
         site_id: str,
         issues: List[RuleCheckResult],
-        pages_by_url: Dict[str, Any]
+        pages_by_url: Dict[str, Any],
+        max_issues: int = MAX_ISSUES_PER_RUN
     ) -> List[Dict[str, Any]]:
         """Processes deterministic issues through relevant specialist agents, outputting prioritized recommendations."""
         recommendations: List[Dict[str, Any]] = []
+        selected = select_issues_for_ai(issues, max_issues=max_issues)
+        if len(selected) < len(issues):
+            logger.info("AI önerisi için %d/%d sorun seçildi (site %s)", len(selected), len(issues), site_id)
 
-        for issue in issues:
-            target_url = issue.evidence.get("url") or issue.evidence.get("page_url", "")
+        consecutive_failures = 0
+        for issue in selected:
+            _, target_url = issue_key(issue.rule_id, issue.evidence)
             page_data = pages_by_url.get(target_url, {})
 
-            # Smart specialist agent dispatching
-            rule_upper = issue.rule_id.upper()
-            if "SCHEMA" in rule_upper:
-                rec_output = await self.schema_agent.analyze_schema(
-                    target_url=target_url,
-                    current_schema_json=str(issue.evidence),
-                    detected_page_type=page_data.get("page_type", "WebPage")
-                )
-            elif any(k in rule_upper for k in ["CONTENT", "THIN", "TITLE", "META", "HEADING", "KEYWORD"]):
-                rec_output = await self.content_agent.analyze_content(
-                    target_url=target_url,
-                    page_data=page_data
-                )
-            elif any(k in rule_upper for k in ["LINK", "ORPHAN", "ANCHOR"]):
-                source_url = issue.evidence.get("source_url") or target_url
-                target_dest = issue.evidence.get("target_url") or target_url
-                topic = issue.evidence.get("target_topic") or issue.title
-                snippet = issue.evidence.get("snippet") or page_data.get("body_snippet") or page_data.get("title", "")
-                rec_output = await self.link_agent.analyze_link_opportunity(
-                    source_url=source_url,
-                    target_url=target_dest,
-                    target_topic=topic,
-                    source_snippet=snippet
-                )
-            else:
-                rec_output = await self.technical_agent.analyze_issue(
-                    issue_data={
-                        "rule_id": issue.rule_id,
-                        "title": issue.title,
-                        "description": issue.description,
-                        "evidence": issue.evidence
-                    },
-                    page_data=page_data
-                )
+            try:
+                rec_output = await self._analyze(issue, target_url, page_data)
+            except Exception as e:
+                # Tek sorunun hatası diğer önerileri düşürmesin; art arda hata model/anahtar sorunudur, boşuna çağrı yapma.
+                consecutive_failures += 1
+                logger.warning("AI önerisi üretilemedi (%s, %s): %s", issue.rule_id, target_url, e)
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    logger.error("Art arda %d model hatası, öneri üretimi durduruldu (site %s)", consecutive_failures, site_id)
+                    break
+                continue
+            consecutive_failures = 0
 
             # Impact scale based on severity
             impact_map = {"CRITICAL": 5.0, "HIGH": 4.0, "MEDIUM": 2.5, "LOW": 1.5, "INFO": 1.0}
@@ -132,6 +146,40 @@ class AiOrchestrator:
         # Sort recommendations by priority score descending
         recommendations.sort(key=lambda r: r["priority_score"], reverse=True)
         return recommendations
+
+    async def _analyze(self, issue: RuleCheckResult, target_url: str, page_data: Dict[str, Any]) -> RecommendationOutput:
+        rule_upper = issue.rule_id.upper()
+        if "SCHEMA" in rule_upper:
+            return await self.schema_agent.analyze_schema(
+                target_url=target_url,
+                current_schema_json=str(issue.evidence),
+                detected_page_type=page_data.get("page_type", "WebPage")
+            )
+        if any(k in rule_upper for k in ["CONTENT", "THIN", "TITLE", "META", "HEADING", "KEYWORD"]):
+            return await self.content_agent.analyze_content(
+                target_url=target_url,
+                page_data=page_data
+            )
+        if any(k in rule_upper for k in ["LINK", "ORPHAN", "ANCHOR"]):
+            source_url = issue.evidence.get("source_url") or target_url
+            target_dest = issue.evidence.get("target_url") or target_url
+            topic = issue.evidence.get("target_topic") or issue.title
+            snippet = issue.evidence.get("snippet") or page_data.get("body_snippet") or page_data.get("title", "")
+            return await self.link_agent.analyze_link_opportunity(
+                source_url=source_url,
+                target_url=target_dest,
+                target_topic=topic,
+                source_snippet=snippet
+            )
+        return await self.technical_agent.analyze_issue(
+            issue_data={
+                "rule_id": issue.rule_id,
+                "title": issue.title,
+                "description": issue.description,
+                "evidence": issue.evidence
+            },
+            page_data=page_data
+        )
 
     async def generate_strategic_roadmap(
         self,
