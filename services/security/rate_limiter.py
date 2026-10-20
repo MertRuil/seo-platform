@@ -154,4 +154,6 @@ class RateLimiter:
 quick_audit_limiter = RateLimiter(max_requests=10, window_seconds=60, scope="quick_audit")
 crawls_limiter = RateLimiter(max_requests=10, window_seconds=60, scope="crawls")
 knowledge_ingest_limiter = RateLimiter(max_requests=15, window_seconds=60, scope="knowledge_ingest")
+alerts_test_limiter = RateLimiter(max_requests=10, window_seconds=60, scope="alerts_test")
+copilot_limiter = RateLimiter(max_requests=20, window_seconds=60, scope="copilot")
 global_api_limiter = RateLimiter(max_requests=120, window_seconds=60, scope="global")

@@ -21,7 +21,9 @@ from apps.api.routes import (
     billing,
     backlinks,
     geo,
-    leads
+    leads,
+    copilot,
+    alerts
 )
 
 @asynccontextmanager
@@ -40,6 +42,17 @@ async def lifespan(app: FastAPI):
                     "TRUSTED_PROXY_HOPS=0: rate limit soket IP'sine göre çalışıyor. "
                     "Yük dengeleyici arkasındaysanız tüm istemciler aynı kotayı paylaşır."
                 )
+            missing = []
+            if not (settings.GOOGLE_OAUTH_CLIENT_ID and settings.GOOGLE_OAUTH_CLIENT_SECRET):
+                missing.append("Google OAuth (Search Console bağlanamaz)")
+            elif "localhost" in settings.GOOGLE_OAUTH_REDIRECT_URI:
+                missing.append("GOOGLE_OAUTH_REDIRECT_URI localhost'u gösteriyor")
+            if not settings.SMTP_HOST:
+                missing.append("SMTP (şifre sıfırlama e-postası gitmez)")
+            if not (settings.GOOGLE_API_KEY or settings.OPENAI_API_KEY or settings.ANTHROPIC_API_KEY):
+                missing.append("LLM API anahtarı (AI Copilot ve AI önerileri kapalı)")
+            if missing:
+                logging.getLogger("uvicorn").warning("Eksik üretim yapılandırması: " + "; ".join(missing))
             if settings.REDIS_URL:
                 try:
                     import redis.asyncio as aioredis
@@ -217,6 +230,8 @@ app.include_router(billing.router, prefix="/api/v1")
 app.include_router(backlinks.router, prefix="/api/v1")
 app.include_router(geo.router, prefix="/api/v1")
 app.include_router(leads.router, prefix="/api/v1")
+app.include_router(copilot.router, prefix="/api/v1")
+app.include_router(alerts.router, prefix="/api/v1")
 
 @app.get("/api/v1/notifications")
 async def get_notifications():

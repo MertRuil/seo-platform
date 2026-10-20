@@ -61,13 +61,13 @@ export const RecommendationsScreen: React.FC = () => {
   const handleExecute = async (rec: RecommendationItem) => {
     setExecutingId(rec.id);
     try {
-      const res = await executeRecommendation(rec.id);
-      setToast(res.message || "Değişiklik seti canlı sisteme başarıyla uygulandı.");
+      if (!selectedSite?.id) throw new Error("Önce bir site seçin.");
+      const res = await executeRecommendation(rec.id, selectedSite.id);
+      setToast(res.message);
       setTimeout(() => setToast(null), 4000);
-      // Update local item status to EXECUTED
-      setItems(prev => prev.map(item => item.id === rec.id ? { ...item, status: "EXECUTED" } : item));
-    } catch {
-      setToast("Uygulama sırasında bir hata oluştu.");
+      setItems(prev => prev.map(item => item.id === rec.id ? { ...item, status: "APPROVED" } : item));
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Öneri onaylanamadı.");
       setTimeout(() => setToast(null), 4000);
     } finally {
       setExecutingId(null);
@@ -161,6 +161,7 @@ export const RecommendationsScreen: React.FC = () => {
       ) : (
         filteredItems.map((rec) => {
           const isExecuted = rec.status === "EXECUTED";
+          const isApproved = rec.status === "APPROVED";
           const isPending = rec.status === "PENDING";
           const isExecuting = executingId === rec.id;
 
@@ -205,6 +206,11 @@ export const RecommendationsScreen: React.FC = () => {
                     <Ionicons name="checkmark-done" size={16} color={Colors.success} />
                     <Text style={styles.executedText}>Canlıda Uygulandı</Text>
                   </View>
+                ) : isApproved ? (
+                  <View style={styles.executedBadge}>
+                    <Ionicons name="checkmark" size={16} color={Colors.success} />
+                    <Text style={styles.executedText}>Onaylandı</Text>
+                  </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.executeBtn}
@@ -216,8 +222,8 @@ export const RecommendationsScreen: React.FC = () => {
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
                       <>
-                        <Ionicons name="cloud-upload-outline" size={16} color="#FFFFFF" />
-                        <Text style={styles.executeBtnText}>Onayla & Canlıya Uygula</Text>
+                        <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.executeBtnText}>Öneriyi Onayla</Text>
                       </>
                     )}
                   </TouchableOpacity>

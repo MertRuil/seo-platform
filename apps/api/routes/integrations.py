@@ -244,17 +244,18 @@ async def get_google_integration_status(
             "top_queries_count": len(gsc_rows),
             "sample_queries": sample_queries
         },
+        # GA4 mülk kimliği henüz site bazında saklanmıyor; ölçülmemiş metrik döndürülmez.
         "ga4": {
-            "connected": True,
-            "status": "CONNECTED",
-            "property_id": "properties/398241029",
-            "error_message": None,
-            "active_users": 18400,
-            "total_sessions": 24500,
-            "organic_sessions": 15200,
-            "conversions": 842,
-            "organic_conversions": 486,
-            "organic_conversion_rate": 3.20
+            "connected": False,
+            "status": "DISCONNECTED",
+            "property_id": None,
+            "error_message": "Google Analytics 4 mülkü yapılandırılmadı.",
+            "active_users": None,
+            "total_sessions": None,
+            "organic_sessions": None,
+            "conversions": None,
+            "organic_conversions": None,
+            "organic_conversion_rate": None
         }
     }
 

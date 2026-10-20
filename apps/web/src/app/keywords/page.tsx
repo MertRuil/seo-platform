@@ -74,6 +74,8 @@ function getKdColor(kd: number | null): { text: string; bg: string; label: strin
   return { text: "text-rose-500", bg: "bg-rose-500", label: "Zor" };
 }
 
+const newKeywordId = () => `kw-${Date.now()}`;
+
 export default function KeywordsPage() {
   const { site } = useSite();
   const [activeTab, setActiveTab] = useState<"tracker" | "explorer">("tracker");
@@ -111,7 +113,7 @@ export default function KeywordsPage() {
     if (!newKeyword.trim()) return;
 
     const newItem: KeywordItem = {
-      id: `kw-${Date.now()}`,
+      id: newKeywordId(),
       keyword: newKeyword.trim(),
       current_pos: null,
       prev_pos: null,
@@ -137,7 +139,7 @@ export default function KeywordsPage() {
     if (exists) return;
 
     const newItem: KeywordItem = {
-      id: `kw-${Date.now()}`,
+      id: newKeywordId(),
       keyword: item.keyword,
       current_pos: null,
       prev_pos: null,

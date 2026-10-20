@@ -30,3 +30,45 @@ services:
         value: "1"
       - key: FRONTEND_URL
         sync: false
+      # AI Copilot, oneriler ve GEO olcumu icin model saglayicisi
+      - key: LLM_PROVIDER
+        sync: false
+      - key: DEFAULT_LLM_MODEL
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      # Search Console OAuth; redirect URI canli API adresini gostermeli
+      - key: API_BASE_URL
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_OAUTH_REDIRECT_URI
+        sync: false
+      - key: CRUX_API_KEY
+        sync: false
+      # Sifre sifirlama e-postasi
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # Odeme; canli anahtarlarla PADDLE_SANDBOX=false
+      - key: PADDLE_API_KEY
+        sync: false
+      - key: PADDLE_WEBHOOK_SECRET
+        sync: false
+      - key: PADDLE_SANDBOX
+        sync: false

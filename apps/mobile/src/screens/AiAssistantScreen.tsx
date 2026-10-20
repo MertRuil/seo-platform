@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
-import { sendAiAssistantMessage, createTask, executeRecommendation } from "../services/api";
+import { sendAiAssistantMessage, createTask } from "../services/api";
 import { AiChatMessage } from "../types";
 
 export const AiAssistantScreen: React.FC = () => {
@@ -104,8 +104,7 @@ export const AiAssistantScreen: React.FC = () => {
         Alert.alert("Başarılı", `"${action.label}" görev listenize eklendi!`);
       }
     } else if (action.action_type === "APPLY_FIX") {
-      const res = await executeRecommendation("rec-quick");
-      Alert.alert("AI Aksiyonu Uygulandı", res.message);
+      setActiveTab("recommendations");
     }
   };
 

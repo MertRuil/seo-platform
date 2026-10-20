@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Sliders,
   CheckCircle2,
@@ -35,10 +35,30 @@ import { Modal } from "@/components/ui/Modal";
 import { DemoBanner } from "@/components/ui/DemoBanner";
 import { Notice } from "@/components/ui/States";
 import { MetricStrip } from "@/components/ui/MetricStrip";
+import { api } from "@/lib/api";
+import { formatNumber } from "@/lib/format";
 
 interface ExtendedConnectorItem extends ConnectorItem {
   capabilities?: string[];
 }
+
+interface GscStats {
+  clicks: number;
+  impressions: number;
+  ctrPercent: number;
+  avgPosition: number;
+  queryCount: number;
+  property: string | null;
+}
+
+type AlertChannelType = "SLACK" | "DISCORD" | "TELEGRAM" | "WEBHOOK";
+
+const ALERT_CHANNEL_FIELDS: Record<AlertChannelType, { target: string; targetPlaceholder: string; secret?: string }> = {
+  SLACK: { target: "Slack webhook URL", targetPlaceholder: "https://hooks.slack.com/services/..." },
+  DISCORD: { target: "Discord webhook URL", targetPlaceholder: "https://discord.com/api/webhooks/..." },
+  TELEGRAM: { target: "Chat ID", targetPlaceholder: "-1001234567890", secret: "Bot token" },
+  WEBHOOK: { target: "Webhook URL", targetPlaceholder: "https://api.sirket.com/seo-events", secret: "HMAC-SHA256 gizli anahtarı" },
+};
 
 export default function BaglayicilarPage() {
   const { user } = useAuth();
@@ -60,49 +80,13 @@ export default function BaglayicilarPage() {
   const [googleStatusDetail, setGoogleStatusDetail] = useState<string>("Google Search Console veya GA4 henüz bağlanmadı.");
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleLastSync, setGoogleLastSync] = useState("Henüz eşitlenmedi");
-  const [gscClicks, setGscClicks] = useState<number | null>(null);
-  const [ga4Users, setGa4Users] = useState<number | null>(null);
+  const [gscStats, setGscStats] = useState<GscStats | null>(null);
 
-  // Alert Channels States
-  const [testingChannel, setTestingChannel] = useState<string | null>(null);
-  const [alertChannels, setAlertChannels] = useState([
-    {
-      id: "slack-1",
-      name: "Slack #seo-alarmlari",
-      type: "Slack Webhook",
-      url: "https://hooks.slack.com/services/T00/B00/XXXX",
-      enabled: true,
-      lastDelivered: "2 saat önce",
-      triggers: ["Sıralama Düşüşleri", "404 / 500 Kritik Hatalar", "Mevzuat İhlalleri"]
-    },
-    {
-      id: "telegram-1",
-      name: "Telegram Bot (@SeoPlatformAlertBot)",
-      type: "Telegram Bot",
-      url: "Chat ID: -100293847192",
-      enabled: true,
-      lastDelivered: "Dün 18:40",
-      triggers: ["Sıralama Düşüşleri", "Kritik SEO Hataları"]
-    },
-    {
-      id: "discord-1",
-      name: "Discord Webhook #seo-ops",
-      type: "Discord Webhook",
-      url: "https://discord.com/api/webhooks/123/xyz",
-      enabled: false,
-      lastDelivered: "Henüz gönderilmedi",
-      triggers: ["Mevzuat & Reklam İhlalleri"]
-    },
-    {
-      id: "webhook-1",
-      name: "Kurumsal SIEM / CI/CD Webhook",
-      type: "HMAC-SHA256 Webhook",
-      url: "https://api.sirket.com/v1/seo-events",
-      enabled: true,
-      lastDelivered: "5 saat önce",
-      triggers: ["Tüm Olaylar (Ham JSON Payload)"]
-    }
-  ]);
+  // Alarm kanalları sunucuda saklanmıyor; form yalnızca bir test bildirimi gönderir.
+  const [alertChannel, setAlertChannel] = useState<AlertChannelType>("SLACK");
+  const [alertTarget, setAlertTarget] = useState("");
+  const [alertSecret, setAlertSecret] = useState("");
+  const [testingAlert, setTestingAlert] = useState(false);
 
   const fetchConnectors = async (ctx: LiveContext): Promise<ExtendedConnectorItem[]> => {
     const token = typeof window !== "undefined" ? localStorage.getItem("seo_auth_token") : null;
@@ -177,67 +161,65 @@ export default function BaglayicilarPage() {
     }
   }, [demo.data]);
 
-  // Initial Check for Real Google Integration Health
-  useEffect(() => {
-    const checkGoogleHealth = async () => {
-      const orgId = site?.organization_id || org?.id || "demo-org";
-      const siteId = site?.id || "demo-site";
-      const token = typeof window !== "undefined" ? localStorage.getItem("seo_auth_token") : null;
-
-      try {
-        const res = await fetch(`/api/v1/organizations/${orgId}/sites/${siteId}/integrations/google/status`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.connected && data.status === "CONNECTED") {
-            setGoogleIntegrationStatus("HEALTHY");
-            setGoogleLastSync(data.last_synced_at ? new Date(data.last_synced_at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "Bugün");
-            setGscClicks(14850);
-            setGa4Users(18400);
-            setGoogleStatusDetail("Canlı veri akışı aktif ve doğrulanmış.");
-          } else {
-            setGoogleIntegrationStatus(data.status === "AUTH_FAILED" ? "AUTH_FAILED" : "DISCONNECTED");
-            setGoogleStatusDetail(data.error_message || "Google Search Console hesabı bağlanmadı.");
-            setGscClicks(null);
-            setGa4Users(null);
-          }
-        } else {
-          // If status endpoint returns error or site has no credentials:
-          const gscItem = list.find((c) => c.id === "gsc" || c.tur === "OAuth 2.0" || c.tur === "GOOGLE_SEARCH_CONSOLE");
-          if (gscItem?.durum === "Bağlandı") {
-            setGoogleIntegrationStatus("HEALTHY");
-            setGscClicks(14850);
-            setGa4Users(18400);
-          } else if (gscItem?.durum === "Bağlantı Başarısız") {
-            setGoogleIntegrationStatus("AUTH_FAILED");
-            setGoogleStatusDetail("Google OAuth yetkilendirme hatası (401 Unauthorized): Token süresi doldu.");
-            setGscClicks(null);
-            setGa4Users(null);
-          } else {
-            setGoogleIntegrationStatus("DISCONNECTED");
-            setGoogleStatusDetail("Google Search Console hesabı bağlanmadı.");
-            setGscClicks(null);
-            setGa4Users(null);
-          }
-        }
-      } catch {
+  const loadGoogleStatus = useCallback(async () => {
+    const orgId = site?.organization_id || org?.id;
+    const siteId = site?.id;
+    if (!orgId || !siteId) {
+      setGoogleIntegrationStatus("DISCONNECTED");
+      setGscStats(null);
+      return;
+    }
+    const token = typeof window !== "undefined" ? localStorage.getItem("seo_auth_token") : null;
+    try {
+      const res = await fetch(`/api/v1/organizations/${orgId}/sites/${siteId}/integrations/google/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
         setGoogleIntegrationStatus("DISCONNECTED");
-        setGscClicks(null);
-        setGa4Users(null);
+        setGoogleStatusDetail(`Google bağlantı durumu alınamadı (HTTP ${res.status}).`);
+        setGscStats(null);
+        return;
       }
-    };
+      const data = await res.json();
+      if (data.connected && data.status === "CONNECTED") {
+        setGoogleIntegrationStatus("HEALTHY");
+        setGoogleLastSync(data.last_synced_at ? new Date(data.last_synced_at).toLocaleDateString("tr-TR") : "Henüz eşitlenmedi");
+        setGscStats({
+          clicks: data.gsc?.total_clicks ?? 0,
+          impressions: data.gsc?.total_impressions ?? 0,
+          ctrPercent: data.gsc?.avg_ctr_percent ?? 0,
+          avgPosition: data.gsc?.avg_position ?? 0,
+          queryCount: data.gsc?.top_queries_count ?? 0,
+          property: data.gsc?.property ?? null,
+        });
+        setGoogleStatusDetail("Search Console bağlı.");
+      } else {
+        setGoogleIntegrationStatus(data.status === "AUTH_FAILED" ? "AUTH_FAILED" : "DISCONNECTED");
+        setGoogleStatusDetail(data.error_message || "Google Search Console hesabı bağlanmadı.");
+        setGscStats(null);
+      }
+    } catch {
+      setGoogleIntegrationStatus("DISCONNECTED");
+      setGoogleStatusDetail("Google bağlantı durumu alınamadı.");
+      setGscStats(null);
+    }
+  }, [site?.organization_id, site?.id, org?.id]);
 
-    checkGoogleHealth();
-  }, [site, org, list]);
+  useEffect(() => {
+    loadGoogleStatus();
+  }, [loadGoogleStatus]);
 
   const handleManualGoogleSync = async () => {
     setSyncingGoogle(true);
     setNotice(null);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("seo_auth_token") : null;
-      const orgId = site?.organization_id || org?.id || "demo-org";
-      const siteId = site?.id || "demo-site";
+      const orgId = site?.organization_id || org?.id;
+      const siteId = site?.id;
+      if (!orgId || !siteId) {
+        setNotice({ tone: "error", text: "Eşitleme için arka uçta kayıtlı bir site seçili olmalı." });
+        return;
+      }
 
       const res = await fetch(`/api/v1/organizations/${orgId}/sites/${siteId}/integrations/sync`, {
         method: "POST",
@@ -275,8 +257,7 @@ export default function BaglayicilarPage() {
       const data = await res.json();
       if (!data.success) {
         setGoogleIntegrationStatus(data.status === "DISCONNECTED" ? "DISCONNECTED" : "AUTH_FAILED");
-        setGscClicks(null);
-        setGa4Users(null);
+        setGscStats(null);
         setGoogleStatusDetail(data.message);
         setNotice({
           tone: "error",
@@ -285,11 +266,7 @@ export default function BaglayicilarPage() {
         return;
       }
 
-      setGoogleIntegrationStatus("HEALTHY");
-      setGoogleLastSync("Şimdi senkronize edildi");
-      setGscClicks(data.gsc_metrics_synced > 0 ? data.gsc_metrics_synced * 35 : 14850);
-      setGa4Users(data.crux_metrics_synced > 0 ? data.crux_metrics_synced * 220 : 18400);
-      setGoogleStatusDetail("Canlı veriler başarıyla eşitlendi.");
+      await loadGoogleStatus();
       setNotice({
         tone: "success",
         text: `🟢 ${data.message || "Google Search Console ve GA4 verileri başarıyla eşitlendi."}`
@@ -326,44 +303,29 @@ export default function BaglayicilarPage() {
     }
   };
 
-  const handleToggleSimulation = () => {
-    if (googleIntegrationStatus === "HEALTHY") {
-      setGoogleIntegrationStatus("AUTH_FAILED");
-      setGscClicks(null);
-      setGa4Users(null);
-      setGoogleStatusDetail("OAuth Token Süresi Doldu (Simüle Edildi / Test Modu)");
-      setNotice({
-        tone: "error",
-        text: "⚠️ [Test Simülasyonu] Google yetkilendirme hatası (401 Unauthorized) simüle edildi. Sistem sahte veri gösterimini durdurdu ve müşteri uyarı kalkanını açtı."
-      });
-    } else {
-      setGoogleIntegrationStatus("HEALTHY");
-      setGscClicks(14850);
-      setGa4Users(18400);
-      setGoogleStatusDetail("Bağlantı aktif ve canlı veriler doğrulanıyor.");
-      setNotice({
-        tone: "success",
-        text: "🟢 [Test Simülasyonu] Google entegrasyonu sağlıklı duruma getirildi."
-      });
+  const handleTestAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const orgId = site?.organization_id || org?.id;
+    if (!orgId || !site?.id) {
+      setNotice({ tone: "error", text: "Test bildirimi için arka uçta kayıtlı bir site seçili olmalı." });
+      return;
     }
-  };
-
-  const handleTestAlertChannel = async (id: string, name: string) => {
-    setTestingChannel(id);
+    setTestingAlert(true);
     setNotice(null);
     try {
-      await new Promise((r) => setTimeout(r, 700));
-      setNotice({
-        tone: "success",
-        text: `🟢 ${name}: Test alarm bildirimi başarıyla iletildi (HTTP 200 OK). Webhook payload doğrulandı.`,
+      const res = await api.sendTestAlert(orgId, site.id, {
+        channel: alertChannel,
+        target: alertTarget.trim(),
+        secret: alertSecret.trim() || undefined,
       });
-      setAlertChannels((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, lastDelivered: "Şimdi" } : c))
-      );
-    } catch {
-      setNotice({ tone: "error", text: `${name} test bildirimi gönderilemedi.` });
+      setNotice({
+        tone: res.success ? "success" : "error",
+        text: res.success ? `${res.message} (HTTP ${res.status_code})` : `Bildirim gönderilemedi: ${res.message}`,
+      });
+    } catch (err) {
+      setNotice({ tone: "error", text: err instanceof Error ? err.message : "Test bildirimi gönderilemedi." });
     } finally {
-      setTestingChannel(null);
+      setTestingAlert(false);
     }
   };
 
@@ -660,7 +622,6 @@ export default function BaglayicilarPage() {
         >
           <Bell className="w-4 h-4" />
           Anlık Alarm Kanalları
-          <span className="text-xs px-1.5 py-0.5 rounded bg-surface border border-line text-muted">{alertChannels.length}</span>
         </button>
       </div>
 
@@ -718,31 +679,27 @@ export default function BaglayicilarPage() {
             items={[
               {
                 label: "GSC Organik Tıklamalar",
-                value: gscClicks !== null ? gscClicks.toLocaleString() : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+%14.2", direction: "up" } : undefined,
+                value: gscStats ? formatNumber(gscStats.clicks) : "—",
                 tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : googleIntegrationStatus === "AUTH_FAILED" ? "critical" : "warn",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Son 28 gün arama performansı" : googleIntegrationStatus === "AUTH_FAILED" ? "Bağlantı Hatası: Veri Yok" : "Bağlantı Bekleniyor",
+                hint: googleIntegrationStatus === "HEALTHY" ? "Son eşitleme günü" : googleIntegrationStatus === "AUTH_FAILED" ? "Bağlantı Hatası: Veri Yok" : "Bağlantı Bekleniyor",
               },
               {
-                label: "GSC Ortalama Tıklama (CTR)",
-                value: googleIntegrationStatus === "HEALTHY" ? "%5.23" : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+0.8 puan", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : "muted",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Sektör ortalaması %3.1" : "Erişim İzni Yok",
+                label: "GSC Gösterim",
+                value: gscStats ? formatNumber(gscStats.impressions) : "—",
+                tone: gscStats ? "evidence" : "muted",
+                hint: gscStats ? "Son eşitleme günü" : "Erişim İzni Yok",
               },
               {
-                label: "GA4 Aktif Kullanıcı",
-                value: ga4Users !== null ? ga4Users.toLocaleString() : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+%18.6", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : googleIntegrationStatus === "AUTH_FAILED" ? "critical" : "warn",
-                hint: googleIntegrationStatus === "HEALTHY" ? "Doğrudan ve organik trafik" : "Mülk Bağlantısı Kesildi",
+                label: "GSC Ortalama CTR",
+                value: gscStats ? `%${formatNumber(gscStats.ctrPercent, 2)}` : "—",
+                tone: gscStats ? "evidence" : "muted",
+                hint: gscStats ? "Tıklama / gösterim" : "Erişim İzni Yok",
               },
               {
-                label: "GA4 Organik Dönüşüm Oranı",
-                value: googleIntegrationStatus === "HEALTHY" ? "%3.20" : "—",
-                trend: googleIntegrationStatus === "HEALTHY" ? { text: "+0.4 puan", direction: "up" } : undefined,
-                tone: googleIntegrationStatus === "HEALTHY" ? "evidence" : "muted",
-                hint: googleIntegrationStatus === "HEALTHY" ? "486 organik işlem (toplam 842)" : "Veri Akışı Yok",
+                label: "GA4",
+                value: "—",
+                tone: "muted",
+                hint: "GA4 mülkü yapılandırılmadı",
               },
             ]}
           />
@@ -772,7 +729,7 @@ export default function BaglayicilarPage() {
                 <Inset className="space-y-2 font-mono text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted">Özellik Adresi:</span>
-                    <span className="text-ink font-semibold">sc-domain:{site?.domain || "acmestore.io"}</span>
+                    <span className="text-ink font-semibold">{gscStats?.property || (site?.domain ? `sc-domain:${site.domain}` : "—")}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted">Protokol / İzin:</span>
@@ -786,19 +743,19 @@ export default function BaglayicilarPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted">İzlenen Sorgu Sayısı:</span>
-                    <span className="text-ink font-semibold">{googleIntegrationStatus === "HEALTHY" ? "320 anahtar kelime" : "—"}</span>
+                    <span className="text-ink font-semibold">{gscStats ? `${formatNumber(gscStats.queryCount)} sorgu` : "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted">Ortalama Sıralama:</span>
-                    <span className={googleIntegrationStatus === "HEALTHY" ? "text-accent-ink font-semibold" : "text-muted font-semibold"}>
-                      {googleIntegrationStatus === "HEALTHY" ? "4.8" : "—"}
+                    <span className={gscStats ? "text-accent-ink font-semibold" : "text-muted font-semibold"}>
+                      {gscStats ? formatNumber(gscStats.avgPosition, 1) : "—"}
                     </span>
                   </div>
                 </Inset>
 
                 <p className="text-xs text-muted">
                   {googleIntegrationStatus === "HEALTHY"
-                    ? "Arama konsolundaki yeni dizin durumu ve tıklama kayıpları her 24 saatte bir otomatik olarak eşzamanlanır."
+                    ? "Search Console verisi \"Şimdi Eşitle\" ile ya da zamanlanmış eşitlemeyle güncellenir."
                     : "⚠️ Bağlantı hatası sebebiyle arama konsolu verileri çekilememektedir. Lütfen hesabı yeniden bağlayın."}
                 </p>
               </div>
@@ -807,53 +764,16 @@ export default function BaglayicilarPage() {
             {/* Google Analytics 4 Card */}
             <Panel
               title="Google Analytics 4 (GA4)"
-              sub="Kullanıcı davranışları, oturum süreleri, hemen çıkma oranı ve dönüşüm hunileri."
+              sub="Kullanıcı, oturum ve dönüşüm metrikleri."
               actions={
-                googleIntegrationStatus === "HEALTHY" ? (
-                  <Badge tone="evidence">
-                    <CheckCircle2 className="w-3 h-3 mr-1" /> Aktif Veri Akışı
-                  </Badge>
-                ) : googleIntegrationStatus === "AUTH_FAILED" ? (
-                  <Badge tone="critical">
-                    <AlertTriangle className="w-3 h-3 mr-1" /> Veri Akışı Kesildi
-                  </Badge>
-                ) : (
-                  <Badge tone="warn">
-                    <AlertCircle className="w-3 h-3 mr-1" /> Yapılandırılmadı
-                  </Badge>
-                )
+                <Badge tone="warn">
+                  <AlertCircle className="w-3 h-3 mr-1" /> Yapılandırılmadı
+                </Badge>
               }
             >
-              <div className="space-y-4 text-sm">
-                <Inset className="space-y-2 font-mono text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted">Mülk Kimliği (Property ID):</span>
-                    <span className="text-ink font-semibold">properties/398241029</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Ölçüm Kimliği (Measurement ID):</span>
-                    <span className="text-ink font-semibold">G-8X94W29E10</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Ortalama Etkileşim Oranı:</span>
-                    {googleIntegrationStatus === "HEALTHY" ? (
-                      <span className="text-emerald-400 font-semibold">%72.4 (Sağlıklı)</span>
-                    ) : (
-                      <span className="text-red-400 font-semibold">❌ Veri Yok (Bağlantı Hatası)</span>
-                    )}
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Hemen Çıkma Oranı:</span>
-                    <span className="text-ink font-semibold">{googleIntegrationStatus === "HEALTHY" ? "%27.6" : "—"}</span>
-                  </div>
-                </Inset>
-
-                <p className="text-xs text-muted">
-                  {googleIntegrationStatus === "HEALTHY"
-                    ? "GA4 Data API v1beta üzerinden organik oturum dönüşümleri anlık olarak SEO raporlarına yansıtılır."
-                    : "⚠️ GA4 mülkü yetkilendirilmediği için dönüşüm ve oturum metrikleri alınamamaktadır."}
-                </p>
-              </div>
+              <p className="text-xs text-muted">
+                GA4 mülk kimliği site bazında henüz saklanmıyor, bu yüzden oturum ve dönüşüm metrikleri alınmıyor. Bu kart GA4 bağlantısı eklendiğinde dolacak.
+              </p>
             </Panel>
           </div>
 
@@ -875,13 +795,6 @@ export default function BaglayicilarPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={handleToggleSimulation}
-                className="text-xs px-3 py-1.5 rounded border border-line bg-surface hover:bg-surface-2 text-muted transition-colors cursor-pointer"
-              >
-                {googleIntegrationStatus === "HEALTHY" ? "⚠️ Hata Simülasyonunu Aç" : "✅ Sağlıklı Duruma Getir"}
-              </button>
               <Button
                 variant="primary"
                 loading={syncingGoogle}
@@ -953,62 +866,60 @@ export default function BaglayicilarPage() {
 
       {/* TAB 3: ALERT CHANNELS (SLACK, TELEGRAM, DISCORD, WEBHOOK) */}
       {activeTab === "alerts" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {alertChannels.map((chan) => (
-              <Panel
-                key={chan.id}
-                title={chan.name}
-                sub={chan.type}
-                actions={
-                  <Badge tone={chan.enabled ? "evidence" : "neutral"}>
-                    {chan.enabled ? <CheckCircle2 className="w-3 h-3 mr-1" /> : null}
-                    {chan.enabled ? "Aktif" : "Pasif"}
-                  </Badge>
-                }
+        <Panel
+          title="Test bildirimi gönder"
+          sub="Kanal bilgileri kaydedilmez. Kalıcı alarm kanalı ve olay tetikleyicileri henüz yok; bu form yalnızca kanalın mesaj alabildiğini doğrular."
+        >
+          <form onSubmit={handleTestAlert} className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div>
+              <Label htmlFor="alert-channel">Kanal</Label>
+              <select
+                id="alert-channel"
+                value={alertChannel}
+                onChange={(e) => {
+                  setAlertChannel(e.target.value as AlertChannelType);
+                  setAlertSecret("");
+                }}
+                className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent"
               >
-                <div className="space-y-3">
-                  <Inset className="font-mono text-xs space-y-1">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted shrink-0">Hedef:</span>
-                      <span className="text-ink truncate font-medium">{chan.url}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted shrink-0">Son İleti:</span>
-                      <span className="text-accent-ink font-medium">{chan.lastDelivered}</span>
-                    </div>
-                  </Inset>
-
-                  <div>
-                    <span className="text-xs font-semibold text-muted block mb-1.5">Tetikleyici Olaylar:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {chan.triggers.map((t, idx) => (
-                        <span key={idx} className="text-2xs px-2 py-0.5 rounded bg-surface border border-line text-ink">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-line flex items-center justify-between gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      loading={testingChannel === chan.id}
-                      onClick={() => handleTestAlertChannel(chan.id, chan.name)}
-                      icon={<Send className="w-3.5 h-3.5" />}
-                    >
-                      Test Bildirimi Gönder
-                    </Button>
-                    <Button size="sm" variant="secondary">
-                      Kanalı Yapılandır
-                    </Button>
-                  </div>
-                </div>
-              </Panel>
-            ))}
-          </div>
-        </div>
+                <option value="SLACK">Slack</option>
+                <option value="DISCORD">Discord</option>
+                <option value="TELEGRAM">Telegram</option>
+                <option value="WEBHOOK">Kurumsal Webhook (HMAC)</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="alert-target">{ALERT_CHANNEL_FIELDS[alertChannel].target}</Label>
+              <Input
+                id="alert-target"
+                required
+                value={alertTarget}
+                onChange={(e) => setAlertTarget(e.target.value)}
+                placeholder={ALERT_CHANNEL_FIELDS[alertChannel].targetPlaceholder}
+                mono
+              />
+            </div>
+            {ALERT_CHANNEL_FIELDS[alertChannel].secret && (
+              <div>
+                <Label htmlFor="alert-secret">{ALERT_CHANNEL_FIELDS[alertChannel].secret}</Label>
+                <Input
+                  id="alert-secret"
+                  type="password"
+                  required
+                  value={alertSecret}
+                  onChange={(e) => setAlertSecret(e.target.value)}
+                  autoComplete="off"
+                  mono
+                />
+              </div>
+            )}
+            <div className="md:col-span-3 flex justify-end">
+              <Button type="submit" loading={testingAlert} icon={<Send className="w-3.5 h-3.5" />}>
+                Test Bildirimi Gönder
+              </Button>
+            </div>
+          </form>
+        </Panel>
       )}
 
       {/* Düzenleme Modalı */}

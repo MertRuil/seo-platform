@@ -357,18 +357,17 @@ export async function fetchRecommendations(siteId: string, domain?: string): Pro
   ];
 }
 
-export async function executeRecommendation(recId: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/organizations/default/sites/default/change-sets/${recId}/execute`, {
-      method: "POST"
+export async function executeRecommendation(recId: string, siteId: string): Promise<{ success: boolean; message: string }> {
+  if (!(await isDemoSession())) {
+    // Öneriyi onaylar; siteye yazma işlemi değişiklik seti onayıyla ayrıca yapılır.
+    await mobileRequest(await mobileSitePath(siteId) + "/recommendations/" + encodeURIComponent(recId), {
+      method: "PATCH",
+      body: JSON.stringify({ status: "APPROVED" }),
     });
-    if (res.ok) return { success: true, message: "Değişiklik seti canlı sisteme uygulandı." };
-  } catch {
-    // fallback
+    return { success: true, message: "Öneri onaylandı. Siteye uygulanması değişiklik seti onayıyla yapılır." };
   }
   await requireDemoFallback();
-
-  return { success: true, message: "Değişiklik Cloudflare CDN üzerinde başarıyla uygulandı." };
+  return { success: true, message: "Örnek oturum: öneri onaylandı olarak işaretlendi, siteye bir şey yazılmadı." };
 }
 
 export const SITE_REAL_ISSUES_CACHE: Record<string, SiteIssueItem[]> = {};
@@ -1282,7 +1281,18 @@ export async function sendAiAssistantMessage(
   siteId?: string,
   domain?: string
 ): Promise<AiChatMessage> {
-  if (!(await isDemoSession())) return {id:`ai-${Date.now()}`,sender:"assistant",text:"Mobil AI asistanı henüz canlı sağlayıcıya bağlı değil. Bu sohbetten siteniz hakkında ölçülmüş sonuç veya otomatik değişiklik üretilmez. Web panelinden doğrulanmış tarama bulgularını inceleyebilirsiniz.",timestamp:new Date().toISOString(),sources:[],suggested_actions:[]};
+  if (!(await isDemoSession())) {
+    if (!siteId) throw new Error("Önce bir site seçin.");
+    const userTurns = history.filter((m) => m.sender === "user");
+    const message = userTurns[userTurns.length - 1]?.text || "";
+    const prior = history.slice(0, history.lastIndexOf(userTurns[userTurns.length - 1])).slice(-6).map((m) => ({ role: m.sender, text: m.text }));
+    const data = await mobileRequest(await mobileSitePath(siteId) + "/copilot/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, history: prior }),
+    });
+    const labels: Record<string, string> = { crawl: "Son tarama", gsc: "Search Console", recommendations: "Açık öneriler" };
+    return { id: `ai-${Date.now()}`, sender: "assistant", text: data.reply, timestamp: new Date().toISOString(), sources: (data.context_sources || []).map((s: string) => labels[s] || s), suggested_actions: [] };
+  }
   await requireDemoFallback();
 
   const lastUserMsg = history.filter(m => m.sender === "user").slice(-1)[0]?.text || "";

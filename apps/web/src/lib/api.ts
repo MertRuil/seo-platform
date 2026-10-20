@@ -309,6 +309,18 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+  copilotChat(orgId: string, siteId: string, data: { message: string; history: Array<{ role: "user" | "assistant"; text: string }> }) {
+    return this.request<{ reply: string; context_sources: string[] }>(`/organizations/${orgId}/sites/${siteId}/copilot/chat`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+  sendTestAlert(orgId: string, siteId: string, data: { channel: "SLACK" | "DISCORD" | "TELEGRAM" | "WEBHOOK"; target: string; secret?: string }) {
+    return this.request<{ success: boolean; channel: string; status_code: number; message: string }>(`/organizations/${orgId}/sites/${siteId}/alerts/test`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
   approveChangeSet(orgId: string, siteId: string, changeSetId: string) {
     return this.request<ChangeSetResponse>(`/organizations/${orgId}/sites/${siteId}/change-sets/${changeSetId}/approve`, { method: "POST" });
   }
