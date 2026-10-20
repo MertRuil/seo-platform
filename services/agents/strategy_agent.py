@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation
+from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation, TURKISH_OUTPUT_RULE
 from services.rag.hybrid_store import HybridKnowledgeStore
 
 class SEOStrategyAgent:
@@ -30,7 +30,8 @@ class SEOStrategyAgent:
         system_instruction = (
             "You are a Principal SEO Strategist. "
             "Formulate a pragmatic 30/60/90-day execution roadmap. "
-            "DO NOT guarantee search ranking positions. Prioritize crawl-blocking issues first."
+            "DO NOT guarantee search ranking positions. Prioritize crawl-blocking issues first. "
+            + TURKISH_OUTPUT_RULE
         )
 
         prompt = f"""

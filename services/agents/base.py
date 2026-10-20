@@ -21,6 +21,12 @@ class RecommendationOutput(BaseModel):
     citations: List[GroundedCitation]
     diff_preview: Optional[Dict[str, Any]] = None
 
+# Öneriler panelde kullanıcıya olduğu gibi gösterilir; enum alanları şema ve puanlama için İngilizce kalır.
+TURKISH_OUTPUT_RULE = (
+    "Write every free-text field (title, problem_diagnosis, proposed_solution, technical_reason, "
+    "expected_impact) in Turkish. Keep category, effort, risk_level, URLs and citation fields unchanged."
+)
+
 class LLMProvider(ABC):
     @abstractmethod
     async def generate(self, prompt: str, system_instruction: str = "", temperature: float = 0.2) -> str:

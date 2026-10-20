@@ -80,3 +80,32 @@ async def test_orchestrator_full_suite(llm, rag_store):
     )
     assert roadmap["site_id"] == "site-123"
     assert roadmap["category"] == "STRATEGY_ROADMAP"
+
+
+class _RecordingLLM(DeterministicTestLLMProvider):
+    def __init__(self):
+        self.system_instructions = []
+
+    async def generate_structured(self, prompt, output_schema, system_instruction="", temperature=0.1):
+        self.system_instructions.append(system_instruction)
+        return await super().generate_structured(prompt, output_schema, system_instruction, temperature)
+
+
+@pytest.mark.anyio
+async def test_all_agents_request_turkish_output(rag_store):
+    from services.agents.base import TURKISH_OUTPUT_RULE
+    from services.agents.technical_agent import TechnicalSEOAgent
+
+    llm = _RecordingLLM()
+    await TechnicalSEOAgent(llm, rag_store).analyze_issue(
+        {"rule_id": "HTTP_404", "title": "Broken page", "description": "404"}, {"url": "https://example.com/x"}
+    )
+    await ContentSEOAgent(llm, rag_store).analyze_content("https://example.com/a", {"title": "A"})
+    await InternalLinkingAgent(llm, rag_store).analyze_link_opportunity(
+        "https://example.com/hub", "https://example.com/t", "kahve", "metin"
+    )
+    await StructuredDataAgent(llm, rag_store).analyze_schema("https://example.com/a", "{}", "WebPage")
+    await SEOStrategyAgent(llm, rag_store).generate_roadmap("example.com", 70, 1, 2)
+
+    assert len(llm.system_instructions) == 5
+    assert all(TURKISH_OUTPUT_RULE in s for s in llm.system_instructions)

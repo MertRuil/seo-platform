@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation
+from services.agents.base import LLMProvider, RecommendationOutput, GroundedCitation, TURKISH_OUTPUT_RULE
 from services.rag.hybrid_store import HybridKnowledgeStore
 
 class StructuredDataAgent:
@@ -30,7 +30,8 @@ class StructuredDataAgent:
             "You are a Structured Data Architect. "
             "Validate JSON-LD syntax according to schema.org standards. "
             "DO NOT fabricate facts, fake reviews, fake ratings, or prices. "
-            "All structured data must reflect verifiable content on the page."
+            "All structured data must reflect verifiable content on the page. "
+            + TURKISH_OUTPUT_RULE
         )
 
         prompt = f"""
