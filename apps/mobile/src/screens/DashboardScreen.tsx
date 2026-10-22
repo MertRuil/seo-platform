@@ -11,7 +11,7 @@ import {
   Share 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { LiveCrawlCard } from "../components/LiveCrawlCard";
 import { IssueDetailModal } from "../components/IssueDetailModal";
@@ -69,11 +69,11 @@ export const DashboardScreen: React.FC = () => {
     try {
       const siteUrl = selectedSite.primary_url || `https://${selectedSite.domain}`;
       const score = selectedSite.health_score || 0;
-      const msg = `📈 SEO Platform - Canlı Sağlık Raporu
-🌐 Web Sitesi: ${selectedSite.name} (${siteUrl})
-🎯 SEO Sağlık Skoru: ${score > 0 ? `${score}/100` : "Ölçülüyor"}
-🔍 Tespit Edilen Açık Fırsatlar: ${issues.length} adet
-⚡ Otonom Ajan Durumu: Aktif (Auto Low Risk)
+      const msg = `SEO Platform - Canlı Sağlık Raporu
+Web Sitesi: ${selectedSite.name} (${siteUrl})
+SEO Sağlık Skoru: ${score > 0 ? `${score}/100` : "Ölçülüyor"}
+Tespit Edilen Açık Fırsatlar: ${issues.length} adet
+Otonom Ajan Durumu: Aktif (Auto Low Risk)
 
 Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz atın.`;
 
@@ -138,7 +138,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
               <Ionicons name="rocket-outline" size={28} color={Colors.primary} />
             </View>
             <Text style={styles.onboardingGreeting}>
-              {`Hoş Geldiniz, ${user?.name || "Kullanıcı"}! 👋`}
+              {`Hoş Geldiniz, ${user?.name || "Kullanıcı"}!`}
             </Text>
             <Text style={styles.onboardingSubtitle}>
               Otonom SEO optimizasyonunu ve Googlebot simülasyonunu başlatmak için ilk web sitenizi ekleyin.
@@ -211,12 +211,12 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
             <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Hızlı Sektör Seçimi:</Text>
             <View style={styles.presetsGrid}>
               {[
-                { label: "🛍️ E-Ticaret", domain: "magazam.com", name: "E-Ticaret Mağazam" },
-                { label: "⚡ SaaS", domain: "app.saas.io", name: "SaaS Platformum" },
-                { label: "📝 Blog", domain: "blogum.com", name: "Kişisel Blog" },
-                { label: "🏢 Kurumsal", domain: "sirketim.com", name: "Kurumsal Web Sitesi" },
+                { label: "E-Ticaret", domain: "magazam.com", name: "E-Ticaret Mağazam" },
+                { label: "SaaS", domain: "app.saas.io", name: "SaaS Platformum" },
+                { label: "Blog", domain: "blogum.com", name: "Kişisel Blog" },
+                { label: "Kurumsal", domain: "sirketim.com", name: "Kurumsal Web Sitesi" },
               ].map((p) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={p.label}
                   style={styles.presetChip}
                   onPress={() => {
@@ -231,7 +231,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
               ))}
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.submitSiteBtn}
               onPress={handleAddFirstSite}
               disabled={isSubmittingSite}
@@ -242,14 +242,14 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
               ) : (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Ionicons name="flash" size={16} color="#FFFFFF" />
-                  <Text style={styles.submitSiteBtnText}>Siteyi Ekle ve Canlı Taramayı Başlat 🚀</Text>
+                  <Text style={styles.submitSiteBtnText}>Siteyi Ekle ve Canlı Taramayı Başlat</Text>
                 </View>
               )}
             </TouchableOpacity>
           </GlassCard>
 
           {/* Quick URL Audit Shortcut */}
-          <TouchableOpacity 
+          <TouchableOpacity accessibilityRole="button" 
             style={styles.quickAuditLink}
             onPress={() => setActiveTab("quick_audit")}
             activeOpacity={0.7}
@@ -443,8 +443,8 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
                     ? "OAuth jetonunuzun süresi doldu veya yetki iptal edildi. Yanıltıcı olmaması için sahte veriler gösterilmez. Gerçek arama verilerini görüntülemek için lütfen yeniden bağlanın."
                     : "Organik tıklamalar, gösterimler ve anahtar kelime sıralamalarını canlı izlemek için Google hesabınızı doğrulayın."}
                 </Text>
-                <TouchableOpacity
-                  style={[styles.gscConnectBtn, { backgroundColor: isAuthFailed ? Colors.error : Colors.primary }]}
+                <TouchableOpacity accessibilityRole="button"
+                  style={[styles.gscConnectBtn, { backgroundColor: Colors.primaryFill }]}
                   onPress={() => setActiveTab("settings")}
                   activeOpacity={0.8}
                 >
@@ -488,7 +488,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
 
       {/* Quick Action Buttons */}
       <View style={styles.actionRow}>
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" 
           style={styles.primaryActionButton}
           activeOpacity={0.8}
           onPress={() => setActiveTab("quick_audit")}
@@ -497,7 +497,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
           <Text style={styles.primaryActionText}>Hızlı URL Tara</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" 
           style={styles.secondaryActionButton}
           activeOpacity={0.8}
           onPress={() => setActiveTab("ai")}
@@ -506,7 +506,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
           <Text style={styles.secondaryActionText}>AI Asistan</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Paylaş" 
           style={styles.shareActionButton}
           activeOpacity={0.8}
           onPress={handleShareHealth}
@@ -616,7 +616,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
             {(["ALL", "CRITICAL", "WARNING", "INFO"] as const).map((sev) => {
               const isActive = issueFilter === sev;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={sev}
                   style={[styles.issueChip, isActive && styles.issueChipActive]}
                   onPress={() => setIssueFilter(sev)}
@@ -634,7 +634,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
             <GlassCard style={{ padding: 20, alignItems: "center", gap: 6, marginBottom: 12 }}>
               <Ionicons name="checkmark-circle" size={32} color={Colors.success} />
               <Text style={{ fontSize: 14, fontWeight: "700", color: Colors.textPrimary }}>Kritik Sorun Tespit Edilmedi</Text>
-              <Text style={{ fontSize: 11, color: Colors.textSecondary, textAlign: "center" }}>
+              <Text style={{ fontSize: 12, color: Colors.textSecondary, textAlign: "center" }}>
                 Sitenizin taranan tüm sayfaları temel teknik SEO ve indekslenebilirlik kriterlerine tam uyumludur.
               </Text>
             </GlassCard>
@@ -713,24 +713,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   siteUrl: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
   modeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    borderColor: tint(Colors.primary, 0.25),
     gap: 4,
     flexShrink: 0,
   },
   modeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   scoreScale: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: -4,
   },
@@ -808,7 +808,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   subScoreLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "500",
     marginTop: 2,
@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   gscPeriodBadge: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textMuted,
     backgroundColor: Colors.surface,
@@ -856,39 +856,39 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   gscBadgeTextHealthy: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.success,
   },
   gscBadgeError: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: tint(Colors.danger, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: tint(Colors.danger, 0.3),
   },
   gscBadgeTextError: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.error,
   },
   gscBadgeWarn: {
-    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    backgroundColor: tint(Colors.warning, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
+    borderColor: tint(Colors.warning, 0.3),
   },
   gscBadgeTextWarn: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.accent,
   },
   gscAlertError: {
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
-    borderColor: "rgba(239, 68, 68, 0.25)",
+    backgroundColor: tint(Colors.danger, 0.08),
+    borderColor: tint(Colors.danger, 0.25),
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
@@ -896,8 +896,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   gscAlertWarn: {
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
-    borderColor: "rgba(245, 158, 11, 0.25)",
+    backgroundColor: tint(Colors.warning, 0.08),
+    borderColor: tint(Colors.warning, 0.25),
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
   gscAlertDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   gscConnectBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   gscStatLbl: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: "500",
   },
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
   },
   primaryActionButton: {
     flex: 1,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1013,7 +1013,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   sectionHeader: {
     fontSize: 16,
@@ -1043,7 +1043,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   badgeGood: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.success,
     backgroundColor: Colors.successSurface,
@@ -1052,10 +1052,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   badgePending: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 5,
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   scanningDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
@@ -1087,7 +1087,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   cwvSub: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -1110,7 +1110,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   telemetryLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 3,
     textAlign: "center",
@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   issueChipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     borderColor: Colors.primary,
   },
   issueChipText: {
@@ -1175,11 +1175,11 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   issueSevText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
   },
   issueAffectedCount: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "500",
   },
@@ -1203,7 +1203,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   inspectText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -1219,9 +1219,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -1261,17 +1261,17 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
   stepBadgeTextActive: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
   },
   stepTitleActive: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -1294,11 +1294,11 @@ const styles = StyleSheet.create({
   },
   stepBadgeText: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   stepTitle: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "500",
     color: Colors.textMuted,
   },
@@ -1324,12 +1324,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.dangerBorder,
   },
   errorText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.danger,
     flex: 1,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textSecondary,
     marginBottom: 6,
@@ -1367,12 +1367,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   presetChipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
   submitSiteBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1393,15 +1393,15 @@ const styles = StyleSheet.create({
   quickAuditLink: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.2)",
+    borderColor: tint(Colors.primary, 0.2),
     gap: 8,
   },
   quickAuditLinkText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
     flex: 1,

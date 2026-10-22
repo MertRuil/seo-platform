@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from "react-native";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -28,6 +28,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         activeOpacity={0.75} 
         onPress={onPress} 
         style={containerStyle}
+        accessibilityRole="button"
       >
         {children}
       </TouchableOpacity>
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.12)",
   },
   tinted: {
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
+    borderColor: tint(Colors.primary, 0.25),
   },
 });

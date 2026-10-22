@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { SeoOpportunityCard } from "../types";
 
 interface OpportunityFeedProps {
@@ -33,7 +33,7 @@ export const OpportunityFeedCard: React.FC<OpportunityFeedProps> = ({
         {opportunities.map((opp) => (
           <LinearGradient
             key={opp.id}
-            colors={["#181B2A", "#12141F"]}
+            colors={[Colors.surfaceElevated, Colors.surface]}
             style={styles.card}
           >
             <View style={styles.cardTop}>
@@ -53,7 +53,7 @@ export const OpportunityFeedCard: React.FC<OpportunityFeedProps> = ({
               <Text style={styles.potentialText}>{opp.potential}</Text>
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.actionBtn}
               onPress={() => onTakeAction && onTakeAction(opp)}
               activeOpacity={0.8}
@@ -90,10 +90,10 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   badgeCount: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.accent,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -117,26 +117,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pillBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.18)",
+    backgroundColor: tint(Colors.primaryFill, 0.18),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   pillBadgeText: {
     color: Colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
   },
   diffBadge: {
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   diffBadgeText: {
     color: Colors.success,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
   },
   cardTitle: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   potentialText: {
     color: Colors.success,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   actionBtn: {
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     borderRadius: 10,
   },

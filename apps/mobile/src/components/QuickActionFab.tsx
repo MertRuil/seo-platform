@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { useApp } from "../context/AppContext";
 import { addKeyword, createTask, addCompetitor } from "../services/api";
 
@@ -91,13 +91,13 @@ export const QuickActionFab: React.FC<QuickActionFabProps> = ({ onOpenSearch }) 
   return (
     <>
       {/* Floating Action Button */}
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Hızlı işlemler"
         style={styles.fabButton}
         onPress={() => setMenuOpen(true)}
         activeOpacity={0.85}
       >
         <LinearGradient
-          colors={[Colors.primary, Colors.accent]}
+          colors={[Colors.primaryGradientStart, Colors.primaryGradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fabGradient}
@@ -126,72 +126,72 @@ export const QuickActionFab: React.FC<QuickActionFabProps> = ({ onOpenSearch }) 
             </View>
 
             <View style={styles.actionsGrid}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("CRAWL")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(99, 102, 241, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.primaryFill, 0.18) }]}>
                   <Ionicons name="play" size={20} color={Colors.primary} />
                 </View>
                 <Text style={styles.actionLabel}>Siteyi Tara</Text>
                 <Text style={styles.actionDesc}>Yeni audit başlat</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("AI")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(139, 92, 246, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.primaryFill, 0.18) }]}>
                   <Ionicons name="sparkles" size={20} color={Colors.accent} />
                 </View>
                 <Text style={styles.actionLabel}>AI Asistan</Text>
                 <Text style={styles.actionDesc}>Sohbet ve öneriler</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("KEYWORD")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(16, 185, 129, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.success, 0.18) }]}>
                   <Ionicons name="trending-up" size={20} color={Colors.success} />
                 </View>
                 <Text style={styles.actionLabel}>Kelime Ekle</Text>
                 <Text style={styles.actionDesc}>Sıralama takibi</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("TASK")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(56, 189, 248, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.primaryFill, 0.18) }]}>
                   <Ionicons name="checkbox" size={20} color={Colors.info} />
                 </View>
                 <Text style={styles.actionLabel}>Görev Ekle</Text>
                 <Text style={styles.actionDesc}>SEO yapılacaklar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("COMPETITOR")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(245, 158, 11, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.warning, 0.18) }]}>
                   <Ionicons name="people" size={20} color={Colors.warning} />
                 </View>
                 <Text style={styles.actionLabel}>Rakip Ekle</Text>
                 <Text style={styles.actionDesc}>Rakip kıyaslama</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionItem}
                 onPress={() => handleAction("SEARCH")}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: "rgba(239, 68, 68, 0.18)" }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: tint(Colors.danger, 0.18) }]}>
                   <Ionicons name="search" size={20} color={Colors.danger} />
                 </View>
                 <Text style={styles.actionLabel}>Hızlı Arama</Text>
@@ -199,7 +199,7 @@ export const QuickActionFab: React.FC<QuickActionFabProps> = ({ onOpenSearch }) 
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.cancelButton}
               onPress={() => setMenuOpen(false)}
               activeOpacity={0.7}
@@ -243,14 +243,14 @@ export const QuickActionFab: React.FC<QuickActionFabProps> = ({ onOpenSearch }) 
             />
 
             <View style={styles.promptActions}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.promptCancelBtn}
                 onPress={() => setModalMode("NONE")}
               >
                 <Text style={styles.promptCancelText}>İptal</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.promptSubmitBtn, !inputValue.trim() && { opacity: 0.5 }]}
                 disabled={!inputValue.trim() || isSubmitting}
                 onPress={handleSubmitModal}
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   actionDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   cancelButton: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   promptSubmitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,

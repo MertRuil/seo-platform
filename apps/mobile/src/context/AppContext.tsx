@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import { BackHandler, Platform } from "react-native";
 import { SiteSummary, CrawlRunItem } from "../types";
 import { fetchSites, createMobileSite, MOCK_SITES, triggerCrawl, fetchDiscoveredPages, runQuickAudit, fetchCrawlStatus } from "../services/api";
 import { useAuth } from "./AuthContext";
@@ -30,6 +31,7 @@ interface AppContextType {
   addNewSite: (name: string, domain: string, primaryUrl: string) => Promise<SiteSummary>;
   activeTab: TabKey;
   setActiveTab: (tab: TabKey) => void;
+  goBack: () => boolean;
   isLoading: boolean;
   refreshSites: () => Promise<void>;
   isDemoMode: boolean;
@@ -39,6 +41,8 @@ interface AppContextType {
   dismissCrawl: () => void;
 }
 
+const MAX_HISTORY = 20;
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -47,14 +51,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [sites, setSites] = useState<SiteSummary[]>(isGuest ? MOCK_SITES : []);
   const [selectedSite, setSelectedSite] = useState<SiteSummary | null>(isGuest ? MOCK_SITES[0] : null);
-  const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
+  const [activeTab, setActiveTabState] = useState<TabKey>("dashboard");
+  // Gezinme kütüphanesi yok; Android geri tuşu ve ekranlardaki geri okları bu yığından bir önceki ekranı alır.
+  const historyRef = useRef<TabKey[]>([]);
+  const activeTabRef = useRef<TabKey>("dashboard");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(isGuest);
   const [activeCrawl, setActiveCrawl] = useState<CrawlRunItem | null>(null);
   const crawlIntervalRef = useRef<any>(null);
 
+  const setActiveTab = useCallback((tab: TabKey) => {
+    if (activeTabRef.current === tab) return;
+    historyRef.current = [...historyRef.current, activeTabRef.current].slice(-MAX_HISTORY);
+    activeTabRef.current = tab;
+    setActiveTabState(tab);
+  }, []);
+
+  const goBack = useCallback((): boolean => {
+    const previous = historyRef.current.pop();
+    if (!previous) return false;
+    activeTabRef.current = previous;
+    setActiveTabState(previous);
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", goBack);
+    return () => subscription.remove();
+  }, [goBack]);
+
   // Sync sites with user state
   useEffect(() => {
+    historyRef.current = [];
+    activeTabRef.current = "dashboard";
+    setActiveTabState("dashboard");
     if (user?.id === "guest-user") {
       setSites(MOCK_SITES);
       setSelectedSite(MOCK_SITES[0]);
@@ -215,6 +246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addNewSite,
         activeTab,
         setActiveTab,
+        goBack,
         isLoading,
         refreshSites,
         isDemoMode,

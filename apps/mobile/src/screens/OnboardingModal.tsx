@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 
@@ -92,7 +92,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
           {/* Header Bar */}
           <View style={styles.headerRow}>
             <Text style={styles.stepBadge}>{step >= 5 ? "Adım 2 / 2" : "Adım 1 / 2"}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Kapat" onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={24} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -107,7 +107,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 {USER_TYPES.map((t) => {
                   const isSelected = userType === t.id;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={t.id}
                       style={[styles.optionCard, isSelected && styles.optionCardSelected]}
                       onPress={() => setUserType(t.id)}
@@ -134,7 +134,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 })}
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.nextButton}
                 onPress={() => setStep(2)}
                 activeOpacity={0.8}
@@ -155,7 +155,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 {SKILL_LEVELS.map((s) => {
                   const isSelected = skillLevel === s.id;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={s.id}
                       style={[styles.optionCard, isSelected && styles.optionCardSelected]}
                       onPress={() => setSkillLevel(s.id)}
@@ -176,10 +176,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
               </View>
 
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => setStep(1)}>
                   <Text style={styles.backButtonText}>Geri</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.nextButton} onPress={() => setStep(3)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.nextButton} onPress={() => setStep(3)}>
                   <Text style={styles.nextButtonText}>Devam Et</Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -197,7 +197,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 {GOALS.map((g) => {
                   const isSelected = primaryGoal === g.id;
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={g.id}
                       style={[styles.optionCard, isSelected && styles.optionCardSelected]}
                       onPress={() => setPrimaryGoal(g.id)}
@@ -225,10 +225,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
               </View>
 
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={() => setStep(2)}>
                   <Text style={styles.backButtonText}>Geri</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.nextButton} onPress={() => setStep(4)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.nextButton} onPress={() => setStep(4)}>
                   <Text style={styles.nextButtonText}>Devam Et</Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -281,10 +281,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
 
               {setupError && <Text style={{ color: Colors.danger, fontSize: 13, marginBottom: 8 }}>{setupError}</Text>}
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.backButton} onPress={onClose}>
+                <TouchableOpacity accessibilityRole="button" style={styles.backButton} onPress={onClose}>
                   <Text style={styles.backButtonText}>Sonra</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.nextButton, (!siteUrl.trim() || isAnalyzing) && { opacity: 0.6 }]}
                   disabled={!siteUrl.trim() || isAnalyzing}
                   onPress={handleFinishOnboarding}
@@ -345,7 +345,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
                 </View>
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.nextButton}
                 onPress={onClose}
                 activeOpacity={0.8}
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
   },
   headerRow: {
     flexDirection: "row",
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 12,
     fontWeight: "700",
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -436,18 +436,18 @@ const styles = StyleSheet.create({
   },
   optionCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
   },
   optionIcon: {
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     alignItems: "center",
     justifyContent: "center",
   },
   optionIconSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
   },
   optionLabel: {
     fontSize: 15,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 14,
     borderRadius: 14,
   },
@@ -528,9 +528,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    backgroundColor: tint(Colors.success, 0.08),
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: tint(Colors.success, 0.2),
     marginBottom: 24,
   },
   infoBannerText: {
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchChangeSets, executeSelfHeal, rollbackChangeSet } from "../services/api";
@@ -117,7 +117,7 @@ export const SelfHealingScreen: React.FC = () => {
       const res = await executeSelfHeal(selectedSite?.id || "site-1", req);
       if (res && res.success) {
         setStatusMsg({
-          text: `⚡ "${issue.title}" otonom olarak düzeltildi ve canlıya uygulandı.`,
+          text: `"${issue.title}" otonom olarak düzeltildi ve canlıya uygulandı.`,
           type: "success"
         });
         await loadChangeSets();
@@ -139,7 +139,7 @@ export const SelfHealingScreen: React.FC = () => {
       const res = await rollbackChangeSet(selectedSite?.id || "site-1", csId);
       if (res && res.success) {
         setStatusMsg({
-          text: `⏪ ChangeSet #${csId} atomik olarak geri alındı (Rollback tamamlandı).`,
+          text: `ChangeSet #${csId} atomik olarak geri alındı (Rollback tamamlandı).`,
           type: "success"
         });
         await loadChangeSets();
@@ -160,7 +160,7 @@ export const SelfHealingScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconRing}>
-            <Ionicons name="shield-checkmark" size={18} color="#6366F1" />
+            <Ionicons name="shield-checkmark" size={18} color={Colors.primary} />
           </View>
           <View>
             <Text style={styles.headerTitle}>Otonom Düzeltme & Rollback</Text>
@@ -168,7 +168,7 @@ export const SelfHealingScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Değişiklikleri yenile"
           style={styles.refreshBtn}
           onPress={loadChangeSets}
           activeOpacity={0.8}
@@ -179,7 +179,7 @@ export const SelfHealingScreen: React.FC = () => {
 
       {/* Segment Selector */}
       <View style={styles.segmentRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "ISSUES" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("ISSUES")}
         >
@@ -188,7 +188,7 @@ export const SelfHealingScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "CHANGES" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("CHANGES")}
         >
@@ -197,7 +197,7 @@ export const SelfHealingScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "SECURITY" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("SECURITY")}
         >
@@ -216,24 +216,24 @@ export const SelfHealingScreen: React.FC = () => {
               {
                 backgroundColor:
                   statusMsg.type === "success"
-                    ? "rgba(16, 185, 129, 0.15)"
-                    : "rgba(239, 68, 68, 0.15)",
+                    ? tint(Colors.success, 0.15)
+                    : tint(Colors.danger, 0.15),
                 borderColor:
                   statusMsg.type === "success"
-                    ? "rgba(16, 185, 129, 0.35)"
-                    : "rgba(239, 68, 68, 0.35)"
+                    ? tint(Colors.success, 0.35)
+                    : tint(Colors.danger, 0.35)
               }
             ]}
           >
             <Ionicons
               name={statusMsg.type === "success" ? "checkmark-circle" : "alert-circle"}
               size={18}
-              color={statusMsg.type === "success" ? "#10B981" : "#EF4444"}
+              color={statusMsg.type === "success" ? Colors.success : Colors.danger}
             />
             <Text
               style={[
                 styles.toastText,
-                { color: statusMsg.type === "success" ? "#34D399" : "#F87171" }
+                { color: statusMsg.type === "success" ? Colors.success : Colors.danger }
               ]}
             >
               {statusMsg.text}
@@ -245,7 +245,7 @@ export const SelfHealingScreen: React.FC = () => {
         {activeSegment === "ISSUES" && (
           <>
             {/* Top Overview Card */}
-            <LinearGradient colors={["#312E81", "#0F172A"]} style={styles.bannerCard}>
+            <LinearGradient colors={[Colors.infoSurface, Colors.background]} style={styles.bannerCard}>
               <View style={styles.bannerTop}>
                 <View>
                   <Text style={styles.bannerBadge}>SIFIR MÜDAHALE OTONOM DÜZELTME</Text>
@@ -258,15 +258,15 @@ export const SelfHealingScreen: React.FC = () => {
 
               <View style={styles.bannerFeatures}>
                 <View style={styles.bFeatItem}>
-                  <Ionicons name="finger-print" size={14} color="#A5B4FC" />
+                  <Ionicons name="finger-print" size={14} color={Colors.primary} />
                   <Text style={styles.bFeatText}>SHA-256 Hash Doğrulama</Text>
                 </View>
                 <View style={styles.bFeatItem}>
-                  <Ionicons name="return-up-back" size={14} color="#A5B4FC" />
+                  <Ionicons name="return-up-back" size={14} color={Colors.primary} />
                   <Text style={styles.bFeatText}>1-Tıkla Rollback Koruması</Text>
                 </View>
                 <View style={styles.bFeatItem}>
-                  <Ionicons name="git-branch" size={14} color="#A5B4FC" />
+                  <Ionicons name="git-branch" size={14} color={Colors.primary} />
                   <Text style={styles.bFeatText}>İyimser Eşzamanlılık (OCC)</Text>
                 </View>
               </View>
@@ -290,12 +290,12 @@ export const SelfHealingScreen: React.FC = () => {
                         {
                           backgroundColor:
                             issue.risk_level === "LOW"
-                              ? "rgba(16, 185, 129, 0.15)"
-                              : "rgba(245, 158, 11, 0.15)",
+                              ? tint(Colors.success, 0.15)
+                              : tint(Colors.warning, 0.15),
                           borderColor:
                             issue.risk_level === "LOW"
-                              ? "rgba(16, 185, 129, 0.3)"
-                              : "rgba(245, 158, 11, 0.3)"
+                              ? tint(Colors.success, 0.3)
+                              : tint(Colors.warning, 0.3)
                         }
                       ]}
                     >
@@ -304,7 +304,7 @@ export const SelfHealingScreen: React.FC = () => {
                           styles.riskBadgeText,
                           {
                             color:
-                              issue.risk_level === "LOW" ? "#10B981" : "#F59E0B"
+                              issue.risk_level === "LOW" ? Colors.success : Colors.warning
                           }
                         ]}
                       >
@@ -317,7 +317,7 @@ export const SelfHealingScreen: React.FC = () => {
                   <Text style={styles.issueUrl}>Hedef: {issue.target_url}</Text>
 
                   <View style={styles.impactRow}>
-                    <Ionicons name="trending-up" size={14} color="#10B981" />
+                    <Ionicons name="trending-up" size={14} color={Colors.success} />
                     <Text style={styles.impactText}>Tahmini Etki: {issue.impact}</Text>
                   </View>
 
@@ -337,7 +337,7 @@ export const SelfHealingScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.healBtn}
                     onPress={() => handleSelfHeal(issue)}
                     disabled={isHealing}
@@ -348,7 +348,7 @@ export const SelfHealingScreen: React.FC = () => {
                     ) : (
                       <>
                         <Ionicons name="flash" size={15} color="#FFFFFF" />
-                        <Text style={styles.healBtnText}>⚡ Otonom Düzelt (Self-Heal)</Text>
+                        <Text style={styles.healBtnText}>Otonom Düzelt (Self-Heal)</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -367,7 +367,7 @@ export const SelfHealingScreen: React.FC = () => {
             </View>
 
             {loading ? (
-              <ActivityIndicator size="small" color="#6366F1" style={{ marginVertical: 20 }} />
+              <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 20 }} />
             ) : changeSets.length === 0 ? (
               <GlassCard style={styles.emptyCard}>
                 <Ionicons name="document-text-outline" size={40} color={Colors.textMuted} />
@@ -397,15 +397,15 @@ export const SelfHealingScreen: React.FC = () => {
                           styles.statusBadge,
                           {
                             backgroundColor: isExecuted
-                              ? "rgba(16, 185, 129, 0.15)"
+                              ? tint(Colors.success, 0.15)
                               : isRolledBack
-                              ? "rgba(239, 68, 68, 0.15)"
-                              : "rgba(245, 158, 11, 0.15)",
+                              ? tint(Colors.danger, 0.15)
+                              : tint(Colors.warning, 0.15),
                             borderColor: isExecuted
-                              ? "rgba(16, 185, 129, 0.3)"
+                              ? tint(Colors.success, 0.3)
                               : isRolledBack
-                              ? "rgba(239, 68, 68, 0.3)"
-                              : "rgba(245, 158, 11, 0.3)"
+                              ? tint(Colors.danger, 0.3)
+                              : tint(Colors.warning, 0.3)
                           }
                         ]}
                       >
@@ -414,10 +414,10 @@ export const SelfHealingScreen: React.FC = () => {
                             styles.statusBadgeText,
                             {
                               color: isExecuted
-                                ? "#10B981"
+                                ? Colors.success
                                 : isRolledBack
-                                ? "#EF4444"
-                                : "#F59E0B"
+                                ? Colors.danger
+                                : Colors.warning
                             }
                           ]}
                         >
@@ -461,19 +461,19 @@ export const SelfHealingScreen: React.FC = () => {
 
                     {/* Rollback Action Button */}
                     {isExecuted && (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         style={styles.rollbackBtn}
                         onPress={() => handleRollback(cs.id)}
                         disabled={isRollingBack}
                         activeOpacity={0.8}
                       >
                         {isRollingBack ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <ActivityIndicator size="small" color={Colors.danger} />
                         ) : (
                           <>
-                            <Ionicons name="return-up-back" size={15} color="#FFFFFF" />
+                            <Ionicons name="return-up-back" size={15} color={Colors.danger} />
                             <Text style={styles.rollbackBtnText}>
-                              ⏪ Atomik Olarak Geri Al (Rollback)
+                              Atomik Olarak Geri Al (Rollback)
                             </Text>
                           </>
                         )}
@@ -491,7 +491,7 @@ export const SelfHealingScreen: React.FC = () => {
           <>
             <GlassCard style={styles.securityCard}>
               <View style={styles.secIconRing}>
-                <Ionicons name="lock-closed" size={24} color="#6366F1" />
+                <Ionicons name="lock-closed" size={24} color={Colors.primary} />
               </View>
               <Text style={styles.secTitle}>SafeSiteExecutor Güvenlik Kalkanı</Text>
               <Text style={styles.secDesc}>
@@ -523,7 +523,7 @@ export const SelfHealingScreen: React.FC = () => {
             ].map((rule, idx) => (
               <GlassCard key={idx} style={styles.ruleCard}>
                 <View style={styles.ruleIconBox}>
-                  <Ionicons name={rule.icon as any} size={20} color="#6366F1" />
+                  <Ionicons name={rule.icon as any} size={20} color={Colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.ruleTitle}>{rule.title}</Text>
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   refreshBtn: {
@@ -602,10 +602,10 @@ const styles = StyleSheet.create({
   },
   segmentBtnActive: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   segmentText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textMuted,
     textAlign: "center",
@@ -639,15 +639,15 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.35)",
+    borderColor: tint(Colors.primary, 0.35),
   },
   bannerTop: {
     marginBottom: 14,
   },
   bannerBadge: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
-    color: "#A5B4FC",
+    color: Colors.primary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -658,8 +658,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bannerDesc: {
-    fontSize: 11,
-    color: "#C7D2FE",
+    fontSize: 12,
+    color: Colors.primary,
     lineHeight: 16,
   },
   bannerFeatures: {
@@ -676,8 +676,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   bFeatText: {
-    fontSize: 10,
-    color: "#E0E7FF",
+    fontSize: 12,
+    color: Colors.primary,
     fontWeight: "600",
   },
   sectionHeader: {
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   issueCategoryText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "700",
   },
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   riskBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
   },
   issueTitle: {
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   issueUrl: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
@@ -735,8 +735,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   impactText: {
-    fontSize: 11,
-    color: "#10B981",
+    fontSize: 12,
+    color: Colors.success,
     fontWeight: "600",
   },
   diffPreview: {
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 6,
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    backgroundColor: tint(Colors.danger, 0.08),
     padding: 6,
     borderRadius: 6,
   },
@@ -759,25 +759,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 6,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    backgroundColor: tint(Colors.success, 0.08),
     padding: 6,
     borderRadius: 6,
   },
   diffPrefix: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.textMuted,
   },
   diffTextBefore: {
     flex: 1,
-    fontSize: 10,
-    color: "#F87171",
+    fontSize: 12,
+    color: Colors.danger,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   diffTextAfter: {
     flex: 1,
-    fontSize: 10,
-    color: "#34D399",
+    fontSize: 12,
+    color: Colors.success,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   healBtn: {
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 11,
     borderRadius: 12,
     marginTop: 4,
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
   },
   changesSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   emptyCard: {
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   csDate: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
   },
   itemBox: {
@@ -861,12 +861,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   itemOp: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
   itemUrl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     maxWidth: 200,
   },
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   hashText: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
@@ -883,12 +883,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#DC2626",
+    backgroundColor: Colors.dangerSurface,
+    borderWidth: 1,
+    borderColor: Colors.dangerBorder,
     paddingVertical: 10,
     borderRadius: 10,
   },
   rollbackBtnText: {
-    color: "#FFFFFF",
+    color: Colors.danger,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -902,7 +904,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
@@ -929,7 +931,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -940,7 +942,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   ruleDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },

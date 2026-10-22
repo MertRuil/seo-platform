@@ -12,7 +12,7 @@ import {
   Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchBacklinks, fetchBacklinkSummary, generateMobileDisavowText } from "../services/api";
@@ -20,7 +20,7 @@ import { BacklinkItem, BacklinkSummary } from "../types";
 import { DemoNotice } from "../components/DemoNotice";
 
 export const BacklinksScreen: React.FC = () => {
-  const { selectedSite, setActiveTab } = useApp();
+  const { selectedSite, setActiveTab, goBack } = useApp();
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([]);
   const [summary, setSummary] = useState<BacklinkSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -86,11 +86,11 @@ export const BacklinksScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Backlink & Toksik Link</Text>
-        <TouchableOpacity style={styles.disavowBtn} onPress={handleShareDisavow} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" style={styles.disavowBtn} onPress={handleShareDisavow} activeOpacity={0.7}>
           <Ionicons name="shield-checkmark" size={17} color={Colors.primary} />
           <Text style={styles.disavowBtnText}>Disavow</Text>
         </TouchableOpacity>
@@ -137,8 +137,8 @@ export const BacklinksScreen: React.FC = () => {
                 <Text style={styles.toxicAlertDesc}>
                   PBN, kumar veya spam link çiftliklerinden gelen bu bağlantılar Google cezası riski taşır. Google Search Console için disavow dosyasını tek dokunuşla dışa aktarın.
                 </Text>
-                <TouchableOpacity style={styles.disavowActionBtn} onPress={handleShareDisavow} activeOpacity={0.8}>
-                  <Ionicons name="download-outline" size={15} color="#FFFFFF" />
+                <TouchableOpacity accessibilityRole="button" style={styles.disavowActionBtn} onPress={handleShareDisavow} activeOpacity={0.8}>
+                  <Ionicons name="download-outline" size={15} color={Colors.danger} />
                   <Text style={styles.disavowActionText}>Google Disavow (.txt) Paylaş / İndir</Text>
                 </TouchableOpacity>
               </GlassCard>
@@ -153,11 +153,11 @@ export const BacklinksScreen: React.FC = () => {
             <View style={styles.filterRow}>
               {[
                 { id: "ALL", label: `Tümü (${backlinks.length})` },
-                { id: "TOXIC", label: `🚨 Toksik (${summary?.toxic_backlinks_count || 0})` },
+                { id: "TOXIC", label: `Toksik (${summary?.toxic_backlinks_count || 0})` },
                 { id: "DOFOLLOW", label: `Dofollow (${summary?.dofollow_count || 0})` },
                 { id: "NOFOLLOW", label: `Nofollow (${summary?.nofollow_count || 0})` },
               ].map((f) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={f.id}
                   style={[styles.filterChip, filter === f.id && styles.filterChipActive]}
                   onPress={() => setFilter(f.id as any)}
@@ -181,7 +181,7 @@ export const BacklinksScreen: React.FC = () => {
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Aramayı temizle" onPress={() => setSearchQuery("")}>
                   <Ionicons name="close-circle" size={15} color={Colors.textMuted} />
                 </TouchableOpacity>
               )}
@@ -199,7 +199,7 @@ export const BacklinksScreen: React.FC = () => {
                   key={item.id}
                   style={[
                     styles.backlinkCard,
-                    item.is_toxic && { borderColor: "rgba(239, 68, 68, 0.35)", backgroundColor: "rgba(239, 68, 68, 0.05)" }
+                    item.is_toxic && { borderColor: tint(Colors.danger, 0.35), backgroundColor: tint(Colors.danger, 0.05) }
                   ]}
                 >
                   <View style={styles.cardTopRow}>
@@ -217,7 +217,7 @@ export const BacklinksScreen: React.FC = () => {
                     <Text style={styles.anchorValue} numberOfLines={1}>"{item.anchor_text}"</Text>
                     <View style={[
                       styles.categoryBadge,
-                      item.anchor_category === "SPAM" && { backgroundColor: "rgba(239, 68, 68, 0.15)", borderColor: "rgba(239, 68, 68, 0.35)" }
+                      item.anchor_category === "SPAM" && { backgroundColor: tint(Colors.danger, 0.15), borderColor: tint(Colors.danger, 0.35) }
                     ]}>
                       <Text style={[
                         styles.categoryBadgeText,
@@ -229,7 +229,7 @@ export const BacklinksScreen: React.FC = () => {
                   <View style={styles.cardBottomRow}>
                     <View style={styles.badgesRow}>
                       <View style={[styles.typeBadge, item.is_dofollow ? styles.typeDofollow : styles.typeNofollow]}>
-                        <Text style={[styles.typeBadgeText, item.is_dofollow ? { color: "#34D399" } : { color: Colors.textMuted }]}>
+                        <Text style={[styles.typeBadgeText, item.is_dofollow ? { color: Colors.success } : { color: Colors.textMuted }]}>
                           {item.is_dofollow ? "Dofollow" : "Nofollow"}
                         </Text>
                       </View>
@@ -290,12 +290,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   disavowBtnText: {
     fontSize: 12,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   kpiLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
     marginBottom: 4,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   kpiSub: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderLeftWidth: 3,
     borderLeftColor: Colors.danger,
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    backgroundColor: tint(Colors.danger, 0.08),
   },
   toxicAlertHeader: {
     flexDirection: "row",
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   toxicAlertDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     lineHeight: 16,
     marginBottom: 10,
@@ -366,12 +366,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.danger,
+    backgroundColor: Colors.dangerSurface,
+    borderWidth: 1,
+    borderColor: Colors.dangerBorder,
     paddingVertical: 9,
     borderRadius: 9,
   },
   disavowActionText: {
-    color: "#FFFFFF",
+    color: Colors.danger,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -403,11 +405,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   filterChipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     borderColor: Colors.primary,
   },
   filterChipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
@@ -457,7 +459,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   sourceUrl: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     marginTop: 2,
@@ -469,7 +471,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   scoreText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.textPrimary,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
@@ -483,12 +485,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   anchorLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   anchorValue: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textPrimary,
     fontStyle: "italic",
   },
@@ -499,7 +501,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   categoryBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
@@ -519,13 +521,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   typeDofollow: {
-    backgroundColor: "rgba(52, 211, 153, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
   },
   typeNofollow: {
     backgroundColor: "rgba(255, 255, 255, 0.06)",
   },
   typeBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   spamBadge: {
@@ -534,17 +536,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   spamBadgeLow: {
-    backgroundColor: "rgba(52, 211, 153, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
   },
   spamBadgeHigh: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: tint(Colors.danger, 0.15),
   },
   spamBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   dateText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
@@ -552,13 +554,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: tint(Colors.danger, 0.1),
     padding: 6,
     borderRadius: 6,
   },
   toxicReasonText: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.danger,
     lineHeight: 14,
   },

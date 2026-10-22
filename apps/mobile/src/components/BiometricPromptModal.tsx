@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { useAuth } from "../context/AuthContext";
 
 export const BiometricPromptModal: React.FC = () => {
@@ -196,7 +196,7 @@ export const BiometricPromptModal: React.FC = () => {
           {/* Action Buttons */}
           {status === "PROMPT" && (
             <View style={styles.btnColumn}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.activateBtn}
                 onPress={handleActivate}
                 activeOpacity={0.8}
@@ -211,7 +211,7 @@ export const BiometricPromptModal: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.dismissBtn}
                 onPress={handleDismiss}
                 activeOpacity={0.7}
@@ -237,7 +237,7 @@ export const BiometricPromptModal: React.FC = () => {
 
           {status === "FAILED" && (
             <View style={styles.btnColumn}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.activateBtn}
                 onPress={handleActivate}
                 activeOpacity={0.8}
@@ -246,7 +246,7 @@ export const BiometricPromptModal: React.FC = () => {
                 <Text style={styles.activateBtnText}>Tekrar Dene</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.dismissBtn}
                 onPress={handleDismiss}
                 activeOpacity={0.7}
@@ -289,22 +289,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    borderColor: tint(Colors.primary, 0.25),
     marginBottom: 18
   },
   hardwareDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.primary
+    backgroundColor: Colors.primaryFill
   },
   hardwareBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: "700"
   },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    backgroundColor: tint(Colors.primaryFill, 0.1),
     borderWidth: 2,
     borderColor: Colors.primary,
     justifyContent: "center",
@@ -325,12 +325,12 @@ const styles = StyleSheet.create({
     shadowRadius: 18
   },
   iconCircleSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     borderColor: Colors.success,
     shadowColor: Colors.success
   },
   iconCircleFailed: {
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    backgroundColor: tint(Colors.danger, 0.12),
     borderColor: Colors.danger,
     shadowColor: Colors.danger
   },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     height: 2,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 14,
     borderRadius: 14,
     width: "100%"

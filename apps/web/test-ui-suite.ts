@@ -405,6 +405,36 @@ async function run() {
   assert.deepStrictEqual(emojiFiles, [], "emoji içeren bileşen");
   console.log("  tailwind sınıfları tanımlı: ok");
 
+  // globals.css ile mobilin okuduğu ortak belirteç dosyası aynı kalmalı; kontrast iki temada da AA.
+  const tokens = JSON.parse(readFileSync("../../packages/design-tokens/tokens.json", "utf8"));
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const cssBlock = (selector: string) =>
+    Object.fromEntries([...css.split(`${selector} {`)[1].split("\n}")[0].matchAll(/--([a-z0-9-]+):\s*(\d+ \d+ \d+);/g)].map((m) => [m[1], m[2]]));
+  assert.deepStrictEqual(cssBlock(":root"), tokens.color.light, "globals.css açık tema belirteç dosyasından ayrışmış");
+  assert.deepStrictEqual(cssBlock(".dark"), tokens.color.dark, "globals.css koyu tema belirteç dosyasından ayrışmış");
+  const luminance = (rgb: string) => {
+    const [r, g, b] = rgb.split(" ").map((c) => {
+      const v = Number(c) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const pairs: [string, string][] = [
+    ...["ink", "muted", "accent", "evidence", "warn", "critical"].flatMap((fg) => ["bg", "surface", "surface-2"].map((bg) => [fg, bg] as [string, string])),
+    ["evidence", "evidence-soft"], ["warn", "warn-soft"], ["critical", "critical-soft"], ["accent-ink", "accent-soft"],
+  ];
+  for (const theme of ["light", "dark"] as const) {
+    const t = tokens.color[theme];
+    const low = pairs.map(([fg, bg]) => [fg, bg, contrast(t[fg], t[bg])] as const).filter(([, , r]) => r < 4.5);
+    assert.deepStrictEqual(low.map(([fg, bg, r]) => `${fg}/${bg} ${r.toFixed(2)}`), [], `${theme} temada 4,5:1 altı çift`);
+    assert(contrast("255 255 255", t["accent-fill"]) >= 4.5, `${theme} temada birincil buton yazısı`);
+  }
+  console.log("  ortak belirteçler ve kontrast: ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 

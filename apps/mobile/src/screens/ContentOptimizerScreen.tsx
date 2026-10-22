@@ -12,7 +12,7 @@ import {
   Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { analyzeContentUrl, generateAiSeoContent, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, checkUkCompliance, scanMenaCompliance } from "../services/api";
@@ -35,7 +35,7 @@ import {
 } from "../types";
 
 export const ContentOptimizerScreen: React.FC = () => {
-  const { selectedSite, setActiveTab } = useApp();
+  const { selectedSite, setActiveTab, goBack } = useApp();
   const [activeTabSub, setActiveTabSub] = useState<"OPTIMIZER" | "GENERATOR" | "COMPLIANCE">("COMPLIANCE");
 
   // Optimizer state
@@ -130,27 +130,27 @@ export const ContentOptimizerScreen: React.FC = () => {
     const clean = sector.replace(/^UK_/, "");
     switch (clean) {
       case "HEALTH_ASA_CAP":
-        return "🏥 ASA Sağlık / POM";
+        return "ASA Sağlık / POM";
       case "FINANCIAL_FCA":
-        return "🪙 FCA Kripto & Finans";
+        return "FCA Kripto & Finans";
       case "GREEN_CLAIMS_CMA":
-        return "🌿 CMA Yeşil İddialar";
+        return "CMA Yeşil İddialar";
       case "CONSUMER_CMA_ASA":
-        return "⏱️ DMCC Sahte Kıtlık";
+        return "DMCC Sahte Kıtlık";
       case "VAPING_TOBACCO_ASA":
-        return "🚭 ASA Vaping Yasağı";
+        return "ASA Vaping Yasağı";
       case "SUPERLATIVE_COMMERCIAL":
-        return "🛒 E-Ticaret & Kıtlık";
+        return "E-Ticaret & Kıtlık";
       case "HEALTH_MEDICAL":
-        return "🏥 Sağlık & Klinik";
+        return "Sağlık & Klinik";
       case "FOOD_SUPPLEMENT":
-        return "💊 Gıda & Zayıflama";
+        return "Gıda & Zayıflama";
       case "LEGAL_SERVICES":
-        return "⚖️ Hukuk & Avukatlık";
+        return "Hukuk & Avukatlık";
       case "FINANCIAL_SERVICES":
-        return "💳 Finans & Kredi";
+        return "Finans & Kredi";
       case "ILLEGAL_BETTING_TOBACCO":
-        return "🚭 Bahis & Tütün";
+        return "Bahis & Tütün";
       default:
         return clean;
     }
@@ -201,7 +201,7 @@ export const ContentOptimizerScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>İçerik Optimizasyonu</Text>
@@ -210,7 +210,7 @@ export const ContentOptimizerScreen: React.FC = () => {
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, activeTabSub === "COMPLIANCE" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("COMPLIANCE")}
           activeOpacity={0.7}
@@ -221,7 +221,7 @@ export const ContentOptimizerScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, activeTabSub === "OPTIMIZER" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("OPTIMIZER")}
           activeOpacity={0.7}
@@ -232,7 +232,7 @@ export const ContentOptimizerScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, activeTabSub === "GENERATOR" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("GENERATOR")}
           activeOpacity={0.7}
@@ -250,7 +250,7 @@ export const ContentOptimizerScreen: React.FC = () => {
           <>
             {/* Jurisdiction Switcher */}
             <View style={styles.jurisdictionToggleRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "TR" && styles.jurisdictionBtnActive,
@@ -258,7 +258,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("TR")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🇹🇷</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -269,7 +268,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "EU" && styles.jurisdictionBtnActive,
@@ -277,7 +276,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("EU")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🇪🇺</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -288,7 +286,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "US" && styles.jurisdictionBtnActive,
@@ -296,7 +294,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("US")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🇺🇸</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -307,7 +304,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "UK" && styles.jurisdictionBtnActive,
@@ -315,7 +312,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("UK")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🇬🇧</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -326,7 +322,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "ASIA" && styles.jurisdictionBtnActive,
@@ -334,7 +330,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("ASIA")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🌏</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -345,7 +340,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.jurisdictionBtn,
                   complianceJurisdiction === "MENA" && styles.jurisdictionBtnActive,
@@ -353,7 +348,6 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onPress={() => handleSelectJurisdiction("MENA")}
                 activeOpacity={0.8}
               >
-                <Text style={styles.jurisdictionFlag}>🇦🇪</Text>
                 <Text
                   style={[
                     styles.jurisdictionBtnText,
@@ -415,7 +409,7 @@ export const ContentOptimizerScreen: React.FC = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetScroll}>
               {complianceJurisdiction === "TR" ? (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -423,9 +417,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏥 Sağlık İhlali</Text>
+                    <Text style={styles.presetChipText}>Sağlık İhlali</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -433,9 +427,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⚖️ Avukatlık İhlali</Text>
+                    <Text style={styles.presetChipText}>Avukatlık İhlali</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -443,9 +437,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💳 Finans / Kredi</Text>
+                    <Text style={styles.presetChipText}>Finans / Kredi</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -453,9 +447,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🛒 E-Ticaret / Fiyat</Text>
+                    <Text style={styles.presetChipText}>E-Ticaret / Fiyat</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -463,12 +457,12 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ Temiz Metin</Text>
+                    <Text style={styles.presetChipText}>Temiz Metin</Text>
                   </TouchableOpacity>
                 </>
               ) : complianceJurisdiction === "EU" ? (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -476,9 +470,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🌿 Greenwashing İhlali</Text>
+                    <Text style={styles.presetChipText}>Greenwashing İhlali</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -486,9 +480,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💊 Reçeteli İlaç / POM</Text>
+                    <Text style={styles.presetChipText}>Reçeteli İlaç / POM</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -496,9 +490,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🥗 EFSA Zayıflama</Text>
+                    <Text style={styles.presetChipText}>EFSA Zayıflama</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -506,9 +500,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>📈 MiCA Kripto & Kredi</Text>
+                    <Text style={styles.presetChipText}>MiCA Kripto & Kredi</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -516,9 +510,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏷️ Omnibus & Fiyat</Text>
+                    <Text style={styles.presetChipText}>Omnibus & Fiyat</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -526,9 +520,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⚖️ CCBE Hukuk İhlali</Text>
+                    <Text style={styles.presetChipText}>CCBE Hukuk İhlali</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -536,12 +530,12 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ AB Uyumlu Metin</Text>
+                    <Text style={styles.presetChipText}>AB Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
               ) : complianceJurisdiction === "US" ? (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -549,9 +543,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏥 FDA Hastalık & Rx</Text>
+                    <Text style={styles.presetChipText}>FDA Hastalık & Rx</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -559,9 +553,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🥗 FTC/FDA Kilo Verme</Text>
+                    <Text style={styles.presetChipText}>FTC/FDA Kilo Verme</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -569,9 +563,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⭐ FTC Sahte Yorum</Text>
+                    <Text style={styles.presetChipText}>FTC Sahte Yorum</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -579,9 +573,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💳 SEC Kripto & Kredi</Text>
+                    <Text style={styles.presetChipText}>SEC Kripto & Kredi</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -589,9 +583,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🌿 FTC Green Guides</Text>
+                    <Text style={styles.presetChipText}>FTC Green Guides</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -599,9 +593,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⚖️ ABA Avukatlık Garantisi</Text>
+                    <Text style={styles.presetChipText}>ABA Avukatlık Garantisi</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -609,9 +603,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🚬 PACT Act Tütün</Text>
+                    <Text style={styles.presetChipText}>PACT Act Tütün</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -619,12 +613,12 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ FTC/FDA Uyumlu Metin</Text>
+                    <Text style={styles.presetChipText}>FTC/FDA Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
               ) : complianceJurisdiction === "UK" ? (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -632,9 +626,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💉 ASA Botox & POM</Text>
+                    <Text style={styles.presetChipText}>ASA Botox & POM</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -642,9 +636,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏥 ASA Tedavi İddiası</Text>
+                    <Text style={styles.presetChipText}>ASA Tedavi İddiası</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -652,9 +646,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🪙 FCA Kripto Promosyon</Text>
+                    <Text style={styles.presetChipText}>FCA Kripto Promosyon</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -662,9 +656,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🌿 CMA Green Claims</Text>
+                    <Text style={styles.presetChipText}>CMA Green Claims</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -672,9 +666,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⏱️ DMCC Sahte Kıtlık</Text>
+                    <Text style={styles.presetChipText}>DMCC Sahte Kıtlık</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -682,9 +676,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🚭 ASA Vaping Yasağı</Text>
+                    <Text style={styles.presetChipText}>ASA Vaping Yasağı</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -692,12 +686,12 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ UK Uyumlu Metin</Text>
+                    <Text style={styles.presetChipText}>UK Uyumlu Metin</Text>
                   </TouchableOpacity>
                 </>
               ) : complianceJurisdiction === "ASIA" ? (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -705,9 +699,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏥 PMDA Tıbbi İddia</Text>
+                    <Text style={styles.presetChipText}>PMDA Tıbbi İddia</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -715,9 +709,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💊 PMDA/HSA Reçeteli İlaç</Text>
+                    <Text style={styles.presetChipText}>PMDA/HSA Reçeteli İlaç</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -725,9 +719,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>⭐ JCAA/KFTC Gizli Reklam</Text>
+                    <Text style={styles.presetChipText}>JCAA/KFTC Gizli Reklam</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -735,9 +729,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏆 SAMR Süperlatif</Text>
+                    <Text style={styles.presetChipText}>SAMR Süperlatif</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -745,9 +739,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🥗 MHLW Zayıflama</Text>
+                    <Text style={styles.presetChipText}>MHLW Zayıflama</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -755,9 +749,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>💳 MAS Kripto & Kredi</Text>
+                    <Text style={styles.presetChipText}>MAS Kripto & Kredi</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -765,9 +759,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🌿 CCCS Yeşil İddia</Text>
+                    <Text style={styles.presetChipText}>CCCS Yeşil İddia</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -775,9 +769,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🚭 Vape & Kumar</Text>
+                    <Text style={styles.presetChipText}>Vape & Kumar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -785,12 +779,12 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ Asya Uyumlu</Text>
+                    <Text style={styles.presetChipText}>Asya Uyumlu</Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -798,9 +792,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🍷 Alkol & Kumar</Text>
+                    <Text style={styles.presetChipText}>Alkol & Kumar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -808,9 +802,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏥 SFDA Sağlık & İlaç</Text>
+                    <Text style={styles.presetChipText}>SFDA Sağlık & İlaç</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -818,9 +812,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>📱 Mawthooq / Fenomen</Text>
+                    <Text style={styles.presetChipText}>Mawthooq / Fenomen</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -828,9 +822,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🪙 VARA/SAMA Finans</Text>
+                    <Text style={styles.presetChipText}>VARA/SAMA Finans</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -838,9 +832,9 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>🏘️ Fal / RERA Emlak</Text>
+                    <Text style={styles.presetChipText}>Fal / RERA Emlak</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.presetChip}
                     onPress={() =>
                       setComplianceDraft(
@@ -848,7 +842,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                       )
                     }
                   >
-                    <Text style={styles.presetChipText}>✅ MENA Uyumlu</Text>
+                    <Text style={styles.presetChipText}>MENA Uyumlu</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -869,7 +863,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                   ].map((s) => {
                     const isAct = complianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setComplianceSector(s.id as any)}
@@ -883,17 +877,17 @@ export const ContentOptimizerScreen: React.FC = () => {
                 : complianceJurisdiction === "EU"
                 ? [
                     { id: "ALL", label: "Tüm AB Sektörleri" },
-                    { id: "GREEN_CLAIMS", label: "🌿 Green Claims & EmpCo" },
-                    { id: "HEALTH_PHARMA", label: "🏥 Sağlık & POM" },
-                    { id: "FOOD_SUPPLEMENT", label: "🥗 EFSA Gıda & Diyet" },
-                    { id: "FINANCIAL_SERVICES", label: "💳 MiCA Finans & Kripto" },
-                    { id: "CONSUMER_ECOMMERCE", label: "🛒 Omnibus & E-Ticaret" },
-                    { id: "LEGAL_SERVICES", label: "⚖️ CCBE Hukuk" },
-                    { id: "TOBACCO_NICOTINE", label: "🚬 TPD Tütün & Vape" },
+                    { id: "GREEN_CLAIMS", label: "Green Claims & EmpCo" },
+                    { id: "HEALTH_PHARMA", label: "Sağlık & POM" },
+                    { id: "FOOD_SUPPLEMENT", label: "EFSA Gıda & Diyet" },
+                    { id: "FINANCIAL_SERVICES", label: "MiCA Finans & Kripto" },
+                    { id: "CONSUMER_ECOMMERCE", label: "Omnibus & E-Ticaret" },
+                    { id: "LEGAL_SERVICES", label: "CCBE Hukuk" },
+                    { id: "TOBACCO_NICOTINE", label: "TPD Tütün & Vape" },
                   ].map((s) => {
                     const isAct = euComplianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setEuComplianceSector(s.id as any)}
@@ -907,17 +901,17 @@ export const ContentOptimizerScreen: React.FC = () => {
                 : complianceJurisdiction === "US"
                 ? [
                     { id: "ALL", label: "Tüm ABD Sektörleri" },
-                    { id: "HEALTH_FDA", label: "🏥 FDA Sağlık & İlaç" },
-                    { id: "SUPPLEMENTS_WEIGHTLOSS", label: "🥗 DSHEA & Kilo Verme" },
-                    { id: "FTC_COMMERCIAL_DECEPTIVE", label: "⭐ FTC Sahte Yorum" },
-                    { id: "FINANCIAL_SEC_CFPB", label: "💳 SEC Finans & Kredi" },
-                    { id: "GREEN_GUIDES_FTC", label: "🌿 EPA Green Guides" },
-                    { id: "LEGAL_ABA", label: "⚖️ ABA Hukuk" },
-                    { id: "TOBACCO_PACT", label: "🚬 PACT Act Tütün" },
+                    { id: "HEALTH_FDA", label: "FDA Sağlık & İlaç" },
+                    { id: "SUPPLEMENTS_WEIGHTLOSS", label: "DSHEA & Kilo Verme" },
+                    { id: "FTC_COMMERCIAL_DECEPTIVE", label: "FTC Sahte Yorum" },
+                    { id: "FINANCIAL_SEC_CFPB", label: "SEC Finans & Kredi" },
+                    { id: "GREEN_GUIDES_FTC", label: "EPA Green Guides" },
+                    { id: "LEGAL_ABA", label: "ABA Hukuk" },
+                    { id: "TOBACCO_PACT", label: "PACT Act Tütün" },
                   ].map((s) => {
                     const isAct = usComplianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setUsComplianceSector(s.id as any)}
@@ -931,15 +925,15 @@ export const ContentOptimizerScreen: React.FC = () => {
                 : complianceJurisdiction === "UK"
                 ? [
                     { id: "ALL", label: "Tüm UK Sektörleri" },
-                    { id: "HEALTH_ASA_CAP", label: "💉 ASA Botox & POM" },
-                    { id: "FINANCIAL_FCA", label: "🪙 FCA Kripto & Finans" },
-                    { id: "GREEN_CLAIMS_CMA", label: "🌿 CMA Yeşil İddia" },
-                    { id: "CONSUMER_CMA_ASA", label: "⏱️ DMCC Sahte Kıtlık" },
-                    { id: "VAPING_TOBACCO_ASA", label: "🚭 ASA Vaping Yasağı" },
+                    { id: "HEALTH_ASA_CAP", label: "ASA Botox & POM" },
+                    { id: "FINANCIAL_FCA", label: "FCA Kripto & Finans" },
+                    { id: "GREEN_CLAIMS_CMA", label: "CMA Yeşil İddia" },
+                    { id: "CONSUMER_CMA_ASA", label: "DMCC Sahte Kıtlık" },
+                    { id: "VAPING_TOBACCO_ASA", label: "ASA Vaping Yasağı" },
                   ].map((s) => {
                     const isAct = ukComplianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setUkComplianceSector(s.id as any)}
@@ -953,17 +947,17 @@ export const ContentOptimizerScreen: React.FC = () => {
                 : complianceJurisdiction === "ASIA"
                 ? [
                     { id: "ALL", label: "Tüm Asya Sektörleri" },
-                    { id: "COSMETICS_HEALTH_PMDA", label: "🏥 PMDA Sağlık & Kozmetik" },
-                    { id: "STEALTH_MARKETING_JCAA_KFTC", label: "⭐ JCAA/KFTC Gizli Reklam" },
-                    { id: "ABSOLUTE_SUPERLATIVES_SAMR", label: "🏆 SAMR Süperlatif Yasağı" },
-                    { id: "DIETARY_SUPPLEMENTS_WEIGHTLOSS", label: "🥗 MHLW Zayıflama & Gıda" },
-                    { id: "FINANCIAL_CRYPTO_MAS", label: "💳 MAS Kripto & Kredi" },
-                    { id: "GREEN_CLAIMS_APAC", label: "🌿 CCCS Yeşil İddialar" },
-                    { id: "VAPING_GAMBLING_BAN_APAC", label: "🚭 Vape & Kumar Yasağı" },
+                    { id: "COSMETICS_HEALTH_PMDA", label: "PMDA Sağlık & Kozmetik" },
+                    { id: "STEALTH_MARKETING_JCAA_KFTC", label: "JCAA/KFTC Gizli Reklam" },
+                    { id: "ABSOLUTE_SUPERLATIVES_SAMR", label: "SAMR Süperlatif Yasağı" },
+                    { id: "DIETARY_SUPPLEMENTS_WEIGHTLOSS", label: "MHLW Zayıflama & Gıda" },
+                    { id: "FINANCIAL_CRYPTO_MAS", label: "MAS Kripto & Kredi" },
+                    { id: "GREEN_CLAIMS_APAC", label: "CCCS Yeşil İddialar" },
+                    { id: "VAPING_GAMBLING_BAN_APAC", label: "Vape & Kumar Yasağı" },
                   ].map((s) => {
                     const isAct = asiaComplianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setAsiaComplianceSector(s.id as any)}
@@ -976,16 +970,16 @@ export const ContentOptimizerScreen: React.FC = () => {
                   })
                 : [
                     { id: "ALL", label: "Tüm Körfez Sektörleri" },
-                    { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "🕌 Kamu Ahlakı & Değerler" },
-                    { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "🏥 SFDA/MOHAP Sağlık" },
-                    { id: "INFLUENCER_MAWTHOOQ_NMC", label: "📱 Mawthooq / NMC Reklam" },
-                    { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "🪙 VARA / SAMA Finans" },
-                    { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "🏘️ Fal / RERA Emlak & Ticaret" },
-                    { id: "VAPING_TOBACCO_BAN_MENA", label: "🚭 Tütün & Vaping Yasağı" },
+                    { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "Kamu Ahlakı & Değerler" },
+                    { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "SFDA/MOHAP Sağlık" },
+                    { id: "INFLUENCER_MAWTHOOQ_NMC", label: "Mawthooq / NMC Reklam" },
+                    { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "VARA / SAMA Finans" },
+                    { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "Fal / RERA Emlak & Ticaret" },
+                    { id: "VAPING_TOBACCO_BAN_MENA", label: "Tütün & Vaping Yasağı" },
                   ].map((s) => {
                     const isAct = menaComplianceSector === s.id;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={s.id}
                         style={[styles.typeChip, isAct && styles.typeChipActive]}
                         onPress={() => setMenaComplianceSector(s.id as any)}
@@ -1003,7 +997,7 @@ export const ContentOptimizerScreen: React.FC = () => {
               <View style={styles.secHeader}>
                 <Text style={styles.cardTitle}>Denetlenecek Metin Taslağı</Text>
                 {complianceDraft.length > 0 && (
-                  <TouchableOpacity onPress={() => setComplianceDraft("")}>
+                  <TouchableOpacity accessibilityRole="button" onPress={() => setComplianceDraft("")}>
                     <Text style={styles.clearText}>Temizle</Text>
                   </TouchableOpacity>
                 )}
@@ -1125,7 +1119,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                       <Text style={styles.replLabel}>Önerilen Güvenli Alternatif:</Text>
                       <Text style={styles.replValue}>"{v.suggested_replacement || v.suggested_fix}"</Text>
                     </View>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={styles.fixBtn}
                       onPress={() => handleFixViolation(v)}
                       activeOpacity={0.8}
@@ -1165,7 +1159,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onChangeText={setTargetKw}
               />
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionButton}
                 onPress={handleAnalyze}
                 disabled={analyzing || !urlInput.trim()}
@@ -1265,7 +1259,7 @@ export const ContentOptimizerScreen: React.FC = () => {
               ].map((t) => {
                 const isActive = genType === t.id;
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={t.id}
                     style={[styles.typeChip, isActive && styles.typeChipActive]}
                     onPress={() => setGenType(t.id as any)}
@@ -1298,7 +1292,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                 onChangeText={setGenTargetKw}
               />
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.actionButton}
                 onPress={handleGenerate}
                 disabled={generating || !topicInput.trim()}
@@ -1323,7 +1317,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                     <Text style={styles.outputTitle}>{genResult.title}</Text>
                     <Text style={styles.outputTokens}>{genResult.tokens_used} AI Token Kullanıldı</Text>
                   </View>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Paylaş"
                     style={styles.shareBtn}
                     onPress={() => handleShareResult(genResult.content)}
                   >
@@ -1335,7 +1329,7 @@ export const ContentOptimizerScreen: React.FC = () => {
                   <Text style={styles.contentText}>{genResult.content}</Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.copyBtn}
                   onPress={() => {
                     handleShareResult(genResult.content);
@@ -1397,7 +1391,7 @@ const styles = StyleSheet.create({
   },
   tabBtnActive: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   tabText: {
     fontSize: 13,
@@ -1446,7 +1440,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 14,
@@ -1472,7 +1466,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   scoreLbl: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
     textAlign: "center",
@@ -1498,15 +1492,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tagItem: {
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    backgroundColor: tint(Colors.warning, 0.12),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.25)",
+    borderColor: tint(Colors.warning, 0.25),
   },
   tagText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.warning,
     fontWeight: "600",
   },
@@ -1547,7 +1541,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   typeChipActive: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderColor: Colors.primary,
   },
   typeChipText: {
@@ -1574,7 +1568,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   outputTokens: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   shareBtn: {
@@ -1597,7 +1591,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     borderRadius: 10,
   },
@@ -1625,10 +1619,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   jurisdictionBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  jurisdictionFlag: {
-    fontSize: 14,
+    backgroundColor: Colors.primaryFill,
   },
   jurisdictionBtnText: {
     fontSize: 12,
@@ -1691,7 +1682,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   draftStatsText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   cleanStatusCard: {
@@ -1699,8 +1690,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    backgroundColor: tint(Colors.success, 0.08),
+    borderColor: tint(Colors.success, 0.3),
     borderWidth: 1,
     marginTop: 12,
     marginBottom: 6,
@@ -1721,8 +1712,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    backgroundColor: tint(Colors.danger, 0.08),
+    borderColor: tint(Colors.danger, 0.3),
     borderWidth: 1,
     marginTop: 12,
     marginBottom: 6,
@@ -1752,13 +1743,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectorBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   sectorBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.primary,
   },
@@ -1768,16 +1759,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   riskBadgeCritical: {
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
+    backgroundColor: tint(Colors.danger, 0.2),
   },
   riskBadgeHigh: {
-    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    backgroundColor: tint(Colors.warning, 0.2),
   },
   riskBadgeMedium: {
-    backgroundColor: "rgba(59, 130, 246, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
   },
   riskBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.danger,
   },
@@ -1812,7 +1803,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   legalInfoText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     flex: 1,
   },
@@ -1820,14 +1811,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    backgroundColor: tint(Colors.success, 0.08),
     padding: 10,
     borderRadius: 10,
     gap: 8,
     marginTop: 4,
   },
   replLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   replValue: {
@@ -1839,13 +1830,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.success,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   fixBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },

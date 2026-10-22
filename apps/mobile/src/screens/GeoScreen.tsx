@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchGeoScores, fetchGeoPrompts, addGeoPrompt, simulateLiveGeoSearch } from "../services/api";
@@ -97,14 +97,14 @@ export const GeoScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Soru ekle" style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
       {/* Segment Selector */}
       <View style={styles.segmentRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "PLATFORMS" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("PLATFORMS")}
         >
@@ -113,7 +113,7 @@ export const GeoScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "PROMPTS" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("PROMPTS")}
         >
@@ -122,7 +122,7 @@ export const GeoScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "AEO" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("AEO")}
         >
@@ -139,7 +139,7 @@ export const GeoScreen: React.FC = () => {
           <>
             {/* Overall GEO Score Card */}
             <LinearGradient
-              colors={["#1E1B4B", "#12141F"]}
+              colors={[Colors.infoSurface, Colors.surface]}
               style={styles.overallCard}
             >
               <View style={styles.overallTop}>
@@ -229,7 +229,7 @@ export const GeoScreen: React.FC = () => {
               <View style={styles.simHeaderRow}>
                 <Ionicons name="sparkles" size={18} color={Colors.accent} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.simTitle}>⚡ Canlı 5-LLM Arama Simülasyonu</Text>
+                  <Text style={styles.simTitle}>Canlı 5-LLM Arama Simülasyonu</Text>
                   <Text style={styles.simSub}>ChatGPT, Perplexity, Google AI, Gemini ve Claude</Text>
                 </View>
               </View>
@@ -242,7 +242,7 @@ export const GeoScreen: React.FC = () => {
                   placeholder="Soru veya prompt yazın..."
                   placeholderTextColor={Colors.textMuted}
                 />
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.simBtn}
                   onPress={() => handleSimulateLive()}
                   disabled={isSimulating || !simQuery.trim()}
@@ -266,7 +266,7 @@ export const GeoScreen: React.FC = () => {
                   "E-ticaret canonical ve schema",
                   "AEO tanım blokları nasıl yazılır?"
                 ].map((chip, idx) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={idx}
                     style={styles.chipBtn}
                     onPress={() => {
@@ -320,7 +320,7 @@ export const GeoScreen: React.FC = () => {
                               { color: res.mentioned ? Colors.success : Colors.textMuted }
                             ]}
                           >
-                            {res.mentioned ? "✓ Marka Geçti" : "✗ Yok"}
+                            {res.mentioned ? "Marka Geçti" : "Yok"}
                           </Text>
                         </View>
                         <Text style={styles.liveModelSnippet}>{res.snippet}</Text>
@@ -328,7 +328,7 @@ export const GeoScreen: React.FC = () => {
                     ))}
                   </View>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.savePromptBtn}
                     onPress={async () => {
                       if (simResult?.prompt) {
@@ -376,7 +376,7 @@ export const GeoScreen: React.FC = () => {
                       <View style={styles.snippetHeader}>
                         <Text style={styles.platTitle}>{plat}</Text>
                         <Text style={[styles.mentionStatus, { color: res.mentioned ? Colors.success : Colors.textMuted }]}>
-                          {res.mentioned ? "✓ Marka Geçti" : "✗ Yok"}
+                          {res.mentioned ? "Marka Geçti" : "Yok"}
                         </Text>
                       </View>
                       <Text style={styles.snippetSnippet}>{res.snippet}</Text>
@@ -435,7 +435,7 @@ export const GeoScreen: React.FC = () => {
                   </View>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.aeoActionBtn}
                   onPress={() => setActiveTab("ai")}
                   activeOpacity={0.8}
@@ -466,10 +466,10 @@ export const GeoScreen: React.FC = () => {
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
+              <TouchableOpacity accessibilityRole="button" style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
                 <Text style={styles.modalCancelText}>İptal</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.modalSubmitBtn, !promptText.trim() && { opacity: 0.5 }]}
                 disabled={!promptText.trim() || isAdding}
                 onPress={handleAddPrompt}
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -517,14 +517,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   addBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   },
   segmentBtnActive: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   segmentText: {
     fontSize: 12,
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   overallTop: {
     flexDirection: "row",
@@ -583,14 +583,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   overallSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     maxWidth: 220,
   },
   overallRing: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
   overallScoreScale: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: -2,
   },
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   mLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   pStatsRow: {
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   pStatLbl: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   promptPillText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   },
   citedBadgeText: {
     color: Colors.success,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   notCitedBadge: {
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   },
   notCitedText: {
     color: Colors.danger,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   promptQuery: {
@@ -775,21 +775,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   platTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textSecondary,
   },
   mentionStatus: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
   },
   snippetSnippet: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     lineHeight: 15,
   },
   compCitedText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 9,
     borderRadius: 10,
   },
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalSubmitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.35)",
+    borderColor: tint(Colors.accent, 0.35),
   },
   simHeaderRow: {
     flexDirection: "row",
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   simSub: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   simInputRow: {
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 12,
     borderRadius: 10,
     justifyContent: "center",
@@ -962,7 +962,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   chipBtnText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
@@ -985,11 +985,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   liveMentionText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   liveCompCited: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   liveModelList: {
@@ -1007,16 +1007,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   liveModelName: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textSecondary,
   },
   liveModelMention: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
   },
   liveModelSnippet: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     lineHeight: 14,
   },
@@ -1025,14 +1025,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 8,
     borderRadius: 8,
     marginTop: 4,
   },
   savePromptBtnText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
 });

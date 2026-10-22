@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "./src/theme/colors";
+import { Colors, tint } from "./src/theme/colors";
 import { AppProvider, useApp } from "./src/context/AppContext";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { Header } from "./src/components/Header";
@@ -70,7 +70,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <Text style={styles.errorDesc}>
               {this.state.error?.message || "Sayfa bileşenleri yüklenirken bir render sorunu algılandı."}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" 
               style={styles.retryBtn}
               onPress={this.handleReset}
               activeOpacity={0.8}
@@ -198,12 +198,12 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "rgba(244, 63, 94, 0.12)",
+    backgroundColor: tint(Colors.danger, 0.12),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(244, 63, 94, 0.25)",
+    borderColor: tint(Colors.danger, 0.25),
   },
   errorTitle: {
     fontSize: 18,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,

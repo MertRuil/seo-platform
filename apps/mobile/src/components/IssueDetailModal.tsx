@@ -54,7 +54,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </View>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Kapat" onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close-circle" size={26} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -94,7 +94,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
             {/* Documentation Link if available */}
             {issue.documentation_url && (
-              <TouchableOpacity 
+              <TouchableOpacity accessibilityRole="button" 
                 style={styles.docLink}
                 onPress={() => {
                   if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -113,7 +113,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
           {/* Bottom Action Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" 
               style={styles.actionBtn}
               onPress={() => {
                 if (onAction) onAction(issue);
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   sevText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   catBadge: {
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   catText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textSecondary,
   },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   ruleId: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: "monospace",
     marginTop: 4,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   urlText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.info,
     fontFamily: "monospace",
   },
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceElevated,
   },
   actionBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

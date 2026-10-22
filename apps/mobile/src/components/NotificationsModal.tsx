@@ -88,11 +88,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
             <View style={styles.headerActions}>
               {unreadCount > 0 && (
-                <TouchableOpacity onPress={onMarkAllAsRead} style={styles.markAllBtn}>
+                <TouchableOpacity accessibilityRole="button" onPress={onMarkAllAsRead} style={styles.markAllBtn}>
                   <Text style={styles.markAllText}>Tümünü Oku</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Bildirimleri kapat" onPress={onClose}>
                 <Ionicons name="close-circle" size={24} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
@@ -103,7 +103,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             {(["ALL", "UNREAD", "CRITICAL"] as const).map((f) => {
               const isActive = filter === f;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={f}
                   style={[styles.filterChip, isActive && styles.filterChipActive]}
                   onPress={() => setFilter(f)}
@@ -201,13 +201,13 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   unreadBadge: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   unreadBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   filterChipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     borderColor: Colors.primary,
   },
   filterText: {
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   notifTime: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   notifMessage: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     marginTop: 6,
   },
 });

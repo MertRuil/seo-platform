@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { useApp, TabKey } from "../context/AppContext";
 
 interface TabItem {
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: "row",
-    backgroundColor: "rgba(18, 20, 31, 0.94)",
+    backgroundColor: tint(Colors.surface, 0.94),
     borderRadius: 28,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -111,10 +111,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconWrapperActive: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
     color: Colors.textMuted,
     marginTop: 2,

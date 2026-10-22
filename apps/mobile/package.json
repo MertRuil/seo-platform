@@ -26,7 +26,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:release": "node test-release.cjs"
+    "test:release": "node test-release.cjs",
+    "test:ui": "node test-ui.cjs"
   },
   "private": true
 }

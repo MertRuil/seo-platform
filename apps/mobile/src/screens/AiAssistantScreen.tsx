@@ -12,7 +12,7 @@ import {
   Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { sendAiAssistantMessage, createTask } from "../services/api";
@@ -42,9 +42,9 @@ export const AiAssistantScreen: React.FC = () => {
     "Neden trafiğim düştü?",
     "En önemli 3 SEO problemim ne?",
     "Bu hafta ne yapmalıyım?",
-    "🇬🇧 UK / ASA & CMA Kuralları",
-    "🇦🇪 BAE & Körfez / MENA Mevzuatı",
-    "🌏 Asya / PMDA & SAMR Uyum Kuralları",
+    "UK / ASA & CMA Kuralları",
+    "BAE & Körfez / MENA Mevzuatı",
+    "Asya / PMDA & SAMR Uyum Kuralları",
     "Hangi içerikleri yazmalıyım?",
     "Rakibim neden benden yukarıda?"
   ];
@@ -128,7 +128,7 @@ export const AiAssistantScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Sohbeti temizle" 
           style={styles.clearBtn} 
           onPress={() => setMessages([messages[0]])}
           activeOpacity={0.7}
@@ -178,7 +178,7 @@ export const AiAssistantScreen: React.FC = () => {
                 {msg.suggested_actions && msg.suggested_actions.length > 0 && (
                   <View style={styles.actionsRow}>
                     {msg.suggested_actions.map((act, i) => (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={i}
                         style={styles.actionPill}
                         onPress={() => handleAction(act)}
@@ -207,7 +207,7 @@ export const AiAssistantScreen: React.FC = () => {
       <View style={styles.promptChipsWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.promptChipsScroll}>
           {QUICK_PROMPTS.map((p, i) => (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={i}
               style={styles.promptChip}
               onPress={() => handleSend(p)}
@@ -230,7 +230,7 @@ export const AiAssistantScreen: React.FC = () => {
           onSubmitEditing={() => handleSend()}
           returnKeyType="send"
         />
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Mesajı gönder"
           style={[styles.sendBtn, !input.trim() && { opacity: 0.5 }]}
           disabled={!input.trim() || loading}
           onPress={() => handleSend()}
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   clearBtn: {
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   bubbleUser: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     borderBottomRightRadius: 4,
   },
   bubbleAssistant: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   sourcesText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontStyle: "italic",
   },
@@ -357,14 +357,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(99, 102, 241, 0.9)",
+    backgroundColor: tint(Colors.primaryFill, 0.9),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   actionPillText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   typingIndicator: {
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },

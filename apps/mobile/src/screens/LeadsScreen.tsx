@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchLeads, generateLead, exportLeadToCrm } from "../services/api";
@@ -162,7 +162,7 @@ export const LeadsScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconRing}>
-            <Ionicons name="briefcase-outline" size={18} color="#10B981" />
+            <Ionicons name="briefcase-outline" size={18} color={Colors.success} />
           </View>
           <View>
             <Text style={styles.headerTitle}>Sistem CRM & Lead Köprüsü</Text>
@@ -170,7 +170,7 @@ export const LeadsScreen: React.FC = () => {
           </View>
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Müşteri adayı ekle"
           style={styles.addBtn}
           onPress={() => setLeadModal(true)}
           activeOpacity={0.8}
@@ -181,7 +181,7 @@ export const LeadsScreen: React.FC = () => {
 
       {/* Segment Selector */}
       <View style={styles.segmentRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "AUDIT" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("AUDIT")}
         >
@@ -190,7 +190,7 @@ export const LeadsScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "LEADS" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("LEADS")}
         >
@@ -199,7 +199,7 @@ export const LeadsScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.segmentBtn, activeSegment === "PITCH" && styles.segmentBtnActive]}
           onPress={() => setActiveSegment("PITCH")}
         >
@@ -214,7 +214,7 @@ export const LeadsScreen: React.FC = () => {
         {activeSegment === "AUDIT" && (
           <>
             {/* Big Revenue Loss Card */}
-            <LinearGradient colors={["#064E3B", "#0F172A"]} style={styles.lossCard}>
+            <LinearGradient colors={[Colors.successSurface, Colors.background]} style={styles.lossCard}>
               <View style={styles.lossTop}>
                 <View>
                   <Text style={styles.lossBadge}>10-SANİYEDE FİNANSAL KAYIP TESPİTİ</Text>
@@ -245,7 +245,7 @@ export const LeadsScreen: React.FC = () => {
                 </View>
                 <View style={styles.metricDiv} />
                 <View style={styles.metricItem}>
-                  <Text style={[styles.metricVal, { color: "#34D399" }]}>
+                  <Text style={[styles.metricVal, { color: Colors.success }]}>
                     %{(currentMetrics.conversion_rate * 100).toFixed(1)}
                   </Text>
                   <Text style={styles.metricLbl}>Dönüşüm Oranı</Text>
@@ -256,7 +256,7 @@ export const LeadsScreen: React.FC = () => {
             {/* Quick Audit Parameter Calculator */}
             <GlassCard style={styles.calcCard}>
               <View style={styles.calcHeader}>
-                <Ionicons name="calculator-outline" size={18} color="#10B981" />
+                <Ionicons name="calculator-outline" size={18} color={Colors.success} />
                 <Text style={styles.calcTitle}>Müşteri Trafik & Sepet Parametreleri</Text>
               </View>
 
@@ -311,7 +311,7 @@ export const LeadsScreen: React.FC = () => {
                 </View>
 
                 <View style={[styles.calcCol, { justifyContent: "flex-end" }]}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.recalcBtn}
                     onPress={handleRecalculate}
                     disabled={isCalculating}
@@ -346,14 +346,14 @@ export const LeadsScreen: React.FC = () => {
             {currentMetrics.top_quick_wins.map((win, idx) => (
               <GlassCard key={idx} style={styles.winCard}>
                 <View style={styles.winIconBox}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                  <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
                 </View>
                 <Text style={styles.winText}>{win}</Text>
               </GlassCard>
             ))}
 
             {/* Quick 1-Click Action */}
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.actionCrmBtn}
               onPress={() => activeLead && handleExportToCrm(activeLead)}
               disabled={isExporting || !activeLead}
@@ -364,7 +364,7 @@ export const LeadsScreen: React.FC = () => {
               ) : (
                 <>
                   <Ionicons name="cloud-upload" size={18} color="#FFFFFF" />
-                  <Text style={styles.actionCrmBtnText}>⚡ Sistem CRM'e 1-Tıkla Aktar</Text>
+                  <Text style={styles.actionCrmBtnText}>Sistem CRM'e 1-Tıkla Aktar</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -380,13 +380,13 @@ export const LeadsScreen: React.FC = () => {
 
             {exportSuccessMsg && (
               <View style={styles.successBanner}>
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
                 <Text style={styles.successBannerText}>{exportSuccessMsg}</Text>
               </View>
             )}
 
             {loading ? (
-              <ActivityIndicator size="small" color="#10B981" style={{ marginVertical: 20 }} />
+              <ActivityIndicator size="small" color={Colors.success} style={{ marginVertical: 20 }} />
             ) : leads.length === 0 ? (
               <GlassCard style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
@@ -416,18 +416,18 @@ export const LeadsScreen: React.FC = () => {
                           styles.crmBadge,
                           {
                             backgroundColor: isSynced
-                              ? "rgba(16, 185, 129, 0.15)"
-                              : "rgba(245, 158, 11, 0.15)",
+                              ? tint(Colors.success, 0.15)
+                              : tint(Colors.warning, 0.15),
                             borderColor: isSynced
-                              ? "rgba(16, 185, 129, 0.35)"
-                              : "rgba(245, 158, 11, 0.35)"
+                              ? tint(Colors.success, 0.35)
+                              : tint(Colors.warning, 0.35)
                           }
                         ]}
                       >
                         <Text
                           style={[
                             styles.crmBadgeText,
-                            { color: isSynced ? "#10B981" : "#F59E0B" }
+                            { color: isSynced ? Colors.success : Colors.warning }
                           ]}
                         >
                           {isSynced ? "SİSTEM CRM SENKRON" : "TASLAK LEAD"}
@@ -455,7 +455,7 @@ export const LeadsScreen: React.FC = () => {
                     </View>
 
                     <View style={styles.leadActionsRow}>
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         style={styles.pitchQuickBtn}
                         onPress={() => {
                           setActiveLead(lead);
@@ -467,10 +467,10 @@ export const LeadsScreen: React.FC = () => {
                         <Text style={styles.pitchQuickBtnText}>Teklifi Gör</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         style={[
                           styles.crmSyncBtn,
-                          isSynced && { backgroundColor: "rgba(16, 185, 129, 0.18)" }
+                          isSynced && { backgroundColor: tint(Colors.success, 0.18) }
                         ]}
                         onPress={() => handleExportToCrm(lead)}
                         disabled={isExporting}
@@ -479,15 +479,15 @@ export const LeadsScreen: React.FC = () => {
                         <Ionicons
                           name={isSynced ? "cloud-done" : "cloud-upload"}
                           size={14}
-                          color={isSynced ? "#10B981" : "#FFFFFF"}
+                          color={isSynced ? Colors.success : "#FFFFFF"}
                         />
                         <Text
                           style={[
                             styles.crmSyncBtnText,
-                            isSynced && { color: "#10B981" }
+                            isSynced && { color: Colors.success }
                           ]}
                         >
-                          {isSynced ? "Yeniden Senkronize Et" : "⚡ Sistem CRM'e Gönder"}
+                          {isSynced ? "Yeniden Senkronize Et" : "Sistem CRM'e Gönder"}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -503,7 +503,7 @@ export const LeadsScreen: React.FC = () => {
           <>
             <GlassCard style={styles.pitchIntroCard}>
               <View style={styles.pitchHeaderRow}>
-                <Ionicons name="newspaper-outline" size={20} color="#10B981" />
+                <Ionicons name="newspaper-outline" size={20} color={Colors.success} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.pitchTitle}>Otomatik Yönetici Teklif Metni</Text>
                   <Text style={styles.pitchSub}>
@@ -521,7 +521,7 @@ export const LeadsScreen: React.FC = () => {
             </GlassCard>
 
             <View style={styles.pitchButtonRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.copyBtn}
                 onPress={handleCopyPitch}
                 activeOpacity={0.8}
@@ -536,7 +536,7 @@ export const LeadsScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.crmBridgeBtn}
                 onPress={() => activeLead && handleExportToCrm(activeLead)}
                 disabled={isExporting || !activeLead}
@@ -599,14 +599,14 @@ export const LeadsScreen: React.FC = () => {
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.modalCancelBtn}
                 onPress={() => setLeadModal(false)}
               >
                 <Text style={styles.modalCancelText}>İptal</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[
                   styles.modalSubmitBtn,
                   !modalCompany.trim() && { opacity: 0.5 }
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -677,14 +677,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   addBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -705,8 +705,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   segmentBtnActive: {
-    borderColor: "#10B981",
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderColor: Colors.success,
+    backgroundColor: tint(Colors.success, 0.12),
   },
   segmentText: {
     fontSize: 12,
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   segmentTextActive: {
-    color: "#10B981",
+    color: Colors.success,
   },
   scroll: {
     flex: 1,
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderColor: tint(Colors.success, 0.35),
   },
   lossTop: {
     flexDirection: "row",
@@ -737,9 +737,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   lossBadge: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
-    color: "#34D399",
+    color: Colors.success,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -749,8 +749,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   lossSub: {
-    fontSize: 11,
-    color: "#A7F3D0",
+    fontSize: 12,
+    color: Colors.success,
     marginTop: 2,
   },
   healthScoreBox: {
@@ -761,15 +761,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#34D399",
+    borderColor: Colors.success,
   },
   healthScoreNum: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#34D399",
+    color: Colors.success,
   },
   healthScoreLbl: {
-    fontSize: 8,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: -2,
   },
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   metricLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   calcInputLbl: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     height: 38,
     borderRadius: 10,
   },
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: tint(Colors.danger, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -893,13 +893,13 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderLeftWidth: 3,
-    borderLeftColor: "#10B981",
+    borderLeftColor: Colors.success,
   },
   winIconBox: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 14,
     borderRadius: 14,
     marginTop: 8,
@@ -933,16 +933,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: tint(Colors.success, 0.3),
   },
   successBannerText: {
     flex: 1,
     fontSize: 12,
-    color: "#34D399",
+    color: Colors.success,
     fontWeight: "600",
   },
   emptyCard: {
@@ -966,8 +966,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   leadCardSelected: {
-    borderColor: "#10B981",
-    backgroundColor: "rgba(16, 185, 129, 0.05)",
+    borderColor: Colors.success,
+    backgroundColor: tint(Colors.success, 0.05),
   },
   leadTopRow: {
     flexDirection: "row",
@@ -981,7 +981,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   leadContact: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   crmBadge: {
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   crmBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
   },
   leadStatsRow: {
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   leadStatLbl: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   pitchQuickBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: "600",
   },
@@ -1042,12 +1042,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 8,
     borderRadius: 10,
   },
   crmSyncBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#FFFFFF",
     fontWeight: "700",
   },
@@ -1067,7 +1067,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   pitchSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
@@ -1107,7 +1107,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 12,
   },
@@ -1171,7 +1171,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalSubmitBtn: {
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,

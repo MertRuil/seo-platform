@@ -1,3 +1,6 @@
+// Yazı ve köşe ölçeği mobil uygulamayla ortak dosyadan gelir.
+const tokens = require("../../packages/design-tokens/tokens.json");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
@@ -33,25 +36,16 @@ module.exports = {
       critical: { DEFAULT: "rgb(var(--critical) / <alpha-value>)", soft: "rgb(var(--critical-soft) / <alpha-value>)" },
     },
     // Tip ölçeği: gövde 13 px, alt sınır 12 px; 11 px yalnızca mono etiketler için.
-    fontSize: {
-      "2xs": ["11px", { lineHeight: "16px" }],
-      xs: ["12px", { lineHeight: "18px" }],
-      sm: ["13px", { lineHeight: "20px" }],
-      base: ["14px", { lineHeight: "22px" }],
-      lg: ["16px", { lineHeight: "24px" }],
-      xl: ["20px", { lineHeight: "28px" }],
-      "2xl": ["24px", { lineHeight: "32px" }],
-      "3xl": ["28px", { lineHeight: "34px" }],
-      "4xl": ["34px", { lineHeight: "40px" }],
-      "5xl": ["42px", { lineHeight: "46px" }],
-    },
+    fontSize: Object.fromEntries(
+      Object.entries(tokens.fontSize).map(([name, [size, lineHeight]]) => [name, [`${size}px`, { lineHeight: `${lineHeight}px` }]])
+    ),
     // Üç yarıçap: 4 (chip, input), 8 (panel, tablo), 12 (modal)
     borderRadius: {
       none: "0",
-      sm: "4px",
-      DEFAULT: "4px",
-      md: "8px",
-      lg: "12px",
+      sm: `${tokens.radius.sm}px`,
+      DEFAULT: `${tokens.radius.sm}px`,
+      md: `${tokens.radius.md}px`,
+      lg: `${tokens.radius.lg}px`,
       full: "9999px",
     },
     // Gölge yalnızca açılır menü ve modal için

@@ -1336,7 +1336,7 @@ export async function sendAiAssistantMessage(
     return {
       id: `ai-${Date.now()}`,
       sender: "assistant",
-      text: `🇦🇪 **Orta Doğu & Körfez (MENA / GCC) Reklam ve SEO Mevzuat Kalkanı:**\n\n• **1. BAE Medya Konseyi (55/2023) & İslami Değerler:** Online kumar, spor bahisleri ve izinsiz alkol teslimatı reklamları kesinlikle yasaktır (1.000.000 AED para cezası ve TDRA site engeli).\n• **2. MOHAP & Suudi SFDA Tıbbi İddialar:** 'Diyabete kesin son', 'mucizevi zayıflama' iddiaları resmi izin numarası olmadan suçtur.\n• **3. Suudi Mawthooq (موثوق) & Gizli Reklam:** Ticari paylaşımlarda #إعلان veya #Ad zorunludur. Ruhsatsız tanıtıma 500.000 SAR ceza verilir.\n• **4. Dubai VARA Kripto Yönetmeliği:** 'Sıfır risk', 'garanti getiri' vaatleri katı şekilde yasaklanmıştır (10.000.000 AED ceza).\n• **5. Suudi Fal & Dubai RERA Emlak:** Yetki numarası olmayan emlak tanıtımları portallardan kaldırılır.`,
+      text: `**Orta Doğu & Körfez (MENA / GCC) Reklam ve SEO Mevzuat Kalkanı:**\n\n• **1. BAE Medya Konseyi (55/2023) & İslami Değerler:** Online kumar, spor bahisleri ve izinsiz alkol teslimatı reklamları kesinlikle yasaktır (1.000.000 AED para cezası ve TDRA site engeli).\n• **2. MOHAP & Suudi SFDA Tıbbi İddialar:** 'Diyabete kesin son', 'mucizevi zayıflama' iddiaları resmi izin numarası olmadan suçtur.\n• **3. Suudi Mawthooq (موثوق) & Gizli Reklam:** Ticari paylaşımlarda #إعلان veya #Ad zorunludur. Ruhsatsız tanıtıma 500.000 SAR ceza verilir.\n• **4. Dubai VARA Kripto Yönetmeliği:** 'Sıfır risk', 'garanti getiri' vaatleri katı şekilde yasaklanmıştır (10.000.000 AED ceza).\n• **5. Suudi Fal & Dubai RERA Emlak:** Yetki numarası olmayan emlak tanıtımları portallardan kaldırılır.`,
       timestamp: new Date().toISOString(),
       sources: ["UAE Media Council (55/2023)", "Saudi SFDA Advertising Guidelines", "Dubai VARA Marketing Rules", "Saudi GAMR Mawthooq License"],
       suggested_actions: [
@@ -1351,7 +1351,7 @@ export async function sendAiAssistantMessage(
     return {
       id: `ai-${Date.now()}`,
       sender: "assistant",
-      text: `🌏 **Asya & Pasifik (APAC) Reklam ve SEO Mevzuat Kalkanı Rehberi:**\n\n• **1. Japonya PMDA Yakki-ho & JCAA (Ekim 2023 Stektoma):** Kozmetiklerde 'kanser/hastalık tedavisi' veya 'kırışıklıkları tamamen yok etme' iddiaları suçtur (2 yıla kadar hapis, %4.5 ciro cezası). Gizli reklamlar (#PR olmadan) cironun %3'ü ceza alır.\n• **2. Çin SAMR (Reklam Kanunu Md. 9):** '国家级' (Devlet düzeyi), '最高级' (En üst düzey), '最佳' (En iyi), '第一' (1 numara) mutlak süperlatifleri kesinlikle yasaktır (100k - 1M RMB ceza).\n• **3. Singapur MAS & HSA:** Halka açık kripto reklamı ve risksiz getiri vaatleri kesinlikle yasaktır. Reçeteli ilaç ve elektronik sigara (vape) satışı 10.000 SGD ceza ve hapis gerektirir.\n• **4. Güney Kore KFTC (뒷광고):** İnceleme manipülasyonu ve bildirimsiz influencer sponsorluklarına 500M KRW ceza uygulanır.`,
+      text: `**Asya & Pasifik (APAC) Reklam ve SEO Mevzuat Kalkanı Rehberi:**\n\n• **1. Japonya PMDA Yakki-ho & JCAA (Ekim 2023 Stektoma):** Kozmetiklerde 'kanser/hastalık tedavisi' veya 'kırışıklıkları tamamen yok etme' iddiaları suçtur (2 yıla kadar hapis, %4.5 ciro cezası). Gizli reklamlar (#PR olmadan) cironun %3'ü ceza alır.\n• **2. Çin SAMR (Reklam Kanunu Md. 9):** '国家级' (Devlet düzeyi), '最高级' (En üst düzey), '最佳' (En iyi), '第一' (1 numara) mutlak süperlatifleri kesinlikle yasaktır (100k - 1M RMB ceza).\n• **3. Singapur MAS & HSA:** Halka açık kripto reklamı ve risksiz getiri vaatleri kesinlikle yasaktır. Reçeteli ilaç ve elektronik sigara (vape) satışı 10.000 SGD ceza ve hapis gerektirir.\n• **4. Güney Kore KFTC (뒷광고):** İnceleme manipülasyonu ve bildirimsiz influencer sponsorluklarına 500M KRW ceza uygulanır.`,
       timestamp: new Date().toISOString(),
       sources: ["Japonya Tüketici Ajansı (CAA / JCAA)", "Çin Devlet Piyasa Denetim İdaresi (SAMR)", "Singapur Para Otoritesi (MAS DPT Guidelines)"],
       suggested_actions: [
@@ -1372,7 +1372,7 @@ export async function sendAiAssistantMessage(
     return {
       id: `ai-${Date.now()}`,
       sender: "assistant",
-      text: `🇬🇧 **Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Kalkanı:**\n\n• **1. ASA CAP Code 12 (POMs & Botox Yasağı):** Reçeteli ilaçların ve Botox reklamı kesinlikle yasaktır (Human Medicines Regs 2012 Reg 284).\n• **2. CMA Green Claims & DMCC Act 2024:** Kanıtlanamayan yeşil iddialara doğrudan küresel cironun %10'una kadar para cezası kesilebilir.\n• **3. FCA PS23/6 Kripto Uyarısı:** Kripto reklamlarında 'Don't invest unless you're prepared to lose all the money...' zorunlu risk uyarısı ve 24h cayma süresi şarttır.\n• **4. Sahte Kıtlık (Dark Patterns):** Yapay sayaçlar ve gizli damla fiyatlandırma (drip pricing) yasaktır.`,
+      text: `**Birleşik Krallık (UK) Brexit Sonrası Reklam ve Mevzuat Kalkanı:**\n\n• **1. ASA CAP Code 12 (POMs & Botox Yasağı):** Reçeteli ilaçların ve Botox reklamı kesinlikle yasaktır (Human Medicines Regs 2012 Reg 284).\n• **2. CMA Green Claims & DMCC Act 2024:** Kanıtlanamayan yeşil iddialara doğrudan küresel cironun %10'una kadar para cezası kesilebilir.\n• **3. FCA PS23/6 Kripto Uyarısı:** Kripto reklamlarında 'Don't invest unless you're prepared to lose all the money...' zorunlu risk uyarısı ve 24h cayma süresi şarttır.\n• **4. Sahte Kıtlık (Dark Patterns):** Yapay sayaçlar ve gizli damla fiyatlandırma (drip pricing) yasaktır.`,
       timestamp: new Date().toISOString(),
       sources: ["UK Advertising Standards Authority (CAP Code Rule 12)", "CMA DMCC Act 2024", "Financial Conduct Authority (FCA PS23/6)"],
       suggested_actions: [
@@ -1854,7 +1854,7 @@ export async function fetchMorningBrief(siteId: string, domain?: string): Promis
 
   const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "Web Siteniz";
   return {
-    greeting: "Günaydın! ☀️",
+    greeting: "Günaydın!",
     summary_text: `Dün ${cleanDomain} üzerinde organik performans yükselişteydi.`,
     keywords_up: 8,
     keywords_down: 1,

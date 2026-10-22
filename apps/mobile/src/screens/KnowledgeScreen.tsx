@@ -82,7 +82,7 @@ export const KnowledgeScreen: React.FC = () => {
           onSubmitEditing={handleSearch}
           returnKeyType="search"
         />
-        <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
+        <TouchableOpacity accessibilityRole="button" style={styles.searchBtn} onPress={handleSearch}>
           <Text style={styles.searchBtnText}>Ara</Text>
         </TouchableOpacity>
       </View>
@@ -135,7 +135,7 @@ export const KnowledgeScreen: React.FC = () => {
             <Text style={styles.chunkContent}>{chunk.content}</Text>
 
             {chunk.canonical_url ? (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.linkRow}
                 onPress={() => {
                   if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   searchBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   guaranteeDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
@@ -257,12 +257,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   officialText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.success,
   },
   scoreText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textMuted,
   },
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headingPath: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     marginTop: 2,
     marginBottom: 8,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   linkText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.primary,
   },
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   emptyDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 16,

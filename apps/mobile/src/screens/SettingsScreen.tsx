@@ -10,7 +10,7 @@ import {
   Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
@@ -28,7 +28,7 @@ import {
 import { AppSettings, GoogleSyncTelemetry, AlertChannelConfig } from "../types";
 
 export const SettingsScreen: React.FC = () => {
-  const { setActiveTab } = useApp();
+  const { setActiveTab, goBack } = useApp();
   const { 
     user, 
     logout, 
@@ -158,7 +158,7 @@ export const SettingsScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Ayarlar & Güvenlik</Text>
@@ -204,7 +204,7 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={isBiometricEnrolled}
               onValueChange={handleToggleBiometric}
-              trackColor={{ false: Colors.surfaceElevated, true: Colors.primary }}
+              trackColor={{ false: Colors.surfaceElevated, true: Colors.primaryFill }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -224,7 +224,7 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={settings?.push_alerts ?? true}
               onValueChange={handleTogglePush}
-              trackColor={{ false: Colors.surfaceElevated, true: Colors.primary }}
+              trackColor={{ false: Colors.surfaceElevated, true: Colors.primaryFill }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -233,7 +233,7 @@ export const SettingsScreen: React.FC = () => {
 
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
-              <Ionicons name="sunny-outline" size={20} color="#FBBF24" />
+              <Ionicons name="sunny-outline" size={20} color={Colors.warning} />
               <View>
                 <Text style={styles.settingTitle}>Sabah Brifingi (Morning Brief)</Text>
                 <Text style={styles.settingSub}>Her sabah saat 09:00'da dünün SEO özetini göster</Text>
@@ -242,7 +242,7 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={settings?.morning_brief_enabled ?? true}
               onValueChange={handleToggleMorningBrief}
-              trackColor={{ false: Colors.surfaceElevated, true: Colors.primary }}
+              trackColor={{ false: Colors.surfaceElevated, true: Colors.primaryFill }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -251,7 +251,7 @@ export const SettingsScreen: React.FC = () => {
         {/* Google Sync Hub (GSC & GA4) */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Google Entegrasyon Hub'ı</Text>
-          <TouchableOpacity 
+          <TouchableOpacity accessibilityRole="button" 
             style={styles.syncNowBtn} 
             onPress={handleSyncGoogle} 
             disabled={syncingGoogle}
@@ -275,7 +275,7 @@ export const SettingsScreen: React.FC = () => {
                   <Text style={styles.integrationAlertText}>
                     {googleSync.error_message || "OAuth jetonunun süresi doldu veya erişim izni bulunmuyor. Gerçek veri çekilemiyor; sahte veriler kalkan tarafından engellendi."}
                   </Text>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.reconnectBtn}
                     onPress={() => Alert.alert("OAuth Yeniden Doğrulama", "Google OAuth yetkilendirme sayfası açılıyor...")}
                     activeOpacity={0.8}
@@ -295,8 +295,8 @@ export const SettingsScreen: React.FC = () => {
                   <Text style={styles.integrationAlertText}>
                     Google Search Console veya GA4 mülkü henüz yapılandırılmamış. Canlı arama ve dönüşüm analitiğini izlemek için bağlayın.
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.reconnectBtn, { backgroundColor: Colors.accent }]}
+                  <TouchableOpacity accessibilityRole="button"
+                    style={[styles.reconnectBtn, { backgroundColor: Colors.primaryFill }]}
                     onPress={() => Alert.alert("Google Bağlantısı", "Google hesabı bağlama sihirbazı başlatılıyor...")}
                     activeOpacity={0.8}
                   >
@@ -365,30 +365,30 @@ export const SettingsScreen: React.FC = () => {
               <View style={styles.testSwitcherBox}>
                 <Text style={styles.testSwitcherLabel}>Simülasyon / Test Durumu:</Text>
                 <View style={styles.testChipsRow}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.testChip, testState === "HEALTHY" && styles.testChipActive]}
                     onPress={() => handleSetTestState("HEALTHY")}
                   >
                     <Text style={[styles.testChipText, testState === "HEALTHY" && styles.testChipTextActive]}>
-                      ✅ Sağlıklı
+                      Sağlıklı
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.testChip, testState === "AUTH_FAILED" && styles.testChipActiveError]}
                     onPress={() => handleSetTestState("AUTH_FAILED")}
                   >
                     <Text style={[styles.testChipText, testState === "AUTH_FAILED" && styles.testChipTextActiveError]}>
-                      ❌ 401 Yetki Hatası
+                      401 Yetki Hatası
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.testChip, testState === "DISCONNECTED" && styles.testChipActiveWarn]}
                     onPress={() => handleSetTestState("DISCONNECTED")}
                   >
                     <Text style={[styles.testChipText, testState === "DISCONNECTED" && styles.testChipTextActiveWarn]}>
-                      ⚠️ Bağlantısız
+                      Bağlantısız
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -470,7 +470,7 @@ export const SettingsScreen: React.FC = () => {
                       </View>
                     </View>
 
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={[
                         styles.intBtn,
                         item.is_connected ? styles.intBtnActive : styles.intBtnInactive,
@@ -527,7 +527,7 @@ export const SettingsScreen: React.FC = () => {
                   </Text>
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.testBtn}
                   onPress={() => handleSendTestAlert(chan)}
                   disabled={testingChan === chan.id}
@@ -546,7 +546,7 @@ export const SettingsScreen: React.FC = () => {
         {/* Account Data & Logout */}
         <Text style={styles.sectionTitle}>Hesap Yönetimi</Text>
         <GlassCard style={styles.groupCard}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.actionRow}
             onPress={() => Alert.alert("Veri Dışa Aktarma", "Tüm SEO analitik verileriniz ve tarama kayıtlarınız JSON/CSV formatında e-posta adresinize gönderildi.")}
           >
@@ -556,7 +556,7 @@ export const SettingsScreen: React.FC = () => {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.actionRow} onPress={logout}>
+          <TouchableOpacity accessibilityRole="button" style={styles.actionRow} onPress={logout}>
             <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
             <Text style={[styles.actionRowText, { color: Colors.danger }]}>Oturumu Kapat</Text>
           </TouchableOpacity>
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   roleBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     color: Colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   sectionTitle: {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   settingSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     maxWidth: 240,
   },
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   },
   intBtnActive: {
     backgroundColor: Colors.successSurface,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: tint(Colors.success, 0.3),
   },
   intBtnInactive: {
     backgroundColor: Colors.surface,
@@ -705,14 +705,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   miniActiveBadge: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
   },
   miniActiveBadgeText: {
     color: Colors.success,
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
   },
   actionRow: {
@@ -740,10 +740,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   syncNowText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -772,39 +772,39 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   activeTagText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.success,
   },
   errorTag: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: tint(Colors.danger, 0.15),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: tint(Colors.danger, 0.3),
   },
   errorTagText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.error,
   },
   warnTag: {
-    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    backgroundColor: tint(Colors.warning, 0.15),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
+    borderColor: tint(Colors.warning, 0.3),
   },
   warnTagText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.accent,
   },
   integrationAlertBoxError: {
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    backgroundColor: tint(Colors.danger, 0.08),
+    borderColor: tint(Colors.danger, 0.3),
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
@@ -812,8 +812,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   integrationAlertBoxWarn: {
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
-    borderColor: "rgba(245, 158, 11, 0.3)",
+    backgroundColor: tint(Colors.warning, 0.08),
+    borderColor: tint(Colors.warning, 0.3),
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
   integrationAlertText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
@@ -845,14 +845,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.error,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
     marginTop: 4,
   },
   reconnectBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },
@@ -861,7 +861,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   testSwitcherLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textMuted,
     textTransform: "uppercase",
@@ -881,19 +881,19 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   testChipActive: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     borderColor: Colors.success,
   },
   testChipActiveError: {
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    backgroundColor: tint(Colors.danger, 0.15),
     borderColor: Colors.error,
   },
   testChipActiveWarn: {
-    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    backgroundColor: tint(Colors.warning, 0.15),
     borderColor: Colors.accent,
   },
   testChipText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textMuted,
   },
@@ -910,13 +910,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   serviceDetailText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
     paddingLeft: 26,
   },
   lastSyncMuted: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontStyle: "italic",
     marginTop: 4,
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
   },
   alertChanSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
   },
@@ -954,15 +954,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    borderColor: tint(Colors.primary, 0.25),
   },
   testBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },

@@ -10,7 +10,7 @@ import {
   Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "./GlassCard";
 import { useApp } from "../context/AppContext";
 import { MOCK_KEYWORDS, MOCK_ISSUES, MOCK_TASKS, MOCK_COMPETITORS } from "../services/api";
@@ -94,12 +94,12 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 returnKeyType="search"
               />
               {query.length > 0 && (
-                <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Aramayı temizle" onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+            <TouchableOpacity accessibilityRole="button" style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
               <Text style={styles.closeBtnText}>Kapat</Text>
             </TouchableOpacity>
           </View>
@@ -112,7 +112,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <Text style={styles.sectionTitle}>Hızlı Aramalar</Text>
                 <View style={styles.tagsRow}>
                   {quickTags.map((tag) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={tag}
                       style={styles.tagChip}
                       onPress={() => setQuery(tag)}
@@ -127,41 +127,41 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 <View style={styles.shortcutsSection}>
                   <Text style={styles.sectionTitle}>Hızlı Bölüm Kısayolları</Text>
                   <View style={styles.shortcutsGrid}>
-                    <TouchableOpacity 
+                    <TouchableOpacity accessibilityRole="button" 
                       style={styles.shortcutCard} 
                       onPress={() => handleSelectTab("keywords")}
                     >
-                      <View style={[styles.scIcon, { backgroundColor: "rgba(99, 102, 241, 0.15)" }]}>
+                      <View style={[styles.scIcon, { backgroundColor: tint(Colors.primaryFill, 0.15) }]}>
                         <Ionicons name="trending-up" size={18} color={Colors.primary} />
                       </View>
                       <Text style={styles.scTitle}>Kelimeler</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity accessibilityRole="button" 
                       style={styles.shortcutCard} 
                       onPress={() => handleSelectTab("quick_audit")}
                     >
-                      <View style={[styles.scIcon, { backgroundColor: "rgba(245, 158, 11, 0.15)" }]}>
+                      <View style={[styles.scIcon, { backgroundColor: tint(Colors.warning, 0.15) }]}>
                         <Ionicons name="flash" size={18} color={Colors.warning} />
                       </View>
                       <Text style={styles.scTitle}>Audit</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity accessibilityRole="button" 
                       style={styles.shortcutCard} 
                       onPress={() => handleSelectTab("geo")}
                     >
-                      <View style={[styles.scIcon, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+                      <View style={[styles.scIcon, { backgroundColor: tint(Colors.success, 0.15) }]}>
                         <Ionicons name="globe-outline" size={18} color={Colors.success} />
                       </View>
                       <Text style={styles.scTitle}>GEO / AI</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity accessibilityRole="button" 
                       style={styles.shortcutCard} 
                       onPress={() => handleSelectTab("tasks")}
                     >
-                      <View style={[styles.scIcon, { backgroundColor: "rgba(56, 189, 248, 0.15)" }]}>
+                      <View style={[styles.scIcon, { backgroundColor: tint(Colors.primaryFill, 0.15) }]}>
                         <Ionicons name="checkbox-outline" size={18} color={Colors.info} />
                       </View>
                       <Text style={styles.scTitle}>Görevler</Text>
@@ -476,12 +476,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   posBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.4)",
+    borderColor: tint(Colors.primary, 0.4),
   },
   posBadgeText: {
     color: Colors.primary,
@@ -494,12 +494,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   sevBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
   },
   taskStatusText: {
     color: Colors.info,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     backgroundColor: Colors.infoSurface,
     paddingHorizontal: 8,

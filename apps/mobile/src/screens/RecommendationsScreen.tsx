@@ -10,7 +10,7 @@ import {
   RefreshControl 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { fetchRecommendations, executeRecommendation } from "../services/api";
 import { RecommendationItem } from "../types";
@@ -144,7 +144,7 @@ export const RecommendationsScreen: React.FC = () => {
         {(["ALL", "TECHNICAL", "SCHEMA", "CONTENT", "INTERNAL_LINKING"] as CategoryFilter[]).map((cat) => {
           const isActive = filter === cat;
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={cat}
               style={[styles.filterChip, isActive && styles.filterChipActive]}
               onPress={() => setFilter(cat)}
@@ -229,7 +229,7 @@ export const RecommendationsScreen: React.FC = () => {
                     <Text style={styles.executedText}>Onaylandı</Text>
                   </View>
                 ) : (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.executeBtn}
                     onPress={() => handleExecute(rec)}
                     disabled={isExecuting}
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   filterChipActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     borderColor: Colors.primary,
   },
   filterText: {
@@ -315,14 +315,14 @@ const styles = StyleSheet.create({
   catBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 8,
     gap: 4,
   },
   catText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -342,18 +342,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.warningSurface,
   },
   riskText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
   impactPill: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 6,
   },
   impactText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   executeBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
@@ -413,9 +413,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: tint(Colors.success, 0.3),
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   scanningSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   emptyDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 16,

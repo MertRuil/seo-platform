@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useAuth } from "../context/AuthContext";
 import { OnboardingModal } from "./OnboardingModal";
@@ -310,7 +310,7 @@ export const LoginScreen: React.FC = () => {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
@@ -322,7 +322,7 @@ export const LoginScreen: React.FC = () => {
 
           {/* Forgot Password Link */}
           {!isRegister && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.forgotBtn}
               onPress={() => setShowForgotModal(true)}
               activeOpacity={0.7}
@@ -332,7 +332,7 @@ export const LoginScreen: React.FC = () => {
           )}
 
           {/* Submit Button */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.submitBtn}
             onPress={handleSubmit}
             disabled={loading}
@@ -349,7 +349,7 @@ export const LoginScreen: React.FC = () => {
 
           {/* Biometric Login (Face ID / Touch ID) - ONLY shown if already activated by user on this device */}
           {!isRegister && isBiometricEnrolled && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.biometricBtn}
               onPress={handleBiometricLogin}
               activeOpacity={0.7}
@@ -386,7 +386,7 @@ export const LoginScreen: React.FC = () => {
           </View>
 
           <View style={styles.socialRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.socialBtn}
               onPress={() => setShowAppleModal(true)}
               activeOpacity={0.7}
@@ -395,7 +395,7 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.socialBtnText}>Apple</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.socialBtn}
               onPress={() => setShowGoogleModal(true)}
               activeOpacity={0.7}
@@ -409,7 +409,7 @@ export const LoginScreen: React.FC = () => {
           )}
 
           {/* Switch Mode Link */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.switchModeBtn}
             onPress={() => {
               setIsRegister(!isRegister);
@@ -430,7 +430,7 @@ export const LoginScreen: React.FC = () => {
             <View style={styles.demoActionsContainer}>
               {/* Demo yönetici girişi yalnızca geliştirme derlemesinde görünür */}
               {__DEV__ && (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.demoFillBtn}
                 onPress={handleInstantDemoLogin}
                 activeOpacity={0.8}
@@ -447,21 +447,21 @@ export const LoginScreen: React.FC = () => {
               </TouchableOpacity>
               )}
 
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", columnGap: 14 }}>
                 {__DEV__ && (
                   <>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       onPress={fillDemoCredentials}
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Text style={styles.subtleLinkText}>Demo bilgilerini doldur</Text>
                     </TouchableOpacity>
-                    <Text style={{ color: Colors.border, fontSize: 11 }}>•</Text>
+                    <Text style={{ color: Colors.border, fontSize: 12 }}>•</Text>
                   </>
                 )}
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.guestBtn}
                   onPress={handleGuestLogin}
                   activeOpacity={0.7}
@@ -481,7 +481,7 @@ export const LoginScreen: React.FC = () => {
           )}
 
           {/* Onboarding Wizard Trigger */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.onboardingTriggerBtn}
             onPress={() => setShowOnboarding(true)}
             activeOpacity={0.7}
@@ -498,15 +498,15 @@ export const LoginScreen: React.FC = () => {
             <Text style={styles.trustText}>256-Bit SSL Uçtan Uca Şifreli Oturum</Text>
           </View>
           <View style={styles.legalLinksRow}>
-            <TouchableOpacity onPress={() => openLegal("KVKK")}>
+            <TouchableOpacity accessibilityRole="button" onPress={() => openLegal("KVKK")}>
               <Text style={styles.legalLink}>KVKK Onayı</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>•</Text>
-            <TouchableOpacity onPress={() => openLegal("TERMS")}>
+            <TouchableOpacity accessibilityRole="button" onPress={() => openLegal("TERMS")}>
               <Text style={styles.legalLink}>Kullanım Koşulları</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>•</Text>
-            <TouchableOpacity onPress={() => openLegal("PRIVACY")}>
+            <TouchableOpacity accessibilityRole="button" onPress={() => openLegal("PRIVACY")}>
               <Text style={styles.legalLink}>Gizlilik Politikası</Text>
             </TouchableOpacity>
           </View>
@@ -539,10 +539,10 @@ export const LoginScreen: React.FC = () => {
             ) : null}
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowForgotModal(false)}>
+              <TouchableOpacity accessibilityRole="button" style={styles.modalCancelBtn} onPress={() => setShowForgotModal(false)}>
                 <Text style={styles.modalCancelText}>Kapat</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.modalSubmitBtn}
                 onPress={() => {
                   setForgotSent(true);
@@ -575,7 +575,7 @@ export const LoginScreen: React.FC = () => {
                 {legalType === "PRIVACY" && "Gizliliğiniz bizim için esastır. E-posta, şifre ve site verileriniz Keychain / Keystore standartlarında saklanmaktadır. İstediğiniz an tüm verilerinizi dışa aktarabilir veya hesabınızı kalıcı olarak silebilirsiniz."}
               </Text>
             </ScrollView>
-            <TouchableOpacity style={styles.modalSubmitBtn} onPress={() => setShowLegalModal(false)}>
+            <TouchableOpacity accessibilityRole="button" style={styles.modalSubmitBtn} onPress={() => setShowLegalModal(false)}>
               <Text style={styles.modalSubmitText}>Anladım ve Kabul Ediyorum</Text>
             </TouchableOpacity>
           </View>
@@ -612,7 +612,7 @@ export const LoginScreen: React.FC = () => {
 
             {/* Segmented Mode Switcher (Face ID vs Touch ID) */}
             <View style={styles.bioTabContainer}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.bioTabBtn, selectedBioTab === "FACE_ID" && styles.bioTabBtnActive]}
                 onPress={() => {
                   setSelectedBioTab("FACE_ID");
@@ -632,7 +632,7 @@ export const LoginScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.bioTabBtn, selectedBioTab === "TOUCH_ID" && styles.bioTabBtnActive]}
                 onPress={() => {
                   setSelectedBioTab("TOUCH_ID");
@@ -738,7 +738,7 @@ export const LoginScreen: React.FC = () => {
             {/* Explicit Prompt Actions - Requiring User Action */}
             {bioStatus === "IDLE" && (
               selectedBioTab === "FACE_ID" ? (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.bioActionPrimaryBtn}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.8}
@@ -747,7 +747,7 @@ export const LoginScreen: React.FC = () => {
                   <Text style={styles.bioActionPrimaryText}>Yüzümü Tara ve Doğrula</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.bioTouchSensorPad}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.7}
@@ -787,7 +787,7 @@ export const LoginScreen: React.FC = () => {
                     {bioError || "Doğrulama gerçekleştirilemedi."}
                   </Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.bioRetryBtn}
                   onPress={() => startBiometricScan(false)}
                   activeOpacity={0.8}
@@ -803,7 +803,7 @@ export const LoginScreen: React.FC = () => {
             {/* Subtle Simulation & Cancel Actions */}
             {bioStatus !== "SCANNING" && bioStatus !== "SUCCESS" && (
               <>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.bioSimFailBtn}
                   onPress={() => startBiometricScan(true)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -811,7 +811,7 @@ export const LoginScreen: React.FC = () => {
                   <Text style={styles.bioSimFailText}>Başarısız Eşleşme Simülasyonu Test Et</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.bioCancelBtn}
                   onPress={() => setShowBiometricModal(false)}
                   activeOpacity={0.7}
@@ -849,7 +849,7 @@ export const LoginScreen: React.FC = () => {
               <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.appleOptionRow}
               onPress={() => setAppleHideEmail(!appleHideEmail)}
               activeOpacity={0.8}
@@ -863,7 +863,7 @@ export const LoginScreen: React.FC = () => {
             </TouchableOpacity>
 
             <View style={styles.appleActionRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.appleCancelBtn}
                 onPress={() => setShowAppleModal(false)}
                 disabled={appleLoading}
@@ -871,7 +871,7 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.appleCancelText}>Vazgeç</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.appleSubmitBtn}
                 onPress={handleConfirmAppleLogin}
                 disabled={appleLoading}
@@ -908,7 +908,7 @@ export const LoginScreen: React.FC = () => {
               </View>
             ) : (
               <View style={styles.googleAccountsList}>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.googleAccountItem}
                   onPress={() => handleConfirmGoogleLogin("ayberkcaliskan@gmail.com", "Ayberk Çalışkan (Google)")}
                   activeOpacity={0.7}
@@ -923,7 +923,7 @@ export const LoginScreen: React.FC = () => {
                   <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.googleAccountItem}
                   onPress={() => handleConfirmGoogleLogin("seo.agency@gmail.com", "SEO Ajansı (Google)")}
                   activeOpacity={0.7}
@@ -941,7 +941,7 @@ export const LoginScreen: React.FC = () => {
             )}
 
             {!googleLoading && (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.googleCancelBtn}
                 onPress={() => setShowGoogleModal(false)}
               >
@@ -976,12 +976,12 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 18,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   brandTitle: {
     fontSize: 26,
@@ -1057,7 +1057,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   submitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
@@ -1083,22 +1083,24 @@ const styles = StyleSheet.create({
   },
   featuresRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     gap: 6,
     marginTop: 12,
   },
   featurePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    borderColor: tint(Colors.primary, 0.25),
     gap: 4,
   },
   featurePillText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.primary,
   },
@@ -1114,12 +1116,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   trustText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
   termsText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     textAlign: "center",
     lineHeight: 14,
@@ -1137,12 +1139,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   demoFillText: {
     fontSize: 12,
@@ -1179,7 +1181,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
     marginTop: 10,
   },
   biometricBtnText: {
@@ -1200,7 +1202,7 @@ const styles = StyleSheet.create({
   },
   socialDividerText: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     textTransform: "uppercase",
   },
   socialRow: {
@@ -1231,10 +1233,10 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     marginTop: 10,
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
+    borderColor: tint(Colors.accent, 0.2),
   },
   onboardingTriggerText: {
     color: Colors.accent,
@@ -1249,12 +1251,12 @@ const styles = StyleSheet.create({
   },
   legalLink: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     textDecorationLine: "underline",
   },
   legalDot: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: 12,
   },
   modalBackdrop: {
     flex: 1,
@@ -1333,7 +1335,7 @@ const styles = StyleSheet.create({
     flex: 2,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
   },
   modalSubmitText: {
@@ -1347,7 +1349,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   subtleLinkText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: "600",
     textDecorationLine: "underline",
@@ -1356,7 +1358,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 8,
@@ -1366,10 +1368,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
   },
   bioHardwareBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
     letterSpacing: 0.3,
@@ -1409,7 +1411,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
   },
   bioDeviceHardwareText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
@@ -1434,7 +1436,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   bioTabBtnActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
   },
   bioTabText: {
     fontSize: 12,
@@ -1458,19 +1460,19 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 24,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.2)",
+    borderColor: tint(Colors.primary, 0.2),
     position: "relative",
   },
   bioReticleBoxSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     borderColor: Colors.success,
   },
   bioReticleBoxFailed: {
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    backgroundColor: tint(Colors.danger, 0.12),
     borderColor: Colors.danger,
   },
   bioCornerMarker: {
@@ -1513,7 +1515,7 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     height: 2,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -1525,7 +1527,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    backgroundColor: tint(Colors.primaryFill, 0.1),
     borderWidth: 2,
     borderColor: Colors.primary,
     justifyContent: "center",
@@ -1537,12 +1539,12 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
   },
   bioTouchRingSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     borderColor: Colors.success,
     shadowColor: Colors.success,
   },
   bioTouchRingFailed: {
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    backgroundColor: tint(Colors.danger, 0.12),
     borderColor: Colors.danger,
     shadowColor: Colors.danger,
   },
@@ -1568,7 +1570,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     width: "100%",
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 13,
     borderRadius: 14,
     marginBottom: 12,
@@ -1584,7 +1586,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     width: "100%",
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderWidth: 1.5,
     borderColor: Colors.primary,
     paddingVertical: 13,
@@ -1659,7 +1661,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     width: "100%",
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 14,
     marginBottom: 10,
@@ -1674,7 +1676,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   bioSimFailText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     textDecorationLine: "underline",
   },
@@ -1854,7 +1856,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   googleAccountEmail: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
   },

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "./GlassCard";
 
 interface GamificationWidgetProps {
@@ -22,12 +22,12 @@ export const GamificationWidget: React.FC<GamificationWidgetProps> = ({
       <View style={styles.row}>
         {/* Streak Item */}
         <View style={styles.item}>
-          <View style={[styles.iconBox, { backgroundColor: "rgba(245, 158, 11, 0.15)" }]}>
-            <Ionicons name="flame" size={20} color="#F59E0B" />
+          <View style={[styles.iconBox, { backgroundColor: tint(Colors.warning, 0.15) }]}>
+            <Ionicons name="flame" size={20} color={Colors.warning} />
           </View>
-          <View>
+          <View style={styles.text}>
             <Text style={styles.statValue}>{streakDays} Gün</Text>
-            <Text style={styles.statLabel}>SEO Serisi 🔥</Text>
+            <Text style={styles.statLabel}>SEO serisi</Text>
           </View>
         </View>
 
@@ -35,10 +35,10 @@ export const GamificationWidget: React.FC<GamificationWidgetProps> = ({
 
         {/* Health Improvement */}
         <View style={styles.item}>
-          <View style={[styles.iconBox, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+          <View style={[styles.iconBox, { backgroundColor: tint(Colors.success, 0.15) }]}>
             <Ionicons name="trending-up" size={20} color={Colors.success} />
           </View>
-          <View>
+          <View style={styles.text}>
             <Text style={[styles.statValue, { color: Colors.success }]}>+{scoreImprovement}</Text>
             <Text style={styles.statLabel}>Aylık Artış</Text>
           </View>
@@ -48,10 +48,10 @@ export const GamificationWidget: React.FC<GamificationWidgetProps> = ({
 
         {/* Weekly Goal */}
         <View style={styles.item}>
-          <View style={[styles.iconBox, { backgroundColor: "rgba(99, 102, 241, 0.15)" }]}>
+          <View style={[styles.iconBox, { backgroundColor: tint(Colors.primaryFill, 0.15) }]}>
             <Ionicons name="trophy" size={18} color={Colors.primary} />
           </View>
-          <View>
+          <View style={styles.text}>
             <Text style={styles.statValue}>{completedTasks}/{weeklyGoalTotal}</Text>
             <Text style={styles.statLabel}>Haftalık Hedef</Text>
           </View>
@@ -73,15 +73,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  // 12 pt etiketler üç sütunda yan yana sığmadığı için ikon üstte, metin altta.
   item: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
     flex: 1,
   },
+  text: {
+    alignItems: "center",
+  },
   iconBox: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -92,15 +95,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "500",
     marginTop: 1,
   },
   separator: {
     width: 1,
-    height: 28,
+    height: 48,
     backgroundColor: Colors.borderSubtle,
-    marginHorizontal: 8,
+    marginHorizontal: 4,
   },
 });

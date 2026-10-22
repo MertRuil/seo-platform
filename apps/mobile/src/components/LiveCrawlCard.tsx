@@ -8,7 +8,7 @@ import {
   ActivityIndicator 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "./GlassCard";
 import { useApp } from "../context/AppContext";
 
@@ -67,7 +67,7 @@ export const LiveCrawlCard: React.FC = () => {
                     : activeCrawl.homepage_only ? "Ana sayfa kontrol ediliyor…" : "Tarama sürüyor…"}
               </Text>
             </View>
-            <TouchableOpacity onPress={dismissCrawl} style={styles.closeBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Tarama kartını kapat" onPress={dismissCrawl} style={styles.closeBtn}>
               <Ionicons name="close" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -86,7 +86,7 @@ export const LiveCrawlCard: React.FC = () => {
                 styles.progressBarFill, 
                 { 
                   width: `${pct}%`,
-                  backgroundColor: isCompleted ? Colors.success : Colors.primary
+                  backgroundColor: isCompleted ? Colors.success : Colors.primaryFill
                 }
               ]} 
             />
@@ -133,7 +133,7 @@ export const LiveCrawlCard: React.FC = () => {
                 <Ionicons name="flash-outline" size={18} color={Colors.primary} />
                 <Text style={styles.modalTitle}>Yeni Tarama Başlat</Text>
               </View>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Kapat" onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={Colors.textMuted} />
               </TouchableOpacity>
             </View>
@@ -145,7 +145,7 @@ export const LiveCrawlCard: React.FC = () => {
             <Text style={styles.presetLabel}>Taranacak Sayfa Limiti:</Text>
             <View style={styles.presetsRow}>
               {dynamicPresets.map((num) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={num}
                   style={[
                     styles.presetBtn,
@@ -164,7 +164,7 @@ export const LiveCrawlCard: React.FC = () => {
               ))}
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" 
               style={styles.startBtn}
               onPress={handleStart}
               disabled={isStarting}
@@ -185,7 +185,7 @@ export const LiveCrawlCard: React.FC = () => {
 
       {/* Trigger Button to expose modal */}
       {!isRunning && (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.launchPill}
           onPress={() => setModalVisible(true)}
           activeOpacity={0.8}
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   completedSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.success,
     marginTop: 8,
     fontWeight: "500",
@@ -264,13 +264,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginTop: 8,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     paddingVertical: 5,
     paddingHorizontal: 8,
     borderRadius: 8,
   },
   currentUrlText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     flex: 1,
     fontFamily: "monospace",
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 14,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   presetBtnActive: {
-    backgroundColor: "rgba(99, 102, 241, 0.18)",
+    backgroundColor: tint(Colors.primaryFill, 0.18),
     borderColor: Colors.primary,
   },
   presetBtnText: {
@@ -365,12 +365,12 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   presetSub: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
   startBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

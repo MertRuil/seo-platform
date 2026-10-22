@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { MorningBriefData } from "../services/api";
 import { formatCompact } from "../services/format";
 
@@ -14,14 +14,14 @@ interface MorningBriefCardProps {
 export const MorningBriefCard: React.FC<MorningBriefCardProps> = ({ data, onActionPress }) => {
   return (
     <LinearGradient
-      colors={["rgba(99, 102, 241, 0.15)", "rgba(139, 92, 246, 0.06)"]}
+      colors={[tint(Colors.primary, 0.15), tint(Colors.accent, 0.06)]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <View style={styles.topRow}>
         <View style={styles.badge}>
-          <Ionicons name="sunny" size={13} color="#FBBF24" />
+          <Ionicons name="sunny" size={13} color={Colors.warning} />
           <Text style={styles.badgeText}>GÜNLÜK SABAH BRİFİNGİ</Text>
         </View>
         <Text style={styles.greeting}>{data.greeting}</Text>
@@ -56,7 +56,7 @@ export const MorningBriefCard: React.FC<MorningBriefCardProps> = ({ data, onActi
       <View style={styles.actionsSection}>
         <Text style={styles.actionsTitle}>Bugün Önerilen 3 İşlem:</Text>
         {data.daily_actions.map((act, idx) => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={idx}
             style={styles.actionRow}
             onPress={() => onActionPress && onActionPress(act)}
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.25)",
+    borderColor: tint(Colors.primary, 0.25),
     marginBottom: 16,
   },
   topRow: {
@@ -92,15 +92,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    backgroundColor: tint(Colors.warning, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
-    color: "#FBBF24",
+    color: Colors.warning,
     letterSpacing: 0.5,
   },
   greeting: {
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    backgroundColor: "rgba(18, 20, 31, 0.7)",
+    backgroundColor: tint(Colors.surface, 0.7),
     borderRadius: 14,
     paddingVertical: 10,
     borderWidth: 1,
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     color: Colors.success,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -167,12 +167,12 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 6,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
   actionNumber: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },

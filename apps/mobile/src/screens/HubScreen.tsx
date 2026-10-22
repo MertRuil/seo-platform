@@ -7,7 +7,7 @@ import {
   TouchableOpacity
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
@@ -22,8 +22,8 @@ export const HubScreen: React.FC = () => {
       title: "Sistem CRM & Lead'ler",
       desc: "10-saniyede ciro kaybı tespiti ve tek tıkla CRM senkronizasyonu",
       icon: "briefcase" as const,
-      color: "#10B981",
-      bg: "rgba(16, 185, 129, 0.12)"
+      color: Colors.success,
+      bg: tint(Colors.success, 0.12)
     },
     {
       tab: "self_healing" as const,
@@ -31,15 +31,15 @@ export const HubScreen: React.FC = () => {
       desc: "Self-healing SEO motoru, change sets ve atomik geri alma",
       icon: "shield-checkmark" as const,
       color: Colors.primary,
-      bg: "rgba(99, 102, 241, 0.12)"
+      bg: tint(Colors.primary, 0.12)
     },
     {
       tab: "compliance" as const,
       title: "Mevzuat Kalkanı (6 Bölge)",
       desc: "TR, AB, ABD, UK, Asya ve Orta Doğu reklam/ceza tarayıcısı",
       icon: "shield-half" as const,
-      color: "#F59E0B",
-      bg: "rgba(245, 158, 11, 0.12)"
+      color: Colors.warning,
+      bg: tint(Colors.warning, 0.12)
     },
     {
       tab: "keywords" as const,
@@ -47,7 +47,7 @@ export const HubScreen: React.FC = () => {
       desc: "Sıralama takibi, arama hacimleri ve kelime araştırması",
       icon: "trending-up" as const,
       color: Colors.primary,
-      bg: "rgba(99, 102, 241, 0.12)"
+      bg: tint(Colors.primary, 0.12)
     },
     {
       tab: "competitors" as const,
@@ -55,15 +55,15 @@ export const HubScreen: React.FC = () => {
       desc: "Sektör rakipleri, SEO skoru ve keyword gap karşılaştırması",
       icon: "people" as const,
       color: Colors.accent,
-      bg: "rgba(139, 92, 246, 0.12)"
+      bg: tint(Colors.accent, 0.12)
     },
     {
       tab: "backlinks" as const,
       title: "Backlink & Toksik Link",
       desc: "Bağlantı profili, DR otoritesi, spam skoru ve Google Disavow",
       icon: "link" as const,
-      color: "#EC4899",
-      bg: "rgba(236, 72, 153, 0.12)"
+      color: Colors.accent,
+      bg: tint(Colors.accent, 0.12)
     },
     {
       tab: "tasks" as const,
@@ -71,7 +71,7 @@ export const HubScreen: React.FC = () => {
       desc: "AI önceliklendirmeli yapılacaklar listesi ve iş takibi",
       icon: "checkbox" as const,
       color: Colors.info,
-      bg: "rgba(56, 189, 248, 0.12)"
+      bg: tint(Colors.primary, 0.12)
     },
     {
       tab: "content_optimizer" as const,
@@ -79,15 +79,15 @@ export const HubScreen: React.FC = () => {
       desc: "Sayfa kelime yoğunluğu, eksik entityler ve AI içerik üretici",
       icon: "document-text" as const,
       color: Colors.success,
-      bg: "rgba(16, 185, 129, 0.12)"
+      bg: tint(Colors.success, 0.12)
     },
     {
       tab: "reports" as const,
       title: "Raporlar & Paylaşım",
       desc: "Günlük, haftalık ve aylık yönetici özetleri ve PDF paylaşımı",
       icon: "bar-chart" as const,
-      color: "#F59E0B",
-      bg: "rgba(245, 158, 11, 0.12)"
+      color: Colors.warning,
+      bg: tint(Colors.warning, 0.12)
     },
     {
       tab: "knowledge" as const,
@@ -95,7 +95,7 @@ export const HubScreen: React.FC = () => {
       desc: "Google Search Central doğrulanmış dokümantasyonu",
       icon: "book" as const,
       color: Colors.primary,
-      bg: "rgba(99, 102, 241, 0.12)"
+      bg: tint(Colors.primary, 0.12)
     },
     {
       tab: "billing" as const,
@@ -103,7 +103,7 @@ export const HubScreen: React.FC = () => {
       desc: "Aktif abonelik planı, crawl kotaları ve token yönetimi",
       icon: "card" as const,
       color: Colors.info,
-      bg: "rgba(56, 189, 248, 0.12)"
+      bg: tint(Colors.primary, 0.12)
     },
     {
       tab: "settings" as const,
@@ -150,7 +150,7 @@ export const HubScreen: React.FC = () => {
         {/* Modules Grid */}
         <View style={styles.modulesGrid}>
           {HUB_MODULES.map((m) => (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={m.tab}
               style={styles.moduleCard}
               onPress={() => setActiveTab(m.tab)}
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   scroll: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -243,16 +243,16 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   planBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.4)",
+    borderColor: tint(Colors.primary, 0.4),
   },
   planBadgeText: {
     color: Colors.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
   },
   modulesGrid: {
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   moduleDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 15,
   },

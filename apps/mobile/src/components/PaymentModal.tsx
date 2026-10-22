@@ -10,7 +10,7 @@ import {
   ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "./GlassCard";
 import { BillingSummary } from "../types";
 import { processSubscriptionUpgrade } from "../services/api";
@@ -199,7 +199,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <Text style={styles.headerSub}>256-Bit Uçtan Uca SSL Güvenlik Hattı</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Kapat" onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close-circle" size={24} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -252,7 +252,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </View>
                 </GlassCard>
 
-                <TouchableOpacity style={styles.finishBtn} onPress={handleFinish}>
+                <TouchableOpacity accessibilityRole="button" style={styles.finishBtn} onPress={handleFinish}>
                   <Text style={styles.finishBtnText}>Limitlerimi Kullanmaya Başla</Text>
                   <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -261,7 +261,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <>
                 {/* Billing Interval Toggle */}
                 <View style={styles.intervalToggleContainer}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.intervalBtn, interval === "month" && styles.intervalBtnActive]}
                     onPress={() => setInterval("month")}
                   >
@@ -270,7 +270,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.intervalBtn, interval === "year" && styles.intervalBtnActive]}
                     onPress={() => setInterval("year")}
                   >
@@ -291,7 +291,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     const price = interval === "year" ? plan.yearlyMonthlyEquivalent : plan.monthlyPrice;
 
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={plan.code}
                         style={[
                           styles.planCard,
@@ -473,7 +473,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </View>
 
                 {/* Submit Button */}
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[styles.payButton, loading && styles.payButtonDisabled]}
                   onPress={handleSubmitPayment}
                   disabled={loading}
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     justifyContent: "center",
     alignItems: "center"
   },
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2
   },
@@ -591,14 +591,14 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   discountBadge: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: tint(Colors.success, 0.15),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     marginTop: 4
   },
   discountBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.success
   },
@@ -625,23 +625,23 @@ const styles = StyleSheet.create({
   },
   planCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     borderWidth: 2
   },
   planCardPopular: {
-    borderColor: "rgba(99, 102, 241, 0.4)"
+    borderColor: tint(Colors.primary, 0.4)
   },
   popularTag: {
     position: "absolute",
     top: -10,
     right: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8
   },
   popularTagText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: 0.5
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.primary
+    backgroundColor: Colors.primaryFill
   },
   planCardPrice: {
     fontSize: 20,
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted
   },
   yearlyNote: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     marginBottom: 6
   },
@@ -722,13 +722,13 @@ const styles = StyleSheet.create({
     marginBottom: 6
   },
   cardBrandBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4
   },
   cardBrandText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.primary
   },
@@ -827,12 +827,12 @@ const styles = StyleSheet.create({
     gap: 6
   },
   trustBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textSecondary
   },
   payButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF"
   },
   secureDisclaimer: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     textAlign: "center",
     marginTop: 12,
@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.success,
+    backgroundColor: Colors.primaryFill,
     width: "100%",
     paddingVertical: 14,
     borderRadius: 14,

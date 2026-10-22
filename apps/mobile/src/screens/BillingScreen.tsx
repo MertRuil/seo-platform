@@ -9,7 +9,7 @@ import {
   RefreshControl 
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { fetchBilling } from "../services/api";
 import { BillingSummary } from "../types";
@@ -56,7 +56,7 @@ export const BillingScreen: React.FC = () => {
 
   const handlePaymentSuccess = (updatedBilling: BillingSummary) => {
     setBilling(updatedBilling);
-    setToast(`🎉 Tebrikler! Aboneliğiniz ${updatedBilling.plan_name} planına başarıyla yükseltildi. Yeni kotalarınız aktif.`);
+    setToast(`Tebrikler! Aboneliğiniz ${updatedBilling.plan_name} planına başarıyla yükseltildi. Yeni kotalarınız aktif.`);
     setTimeout(() => setToast(null), 5000);
   };
 
@@ -141,7 +141,7 @@ export const BillingScreen: React.FC = () => {
           <Text style={styles.quotaVal}>{billing.ai_tokens_used.toLocaleString()} / {billing.ai_tokens_limit.toLocaleString()} (%{tokensPct})</Text>
         </View>
         <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${Math.min(100, tokensPct)}%`, backgroundColor: Colors.primary }]} />
+          <View style={[styles.progressBarFill, { width: `${Math.min(100, tokensPct)}%`, backgroundColor: Colors.primaryFill }]} />
         </View>
       </GlassCard>
 
@@ -166,8 +166,8 @@ export const BillingScreen: React.FC = () => {
         <Text style={styles.tierFeature}>• 100,000 Sayfa / 2,000,000 AI Token</Text>
         <Text style={styles.tierFeature}>• Canlı Anahtar Kelime & Sıralama Takibi</Text>
 
-        <TouchableOpacity 
-          style={[styles.upgradeBtn, { backgroundColor: Colors.surfaceElevated, borderWidth: 1, borderColor: Colors.primary }]}
+        <TouchableOpacity accessibilityRole="button" 
+          style={[styles.upgradeBtn, { backgroundColor: Colors.surfaceElevated, borderWidth: 1, borderColor: Colors.primaryFill }]}
           onPress={() => handleOpenUpgrade("GROWTH")}
         >
           <Text style={[styles.upgradeBtnText, { color: Colors.primary }]}>Growth Planını İncele & Yükselt</Text>
@@ -187,7 +187,7 @@ export const BillingScreen: React.FC = () => {
         <Text style={styles.tierFeature}>• 250,000 Sayfa / 5,000,000 AI Token</Text>
         <Text style={styles.tierFeature}>• Cloudflare & Edge Otomatik Canlı Dağıtım</Text>
 
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" 
           style={styles.upgradeBtn}
           onPress={() => handleOpenUpgrade("SCALE")}
         >
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   planBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
     letterSpacing: 0.5,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: Colors.success,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   renewsText: {
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
   },
   tierHeader: {
     flexDirection: "row",
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   popularBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.2)",
+    backgroundColor: tint(Colors.primaryFill, 0.2),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -332,13 +332,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   popularBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.primary,
     letterSpacing: 0.5,
   },
   tierSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   upgradeBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
@@ -373,9 +373,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderWidth: 1,
-    borderColor: "rgba(99, 102, 241, 0.3)",
+    borderColor: tint(Colors.primary, 0.3),
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,

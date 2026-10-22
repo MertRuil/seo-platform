@@ -13,7 +13,7 @@ import {
   Alert
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchReports } from "../services/api";
@@ -21,7 +21,7 @@ import { SeoReportSummary } from "../types";
 import { DemoNotice } from "../components/DemoNotice";
 
 export const ReportsScreen: React.FC = () => {
-  const { selectedSite, setActiveTab } = useApp();
+  const { selectedSite, setActiveTab, goBack } = useApp();
   const [reports, setReports] = useState<SeoReportSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<"GÜNLÜK" | "HAFTALIK" | "AYLIK">("HAFTALIK");
@@ -49,21 +49,21 @@ export const ReportsScreen: React.FC = () => {
     try {
       const site = clientName.trim() || selectedSite?.name || selectedSite?.domain || "Web Siteniz";
       const domain = selectedSite?.domain || "";
-      const headerTitle = isWhitelabelActive ? `${agencyName} | SEO & GEO Performans Raporu` : `📊 SEO & GEO Performans Raporu`;
+      const headerTitle = isWhitelabelActive ? `${agencyName} | SEO & GEO Performans Raporu` : `SEO & GEO Performans Raporu`;
       const footer = isWhitelabelActive 
         ? `Hazırlayan: ${agencyName} | Müşteri: ${site}\nGizli & Özel Analiz Belgesi`
         : `Otonom SEO Platformu Mobil Raporu`;
 
       const text = `${headerTitle} (${rep.period_label})
-🌐 Müşteri / Site: ${site}${domain ? ` (${domain})` : ""}
-📅 Tarih Aralığı: ${rep.date_range}
-🎯 Genel SEO Skoru: ${rep.overall_score}/100 (+${rep.score_change} puan)
-⚡ Organik Tıklama: ${rep.organic_clicks.toLocaleString()} (+%${rep.clicks_change_pct})
-📈 Kazanılan Kelimeler: +${rep.top_keywords_gained}
-🤖 GEO & AI Skoru: ${rep.geo_score}/100
-🛠️ Çözülen Problemler: ${rep.issues_resolved} adet
+Müşteri / Site: ${site}${domain ? ` (${domain})` : ""}
+Tarih Aralığı: ${rep.date_range}
+Genel SEO Skoru: ${rep.overall_score}/100 (+${rep.score_change} puan)
+Organik Tıklama: ${rep.organic_clicks.toLocaleString()} (+%${rep.clicks_change_pct})
+Kazanılan Kelimeler: +${rep.top_keywords_gained}
+GEO & AI Skoru: ${rep.geo_score}/100
+Çözülen Problemler: ${rep.issues_resolved} adet
 
-📝 Yönetici Özeti:
+Yönetici Özeti:
 "${rep.executive_summary}"
 
 ${footer}`;
@@ -81,11 +81,11 @@ ${footer}`;
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SEO & GEO Raporları</Text>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Raporu paylaş"
           style={styles.shareBtn}
           onPress={() => activeReport && handleShare(activeReport)}
           activeOpacity={0.7}
@@ -111,7 +111,7 @@ ${footer}`;
         {(["GÜNLÜK", "HAFTALIK", "AYLIK"] as const).map((p) => {
           const isActive = selectedPeriod === p;
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={p}
               style={[styles.periodBtn, isActive && styles.periodBtnActive]}
               onPress={() => setSelectedPeriod(p)}
@@ -183,7 +183,7 @@ ${footer}`;
                 <Switch
                   value={isWhitelabelActive}
                   onValueChange={setIsWhitelabelActive}
-                  trackColor={{ false: Colors.borderSubtle, true: Colors.primary }}
+                  trackColor={{ false: Colors.borderSubtle, true: Colors.primaryFill }}
                   thumbColor="#FFFFFF"
                 />
               </View>
@@ -207,7 +207,7 @@ ${footer}`;
                     <View style={styles.inputLabelRow}>
                       <Text style={styles.inputLabel}>Müşteri Firma Adı</Text>
                       {selectedSite && clientName.trim() !== (selectedSite.name || selectedSite.domain) && (
-                        <TouchableOpacity
+                        <TouchableOpacity accessibilityRole="button"
                           onPress={() => setClientName(selectedSite.name || selectedSite.domain || "Müşteri Firma")}
                           activeOpacity={0.7}
                         >
@@ -229,7 +229,7 @@ ${footer}`;
 
             {/* Share / Export Actions */}
             <View style={styles.exportRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.exportBtnPrimary}
                 onPress={() => handleShare(activeReport, false)}
                 activeOpacity={0.8}
@@ -240,7 +240,7 @@ ${footer}`;
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.exportBtnSecondary}
                 onPress={() => handleShare(activeReport, true)}
                 activeOpacity={0.8}
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "rgba(99, 102, 241, 0.08)",
+    backgroundColor: tint(Colors.primaryFill, 0.08),
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderSubtle,
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   periodBtnActive: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   periodText: {
     fontSize: 12,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   periodBadge: {
     color: Colors.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
   },
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderWidth: 2,
     borderColor: Colors.primary,
   },
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   scoreChange: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.success,
     fontWeight: "700",
   },
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   summaryCard: {
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 12,
   },
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.borderSubtle,
   },
   whitelabelDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     lineHeight: 16,
   },
@@ -498,12 +498,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   resetLabelBtn: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: "600",
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textSecondary,
   },

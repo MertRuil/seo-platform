@@ -11,14 +11,14 @@ import {
   Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchTasks, createTask, updateTaskStatus } from "../services/api";
 import { SeoTaskItem, TaskStatus, TaskPriority } from "../types";
 
 export const TasksScreen: React.FC = () => {
-  const { selectedSite, setActiveTab } = useApp();
+  const { selectedSite, setActiveTab, goBack } = useApp();
   const [tasks, setTasks] = useState<SeoTaskItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<"ALL" | TaskStatus>("ALL");
   const [loading, setLoading] = useState(false);
@@ -91,11 +91,11 @@ export const TasksScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SEO Görev Yönetimi</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Görev ekle" style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -112,13 +112,13 @@ export const TasksScreen: React.FC = () => {
       </GlassCard>
 
       {/* Status Filter Horizontal Scroll */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterScroll}>
         {(["ALL", "TODO", "IN_PROGRESS", "REVIEW", "COMPLETED"] as const).map((s) => {
           const isActive = statusFilter === s;
           const label = s === "ALL" ? "Tümü" : getStatusLabel(s);
           const count = s === "ALL" ? tasks.length : tasks.filter(t => t.status === s).length;
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={s}
               style={[styles.filterChip, isActive && styles.filterChipActive]}
               onPress={() => setStatusFilter(s)}
@@ -158,7 +158,7 @@ export const TasksScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[styles.statusBtn, isCompleted && styles.statusBtnDone]}
                     onPress={() => handleCycleStatus(task)}
                     activeOpacity={0.7}
@@ -221,10 +221,10 @@ export const TasksScreen: React.FC = () => {
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
+              <TouchableOpacity accessibilityRole="button" style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
                 <Text style={styles.modalCancelText}>İptal</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.modalSubmitBtn, !newTitle.trim() && { opacity: 0.5 }]}
                 disabled={!newTitle.trim() || isCreating}
                 onPress={handleCreate}
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -287,11 +287,16 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   prioDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 15,
   },
+  // Yatay ScrollView sütunda boş alanı doldurup çipleri uzatmasın.
+  filterBar: {
+    flexGrow: 0,
+  },
   filterScroll: {
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 8,
     gap: 8,
@@ -305,7 +310,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   filterChipActive: {
-    backgroundColor: "rgba(99, 102, 241, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     borderColor: Colors.primary,
   },
   filterChipText: {
@@ -340,11 +345,14 @@ const styles = StyleSheet.create({
   },
   taskTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: 8,
   },
   pillsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    flexShrink: 1,
     gap: 6,
   },
   priorityBadge: {
@@ -353,25 +361,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   priorityText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
   impactBadge: {
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    backgroundColor: tint(Colors.primaryFill, 0.1),
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
   },
   impactText: {
     color: Colors.primary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
   },
   statusBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -380,7 +388,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.successSurface,
   },
   statusBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
   },
@@ -410,7 +418,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   footerText: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   modalBackdrop: {
@@ -469,7 +477,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalSubmitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,

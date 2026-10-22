@@ -11,7 +11,7 @@ import {
   RefreshControl
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { runQuickAudit } from "../services/api";
 import { QuickAuditResult } from "../types";
@@ -68,14 +68,14 @@ export const QuickAuditScreen: React.FC = () => {
         .map((c) => `• ${c.title}`)
         .join("\n");
 
-      const message = `📊 Googlebot SEO Denetim Özeti
-🌐 URL: ${result.url}
-🎯 Sağlık Skoru: ${result.health_score}/100
-⚡ Yanıt Süresi: ${result.load_time_ms}ms (HTTP ${result.status_code})
-📝 Başlık: ${result.title || "Belirtilmemiş"}
+      const message = `Googlebot SEO Denetim Özeti
+URL: ${result.url}
+Sağlık Skoru: ${result.health_score}/100
+Yanıt Süresi: ${result.load_time_ms}ms (HTTP ${result.status_code})
+Başlık: ${result.title || "Belirtilmemiş"}
 
-${issueSummary ? `⚠️ Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : "✅ Tüm temel SEO kriterleri başarılı.\n"}
-🚀 SEO Platform (Otonom AI) ile analiz edilmiştir.`;
+${issueSummary ? `Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : "Tüm temel SEO kriterleri başarılı.\n"}
+SEO Platform (Otonom AI) ile analiz edilmiştir.`;
 
       await Share.share({
         title: `SEO Denetim Özeti - ${result.url}`,
@@ -117,7 +117,7 @@ ${issueSummary ? `⚠️ Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : 
           keyboardType="url"
           autoCorrect={false}
         />
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" 
           style={styles.auditBtn} 
           onPress={handleAudit}
           disabled={loading}
@@ -164,7 +164,7 @@ ${issueSummary ? `⚠️ Düzeltilmesi Gereken Kriterler:\n${issueSummary}\n` : 
             </View>
 
             {/* Share Report Button */}
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" 
               style={styles.shareReportBtn}
               onPress={handleShareReport}
               activeOpacity={0.8}
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   auditBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
@@ -277,19 +277,19 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
   scoreSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
   scoreBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: tint(Colors.success, 0.3),
   },
   scoreNum: {
     fontSize: 20,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     color: Colors.success,
   },
   scoreMax: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   metaBox: {
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   metaLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "600",
     color: Colors.textSecondary,
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   checkDetail: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
   },
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.infoSurface,
   },
   sevText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "700",
     color: Colors.textPrimary,
   },
@@ -369,9 +369,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(244, 63, 94, 0.12)",
+    backgroundColor: tint(Colors.danger, 0.12),
     borderWidth: 1,
-    borderColor: "rgba(244, 63, 94, 0.25)",
+    borderColor: tint(Colors.danger, 0.25),
     padding: 12,
     borderRadius: 12,
     marginBottom: 16,
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 14,

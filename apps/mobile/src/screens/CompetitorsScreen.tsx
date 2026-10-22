@@ -11,7 +11,7 @@ import {
   Platform
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import { fetchCompetitors, addCompetitor, fetchCompetitorGap } from "../services/api";
@@ -20,7 +20,7 @@ import { DemoNotice } from "../components/DemoNotice";
 import { formatCompact } from "../services/format";
 
 export const CompetitorsScreen: React.FC = () => {
-  const { selectedSite, setActiveTab } = useApp();
+  const { selectedSite, setActiveTab, goBack } = useApp();
   const [activeTabSub, setActiveTabSub] = useState<"LIST" | "GAP">("LIST");
 
   const [competitors, setCompetitors] = useState<CompetitorItem[]>([]);
@@ -65,18 +65,18 @@ export const CompetitorsScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab("hub")} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Geri" style={styles.backBtn} onPress={() => { if (!goBack()) setActiveTab("hub"); }} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Rakip Analizi</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Rakip ekle" style={styles.addBtn} onPress={() => setAddModal(true)} activeOpacity={0.7}>
           <Ionicons name="add" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, activeTabSub === "LIST" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("LIST")}
           activeOpacity={0.7}
@@ -87,7 +87,7 @@ export const CompetitorsScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, activeTabSub === "GAP" && styles.tabBtnActive]}
           onPress={() => setActiveTabSub("GAP")}
           activeOpacity={0.7}
@@ -206,7 +206,7 @@ export const CompetitorsScreen: React.FC = () => {
                   ))}
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.gapActionBtn}
                   onPress={() => setActiveTab("ai")}
                   activeOpacity={0.8}
@@ -239,10 +239,10 @@ export const CompetitorsScreen: React.FC = () => {
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
+              <TouchableOpacity accessibilityRole="button" style={styles.modalCancelBtn} onPress={() => setAddModal(false)}>
                 <Text style={styles.modalCancelText}>İptal</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.modalSubmitBtn, !compDomain.trim() && { opacity: 0.5 }]}
                 disabled={!compDomain.trim() || isAdding}
                 onPress={handleAdd}
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   tabBtnActive: {
     borderColor: Colors.primary,
-    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    backgroundColor: tint(Colors.primaryFill, 0.12),
   },
   tabText: {
     fontSize: 13,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    backgroundColor: tint(Colors.success, 0.12),
     borderWidth: 2,
     borderColor: Colors.success,
     alignItems: "center",
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     color: Colors.success,
   },
   scoreCircleLbl: {
-    fontSize: 8,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   statsGrid: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   statLbl: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -423,13 +423,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
+    backgroundColor: tint(Colors.primaryFill, 0.1),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
   },
   gapCard: {
@@ -449,18 +449,18 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   gapVolume: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   oppBadge: {
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: tint(Colors.primaryFill, 0.15),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   oppScore: {
     color: Colors.accent,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   gapCompRow: {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   posBoxLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     marginBottom: 2,
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     borderRadius: 10,
   },
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalSubmitBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 10,

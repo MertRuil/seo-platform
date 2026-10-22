@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors } from "../theme/colors";
+import { Colors, tint } from "../theme/colors";
 import { GlassCard } from "../components/GlassCard";
 import { useApp } from "../context/AppContext";
 import {
@@ -43,13 +43,13 @@ export const ComplianceScreen: React.FC = () => {
   const [violations, setViolations] = useState<GenericViolation[]>([]);
   const [hasScanned, setHasScanned] = useState<boolean>(false);
 
-  const REGIONS: Array<{ key: RegionKey; label: string; flag: string; badge: string }> = [
-    { key: "TR", label: "Türkiye", flag: "🇹🇷", badge: "TİTCK & TBB" },
-    { key: "EU", label: "Avrupa", flag: "🇪🇺", badge: "EmpCo & MiCA" },
-    { key: "US", label: "ABD", flag: "🇺🇸", badge: "FTC & FDA" },
-    { key: "UK", label: "İngiltere", flag: "🇬🇧", badge: "ASA & CMA" },
-    { key: "ASIA", label: "Asya", flag: "🌏", badge: "SAMR & JCAA" },
-    { key: "MENA", label: "Orta Doğu", flag: "🇦🇪", badge: "NMC & VARA" },
+  const REGIONS: Array<{ key: RegionKey; label: string; badge: string }> = [
+    { key: "TR", label: "Türkiye", badge: "TİTCK & TBB" },
+    { key: "EU", label: "Avrupa", badge: "EmpCo & MiCA" },
+    { key: "US", label: "ABD", badge: "FTC & FDA" },
+    { key: "UK", label: "İngiltere", badge: "ASA & CMA" },
+    { key: "ASIA", label: "Asya", badge: "SAMR & JCAA" },
+    { key: "MENA", label: "Orta Doğu", badge: "NMC & VARA" },
   ];
 
   const PRESETS: Record<RegionKey, string> = {
@@ -151,7 +151,7 @@ export const ComplianceScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.iconRing}>
-            <Ionicons name="shield-half" size={18} color="#F59E0B" />
+            <Ionicons name="shield-half" size={18} color={Colors.warning} />
           </View>
           <View>
             <Text style={styles.headerTitle}>6-Bölge Mevzuat & Reklam Kalkanı</Text>
@@ -164,18 +164,18 @@ export const ComplianceScreen: React.FC = () => {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.regionBar}
         contentContainerStyle={styles.regionScroll}
       >
         {REGIONS.map((r) => {
           const isActive = activeRegion === r.key;
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={r.key}
               style={[styles.regionChip, isActive && styles.regionChipActive]}
               onPress={() => handleSelectRegion(r.key)}
               activeOpacity={0.8}
             >
-              <Text style={styles.regionFlag}>{r.flag}</Text>
               <View>
                 <Text style={[styles.regionLabel, isActive && styles.regionLabelActive]}>
                   {r.label}
@@ -206,7 +206,7 @@ export const ComplianceScreen: React.FC = () => {
           />
 
           <View style={styles.inputActionRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.presetBtn}
               onPress={() => setInputText(PRESETS[activeRegion])}
               activeOpacity={0.8}
@@ -215,13 +215,13 @@ export const ComplianceScreen: React.FC = () => {
               <Text style={styles.presetBtnText}>Örnek Metin</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.scanBtn}
               onPress={handleScan}
               activeOpacity={0.8}
             >
               <Ionicons name="scan" size={15} color="#FFFFFF" />
-              <Text style={styles.scanBtnText}>⚡ Mevzuat İhlallerini Tara</Text>
+              <Text style={styles.scanBtnText}>Mevzuat İhlallerini Tara</Text>
             </TouchableOpacity>
           </View>
         </GlassCard>
@@ -239,25 +239,25 @@ export const ComplianceScreen: React.FC = () => {
                   {
                     backgroundColor:
                       violations.length === 0
-                        ? "rgba(16, 185, 129, 0.15)"
-                        : "rgba(239, 68, 68, 0.15)"
+                        ? tint(Colors.success, 0.15)
+                        : tint(Colors.danger, 0.15)
                   }
                 ]}
               >
                 <Text
                   style={[
                     styles.complianceStatusText,
-                    { color: violations.length === 0 ? "#10B981" : "#EF4444" }
+                    { color: violations.length === 0 ? Colors.success : Colors.danger }
                   ]}
                 >
-                  {violations.length === 0 ? "✓ TAM UYUMLU" : "⚠️ CEZA RİSKİ ALGILANDI"}
+                  {violations.length === 0 ? "TAM UYUMLU" : "CEZA RİSKİ ALGILANDI"}
                 </Text>
               </View>
             </View>
 
             {violations.length === 0 ? (
               <GlassCard style={styles.cleanCard}>
-                <Ionicons name="checkmark-circle" size={44} color="#10B981" />
+                <Ionicons name="checkmark-circle" size={44} color={Colors.success} />
                 <Text style={styles.cleanTitle}>Hiçbir Yasal İhlal Bulunamadı</Text>
                 <Text style={styles.cleanDesc}>
                   Girilen içerik {REGIONS.find(r => r.key === activeRegion)?.label} reklam kurulu ve sektörel mevzuat kurallarına uygundur.
@@ -271,7 +271,7 @@ export const ComplianceScreen: React.FC = () => {
                       <Ionicons
                         name="warning"
                         size={16}
-                        color={v.severity === "CRITICAL" ? Colors.danger : "#F59E0B"}
+                        color={v.severity === "CRITICAL" ? Colors.danger : Colors.warning}
                       />
                       <Text style={styles.vTitle}>{v.title}</Text>
                     </View>
@@ -281,8 +281,8 @@ export const ComplianceScreen: React.FC = () => {
                         {
                           backgroundColor:
                             v.severity === "CRITICAL"
-                              ? "rgba(239, 68, 68, 0.15)"
-                              : "rgba(245, 158, 11, 0.15)"
+                              ? tint(Colors.danger, 0.15)
+                              : tint(Colors.warning, 0.15)
                         }
                       ]}
                     >
@@ -291,7 +291,7 @@ export const ComplianceScreen: React.FC = () => {
                           styles.sevBadgeText,
                           {
                             color:
-                              v.severity === "CRITICAL" ? "#EF4444" : "#F59E0B"
+                              v.severity === "CRITICAL" ? Colors.danger : Colors.warning
                           }
                         ]}
                       >
@@ -314,20 +314,20 @@ export const ComplianceScreen: React.FC = () => {
 
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLbl}>Yaptırım & Ceza:</Text>
-                    <Text style={[styles.detailVal, { color: "#F87171" }]}>
+                    <Text style={[styles.detailVal, { color: Colors.danger }]}>
                       {v.penalty_risk}
                     </Text>
                   </View>
 
                   <View style={styles.fixBox}>
-                    <Ionicons name="bulb-outline" size={15} color="#10B981" />
+                    <Ionicons name="bulb-outline" size={15} color={Colors.success} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.fixLbl}>Önerilen Güvenli İfade:</Text>
                       <Text style={styles.fixVal}>{v.suggested_fix}</Text>
                     </View>
                   </View>
 
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={styles.askAiBtn}
                     onPress={() => setActiveTab("ai")}
                     activeOpacity={0.8}
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    backgroundColor: tint(Colors.warning, 0.15),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -378,10 +378,15 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   headerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
+  // Yatay ScrollView sütunda boş alanı doldurup çipleri uzatmasın.
+  regionBar: {
+    flexGrow: 0,
+  },
   regionScroll: {
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 8,
@@ -399,11 +404,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
   regionChipActive: {
-    borderColor: "#F59E0B",
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
-  },
-  regionFlag: {
-    fontSize: 18,
+    borderColor: Colors.warning,
+    backgroundColor: tint(Colors.warning, 0.12),
   },
   regionLabel: {
     fontSize: 12,
@@ -411,10 +413,10 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   regionLabelActive: {
-    color: "#F59E0B",
+    color: Colors.warning,
   },
   regionBadge: {
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   scroll: {
@@ -468,7 +470,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceElevated,
   },
   presetBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
@@ -476,7 +478,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#F59E0B",
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -505,7 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   complianceStatusText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
   },
   cleanCard: {
@@ -554,55 +556,55 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   sevBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
   },
   termRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    backgroundColor: tint(Colors.danger, 0.08),
     padding: 8,
     borderRadius: 8,
   },
   termLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
   },
   termVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
-    color: "#F87171",
+    color: Colors.danger,
   },
   detailRow: {
     gap: 2,
   },
   detailLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.textMuted,
     fontWeight: "600",
   },
   detailVal: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
   },
   fixBox: {
     flexDirection: "row",
     gap: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    backgroundColor: tint(Colors.success, 0.08),
     padding: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: tint(Colors.success, 0.2),
   },
   fixLbl: {
-    fontSize: 10,
-    color: "#34D399",
+    fontSize: 12,
+    color: Colors.success,
     fontWeight: "700",
   },
   fixVal: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textPrimary,
     marginTop: 2,
     lineHeight: 16,
@@ -612,13 +614,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryFill,
     paddingVertical: 8,
     borderRadius: 10,
   },
   askAiBtnText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
 });
