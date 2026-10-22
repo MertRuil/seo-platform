@@ -18,7 +18,7 @@ export function LevelSelectorModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="relative w-full max-w-2xl bg-surface border border-line rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-2xl bg-surface border border-line rounded-lg shadow-pop overflow-hidden flex flex-col max-h-[90vh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-headline"
@@ -56,7 +56,7 @@ export function LevelSelectorModal() {
               className={cn(
                 "relative flex flex-col p-5 rounded-lg border-2 cursor-pointer transition-all duration-200 text-left",
                 selected === "summary"
-                  ? "border-accent bg-accent/5 shadow-md"
+                  ? "border-accent bg-accent/5"
                   : "border-line bg-surface hover:border-line-strong hover:bg-surface-2"
               )}
             >
@@ -68,7 +68,7 @@ export function LevelSelectorModal() {
                   className={cn(
                     "w-5 h-5 rounded-full border flex items-center justify-center transition-colors",
                     selected === "summary"
-                      ? "border-accent bg-accent text-white"
+                      ? "border-accent bg-accent-fill text-white"
                       : "border-muted/40 bg-transparent"
                   )}
                 >
@@ -77,7 +77,7 @@ export function LevelSelectorModal() {
               </div>
 
               <div className="inline-block mb-1">
-                <span className="text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-evidence/15 text-evidence-ink">
+                <span className="text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-evidence/15 text-evidence">
                   Önerilen · Kolay
                 </span>
               </div>
@@ -108,7 +108,7 @@ export function LevelSelectorModal() {
               className={cn(
                 "relative flex flex-col p-5 rounded-lg border-2 cursor-pointer transition-all duration-200 text-left",
                 selected === "expert"
-                  ? "border-accent bg-accent/5 shadow-md"
+                  ? "border-accent bg-accent/5"
                   : "border-line bg-surface hover:border-line-strong hover:bg-surface-2"
               )}
             >
@@ -120,7 +120,7 @@ export function LevelSelectorModal() {
                   className={cn(
                     "w-5 h-5 rounded-full border flex items-center justify-center transition-colors",
                     selected === "expert"
-                      ? "border-accent bg-accent text-white"
+                      ? "border-accent bg-accent-fill text-white"
                       : "border-muted/40 bg-transparent"
                   )}
                 >
@@ -168,7 +168,7 @@ export function LevelSelectorModal() {
           <button
             type="button"
             onClick={handleConfirm}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-md bg-accent hover:bg-accent-strong text-accent-contrast font-semibold text-sm shadow-sm transition-colors cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-md bg-accent-fill hover:bg-accent-hover text-white font-semibold text-sm transition-colors cursor-pointer"
           >
             <span>{selected === "summary" ? "Sade Mod İle Başla" : "Uzman Modu İle Başla"}</span>
             <ArrowRight className="w-4 h-4" />

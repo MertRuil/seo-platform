@@ -5,18 +5,39 @@ export function formatNumber(n: number | null | undefined, digits = 0): string {
   return digits > 0 ? new Intl.NumberFormat("tr-TR", { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(n) : nf.format(n);
 }
 
-/** 142800 → "142,8B", 2410000 → "2,41M" */
+const compact = new Intl.NumberFormat("tr-TR", { notation: "compact", maximumFractionDigits: 1 });
+
+/** 142800 → "142,8 B", 2410000 → "2,4 Mn" (Türkçe kısaltma: B = bin, Mn = milyon) */
 export function formatCompact(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";
-  if (Math.abs(n) >= 1_000_000) return `${formatNumber(n / 1_000_000, 2)}M`;
-  if (Math.abs(n) >= 1_000) return `${formatNumber(n / 1_000, 1)}B`;
-  return formatNumber(n);
+  return compact.format(n);
 }
 
 /** 0.0595 → "%5,95" (ratio) */
 export function formatPercent(ratio: number | null | undefined, digits = 1): string {
   if (ratio === null || ratio === undefined || !Number.isFinite(ratio)) return "—";
   return `%${formatNumber(ratio * 100, digits)}`;
+}
+
+/** 98.2 → "%98,2" (değer zaten yüzde) */
+export function formatPercentValue(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  return `%${formatNumber(value, digits)}`;
+}
+
+/** Değişim yüzdesi: 8.1 → "+%8,1", -2.3 → "−%2,3" */
+export function formatDelta(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}%${formatNumber(Math.abs(value), digits)}`;
+}
+
+const tryCurrency = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** 14.5 → "₺14,50" */
+export function formatTry(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  return tryCurrency.format(n);
 }
 
 export function formatDateTime(iso: string | null | undefined): string {

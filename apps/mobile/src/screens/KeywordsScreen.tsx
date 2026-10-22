@@ -17,6 +17,7 @@ import { useApp } from "../context/AppContext";
 import { fetchKeywords, addKeyword, researchKeywords, scanTurkishCompliance, scanEuCompliance, scanUsCompliance, scanAsiaCompliance, scanUkCompliance, scanMenaCompliance } from "../services/api";
 import { KeywordItem, KeywordResearchItem } from "../types";
 import { DemoNotice } from "../components/DemoNotice";
+import { formatTry } from "../services/format";
 
 export const KeywordsScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -289,7 +290,7 @@ export const KeywordsScreen: React.FC = () => {
                           <Text style={styles.kwPillText}>Zorluk: {kw.difficulty ? `%${kw.difficulty}` : "—"}</Text>
                         </View>
                         <View style={styles.kwPill}>
-                          <Text style={styles.kwPillText}>CPC: {kw.cpc ? `$${kw.cpc}` : "—"}</Text>
+                          <Text style={styles.kwPillText}>CPC: {kw.cpc ? formatTry(kw.cpc) : "—"}</Text>
                         </View>
                       </View>
                     </View>

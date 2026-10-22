@@ -217,6 +217,7 @@ export default function AiCopilotPage() {
               className="flex items-center gap-2"
             >
               <Input
+                aria-label="AI asistana soru"
                 placeholder="SEO, indeksleme veya yapay zeka arama motorları hakkında soru sorun..."
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}

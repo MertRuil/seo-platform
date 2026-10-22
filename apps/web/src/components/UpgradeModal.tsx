@@ -80,9 +80,9 @@ export function UpgradeModal({
         </button>
 
         {/* Başlık ve Vurgulu Üst Banner */}
-        <div className="bg-accent-soft/40 border-b border-line p-6 relative overflow-hidden">
+        <div className="bg-accent-soft border-b border-line p-6 relative overflow-hidden">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-accent text-accent-ink flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-10 h-10 rounded-md bg-accent text-accent-ink flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -146,7 +146,7 @@ export function UpgradeModal({
               type="button"
               onClick={handleUpgrade}
               disabled={loading}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-accent-ink hover:bg-accent-hover font-semibold text-xs rounded-sm transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-accent-ink hover:bg-accent-hover font-semibold text-xs rounded-sm transition-colors cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>

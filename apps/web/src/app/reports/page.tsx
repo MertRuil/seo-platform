@@ -265,8 +265,8 @@ export default function ReportsPage() {
                 <Button
                   variant="secondary"
                   size="md"
-                  icon={<Users className="w-4 h-4 text-emerald-500" />}
-                  className="border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                  icon={<Users className="w-4 h-4 text-evidence" />}
+                  className="border-evidence/30 text-evidence hover:bg-evidence/10"
                 >
                   Müşteri & CRM Köprüsü
                 </Button>
@@ -323,7 +323,7 @@ export default function ReportsPage() {
                     key={p}
                     onClick={() => setReportPeriod(p)}
                     className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all border ${
-                      reportPeriod === p ? "bg-accent text-white border-accent" : "bg-surface text-muted border-line hover:text-ink"
+                      reportPeriod === p ? "bg-accent-fill text-white border-accent" : "bg-surface text-muted border-line hover:text-ink"
                     }`}
                   >
                     {p === "HAFTALIK" ? "Haftalık" : p === "AYLIK" ? "Aylık" : "Kapsamlı"}
@@ -340,31 +340,31 @@ export default function ReportsPage() {
         </Panel>
       </div>
 
-      <div className="bg-surface border border-line rounded-2xl p-8 sm:p-10 space-y-8 shadow-sm print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line print:border-gray-300">
+      <div className="bg-surface border border-line rounded-lg p-8 sm:p-10 space-y-8 print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-line print:border-line-strong">
           <div>
             {agencyLabel && <h3 className="text-lg font-bold text-ink print:text-black tracking-tight">{agencyLabel}</h3>}
-            <p className="text-xs text-muted print:text-gray-600">SEO Denetim Raporu</p>
+            <p className="text-xs text-muted print:text-muted">SEO Denetim Raporu</p>
           </div>
 
           <div className="sm:text-right">
-            <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/15 text-accent border border-accent/25 print:border-gray-400 print:bg-gray-100 print:text-black mb-1">
+            <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/15 text-accent border border-accent/25 print:border-line-strong print:bg-surface-2 print:text-black mb-1">
               {periodLabel}
             </span>
-            <p className="text-xs text-muted print:text-gray-600 font-mono">Tarih: {reportDate}</p>
+            <p className="text-xs text-muted print:text-muted font-mono">Tarih: {reportDate}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-surface-subtle border border-line print:bg-gray-50 print:border-gray-300">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-surface-subtle border border-line print:bg-surface-2 print:border-line-strong">
           <div>
-            <span className="text-[11px] font-semibold text-muted print:text-gray-500 uppercase tracking-wider block">Müşteri & Alan Adı</span>
+            <span className="text-[11px] font-semibold text-muted print:text-muted uppercase tracking-wider block">Müşteri & Alan Adı</span>
             <p className="text-sm font-bold text-ink print:text-black mt-0.5">{activeClient}</p>
-            <p className="text-xs font-mono text-muted print:text-gray-600">{activeUrl}</p>
+            <p className="text-xs font-mono text-muted print:text-muted">{activeUrl}</p>
           </div>
 
           <div>
-            <span className="text-[11px] font-semibold text-muted print:text-gray-500 uppercase tracking-wider block">Yönetici Değerlendirmesi</span>
-            <p className="text-xs text-ink print:text-gray-800 mt-0.5 leading-relaxed">"{customNote}"</p>
+            <span className="text-[11px] font-semibold text-muted print:text-muted uppercase tracking-wider block">Yönetici Değerlendirmesi</span>
+            <p className="text-xs text-ink print:text-ink mt-0.5 leading-relaxed">"{customNote}"</p>
           </div>
         </div>
 
@@ -372,10 +372,10 @@ export default function ReportsPage() {
           <h4 className="text-sm font-bold text-ink print:text-black uppercase tracking-wider mb-3">1. Temel Performans Göstergeleri</h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {kpis.map((k) => (
-              <div key={k.label} className="p-4 rounded-xl bg-surface border border-line print:border-gray-300 print:bg-white">
-                <span className="text-xs text-muted print:text-gray-600 block">{k.label}</span>
+              <div key={k.label} className="p-4 rounded-lg bg-surface border border-line print:border-line-strong print:bg-white">
+                <span className="text-xs text-muted print:text-muted block">{k.label}</span>
                 <span className="text-2xl font-extrabold text-ink print:text-black font-mono block mt-1">{k.value}</span>
-                <span className="text-[11px] text-muted print:text-gray-600">{k.sub}</span>
+                <span className="text-[11px] text-muted print:text-muted">{k.sub}</span>
               </div>
             ))}
           </div>
@@ -386,9 +386,9 @@ export default function ReportsPage() {
           {data.topQueries.length === 0 ? (
             <p className="text-xs text-muted">Search Console verisi yok. Entegrasyonlar sayfasından Google hesabını bağlayın.</p>
           ) : (
-            <div className="overflow-x-auto border border-line print:border-gray-300 rounded-xl">
+            <div className="overflow-x-auto border border-line print:border-line-strong rounded-lg">
               <table className="w-full text-left text-xs">
-                <thead className="bg-surface-subtle print:bg-gray-100 border-b border-line print:border-gray-300 text-muted print:text-gray-700 font-semibold uppercase">
+                <thead className="bg-surface-subtle print:bg-surface-2 border-b border-line print:border-line-strong text-muted print:text-ink font-semibold uppercase">
                   <tr>
                     <th className="py-2.5 px-3">Sorgu</th>
                     <th className="py-2.5 px-3 text-right">Tıklama</th>
@@ -396,7 +396,7 @@ export default function ReportsPage() {
                     <th className="py-2.5 px-3 text-right">Ort. Pozisyon</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line print:divide-gray-300">
+                <tbody className="divide-y divide-line print:divide-line">
                   {data.topQueries.map((q) => (
                     <tr key={q.query} className="print:text-black">
                       <td className="py-2.5 px-3 font-semibold text-ink print:text-black">{q.query}</td>
@@ -416,7 +416,7 @@ export default function ReportsPage() {
           {data.topIssues.length === 0 ? (
             <p className="text-xs text-muted">Tamamlanmış tarama yok ya da sorun bulunmadı.</p>
           ) : (
-            <ul className="text-xs text-muted print:text-gray-700 space-y-1.5 list-disc list-inside">
+            <ul className="text-xs text-muted print:text-ink space-y-1.5 list-disc list-inside">
               {data.topIssues.map((i) => (
                 <li key={i.title}>
                   <span className="text-ink print:text-black font-semibold">{i.title}</span> ({i.severity}, {formatNumber(i.affected)} URL)
@@ -427,14 +427,14 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl border border-line print:border-gray-300">
+          <div className="p-4 rounded-lg border border-line print:border-line-strong">
             <h5 className="text-xs font-bold text-ink print:text-black uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-evidence" /> Çözülen Öneriler ({formatNumber(data.resolvedCount)})
             </h5>
             {data.resolved.length === 0 ? (
               <p className="text-xs text-muted">Çözüldü olarak işaretlenmiş öneri yok.</p>
             ) : (
-              <ul className="text-xs text-muted print:text-gray-700 space-y-1.5 list-disc list-inside">
+              <ul className="text-xs text-muted print:text-ink space-y-1.5 list-disc list-inside">
                 {data.resolved.map((t) => (
                   <li key={t}>{t}</li>
                 ))}
@@ -442,14 +442,14 @@ export default function ReportsPage() {
             )}
           </div>
 
-          <div className="p-4 rounded-xl border border-line print:border-gray-300">
+          <div className="p-4 rounded-lg border border-line print:border-line-strong">
             <h5 className="text-xs font-bold text-ink print:text-black uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-warn" /> Sıradaki Aksiyonlar ({formatNumber(data.pendingCount)})
             </h5>
             {data.pending.length === 0 ? (
               <p className="text-xs text-muted">Bekleyen öneri yok.</p>
             ) : (
-              <ul className="text-xs text-muted print:text-gray-700 space-y-1.5 list-disc list-inside">
+              <ul className="text-xs text-muted print:text-ink space-y-1.5 list-disc list-inside">
                 {data.pending.map((t) => (
                   <li key={t}>{t}</li>
                 ))}
@@ -459,7 +459,7 @@ export default function ReportsPage() {
         </div>
 
         {agencyLabel && (
-          <div className="pt-4 border-t border-line print:border-gray-300 text-[11px] text-muted print:text-gray-500">
+          <div className="pt-4 border-t border-line print:border-line-strong text-[11px] text-muted print:text-muted">
             <p>
               © {new Date().getFullYear()} {agencyLabel}
             </p>

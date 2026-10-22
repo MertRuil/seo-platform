@@ -184,6 +184,11 @@ export const LoginScreen: React.FC = () => {
       setErrorMessage("Lütfen adınızı ve soyadınızı girin.");
       return;
     }
+    // Sunucu kayıtta en az 8 karakter ister (packages/contracts/auth.py); web ile aynı kural.
+    if (isRegister && password.length < 8) {
+      setErrorMessage("Şifre en az 8 karakter olmalı.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -299,7 +304,7 @@ export const LoginScreen: React.FC = () => {
               <Ionicons name="lock-closed-outline" size={18} color={Colors.textMuted} style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="En az 6 karakter"
+                placeholder={isRegister ? "En az 8 karakter" : "Şifreniz"}
                 placeholderTextColor={Colors.textMuted}
                 value={password}
                 onChangeText={setPassword}

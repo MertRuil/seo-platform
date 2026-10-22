@@ -110,7 +110,7 @@ export default function CompetitorsPage() {
             </thead>
             <tbody className="divide-y divide-line">
               {/* Our Site */}
-              <tr className="bg-accent-soft/30 font-semibold border-b-2 border-accent">
+              <tr className="bg-accent-soft font-semibold border-b-2 border-accent">
                 <td className="py-4 px-4">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-accent" />
@@ -234,11 +234,11 @@ export default function CompetitorsPage() {
 
                   <td className="py-3.5 px-3 text-center">
                     {gap.my_position ? (
-                      <span className="font-mono font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-sm text-xs">
+                      <span className="font-mono font-semibold text-warn bg-warn-soft px-2 py-0.5 rounded-sm text-xs">
                         Sıra {gap.my_position}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 font-mono font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-sm text-xs">
+                      <span className="inline-flex items-center gap-1 font-mono font-bold text-critical bg-critical-soft px-2 py-0.5 rounded-sm text-xs">
                         <AlertCircle className="w-3 h-3" /> Sıralama Yok
                       </span>
                     )}

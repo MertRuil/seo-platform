@@ -192,7 +192,7 @@ export default function BillingPage() {
 
       {/* Bildirimler */}
       {actionSuccess && (
-        <div className="p-4 bg-accent-soft/50 border border-accent/40 rounded-sm text-xs text-accent-ink flex items-center justify-between">
+        <div className="p-4 bg-accent-soft border border-accent/40 rounded-sm text-xs text-accent-ink flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Check className="w-4 h-4 text-accent shrink-0" />
             <span>{actionSuccess}</span>
@@ -216,9 +216,10 @@ export default function BillingPage() {
           <button
             type="button"
             onClick={() => setError(null)}
+            aria-label="Hata mesajını kapat"
             className="text-muted hover:text-critical cursor-pointer"
           >
-            <CloseIcon className="w-4 h-4" />
+            <CloseIcon className="w-4 h-4" aria-hidden />
           </button>
         </div>
       )}
@@ -272,7 +273,7 @@ export default function BillingPage() {
                 <button
                   type="button"
                   onClick={() => setUpgradeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-accent-ink hover:bg-accent-hover text-xs font-semibold rounded-sm transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Pro'ya Yükselt</span>
@@ -402,7 +403,7 @@ export default function BillingPage() {
                 className={cn(
                   "bg-surface border rounded-md p-5 flex flex-col justify-between transition-all relative",
                   isPro
-                    ? "border-accent shadow-[0_0_20px_-8px_var(--accent)] ring-1 ring-accent"
+                    ? "border-accent shadow-[0_0_20px_-8px_rgb(var(--accent))] ring-1 ring-accent"
                     : "border-line",
                   isCurrent && "bg-surface-2/40"
                 )}
@@ -747,7 +748,7 @@ function UsageMetricCard({
               Kilitli
             </span>
           ) : (
-            <span className="text-2xs font-mono text-muted">{percentage}%</span>
+            <span className="text-2xs font-mono text-muted">%{percentage}</span>
           )}
         </div>
 

@@ -428,13 +428,13 @@ export default function ContentOptimizerPage() {
         actions={
           <div className="flex items-center gap-2">
             {criticalViolations.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold animate-pulse">
-                <ShieldAlert className="w-4 h-4 text-rose-600" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-critical-soft text-critical border border-critical/30 text-xs font-bold animate-pulse">
+                <ShieldAlert className="w-4 h-4 text-critical" />
                 {criticalViolations.length} Kritik Mevzuat İhlali!
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-sm bg-evidence-soft text-evidence border border-evidence/30 text-xs font-bold">
+                <ShieldCheck className="w-4 h-4 text-evidence" />
                 Türkiye Reklam Mevzuatına Uyumlu
               </span>
             )}
@@ -548,7 +548,7 @@ export default function ContentOptimizerPage() {
           <Scale className="w-4 h-4 text-accent" />
           🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : complianceRegion === "US" ? "🇺🇸 US" : complianceRegion === "UK" ? "🇬🇧 UK" : complianceRegion === "ASIA" ? "🌏 ASIA" : "🇦🇪 MENA"})
           {complianceViolations.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-mono text-2xs">
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-critical-soft text-critical font-mono text-2xs">
               {complianceViolations.length}
             </span>
           )}
@@ -763,9 +763,9 @@ export default function ContentOptimizerPage() {
 
           {/* Compliance Status Alert */}
           {complianceViolations.length > 0 ? (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-sm space-y-2">
-              <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
-                <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+            <div className="p-4 bg-critical-soft border border-critical/30 rounded-sm space-y-2">
+              <div className="flex items-center gap-2 text-critical font-bold text-sm">
+                <ShieldAlert className="w-5 h-5 text-critical shrink-0" />
                 <span>
                   {complianceRegion === "TR"
                     ? `Yasal İkaz: İçerikte Türkiye Reklam Mevzuatına Aykırı ${complianceViolations.length} İfade Tespit Edildi!`
@@ -780,7 +780,7 @@ export default function ContentOptimizerPage() {
                     : `Orta Doğu & Körfez (MENA) İkazı: ${complianceViolations.length} İfade BAE / Suudi Arabistan Reklam Kanunlarına Aykırı!`}
                 </span>
               </div>
-              <p className="text-xs text-rose-600 leading-relaxed">
+              <p className="text-xs text-critical leading-relaxed">
                 {complianceRegion === "TR" ? (
                   <>
                     Türk Ticaret Kanunu, TİTCK Sağlık Hizmetleri Tanıtım Yönetmeliği veya TBB Avukatlık Reklam Yasağı uyarınca aşağıdaki ifadeler sitenize{" "}
@@ -816,10 +816,10 @@ export default function ContentOptimizerPage() {
               </p>
             </div>
           ) : (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+            <div className="p-4 bg-evidence-soft border border-evidence/30 rounded-sm flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-evidence shrink-0" />
               <div>
-                <h4 className="text-sm font-bold text-emerald-800">
+                <h4 className="text-sm font-bold text-evidence">
                   {complianceRegion === "TR"
                     ? "Mevzuata Tam Uyumlu"
                     : complianceRegion === "EU"
@@ -832,7 +832,7 @@ export default function ContentOptimizerPage() {
                     ? "Fully Compliant with Asia & Pacific (APAC) Regulations"
                     : "Orta Doğu & Körfez (MENA) Mevzuatına Tam Uyumlu"}
                 </h4>
-                <p className="text-xs text-emerald-700">
+                <p className="text-xs text-evidence">
                   {complianceRegion === "TR"
                     ? "İçerikte TİTCK sağlık beyanı yasağı, TBB avukatlık üstünlük iddiası, SPK kesin kazanç vaadi veya kanıtlanamayan süperlatif kalıplar bulunmamaktadır."
                     : complianceRegion === "EU"
@@ -990,7 +990,7 @@ export default function ContentOptimizerPage() {
                       <tr key={i} className="hover:bg-surface-2 transition-colors">
                         <td className="py-3.5 px-4">
                           <div className="flex flex-col gap-1">
-                            <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm font-mono text-xs w-fit">
+                            <span className="font-bold text-critical bg-critical-soft px-2 py-0.5 rounded-sm font-mono text-xs w-fit">
                               "{v.matchedPattern}"
                             </span>
                             <span className="text-2xs text-muted font-mono">{v.title}</span>
@@ -1018,11 +1018,11 @@ export default function ContentOptimizerPage() {
                           {v.legalBasis}
                         </td>
 
-                        <td className="py-3.5 px-3 text-xs text-rose-600 font-medium max-w-[180px]">
+                        <td className="py-3.5 px-3 text-xs text-critical font-medium max-w-[180px]">
                           {v.penaltyRisk}
                         </td>
 
-                        <td className="py-3.5 px-4 text-xs font-medium text-emerald-700 bg-emerald-50/40 rounded-sm">
+                        <td className="py-3.5 px-4 text-xs font-medium text-evidence bg-evidence-soft rounded-sm">
                           {v.suggestedFix}
                         </td>
 
@@ -1138,11 +1138,12 @@ export default function ContentOptimizerPage() {
                   onChange={(e) => setContentDraft(e.target.value)}
                   className="w-full bg-surface border border-line-strong rounded-sm p-3 text-xs text-ink font-sans focus:outline-none focus:border-accent leading-relaxed"
                   placeholder="İçeriğinizi buraya yazın..."
+                  aria-label="Denetlenecek içerik metni"
                 />
                 <div className="flex items-center justify-between text-2xs text-muted font-mono">
                   <span>Kelime: {contentDraft.split(/\s+/).filter(Boolean).length}</span>
                   {complianceViolations.length > 0 && (
-                    <span className="text-rose-600 font-bold">
+                    <span className="text-critical font-bold">
                       ⚠️ {complianceViolations.length} Türkiye mevzuat uyarısı
                     </span>
                   )}

@@ -6,56 +6,57 @@
   CALPEO tasarım belirteçleri.
   Her renk yalnızca burada tanımlanır; bileşenler Tailwind'deki semantik adları kullanır
   (bg-surface, text-muted, border-line, bg-accent-fill ...). Ham hex sınıfı yazılmaz.
+  Değerler "r g b" kanalıdır ki bg-accent/10 gibi saydamlık ekleri çalışsın; CSS içinde rgb(var(--x)) ile kullanılır.
   Tüm metin/zemin çiftleri WCAG AA (4.5:1) sınırının üzerindedir.
 */
 :root {
-  --bg: #f5f6f9;
-  --surface: #ffffff;
-  --surface-2: #eef0f5;
-  --ink: #14171c;
-  --muted: #5b6270;
-  --faint: #7c8494; /* yalnızca placeholder ve dekoratif ikon; gövde metni için değil */
-  --line: #dde1e8;
-  --line-strong: #c3c9d4;
+  --bg: 245 246 249;
+  --surface: 255 255 255;
+  --surface-2: 238 240 245;
+  --ink: 20 23 28;
+  --muted: 91 98 112;
+  --faint: 124 132 148; /* yalnızca placeholder ve dekoratif ikon; gövde metni için değil */
+  --line: 221 225 232;
+  --line-strong: 195 201 212;
 
-  --accent: #3157e5;        /* metin, ikon, odak halkası */
-  --accent-fill: #3157e5;   /* birincil buton zemini (beyaz metinle 5.8:1) */
-  --accent-hover: #2546c7;
-  --accent-ink: #2442ad;
-  --accent-soft: #e8edff;
+  --accent: 49 87 229;        /* metin, ikon, odak halkası */
+  --accent-fill: 49 87 229;   /* birincil buton zemini (beyaz metinle 5.8:1) */
+  --accent-hover: 37 70 199;
+  --accent-ink: 36 66 173;
+  --accent-soft: 232 237 255;
 
-  --evidence: #0e7c6b;      /* doğrulanmış olumlu sinyal */
-  --evidence-soft: #dff4ef;
-  --warn: #9a5b00;
-  --warn-soft: #fdf1d8;
-  --critical: #b42318;
-  --critical-soft: #fde8e6;
+  --evidence: 12 118 102;      /* doğrulanmış olumlu sinyal (evidence-soft üstünde 4.8:1) */
+  --evidence-soft: 223 244 239;
+  --warn: 154 91 0;
+  --warn-soft: 253 241 216;
+  --critical: 180 35 24;
+  --critical-soft: 253 232 230;
 
   --shadow-pop: 0 1px 3px rgba(20, 23, 28, 0.08), 0 12px 32px -12px rgba(20, 23, 28, 0.28);
 }
 
 .dark {
-  --bg: #111317;
-  --surface: #191c21;
-  --surface-2: #20242b;
-  --ink: #e9ecf1;
-  --muted: #9aa2ae;
-  --faint: #6b7380;
-  --line: #2a2f37;
-  --line-strong: #3b414c;
+  --bg: 17 19 23;
+  --surface: 25 28 33;
+  --surface-2: 32 36 43;
+  --ink: 233 236 241;
+  --muted: 154 162 174;
+  --faint: 107 115 128;
+  --line: 42 47 55;
+  --line-strong: 59 65 76;
 
-  --accent: #7b96ff;
-  --accent-fill: #3157e5;
-  --accent-hover: #4468f0;
-  --accent-ink: #a9bbff;
-  --accent-soft: #1d2440;
+  --accent: 123 150 255;
+  --accent-fill: 49 87 229;
+  --accent-hover: 68 104 240;
+  --accent-ink: 169 187 255;
+  --accent-soft: 29 36 64;
 
-  --evidence: #2fd0bb;
-  --evidence-soft: #133430;
-  --warn: #e6b04a;
-  --warn-soft: #34290f;
-  --critical: #f47f79;
-  --critical-soft: #3d1b19;
+  --evidence: 47 208 187;
+  --evidence-soft: 19 52 48;
+  --warn: 230 176 74;
+  --warn-soft: 52 41 15;
+  --critical: 244 127 121;
+  --critical-soft: 61 27 25;
 
   --shadow-pop: 0 1px 3px rgba(0, 0, 0, 0.5), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
 }
@@ -68,8 +69,8 @@ html.dark {
 }
 
 body {
-  color: var(--ink);
-  background: var(--bg);
+  color: rgb(var(--ink));
+  background: rgb(var(--bg));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
@@ -78,21 +79,21 @@ body {
 
 /* Klavye odağı her yerde görünür */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 ::placeholder {
-  color: var(--faint);
+  color: rgb(var(--faint));
 }
 
 /* CALPEO Signal Loop işareti */
 .calpeo-mark {
   width: 22px;
   height: 14px;
-  border: 2.5px solid var(--accent);
-  border-right-color: var(--evidence);
+  border: 2.5px solid rgb(var(--accent));
+  border-right-color: rgb(var(--evidence));
   border-radius: 50%;
   transform: rotate(-12deg);
   display: inline-block;
@@ -108,7 +109,7 @@ body {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
+  background: rgb(var(--line-strong));
   border-radius: 4px;
 }
 

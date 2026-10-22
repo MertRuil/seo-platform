@@ -249,6 +249,9 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen w-full bg-bg text-ink">
+      <a href="#icerik" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:px-3 focus:py-2 focus:rounded-sm focus:bg-accent-fill focus:text-white focus:text-sm focus:font-semibold">
+        İçeriğe atla
+      </a>
       {/* Masaüstü rail */}
       <aside className={cn("hidden lg:block fixed inset-y-0 left-0 z-40 border-r border-line transition-[width] duration-150", railWidth)}>
         <Navigation currentPath={pathname} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
@@ -306,7 +309,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
                   density === "summary"
-                    ? "bg-surface text-ink shadow-sm border border-line/60"
+                    ? "bg-surface text-ink border border-line/60"
                     : "text-muted hover:text-ink"
                 )}
                 title="Yeni Başlayanlar ve İşletmeler için Sade Görünüm"
@@ -320,7 +323,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
                   density === "expert"
-                    ? "bg-surface text-ink shadow-sm border border-line/60"
+                    ? "bg-surface text-ink border border-line/60"
                     : "text-muted hover:text-ink"
                 )}
                 title="SEO Uzmanları ve Ajanslar için Detaylı Telemetri Görünümü"

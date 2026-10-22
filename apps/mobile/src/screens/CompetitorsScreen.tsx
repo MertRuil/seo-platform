@@ -17,6 +17,7 @@ import { useApp } from "../context/AppContext";
 import { fetchCompetitors, addCompetitor, fetchCompetitorGap } from "../services/api";
 import { CompetitorItem, CompetitorGapItem } from "../types";
 import { DemoNotice } from "../components/DemoNotice";
+import { formatCompact } from "../services/format";
 
 export const CompetitorsScreen: React.FC = () => {
   const { selectedSite, setActiveTab } = useApp();
@@ -135,15 +136,15 @@ export const CompetitorsScreen: React.FC = () => {
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{comp.organic_traffic ? `${(comp.organic_traffic / 1000).toFixed(0)}K` : "—"}</Text>
+                    <Text style={styles.statVal}>{comp.organic_traffic ? formatCompact(comp.organic_traffic) : "—"}</Text>
                     <Text style={styles.statLbl}>Aylık Trafik</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{comp.ranked_keywords ? `${(comp.ranked_keywords / 1000).toFixed(1)}K` : "—"}</Text>
+                    <Text style={styles.statVal}>{comp.ranked_keywords ? formatCompact(comp.ranked_keywords) : "—"}</Text>
                     <Text style={styles.statLbl}>Kelimeler</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statVal}>{comp.backlinks ? `${(comp.backlinks / 1000).toFixed(0)}K` : "—"}</Text>
+                    <Text style={styles.statVal}>{comp.backlinks ? formatCompact(comp.backlinks) : "—"}</Text>
                     <Text style={styles.statLbl}>Backlink</Text>
                   </View>
                   <View style={styles.statBox}>

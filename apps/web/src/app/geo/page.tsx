@@ -319,7 +319,7 @@ export default function GeoPage() {
             value: `%${mcSummary?.avg_stability_score ?? 91}`,
             tone: "default",
             hint: mcSummary?.confidence_interval_95
-              ? `%95 GA: [${Math.round((mcSummary.confidence_interval_95[0] || 0) * 100)}% - ${Math.round((mcSummary.confidence_interval_95[1] || 0) * 100)}%]`
+              ? `%95 GA: [%${Math.round((mcSummary.confidence_interval_95[0] || 0) * 100)} – %${Math.round((mcSummary.confidence_interval_95[1] || 0) * 100)}]`
               : `${sampleRuns} turlu sıcaklık testi`,
           },
           {
@@ -344,7 +344,7 @@ export default function GeoPage() {
       )}
 
       {/* Live AI Query + Monte Carlo Simulation Bar */}
-      <Panel className="border-accent/40 bg-accent-soft/20">
+      <Panel className="border-accent/40 bg-accent-soft">
         <form onSubmit={handleSimulate} className="space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
             <div>
@@ -376,7 +376,7 @@ export default function GeoPage() {
                 onClick={() => setEnableWebGrounding((v) => !v)}
                 className={`text-2xs font-mono px-2.5 py-1 rounded-xs border transition-colors flex items-center gap-1 ${
                   enableWebGrounding
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                    ? "bg-evidence-soft text-evidence border-evidence/30"
                     : "bg-surface text-muted border-line"
                 }`}
               >
@@ -391,6 +391,7 @@ export default function GeoPage() {
               <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                aria-label="Yapay zeka motorlarında denenecek soru"
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 placeholder="Örn: 2026'da Türkiye'nin en iyi e-ticaret lojistik ve otonom SEO entegrasyonu hangisi?"
@@ -425,7 +426,7 @@ export default function GeoPage() {
                   <Bot className="w-4 h-4 text-accent" />
                   <span>{p.platform}</span>
                 </div>
-                <span className="text-2xs font-mono font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-xs">
+                <span className="text-2xs font-mono font-semibold text-evidence bg-evidence-soft px-1.5 py-0.5 rounded-xs">
                   {p.trend}
                 </span>
               </div>
@@ -507,8 +508,8 @@ export default function GeoPage() {
                       key={botName}
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-2xs font-mono border ${
                         st === "ALLOWED"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border-rose-200"
+                          ? "bg-evidence-soft text-evidence border-evidence/30"
+                          : "bg-critical-soft text-critical border-critical/30"
                       }`}
                     >
                       <CheckCircle2 className="w-3 h-3" />
@@ -527,9 +528,9 @@ export default function GeoPage() {
                   className="p-3 bg-surface-2 rounded-xs border border-line flex items-start gap-2.5"
                 >
                   {chk.passed ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-evidence shrink-0 mt-0.5" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-warn shrink-0 mt-0.5" />
                   )}
                   <div className="space-y-0.5">
                     <div className="text-xs font-bold text-ink">{chk.title}</div>
@@ -549,7 +550,7 @@ export default function GeoPage() {
                   onClick={() => setActiveLlmsTab("llms")}
                   className={`px-3 py-1 rounded-xs text-xs font-mono font-semibold transition-colors ${
                     activeLlmsTab === "llms"
-                      ? "bg-accent text-white"
+                      ? "bg-accent-fill text-white"
                       : "bg-surface text-muted hover:text-ink border border-line"
                   }`}
                 >
@@ -560,7 +561,7 @@ export default function GeoPage() {
                   onClick={() => setActiveLlmsTab("llms_full")}
                   className={`px-3 py-1 rounded-xs text-xs font-mono font-semibold transition-colors ${
                     activeLlmsTab === "llms_full"
-                      ? "bg-accent text-white"
+                      ? "bg-accent-fill text-white"
                       : "bg-surface text-muted hover:text-ink border border-line"
                   }`}
                 >
@@ -573,12 +574,13 @@ export default function GeoPage() {
                 onClick={handleCopyLlms}
                 className="inline-flex items-center gap-1 text-2xs font-mono text-ink bg-surface px-2.5 py-1 rounded-xs border border-line hover:border-accent"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-evidence" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Kopyalandı" : "Markdown Kopyala"}
               </button>
             </div>
 
             <textarea
+              aria-label={activeLlmsTab === "llms" ? "/llms.txt içeriği" : "/llms-full.txt içeriği"}
               value={activeLlmsTab === "llms" ? editableLlmsTxt : editableLlmsFullTxt}
               onChange={(e) =>
                 activeLlmsTab === "llms"
@@ -744,7 +746,7 @@ export default function GeoPage() {
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-xs text-ink">{engine}</span>
                         {res.mentioned ? (
-                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600">
+                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-evidence">
                             <CheckCircle2 className="w-3 h-3" /> Alıntı Yapıldı
                             {typeof res.mention_probability === "number" && (
                               <span className="font-mono text-[10px]">
@@ -753,7 +755,7 @@ export default function GeoPage() {
                             )}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-rose-500">
+                          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-critical">
                             <AlertCircle className="w-3 h-3" /> Bahsedilmedi
                           </span>
                         )}
@@ -819,7 +821,7 @@ export default function GeoPage() {
                     <span className="text-2xs font-mono font-bold text-accent-ink uppercase">
                       {act.category}
                     </span>
-                    <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-xs">
+                    <span className="text-xs font-mono font-bold text-evidence bg-evidence-soft px-1.5 py-0.5 rounded-xs">
                       {act.impact}
                     </span>
                   </div>

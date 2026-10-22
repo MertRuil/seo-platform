@@ -246,7 +246,7 @@ export default function BacklinksPage() {
 
       {/* Toxic Alert or Clean Profile Banner */}
       {toxicCount > 0 ? (
-        <div className="p-4 rounded-xl border border-warn/30 bg-warn/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 rounded-lg border border-warn/30 bg-warn/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <ShieldAlert className="w-5 h-5 text-warn shrink-0 mt-0.5" />
             <div>
@@ -269,7 +269,7 @@ export default function BacklinksPage() {
           </Button>
         </div>
       ) : (
-        <div className="p-4 rounded-xl border border-evidence/30 bg-evidence/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 rounded-lg border border-evidence/30 bg-evidence/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
             <div>
@@ -289,7 +289,7 @@ export default function BacklinksPage() {
 
       {/* Filters & Search Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="flex flex-wrap items-center gap-1.5 bg-surface-subtle p-1 rounded-xl border border-line">
+        <div className="flex flex-wrap items-center gap-1.5 bg-surface-subtle p-1 rounded-lg border border-line">
           {[
             { id: "ALL", label: `Tümü (${backlinks.length})` },
             { id: "TOXIC", label: `🚨 Toksik / Zararlı (${toxicCount})` },
@@ -302,7 +302,7 @@ export default function BacklinksPage() {
               onClick={() => setFilter(f.id as any)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 filter === f.id
-                  ? "bg-accent text-white shadow-sm"
+                  ? "bg-accent-fill text-white"
                   : "text-muted hover:text-ink hover:bg-surface"
               }`}
             >
@@ -313,6 +313,7 @@ export default function BacklinksPage() {
 
         <div className="relative min-w-[240px]">
           <Input
+            aria-label="Domain veya anchor text ara"
             placeholder="Domain veya anchor text ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -358,8 +359,9 @@ export default function BacklinksPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-muted hover:text-accent"
+                          aria-label={`${item.source_domain} sayfasını yeni sekmede aç`}
                         >
-                          <ExternalLink className="w-3 h-3" />
+                          <ExternalLink className="w-3 h-3" aria-hidden />
                         </a>
                       </div>
                       <div className="text-muted font-mono text-[11px] truncate" title={item.source_url}>
@@ -397,7 +399,7 @@ export default function BacklinksPage() {
                           item.spam_score > 60
                             ? "bg-warn/20 text-warn"
                             : item.spam_score > 25
-                            ? "bg-yellow-500/20 text-yellow-400"
+                            ? "bg-warn/20 text-warn"
                             : "bg-evidence/20 text-evidence"
                         }`}
                       >
@@ -492,13 +494,13 @@ export default function BacklinksPage() {
         title="Disavow Dosyası Gerekli Değil"
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 bg-evidence/10 border border-evidence/30 rounded-xl">
+          <div className="flex items-start gap-3 p-3 bg-evidence/10 border border-evidence/30 rounded-lg">
             <CheckCircle2 className="w-5 h-5 text-evidence shrink-0 mt-0.5" />
             <p className="text-xs text-ink leading-relaxed">
               {cleanDisavowNotice}
             </p>
           </div>
-          <div className="p-3 bg-surface-subtle border border-line rounded-xl text-[11px] text-muted space-y-1">
+          <div className="p-3 bg-surface-subtle border border-line rounded-lg text-[11px] text-muted space-y-1">
             <div className="font-semibold text-ink">Google Arama Merkezi (Search Central) Uyarısı:</div>
             <p>
               "Disavow aracı yalnızca sitenize yönelik yapay, yanıltıcı veya manipülatif bağlantılar için kullanılmalıdır. Sitenize link vermemiş alan adlarını disavow etmek faydasız olduğu gibi, geçerli yönlendirmeleri yanlışlıkla engelleme riski taşır."

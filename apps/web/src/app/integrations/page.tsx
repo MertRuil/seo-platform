@@ -598,7 +598,7 @@ export default function BaglayicilarPage() {
         >
           <Globe className="w-4 h-4" />
           Google Hub (GSC + GA4)
-          <span className="ml-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="ml-1 w-2 h-2 rounded-full bg-evidence animate-pulse" />
         </button>
         <button
           onClick={() => setActiveTab("connectors")}
@@ -630,23 +630,23 @@ export default function BaglayicilarPage() {
         <div className="space-y-6">
           {/* Prominent Warning Banners for Broken / Disconnected Integration */}
           {googleIntegrationStatus === "AUTH_FAILED" && (
-            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="p-4 rounded-lg bg-critical-soft border border-critical/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-900/50 border border-red-700/50 flex items-center justify-center shrink-0 text-red-400">
+                <div className="w-10 h-10 rounded-lg bg-critical-soft border border-critical/50 flex items-center justify-center shrink-0 text-critical">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-red-200">Google Entegrasyonu Bozuk — Veri Akışı Durdu!</h4>
-                  <p className="text-xs text-red-300/80 mt-0.5">
+                  <h4 className="text-sm font-bold text-critical">Google Entegrasyonu Bozuk — Veri Akışı Durdu!</h4>
+                  <p className="text-xs text-critical mt-0.5">
                     Google Search Console veya GA4 yetkilendirme anahtarının (OAuth Token) süresi dolmuş veya erişim yetkisi kaldırılmış. Organik tıklama, gösterim ve dönüşüm verileri güncellenemiyor.
                   </p>
-                  <span className="inline-block mt-1 font-mono text-2xs text-red-300 bg-red-900/40 px-2 py-0.5 rounded border border-red-800/40">
+                  <span className="inline-block mt-1 font-mono text-2xs text-critical bg-critical-soft px-2 py-0.5 rounded border border-critical/40">
                     Durum: {googleStatusDetail}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="primary" onClick={handleConnectGoogle} className="bg-red-600 hover:bg-red-500 text-white font-semibold">
+                <Button variant="primary" onClick={handleConnectGoogle}>
                   OAuth ile Yeniden Yetkilendir
                 </Button>
               </div>
@@ -654,20 +654,20 @@ export default function BaglayicilarPage() {
           )}
 
           {googleIntegrationStatus === "DISCONNECTED" && (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+            <div className="p-4 rounded-lg bg-warn-soft border border-warn/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-900/50 border border-amber-700/50 flex items-center justify-center shrink-0 text-amber-400">
+                <div className="w-10 h-10 rounded-lg bg-warn-soft border border-warn/50 flex items-center justify-center shrink-0 text-warn">
                   <AlertCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-amber-200">Google Search Console & GA4 Bağlantısı Yapılandırılmadı</h4>
-                  <p className="text-xs text-amber-300/80 mt-0.5">
+                  <h4 className="text-sm font-bold text-warn">Google Search Console & GA4 Bağlantısı Yapılandırılmadı</h4>
+                  <p className="text-xs text-warn mt-0.5">
                     Bu site için henüz Google Search Console veya Google Analytics 4 hesabı bağlanmamış. Gerçek arama performansı ve organik dönüşümleri izlemek için hesabınızı bağlayın.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="primary" onClick={handleConnectGoogle} className="bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                <Button variant="primary" onClick={handleConnectGoogle}>
                   Google Hesabını Bağla (OAuth)
                 </Button>
               </div>
@@ -734,11 +734,11 @@ export default function BaglayicilarPage() {
                   <div className="flex justify-between">
                     <span className="text-muted">Protokol / İzin:</span>
                     {googleIntegrationStatus === "HEALTHY" ? (
-                      <span className="text-emerald-400 font-semibold">OAuth 2.0 (Google Search Console API)</span>
+                      <span className="text-evidence font-semibold">OAuth 2.0 (Google Search Console API)</span>
                     ) : googleIntegrationStatus === "AUTH_FAILED" ? (
-                      <span className="text-red-400 font-semibold">❌ Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
+                      <span className="text-critical font-semibold">❌ Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
                     ) : (
-                      <span className="text-amber-400 font-semibold">⚠️ Yetki Verilmedi</span>
+                      <span className="text-warn font-semibold">⚠️ Yetki Verilmedi</span>
                     )}
                   </div>
                   <div className="flex justify-between">
@@ -781,14 +781,14 @@ export default function BaglayicilarPage() {
           <div className="bg-surface border border-line rounded-lg p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-accent-surface border border-accent/20 flex items-center justify-center">
-                <Radio className={`w-5 h-5 ${googleIntegrationStatus === "HEALTHY" ? "text-accent-ink animate-pulse" : "text-red-400"}`} />
+                <Radio className={`w-5 h-5 ${googleIntegrationStatus === "HEALTHY" ? "text-accent-ink animate-pulse" : "text-critical"}`} />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-ink">Canlı Google Senkronizasyon Durumu</h4>
                 <p className="text-xs text-muted mt-0.5">
                   Son başarılı senkronizasyon: <span className="font-medium text-ink">{googleLastSync}</span>
                   {googleIntegrationStatus !== "HEALTHY" && (
-                    <span className="text-red-400 ml-2 font-semibold">({googleStatusDetail})</span>
+                    <span className="text-critical ml-2 font-semibold">({googleStatusDetail})</span>
                   )}
                 </p>
               </div>

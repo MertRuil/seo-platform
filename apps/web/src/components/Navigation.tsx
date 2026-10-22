@@ -165,7 +165,7 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
                       className={cn(
                         "flex items-center rounded-sm text-sm font-medium transition-colors min-h-[36px]",
                         collapsed ? "justify-center px-0" : "justify-between px-2.5 gap-2",
-                        isActive ? "bg-accent-soft text-accent-ink font-semibold shadow-[inset_2px_0_0_var(--accent)]" : "text-muted hover:text-ink hover:bg-surface-2"
+                        isActive ? "bg-accent-soft text-accent-ink font-semibold shadow-[inset_2px_0_0_rgb(var(--accent))]" : "text-muted hover:text-ink hover:bg-surface-2"
                       )}
                     >
                       <span className={cn("flex items-center min-w-0", collapsed ? "gap-0" : "gap-2.5")}>

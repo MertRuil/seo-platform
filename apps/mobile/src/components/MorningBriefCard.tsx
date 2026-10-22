@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "../theme/colors";
 import { MorningBriefData } from "../services/api";
+import { formatCompact } from "../services/format";
 
 interface MorningBriefCardProps {
   data: MorningBriefData;
@@ -41,8 +42,8 @@ export const MorningBriefCard: React.FC<MorningBriefCardProps> = ({ data, onActi
         </View>
         <View style={styles.divider} />
         <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: Colors.info }]}>{(data.impressions_today / 1000).toFixed(1)}k</Text>
-          <Text style={styles.statLabel}>Organik Imp.</Text>
+          <Text style={[styles.statNumber, { color: Colors.info }]}>{formatCompact(data.impressions_today)}</Text>
+          <Text style={styles.statLabel}>Gösterim</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statItem}>

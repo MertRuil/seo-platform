@@ -1,7 +1,11 @@
 import assert from "node:assert";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
 import { scanTextForMenaCompliance } from "./src/lib/compliance-mena";
+import { siteSummary, scoreTone } from "./src/lib/summary";
+import { formatCompact, formatDelta, formatPercentValue, formatTry } from "./src/lib/format";
 
 async function run() {
   console.log("UI LOGIC TEST SUITE");
@@ -340,6 +344,36 @@ async function run() {
   assert.strictEqual(classifyTestIntent("DMCC Act 2024 kapsamı nedir?"), "UK");
   assert.strictEqual(classifyTestIntent("İngiltere pazarı için botox reklamı yapılabilir mi?"), "UK");
   console.log("  classifyIntent (Strict UK word boundary & Asia precedence): ok");
+
+  // Türkçe sayı biçimleri: yüzde işareti başta, ondalık virgül, B = bin, Mn = milyon.
+  assert.strictEqual(formatDelta(8.1), "+%8,1");
+  assert.strictEqual(formatDelta(-2.34), "−%2,3");
+  assert.strictEqual(formatDelta(0), "%0,0");
+  assert.strictEqual(formatPercentValue(98.2), "%98,2");
+  assert.strictEqual(formatTry(14.5), "₺14,50");
+  assert.deepStrictEqual([142800, 2410000, 999].map(formatCompact), ["142,8\u00a0B", "2,4\u00a0Mn", "999"]);
+  console.log("  Türkçe sayı biçimleri: ok");
+
+  // Sade Mod başlığı: yüksek puan kritik sorunu gizlemez.
+  assert.strictEqual(siteSummary(94, 1, 4).title, "Sitenizde 1 acil sorun var");
+  assert.strictEqual(siteSummary(94, 1, 4).tone, "critical");
+  assert.match(siteSummary(94, 1, 4).body, /4 öneri onayınızı bekliyor/);
+  assert.match(siteSummary(94, 1, 4).body, /^Bu sorun Google.*önce bunu düzeltin/);
+  assert.match(siteSummary(94, 3, 0).body, /^Bu sorunlar .*önce bunları düzeltin\.$/);
+  assert.strictEqual(siteSummary(94, 0, 0).title, "Siteniz iyi durumda");
+  assert.strictEqual(siteSummary(94, 0, 0).body, "Acil sorun yok.");
+  assert.strictEqual(siteSummary(62, 0, 2).tone, "warn");
+  assert.deepStrictEqual([scoreTone(80), scoreTone(79), scoreTone(49)], ["evidence", "warn", "critical"]);
+  console.log("  siteSummary: ok");
+
+  // tailwind.config.js renk paletini ve gölge/yarıçap ölçeğini daralttığı için bu sınıflar CSS üretmez, sessizce stilsiz kalır.
+  const undefinedClass =
+    /(?<![\w-])(?:[a-z]+:)*(?:(?:text|bg|border|from|to|via|ring|divide|fill|stroke|accent)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+|rounded-(?:xl|2xl|3xl)|shadow-(?:sm|md|lg|xl|2xl|inner)|(?:bg|text)-accent-(?:strong|contrast))(?![\w-])/g;
+  const tsxFiles = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? tsxFiles(join(dir, e.name)) : e.name.endsWith(".tsx") ? [join(dir, e.name)] : []));
+  const offenders = tsxFiles("src").flatMap((f) => (readFileSync(f, "utf8").match(undefinedClass) ?? []).map((c) => `${f}: ${c}`));
+  assert.deepStrictEqual(offenders, [], "tanımsız Tailwind sınıfı");
+  console.log("  tailwind sınıfları tanımlı: ok");
 
   console.log("ALL UI LOGIC TESTS PASSED");
 }

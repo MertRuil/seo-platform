@@ -191,7 +191,7 @@ export default function LeadsCrmPage() {
             >
               Yenile
             </Button>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-400">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-evidence/10 border border-evidence/20 text-xs font-semibold text-evidence">
               <Zap className="w-3.5 h-3.5" />
               Sistem CRM Entegrasyonu Aktif
             </div>
@@ -300,10 +300,11 @@ export default function LeadsCrmPage() {
                 <div>
                   <div className="flex justify-between text-xs font-medium mb-1">
                     <span className="text-muted">Aylık Organik Ziyaretçi:</span>
-                    <span className="text-ink font-semibold">{Number(monthlyTraffic).toLocaleString()} ziyaretçi/ay</span>
+                    <span className="text-ink font-semibold">{Number(monthlyTraffic).toLocaleString("tr-TR")} ziyaretçi/ay</span>
                   </div>
                   <input
                     type="range"
+                    aria-label="Aylık organik ziyaretçi"
                     min="5000"
                     max="500000"
                     step="5000"
@@ -321,12 +322,13 @@ export default function LeadsCrmPage() {
                     </div>
                     <input
                       type="range"
+                      aria-label="Ortalama sipariş tutarı"
                       min="20"
                       max="1000"
                       step="10"
                       value={aov}
                       onChange={(e) => setAov(Number(e.target.value))}
-                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-evidence"
                     />
                   </div>
                   <div>
@@ -336,12 +338,13 @@ export default function LeadsCrmPage() {
                     </div>
                     <input
                       type="range"
+                      aria-label="Dönüşüm oranı"
                       min="0.5"
                       max="6.0"
                       step="0.1"
                       value={cvr}
                       onChange={(e) => setCvr(Number(e.target.value))}
-                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      className="w-full h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-warn"
                     />
                   </div>
                 </div>
@@ -377,9 +380,9 @@ export default function LeadsCrmPage() {
             >
               <div className="space-y-4 pt-1">
                 {/* Financial Loss Callout Banner */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-rose-500/10 via-amber-500/5 to-transparent border border-rose-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="p-4 rounded-lg bg-gradient-to-br from-critical/10 via-warn/5 to-transparent border border-critical/20 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs uppercase tracking-wider font-semibold text-rose-400 flex items-center gap-1.5">
+                    <div className="text-xs uppercase tracking-wider font-semibold text-critical flex items-center gap-1.5">
                       <TrendingDown className="w-4 h-4" /> Yıllık Tahmini Gelir Kaybı
                     </div>
                     <div className="text-3xl font-extrabold text-ink mt-1">
@@ -394,7 +397,7 @@ export default function LeadsCrmPage() {
                   </div>
                   <div className="text-center sm:text-right px-4 py-2 rounded-lg bg-surface border border-line">
                     <div className="text-xs text-muted">Sağlık Skoru</div>
-                    <div className="text-2xl font-bold text-amber-500">{selectedLead.metrics.health_score}/100</div>
+                    <div className="text-2xl font-bold text-warn">{selectedLead.metrics.health_score}/100</div>
                     <div className="text-[11px] text-muted">Kritik Risk</div>
                   </div>
                 </div>
@@ -402,12 +405,12 @@ export default function LeadsCrmPage() {
                 {/* Top Critical Barriers */}
                 <div>
                   <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Tespit Edilen Kritik Teknik ve GEO Bariyerleri
+                    <AlertTriangle className="w-3.5 h-3.5 text-warn" /> Tespit Edilen Kritik Teknik ve GEO Bariyerleri
                   </h4>
                   <div className="space-y-1.5">
                     {selectedLead.metrics.critical_barriers.map((barrier, idx) => (
                       <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-surface-2 text-xs text-ink">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-critical mt-1.5 shrink-0" />
                         <span>{barrier}</span>
                       </div>
                     ))}
@@ -425,7 +428,7 @@ export default function LeadsCrmPage() {
                       size="sm"
                       onClick={handleCopyPitch}
                       className="h-7 text-xs text-accent"
-                      icon={isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      icon={isCopied ? <Check className="w-3.5 h-3.5 text-evidence" /> : <Copy className="w-3.5 h-3.5" />}
                     >
                       {isCopied ? "Kopyalandı!" : "Metni Kopyala"}
                     </Button>
@@ -437,7 +440,7 @@ export default function LeadsCrmPage() {
 
                 {/* Export Feedback Banner */}
                 {lastExportResult && (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-500 flex items-center justify-between">
+                  <div className="p-3 rounded-lg bg-evidence/10 border border-evidence/30 text-xs text-evidence flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Check className="w-4 h-4 shrink-0" />
                       <span>{lastExportResult.message} (CRM Lead ID: <b>{lastExportResult.crm_lead_id}</b>)</span>
@@ -523,7 +526,7 @@ export default function LeadsCrmPage() {
                       {lead.metrics.monthly_traffic.toLocaleString()} / ay
                     </td>
                     <td className="py-3 px-4">
-                      <span className="font-bold text-rose-500">
+                      <span className="font-bold text-critical">
                         ${lead.metrics.annual_revenue_loss.toLocaleString()}
                       </span>
                     </td>
@@ -534,11 +537,11 @@ export default function LeadsCrmPage() {
                     </td>
                     <td className="py-3 px-4">
                       {lead.crm_status === "synced" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-evidence font-medium">
                           <Check className="w-3 h-3" /> Sistem CRM'de
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-500 font-medium">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-warn font-medium">
                           Taslak
                         </span>
                       )}

@@ -10,7 +10,7 @@ import { useQueue } from "@/hooks/useQueue";
 import { api } from "@/lib/api";
 import { DEMO_DASHBOARD, type DashboardData } from "@/lib/demo";
 import { gscToPerformance, gscToWeeklySeries } from "@/lib/mappers";
-import { formatCompact, formatNumber, formatPercent, formatRelative } from "@/lib/format";
+import { formatCompact, formatDelta, formatNumber, formatPercent, formatPercentValue, formatRelative } from "@/lib/format";
 import { Panel, Inset } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,6 +19,7 @@ import { DemoBanner } from "@/components/ui/DemoBanner";
 import { TrendChart, ChartLegend } from "@/components/ui/TrendChart";
 import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
+import { scoreTone, siteSummary, type SummaryTone } from "@/lib/summary";
 
 interface Overview {
   series: DashboardData["series"];
@@ -30,6 +31,8 @@ interface Overview {
   search: DashboardData["search"];
   impact: DashboardData["impact"];
 }
+
+const TONE_TEXT: Record<SummaryTone, string> = { evidence: "text-evidence", warn: "text-warn", critical: "text-critical" };
 
 const DEMO_OVERVIEW: Overview = {
   series: DEMO_DASHBOARD.series,
@@ -76,6 +79,7 @@ export default function GenelGorunumPage() {
   const criticalCount = queue.critical;
   const trendUp = d.visibilityDelta >= 0;
   const hasSeries = d.series.google.length > 1;
+  const summary = siteSummary(d.health.score, d.health.critical, queue.pending);
 
   // Hızlı denetim
   const [auditUrl, setAuditUrl] = useState("");
@@ -122,35 +126,31 @@ export default function GenelGorunumPage() {
         /* ================= SADE & BAŞLANGIÇ MODU ================= */
         <div className="space-y-6 animate-fade-in">
           {/* 1. Üst Durum Kartı (Hero Banner) */}
-          <div className="relative overflow-hidden rounded-xl border border-line bg-gradient-to-br from-surface via-surface to-surface-2 p-6 sm:p-8 shadow-sm">
+          <div className="relative overflow-hidden rounded-lg border border-line bg-gradient-to-br from-surface via-surface to-surface-2 p-6 sm:p-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-2 max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-evidence/15 text-evidence-ink">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-evidence/15 text-evidence">
                     🌱 Sade Mod · {site ? site.name : "Siteniz"}
                   </span>
                   <span className="text-2xs text-muted">Son {period} gün</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-ink">
-                  {d.health.score >= 80 ? "Sitenizin Durumu Harika! 🎉" : "Sitenizde Büyüme Fırsatları Var 🚀"}
-                </h1>
-                <p className="text-sm text-muted leading-relaxed">
-                  Google aramalarında bulunabilirliğiniz güçlü. Yapay zekamız, arama sonuçlarında daha çok kişiye ulaşmanız için sitenizde hemen uygulayabileceğiniz {topQueue.length} kritik fırsat belirledi.
-                </p>
+                <h1 className={cn("text-2xl sm:text-3xl font-bold", summary.tone === "critical" ? "text-critical" : "text-ink")}>{summary.title}</h1>
+                <p className="text-sm text-muted leading-relaxed">{summary.body}</p>
               </div>
 
               <div className="flex items-center gap-4 shrink-0">
-                <div className="text-center p-4 rounded-xl bg-surface border border-line shadow-sm min-w-[120px]">
+                <div className="text-center p-4 rounded-lg bg-surface border border-line min-w-[120px]">
                   <div className="text-2xs uppercase tracking-wider text-muted font-bold">Sağlık Puanı</div>
-                  <div className="text-3xl font-bold text-evidence mt-1">
+                  <div className={cn("text-3xl font-bold mt-1", TONE_TEXT[scoreTone(d.health.score)])}>
                     {d.health.score} <span className="text-xs text-muted font-normal">/ 100</span>
                   </div>
-                  <div className="text-2xs text-muted mt-0.5">{d.health.critical > 0 ? `${d.health.critical} acil işlem` : "Kusursuz"}</div>
+                  <div className="text-2xs text-muted mt-0.5">{d.health.critical > 0 ? `${d.health.critical} acil sorun` : "Acil sorun yok"}</div>
                 </div>
 
                 <Link
                   href="/changes"
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-accent hover:bg-accent-strong text-accent-contrast font-semibold text-sm shadow-sm transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-accent-fill hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
                 >
                   <Zap className="w-4 h-4" />
                   <span>Önerileri Uygula</span>
@@ -161,7 +161,7 @@ export default function GenelGorunumPage() {
 
           {/* 2. Üç Sade Anahtar Gösterge */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
+            <div className="p-5 rounded-lg border border-line bg-surface flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs text-muted mb-2">
                   <span>Google Ziyaretçileri</span>
@@ -174,13 +174,12 @@ export default function GenelGorunumPage() {
               <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
                 <span>Son {period} günde Google'dan</span>
                 <span className={trendUp ? "text-evidence font-semibold" : "text-critical font-semibold"}>
-                  {trendUp ? "+" : ""}
-                  {formatNumber(d.visibilityDelta, 1)}%
+                  {formatDelta(d.visibilityDelta)}
                 </span>
               </div>
             </div>
 
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
+            <div className="p-5 rounded-lg border border-line bg-surface flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs text-muted mb-2">
                   <span>İncelenen Sayfa</span>
@@ -198,7 +197,7 @@ export default function GenelGorunumPage() {
               </div>
             </div>
 
-            <div className="p-5 rounded-xl border border-line bg-surface flex flex-col justify-between">
+            <div className="p-5 rounded-lg border border-line bg-surface flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs text-muted mb-2">
                   <span>Yapay Zeka Hazırlığı</span>
@@ -210,13 +209,13 @@ export default function GenelGorunumPage() {
               </div>
               <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
                 <span>Otomasyon durumu</span>
-                <span className="text-accent font-semibold">1-tıkla onay bekliyor</span>
+                <span className="text-accent font-semibold">Onayınızı bekliyor</span>
               </div>
             </div>
           </div>
 
           {/* 3. Yapay Zeka Öncelikli Yapılacaklar (1-Tıkla Aksiyon Listesi) */}
-          <div className="rounded-xl border border-line bg-surface p-6">
+          <div className="rounded-lg border border-line bg-surface p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-ink flex items-center gap-2">
@@ -224,7 +223,7 @@ export default function GenelGorunumPage() {
                   <span>Sitenizi Büyütecek Öncelikli Görevler</span>
                 </h2>
                 <p className="text-xs text-muted mt-0.5">
-                  Karmaşık kodlarla uğraşmanıza gerek yok. Aşağıdaki görevleri tek tıkla sitenize uygulayabilirsiniz:
+                  Her değişikliği uygulamadan önce görür ve onaylarsınız.
                 </p>
               </div>
               <Link href="/opportunities" className="text-xs font-semibold text-accent-ink hover:underline">
@@ -257,7 +256,7 @@ export default function GenelGorunumPage() {
 
                     <Link
                       href={q.href}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-accent hover:bg-accent-strong text-accent-contrast text-xs font-semibold shrink-0 transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-accent-fill hover:bg-accent-hover text-white text-xs font-semibold shrink-0 transition-colors"
                     >
                       <span>{q.actionLabel || "Hemen Uygula"}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -295,7 +294,7 @@ export default function GenelGorunumPage() {
           </Panel>
 
           {/* 5. Uzman Moduna Geçiş Çubuğu */}
-          <div className="p-4 rounded-xl border border-line bg-surface-2/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-4 rounded-lg border border-line bg-surface-2/60 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-surface border border-line flex items-center justify-center text-lg">
                 ⚡
@@ -311,7 +310,7 @@ export default function GenelGorunumPage() {
             <button
               type="button"
               onClick={() => setDensity("expert")}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface border border-line hover:border-line-strong text-ink text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface border border-line hover:border-line-strong text-ink text-xs font-bold transition-all shrink-0 cursor-pointer"
             >
               <span>⚡ Uzman Modunu Aç</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -395,8 +394,7 @@ export default function GenelGorunumPage() {
               sub={d.series.ai ? "Google organik ve AI atıf, tek eğri ve kırılım · dağıtımlar işaretli" : "Google organik tıklamalar (GSC) · dağıtımlar işaretli"}
               actions={
                 <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                  {trendUp ? "+" : ""}
-                  {formatNumber(d.visibilityDelta, 1)} % · {period} gün
+                  {formatDelta(d.visibilityDelta)} · {period} gün
                 </Badge>
               }
             >
@@ -495,7 +493,7 @@ export default function GenelGorunumPage() {
             <Link href="/experiments" className="block bg-surface border border-line rounded-md px-5 py-4 hover:bg-surface-2 transition-colors">
               <div className="text-xs text-muted">Ölçülen etki</div>
               <div className={cn("font-editorial text-2xl mt-1 tabular-nums", d.impact.experiments > 0 ? "text-evidence" : "text-muted")}>
-                {d.impact.experiments > 0 ? `+${formatNumber(d.impact.lift, 1)} %` : "—"}
+                {d.impact.experiments > 0 ? formatDelta(d.impact.lift) : "—"}
               </div>
               <div className="text-xs text-muted mt-1">
                 {d.impact.experiments > 0 ? `DiD · dizin kapsamı · güven %${Math.round(d.impact.confidence * 100)} · ${d.impact.experiments} deney` : "Henüz tamamlanmış deney yok"}
@@ -532,7 +530,7 @@ export default function GenelGorunumPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <Panel>
                 <div className="font-mono text-2xs uppercase tracking-wider text-muted">Dizinlenebilirlik</div>
-                <div className="text-xl font-mono font-semibold text-ink mt-1">{isDemo ? DEMO_DASHBOARD.technical.indexability : `${formatNumber(((d.health.pages - d.health.critical) / Math.max(1, d.health.pages)) * 100, 1)} %`}</div>
+                <div className="text-xl font-mono font-semibold text-ink mt-1">{isDemo ? DEMO_DASHBOARD.technical.indexability : formatPercentValue(((d.health.pages - d.health.critical) / Math.max(1, d.health.pages)) * 100)}</div>
                 <p className="text-xs text-muted mt-1">robots.txt ve canonical uyumlu URL oranı</p>
               </Panel>
               <Panel>

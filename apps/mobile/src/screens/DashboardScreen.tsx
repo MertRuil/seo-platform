@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { fetchSiteIssues, fetchMorningBrief, fetchOpportunities, fetchGoogleSyncTelemetry, MorningBriefData } from "../services/api";
 import { SiteIssueItem, IssueSeverity, SeoOpportunityCard, GoogleSyncTelemetry } from "../types";
 import { DemoNotice } from "../components/DemoNotice";
+import { formatCompact } from "../services/format";
 
 export const DashboardScreen: React.FC = () => {
   const { user } = useAuth();
@@ -396,7 +397,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
         const clicksText = isConnected ? (googleSync?.gsc.total_clicks ?? 0).toLocaleString() : "—";
         const impressionsText = isConnected
           ? (googleSync?.gsc.total_impressions || 0) > 1000
-            ? `${((googleSync?.gsc.total_impressions || 0) / 1000).toFixed(1)}K`
+            ? formatCompact(googleSync?.gsc.total_impressions || 0)
             : String(googleSync?.gsc.total_impressions || 0)
           : "—";
         const ctrText = isConnected ? `%${(googleSync?.gsc.avg_ctr_percent || 0).toFixed(1)}` : "—";
