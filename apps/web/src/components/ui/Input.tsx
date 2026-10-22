@@ -72,8 +72,8 @@ export function Segmented<T extends string | number>({ options, value, onChange,
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm font-medium transition-colors cursor-pointer",
-              size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-sm",
+              "inline-flex items-center gap-1.5 rounded-sm font-medium whitespace-nowrap transition-colors cursor-pointer",
+              size === "sm" ? "h-9 sm:h-7 px-2.5 text-xs" : "h-10 sm:h-8 px-3 text-sm",
               active ? "bg-surface text-ink font-semibold border border-line" : "text-muted hover:text-ink border border-transparent"
             )}
           >

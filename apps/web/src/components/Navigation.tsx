@@ -6,106 +6,8 @@ import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { useQueue } from "@/hooks/useQueue";
 import { cn } from "@/lib/cn";
-import {
-  BarChart3,
-  ShieldCheck,
-  AlertTriangle,
-  FileText,
-  TrendingUp,
-  Lightbulb,
-  Link2,
-  Code2,
-  Zap,
-  Layers,
-  GitCommit,
-  FlaskConical,
-  BookOpen,
-  Sliders,
-  History,
-  CreditCard,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-  KeyRound,
-  Users,
-  PenTool,
-  Bot,
-  Sparkles,
-} from "lucide-react";
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: "pending" | "critical";
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const navGroups: NavGroup[] = [
-  {
-    label: "Genel",
-    items: [
-      { name: "Genel Görünüm", href: "/", icon: BarChart3 },
-      { name: "Öncelikli İşler", href: "/opportunities", icon: Lightbulb, badge: "pending" },
-      { name: "AI SEO Asistanı", href: "/ai", icon: Bot },
-    ],
-  },
-  {
-    label: "Görünürlük & Sıralama",
-    items: [
-      { name: "Arama Performansı", href: "/performance", icon: TrendingUp },
-      { name: "Anahtar Kelimeler", href: "/keywords", icon: KeyRound },
-      { name: "GEO (AI Görünürlük)", href: "/geo", icon: Sparkles },
-    ],
-  },
-  {
-    label: "Rakipler & Pazar",
-    items: [
-      { name: "Rakip Analizi & Gap", href: "/competitors", icon: Users },
-      { name: "Backlink & Toksik Link", href: "/backlinks", icon: Link2 },
-    ],
-  },
-  {
-    label: "İçerik & Optimizasyon",
-    items: [
-      { name: "İçerik Optimizasyonu", href: "/content", icon: PenTool },
-    ],
-  },
-  {
-    label: "Site & Teknik Sağlık",
-    items: [
-      { name: "Teknik Sağlık", href: "/health", icon: ShieldCheck },
-      { name: "Sorunlar", href: "/issues", icon: AlertTriangle, badge: "critical" },
-      { name: "Taranan Sayfalar", href: "/pages", icon: FileText },
-      { name: "Yapılandırılmış Veri", href: "/schema", icon: Code2 },
-      { name: "İç Link Grafı", href: "/links", icon: Link2 },
-      { name: "Web Vitals", href: "/cwv", icon: Zap },
-    ],
-  },
-  {
-    label: "Çalışma & Doğrulama",
-    items: [
-      { name: "Değişiklikler & Diff", href: "/changes", icon: GitCommit },
-      { name: "SEO Deneyleri", href: "/experiments", icon: FlaskConical },
-      { name: "Site Taramaları", href: "/crawls", icon: Layers },
-    ],
-  },
-  {
-    label: "Yönetim",
-    items: [
-      { name: "Raporlar & Dışa Aktar", href: "/reports", icon: FileText },
-      { name: "Müşteri & CRM Köprüsü", href: "/leads", icon: Users },
-      { name: "Bağlayıcılar & Ayarlar", href: "/integrations", icon: Sliders },
-      { name: "Bilgi Tabanı (RAG)", href: "/knowledge", icon: BookOpen },
-      { name: "Denetim Günlüğü", href: "/audit", icon: History },
-      { name: "Abonelik & Fatura", href: "/billing", icon: CreditCard },
-    ],
-  },
-];
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { navGroups, isNavItemActive } from "@/lib/nav";
 
 interface NavigationProps {
   currentPath?: string;
@@ -153,7 +55,7 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
             <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentPath === item.href;
+                const isActive = isNavItemActive(item, currentPath);
                 const count = item.badge ? badges[item.badge] : 0;
                 return (
                   <li key={item.href}>

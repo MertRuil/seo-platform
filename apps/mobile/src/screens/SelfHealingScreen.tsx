@@ -39,7 +39,7 @@ export const SelfHealingScreen: React.FC = () => {
       target_url: "/kategori/elektronik?sort=price",
       operation: "UPDATE_CANONICAL",
       state_before: '<link rel="canonical" href="/kategori/elektronik?sort=price" />',
-      state_after: '<link rel="canonical" href="https://acmestore.io/kategori/elektronik" />',
+      state_after: '<link rel="canonical" href="https://flagship-store.com/kategori/elektronik" />',
       hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
@@ -51,7 +51,7 @@ export const SelfHealingScreen: React.FC = () => {
       target_url: "/hakkimizda",
       operation: "INJECT_JSON_LD",
       state_before: "<!-- No Organization Schema -->",
-      state_after: '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Acme","url":"https://acmestore.io"}</script>',
+      state_after: '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Flagship Store","url":"https://flagship-store.com"}</script>',
       hash: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     {

@@ -78,7 +78,7 @@ export default function SorunlarPage() {
 
     setCreated((prev) => [...prev, issue.id]);
     setBusyId(null);
-    setNotice(`⚡ Sorun #${issue.id} (${connectorType}) ile başarıyla otonom düzeltildi! Pre-write backup alındı, SHA-256 doğrulandı.`);
+    setNotice(`Sorun #${issue.id} (${connectorType}) ile başarıyla otonom düzeltildi! Pre-write backup alındı, SHA-256 doğrulandı.`);
   };
 
   const handleCreateSet = async (issue: IssueItem) => {

@@ -60,7 +60,7 @@ export const BacklinksScreen: React.FC = () => {
   }, [backlinks, filter, searchQuery]);
 
   const handleShareDisavow = async () => {
-    const domain = (selectedSite?.domain || "acmestore.io").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+    const domain = (selectedSite?.domain || "flagship-store.com").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
     const toxicLinks = backlinks.filter((b) => b.is_toxic && b.target_url.toLowerCase().includes(domain));
     if (toxicLinks.length === 0) {
       Alert.alert(

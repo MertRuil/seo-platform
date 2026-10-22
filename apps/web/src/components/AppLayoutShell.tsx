@@ -17,7 +17,9 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { LevelSelectorModal } from "@/components/ui/LevelSelectorModal";
-import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, HelpCircle } from "lucide-react";
+import { SiteHealthTabs, isSiteHealthPath } from "@/components/SiteHealthTabs";
+import { DEMO_SITE } from "@/lib/demo";
+import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, Sprout, Gauge } from "lucide-react";
 
 const STORAGE_KEY_NAV = "calpeo_nav";
 
@@ -84,8 +86,8 @@ function SiteSwitcher() {
     };
   }, [open]);
 
-  const label = site ? site.normalized_domain || site.domain : status === "loading" ? "Yükleniyor…" : "Örnek site";
-  const sub = site ? site.name : source === "demo" ? "flagship-store.com" : "";
+  const label = site ? site.normalized_domain || site.domain : status === "loading" ? "Yükleniyor…" : DEMO_SITE.domain;
+  const sub = site ? site.name : source === "demo" ? `${DEMO_SITE.name} (örnek)` : "";
 
   return (
     <div ref={ref} className="relative">
@@ -94,7 +96,7 @@ function SiteSwitcher() {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 h-8 px-2.5 rounded-sm bg-surface-2 border border-line text-sm hover:border-line-strong transition-colors cursor-pointer max-w-[60vw]"
+        className="flex items-center gap-2 h-10 sm:h-8 px-2.5 rounded-sm bg-surface-2 border border-line text-sm hover:border-line-strong transition-colors cursor-pointer max-w-[40vw] sm:max-w-[60vw]"
       >
         <span className={cn("w-2 h-2 rounded-full shrink-0", site ? "bg-evidence" : "bg-warn")} aria-hidden />
         <span className="font-semibold text-ink truncate">{label}</span>
@@ -139,7 +141,7 @@ function SiteSwitcher() {
               className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-accent-ink hover:bg-surface-2 font-medium cursor-pointer"
             >
               <Plus className="w-4 h-4" aria-hidden />
-              + Yeni Site Ekle ve Canlı Tara
+              Yeni site ekle ve tara
             </button>
             <Link
               href="/crawls"
@@ -244,6 +246,31 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
+  const periodControl = (
+    <Segmented<Period>
+      label="Dönem"
+      value={period}
+      onChange={setPeriod}
+      options={[
+        { value: 7, label: "7 gün" },
+        { value: 28, label: "28 gün" },
+        { value: 90, label: "90 gün" },
+      ]}
+    />
+  );
+
+  const themeControl = (
+    <Segmented<"light" | "dark">
+      label="Tema"
+      value={theme}
+      onChange={setTheme}
+      options={[
+        { value: "light", label: <><Sun className="w-3.5 h-3.5" aria-hidden /><span className="sr-only">Açık tema</span></>, title: "Açık tema" },
+        { value: "dark", label: <><Moon className="w-3.5 h-3.5" aria-hidden /><span className="sr-only">Koyu tema</span></>, title: "Koyu tema" },
+      ]}
+    />
+  );
+
   const railWidth = collapsed ? "lg:w-rail-sm" : "lg:w-rail";
   const contentPad = collapsed ? "lg:pl-rail-sm" : "lg:pl-rail";
 
@@ -271,71 +298,46 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         {/* Üst çubuk */}
         <header className="h-14 sticky top-0 z-30 bg-surface border-b border-line px-4 sm:px-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menüyü aç" className="lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
+            <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menüyü aç" className="lg:hidden w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
               <Menu className="w-5 h-5" aria-hidden />
             </button>
             <SiteSwitcher />
-            <div className="hidden md:block">
-              <Segmented<Period>
-                label="Dönem"
-                value={period}
-                onChange={setPeriod}
-                options={[
-                  { value: 7, label: "7 g" },
-                  { value: 28, label: "28 g" },
-                  { value: 90, label: "90 g" },
-                ]}
-              />
-            </div>
+            <div className="hidden xl:block">{periodControl}</div>
             <span className="hidden xl:inline text-xs text-muted truncate">
               {source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}
             </span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <Segmented<"light" | "dark">
-              label="Tema"
-              value={theme}
-              onChange={setTheme}
+            <div className="hidden sm:block">{themeControl}</div>
+            <Segmented<"summary" | "expert">
+              label="Görünüm"
+              value={density}
+              onChange={setDensity}
               options={[
-                { value: "light", label: <Sun className="w-3.5 h-3.5" aria-hidden />, title: "Açık mod" },
-                { value: "dark", label: <Moon className="w-3.5 h-3.5" aria-hidden />, title: "Koyu mod" },
+                {
+                  value: "summary",
+                  label: <><Sprout className="w-3.5 h-3.5" aria-hidden /><span className="sm:hidden">Sade</span><span className="hidden sm:inline">Sade Mod</span></>,
+                  title: "Sade görünüm: sonuçlar ve yapılacaklar",
+                },
+                {
+                  value: "expert",
+                  label: <><Gauge className="w-3.5 h-3.5" aria-hidden /><span className="sm:hidden">Uzman</span><span className="hidden sm:inline">Uzman Modu</span></>,
+                  title: "Uzman görünümü: tüm teknik ayrıntılar",
+                },
               ]}
             />
-            <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-md border border-line">
-              <button
-                type="button"
-                onClick={() => setDensity("summary")}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
-                  density === "summary"
-                    ? "bg-surface text-ink border border-line/60"
-                    : "text-muted hover:text-ink"
-                )}
-                title="Yeni Başlayanlar ve İşletmeler için Sade Görünüm"
-              >
-                <span>🌱</span>
-                <span className="hidden sm:inline">Sade Mod</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDensity("expert")}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
-                  density === "expert"
-                    ? "bg-surface text-ink border border-line/60"
-                    : "text-muted hover:text-ink"
-                )}
-                title="SEO Uzmanları ve Ajanslar için Detaylı Telemetri Görünümü"
-              >
-                <span>⚡</span>
-                <span className="hidden sm:inline">Uzman Modu</span>
-              </button>
-            </div>
           </div>
         </header>
 
+        <div className="xl:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-2 bg-surface border-b border-line">
+          {periodControl}
+          <span className="hidden sm:inline text-xs text-muted truncate">{source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}</span>
+          <div className="sm:hidden">{themeControl}</div>
+        </div>
+
         <main id="icerik" className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+          {isSiteHealthPath(pathname) && <SiteHealthTabs currentPath={pathname} />}
           {children}
         </main>
       </div>

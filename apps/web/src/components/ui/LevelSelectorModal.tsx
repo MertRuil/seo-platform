@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useDensity, DensityMode } from "@/context/DensityContext";
-import { Sparkles, Gauge, Check, X, ShieldCheck, ArrowRight } from "lucide-react";
+import { Sparkles, Gauge, Sprout, Check, X, ShieldCheck, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export function LevelSelectorModal() {
@@ -61,8 +61,8 @@ export function LevelSelectorModal() {
               )}
             >
               <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-evidence/10 text-evidence flex items-center justify-center font-bold text-lg">
-                  🌱
+                <div className="w-10 h-10 rounded-lg bg-evidence/10 text-evidence flex items-center justify-center">
+                  <Sprout className="w-5 h-5" aria-hidden />
                 </div>
                 <div
                   className={cn(
@@ -113,8 +113,8 @@ export function LevelSelectorModal() {
               )}
             >
               <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center font-bold text-lg">
-                  ⚡
+                <div className="w-10 h-10 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
+                  <Gauge className="w-5 h-5" aria-hidden />
                 </div>
                 <div
                   className={cn(

@@ -235,21 +235,21 @@ export default function BaglayicilarPage() {
         if (res.status === 401) {
           setNotice({
             tone: "error",
-            text: `⚠️ Oturum Hatası (HTTP 401): ${errData.detail || "Oturum süreniz dolmuş. Lütfen sayfayı yenileyip tekrar giriş yapın."}`
+            text: `Oturum Hatası (HTTP 401): ${errData.detail || "Oturum süreniz dolmuş. Lütfen sayfayı yenileyip tekrar giriş yapın."}`
           });
           return;
         }
         if (res.status === 403) {
           setNotice({
             tone: "error",
-            text: `🔒 Yetki Hatası (HTTP 403): ${errData.detail || "Google senkronizasyonunu çalıştırmak için Yönetici veya SEO Yöneticisi rolü gereklidir."}`
+            text: `Yetki Hatası (HTTP 403): ${errData.detail || "Google senkronizasyonunu çalıştırmak için Yönetici veya SEO Yöneticisi rolü gereklidir."}`
           });
           return;
         }
 
         setNotice({
           tone: "error",
-          text: `❌ Senkronizasyon İsteği Başarısız (HTTP ${res.status}): ${errData.detail || errData.message || "Sunucu hatası oluştu."}`
+          text: `Senkronizasyon İsteği Başarısız (HTTP ${res.status}): ${errData.detail || errData.message || "Sunucu hatası oluştu."}`
         });
         return;
       }
@@ -261,7 +261,7 @@ export default function BaglayicilarPage() {
         setGoogleStatusDetail(data.message);
         setNotice({
           tone: "error",
-          text: `❌ Google Bağlantısı Başarısız: ${data.message} Arama ve dönüşüm verileri güncellenemedi.`
+          text: `Google Bağlantısı Başarısız: ${data.message} Arama ve dönüşüm verileri güncellenemedi.`
         });
         return;
       }
@@ -269,12 +269,12 @@ export default function BaglayicilarPage() {
       await loadGoogleStatus();
       setNotice({
         tone: "success",
-        text: `🟢 ${data.message || "Google Search Console ve GA4 verileri başarıyla eşitlendi."}`
+        text: `${data.message || "Google Search Console ve GA4 verileri başarıyla eşitlendi."}`
       });
     } catch (e: any) {
       setNotice({
         tone: "error",
-        text: `❌ Bağlantı Hatası: Sunucuya ulaşılamadı (${e?.message || "Ağ veya bağlantı hatası"}).`
+        text: `Bağlantı Hatası: Sunucuya ulaşılamadı (${e?.message || "Ağ veya bağlantı hatası"}).`
       });
     } finally {
       setSyncingGoogle(false);
@@ -364,7 +364,7 @@ export default function BaglayicilarPage() {
       if (res.ok && data.success) {
         setNotice({
           tone: "success",
-          text: `🟢 ${c.ad}: ${data.message || "Bağlantı ve kimlik doğrulama başarılı!"}`,
+          text: `${c.ad}: ${data.message || "Bağlantı ve kimlik doğrulama başarılı!"}`,
         });
         setList((prev) =>
           prev.map((item) =>
@@ -382,7 +382,7 @@ export default function BaglayicilarPage() {
       } else {
         setNotice({
           tone: "error",
-          text: `🔴 ${c.ad}: ${data.message || "Bağlantı doğrulanamadı. Lütfen uç nokta adresini ve anahtarları kontrol edin."}`,
+          text: `${c.ad}: ${data.message || "Bağlantı doğrulanamadı. Lütfen uç nokta adresini ve anahtarları kontrol edin."}`,
         });
         setList((prev) =>
           prev.map((item) =>
@@ -399,7 +399,7 @@ export default function BaglayicilarPage() {
     } catch (err: any) {
       setNotice({
         tone: "error",
-        text: `🔴 ${c.ad} test hatası: ${err.message || "Ağ hatası oluştu."}`,
+        text: `${c.ad} test hatası: ${err.message || "Ağ hatası oluştu."}`,
       });
       setList((prev) =>
         prev.map((item) =>
@@ -736,9 +736,9 @@ export default function BaglayicilarPage() {
                     {googleIntegrationStatus === "HEALTHY" ? (
                       <span className="text-evidence font-semibold">OAuth 2.0 (Google Search Console API)</span>
                     ) : googleIntegrationStatus === "AUTH_FAILED" ? (
-                      <span className="text-critical font-semibold">❌ Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
+                      <span className="text-critical font-semibold">Yetkisiz (HTTP 401 / Token Süresi Doldu)</span>
                     ) : (
-                      <span className="text-warn font-semibold">⚠️ Yetki Verilmedi</span>
+                      <span className="text-warn font-semibold">Yetki Verilmedi</span>
                     )}
                   </div>
                   <div className="flex justify-between">
@@ -756,7 +756,7 @@ export default function BaglayicilarPage() {
                 <p className="text-xs text-muted">
                   {googleIntegrationStatus === "HEALTHY"
                     ? "Search Console verisi \"Şimdi Eşitle\" ile ya da zamanlanmış eşitlemeyle güncellenir."
-                    : "⚠️ Bağlantı hatası sebebiyle arama konsolu verileri çekilememektedir. Lütfen hesabı yeniden bağlayın."}
+                    : "Bağlantı hatası sebebiyle arama konsolu verileri çekilememektedir. Lütfen hesabı yeniden bağlayın."}
                 </p>
               </div>
             </Panel>

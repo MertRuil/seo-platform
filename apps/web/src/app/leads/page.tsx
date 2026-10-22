@@ -358,7 +358,7 @@ export default function LeadsCrmPage() {
                   className="w-full gap-2 font-semibold py-2.5"
                   icon={<Sparkles className={`w-4 h-4 ${isCalculating ? "animate-spin" : ""}`} />}
                 >
-                  {isCalculating ? "Denetim ve Kayıp Hesaplanıyor..." : "🎯 Finansal Kaybı Hesapla & Lead Kartı Oluştur"}
+                  {isCalculating ? "Denetim ve Kayıp Hesaplanıyor..." : "Finansal Kaybı Hesapla & Lead Kartı Oluştur"}
                 </Button>
               </div>
             </form>
@@ -457,7 +457,7 @@ export default function LeadsCrmPage() {
                     className="flex-1 gap-2 font-medium py-2"
                     icon={<Send className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} />}
                   >
-                    {isExporting ? "Sistem CRM'e Aktarılıyor..." : "⚡ Sistem CRM'e Aktar"}
+                    {isExporting ? "Sistem CRM'e Aktarılıyor..." : "Sistem CRM'e Aktar"}
                   </Button>
                   <Button
                     variant="secondary"

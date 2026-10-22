@@ -39,7 +39,7 @@ export const ContentOptimizerScreen: React.FC = () => {
   const [activeTabSub, setActiveTabSub] = useState<"OPTIMIZER" | "GENERATOR" | "COMPLIANCE">("COMPLIANCE");
 
   // Optimizer state
-  const [urlInput, setUrlInput] = useState(selectedSite?.primary_url || "https://acmestore.io");
+  const [urlInput, setUrlInput] = useState(selectedSite?.primary_url || "https://flagship-store.com");
   const [targetKw, setTargetKw] = useState("organik seo uzmanı");
   const [analyzing, setAnalyzing] = useState(false);
   const [optResult, setOptResult] = useState<ContentOptimizationResult | null>(null);

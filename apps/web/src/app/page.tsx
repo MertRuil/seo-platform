@@ -2,13 +2,13 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Search, ArrowUpRight, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Zap, Users, Activity, HelpCircle } from "lucide-react";
+import { ChevronRight, Search, ArrowUpRight, Sparkles, ArrowRight, ListChecks, Users, Activity, Gauge } from "lucide-react";
 import { useDensity } from "@/context/DensityContext";
 import { useSite } from "@/context/SiteContext";
 import { useSiteData } from "@/hooks/useSiteData";
 import { useQueue } from "@/hooks/useQueue";
 import { api } from "@/lib/api";
-import { DEMO_DASHBOARD, type DashboardData } from "@/lib/demo";
+import { DEMO_DASHBOARD, DEMO_SITE, type DashboardData } from "@/lib/demo";
 import { gscToPerformance, gscToWeeklySeries } from "@/lib/mappers";
 import { formatCompact, formatDelta, formatNumber, formatPercent, formatPercentValue, formatRelative } from "@/lib/format";
 import { Panel, Inset } from "@/components/ui/Panel";
@@ -19,7 +19,7 @@ import { DemoBanner } from "@/components/ui/DemoBanner";
 import { TrendChart, ChartLegend } from "@/components/ui/TrendChart";
 import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
-import { scoreTone, siteSummary, type SummaryTone } from "@/lib/summary";
+import { plainTask, scoreTone, siteSummary, type SummaryTone } from "@/lib/summary";
 
 interface Overview {
   series: DashboardData["series"];
@@ -80,6 +80,7 @@ export default function GenelGorunumPage() {
   const trendUp = d.visibilityDelta >= 0;
   const hasSeries = d.series.google.length > 1;
   const summary = siteSummary(d.health.score, d.health.critical, queue.pending);
+  const siteName = site ? site.name : DEMO_SITE.name;
 
   // Hızlı denetim
   const [auditUrl, setAuditUrl] = useState("");
@@ -125,15 +126,12 @@ export default function GenelGorunumPage() {
       {density === "summary" ? (
         /* ================= SADE & BAŞLANGIÇ MODU ================= */
         <div className="space-y-6 animate-fade-in">
-          {/* 1. Üst Durum Kartı (Hero Banner) */}
-          <div className="relative overflow-hidden rounded-lg border border-line bg-gradient-to-br from-surface via-surface to-surface-2 p-6 sm:p-8">
+          {/* 1. Durum kartı */}
+          <div className="rounded-lg border border-line bg-surface p-6 sm:p-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-2 max-w-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-evidence/15 text-evidence">
-                    🌱 Sade Mod · {site ? site.name : "Siteniz"}
-                  </span>
-                  <span className="text-2xs text-muted">Son {period} gün</span>
+                <div className="text-xs text-muted">
+                  <span className="font-semibold text-ink">{siteName}</span> · son {period} gün
                 </div>
                 <h1 className={cn("text-2xl sm:text-3xl font-bold", summary.tone === "critical" ? "text-critical" : "text-ink")}>{summary.title}</h1>
                 <p className="text-sm text-muted leading-relaxed">{summary.body}</p>
@@ -149,17 +147,17 @@ export default function GenelGorunumPage() {
                 </div>
 
                 <Link
-                  href="/changes"
+                  href="/opportunities"
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-accent-fill hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
                 >
-                  <Zap className="w-4 h-4" />
-                  <span>Önerileri Uygula</span>
+                  <ListChecks className="w-4 h-4" aria-hidden />
+                  <span>Önerileri gözden geçir</span>
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* 2. Üç Sade Anahtar Gösterge */}
+          {/* 2. Üç gösterge */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 rounded-lg border border-line bg-surface flex flex-col justify-between">
               <div>
@@ -168,7 +166,7 @@ export default function GenelGorunumPage() {
                   <Users className="w-4 h-4 text-accent" />
                 </div>
                 <div className="text-2xl font-bold text-ink">
-                  {formatCompact(d.search.clicks)} <span className="text-xs font-normal text-muted">kişi</span>
+                  {formatCompact(d.search.clicks)} <span className="text-xs font-normal text-muted">ziyaret</span>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
@@ -192,7 +190,7 @@ export default function GenelGorunumPage() {
               <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
                 <span>Teknik engel</span>
                 <span className={d.health.critical > 0 ? "text-critical font-semibold" : "text-evidence font-semibold"}>
-                  {d.health.critical > 0 ? `${d.health.critical} kritik sorun` : "Sıfır kritik hata"}
+                  {d.health.critical > 0 ? `${d.health.critical} acil sorun` : "Acil sorun yok"}
                 </span>
               </div>
             </div>
@@ -200,27 +198,24 @@ export default function GenelGorunumPage() {
             <div className="p-5 rounded-lg border border-line bg-surface flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs text-muted mb-2">
-                  <span>Yapay Zeka Hazırlığı</span>
-                  <Sparkles className="w-4 h-4 text-warn" />
+                  <span>Hazır öneriler</span>
+                  <ListChecks className="w-4 h-4 text-accent" aria-hidden />
                 </div>
                 <div className="text-2xl font-bold text-ink">
-                  {topQueue.length} <span className="text-xs font-normal text-muted">hazır görev</span>
+                  {queue.pending} <span className="text-xs font-normal text-muted">öneri</span>
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
-                <span>Otomasyon durumu</span>
-                <span className="text-accent font-semibold">Onayınızı bekliyor</span>
-              </div>
+              <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted">Hiçbiri onayınız olmadan siteye yazılmaz.</div>
             </div>
           </div>
 
-          {/* 3. Yapay Zeka Öncelikli Yapılacaklar (1-Tıkla Aksiyon Listesi) */}
+          {/* 3. Öncelikli görevler, sonuç diliyle */}
           <div className="rounded-lg border border-line bg-surface p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-ink flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-accent" />
-                  <span>Sitenizi Büyütecek Öncelikli Görevler</span>
+                  <span>Önce bunları yapın</span>
                 </h2>
                 <p className="text-xs text-muted mt-0.5">
                   Her değişikliği uygulamadan önce görür ve onaylarsınız.
@@ -234,10 +229,12 @@ export default function GenelGorunumPage() {
             <div className="space-y-3">
               {topQueue.length === 0 ? (
                 <div className="text-center py-8 text-muted text-sm">
-                  Tebrikler! Şu an için yapılması gereken acil bir işlem bulunmuyor.
+                  Şu an onay bekleyen öneri yok.
                 </div>
               ) : (
-                topQueue.map((q, idx) => (
+                topQueue.map((q, idx) => {
+                  const task = plainTask(q);
+                  return (
                   <div
                     key={q.id}
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border border-line bg-surface-2/50 hover:bg-surface-2 transition-colors"
@@ -247,10 +244,8 @@ export default function GenelGorunumPage() {
                         {idx + 1}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-ink">{q.title}</div>
-                        <p className="text-xs text-muted mt-0.5">
-                          {q.impact ? `Beklenen fayda: ${q.impact} artış` : "Arama sonuçlarında üst sıralara taşır"} · {q.source}
-                        </p>
+                        <div className="text-sm font-bold text-ink">{task.title}</div>
+                        <p className="text-xs text-muted mt-0.5">{task.benefit}</p>
                       </div>
                     </div>
 
@@ -258,22 +253,23 @@ export default function GenelGorunumPage() {
                       href={q.href}
                       className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-accent-fill hover:bg-accent-hover text-white text-xs font-semibold shrink-0 transition-colors"
                     >
-                      <span>{q.actionLabel || "Hemen Uygula"}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <span>Gözden geçir</span>
+                      <ArrowRight className="w-3.5 h-3.5" aria-hidden />
                     </Link>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* 4. Sade Trafik Özeti Grafiği */}
+          {/* 4. Trafik grafiği */}
           <Panel
             title="Google Ziyaretçi Akışı"
-            sub="Son dönemde sitenize Google aramalarından gelen kullanıcı sayısı"
+            sub="Google aramalarından sitenize gelen ziyaretçi sayısı, haftalık"
             actions={
               <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                {trendUp ? "Artış Eğiliminde" : "Düşüş Eğiliminde"}
+                {trendUp ? "Artıyor" : "Azalıyor"}
               </Badge>
             }
           >
@@ -289,21 +285,19 @@ export default function GenelGorunumPage() {
                 />
               </div>
             ) : (
-              <EmptyState title="Veri Bekleniyor" description="Search Console verileri biriktikçe ziyaretçi grafiğiniz burada oluşur." />
+              <EmptyState title="Henüz veri yok" description="Search Console'u bağladığınızda ziyaretçi grafiği burada oluşur." />
             )}
           </Panel>
 
-          {/* 5. Uzman Moduna Geçiş Çubuğu */}
+          {/* 5. Uzman Modu'na geçiş */}
           <div className="p-4 rounded-lg border border-line bg-surface-2/60 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-surface border border-line flex items-center justify-center text-lg">
-                ⚡
+              <div className="w-9 h-9 rounded-lg bg-surface border border-line flex items-center justify-center">
+                <Gauge className="w-4 h-4 text-muted" aria-hidden />
               </div>
               <div className="text-left">
-                <div className="text-xs font-bold text-ink">Daha detaylı teknik analizler mi arıyorsunuz?</div>
-                <div className="text-2xs text-muted">
-                  TTFB hızları, şema işaretlemeleri, yapay zeka model kırılımları ve tarama logları için dilediğiniz an Uzman Modu'na geçebilirsiniz.
-                </div>
+                <div className="text-xs font-bold text-ink">Teknik ayrıntılar Uzman Modu'nda</div>
+                <div className="text-xs text-muted">Sayfa hızı, yapılandırılmış veri, AI motorları ve tarama kayıtları.</div>
               </div>
             </div>
 
@@ -312,7 +306,7 @@ export default function GenelGorunumPage() {
               onClick={() => setDensity("expert")}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface border border-line hover:border-line-strong text-ink text-xs font-bold transition-all shrink-0 cursor-pointer"
             >
-              <span>⚡ Uzman Modunu Aç</span>
+              <span>Uzman Modu'na geç</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -321,17 +315,18 @@ export default function GenelGorunumPage() {
         /* ================= UZMAN & AJANS MODU ================= */
         <div className="space-y-5 animate-fade-in">
           {/* Uzman Modu Bildirim Şeridi */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-accent/20 bg-accent/5 text-xs">
+          <div className="flex items-center justify-between p-3 rounded-lg border border-line bg-surface-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-accent">⚡ Uzman Modu Aktif</span>
-              <span className="text-muted hidden sm:inline">· Tüm teknik telemetri, model kırılımları ve denetim araçları devrede.</span>
+              <Gauge className="w-3.5 h-3.5 text-accent" aria-hidden />
+              <span className="font-semibold text-ink">Uzman Modu</span>
+              <span className="text-muted hidden sm:inline">· tüm teknik ayrıntılar açık</span>
             </div>
             <button
               type="button"
               onClick={() => setDensity("summary")}
               className="text-xs font-semibold text-accent-ink hover:underline cursor-pointer"
             >
-              🌱 Sade Moda Geç
+              Sade Mod'a geç
             </button>
           </div>
 
@@ -341,7 +336,7 @@ export default function GenelGorunumPage() {
               <div className="flex items-center gap-2 font-mono text-2xs uppercase tracking-wider text-muted">
                 <span className="calpeo-mark" aria-hidden />
                 <span className="truncate">
-                  Genel görünüm · {site ? site.name : "Acme Türkiye"} · son {period} gün
+                  Genel görünüm · {siteName} · son {period} gün
                 </span>
               </div>
               <h1 className="font-editorial text-3xl sm:text-4xl font-normal tracking-tight text-ink leading-[1.1] mt-2 text-balance">
@@ -448,7 +443,7 @@ export default function GenelGorunumPage() {
                       <Link href={q.href} className="grid grid-cols-[4px_1fr_auto] gap-3 items-center p-2.5 rounded-sm border border-line bg-surface hover:bg-surface-2 hover:border-line-strong transition-colors">
                         <span className={cn("w-1 self-stretch rounded-full", severityStripeClass(q.severity))} aria-hidden />
                         <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-ink truncate">{q.title}</span>
+                          <span className="block text-sm font-semibold text-ink line-clamp-2">{q.title}</span>
                           <span className="block font-mono text-2xs text-muted truncate">
                             {q.impact ?? "—"} · güven {q.confidence !== undefined ? `%${Math.round(q.confidence * 100)}` : "—"} · {q.source}
                           </span>

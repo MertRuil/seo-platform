@@ -101,7 +101,7 @@ export default function BacklinksPage() {
       );
       return;
     }
-    const domain = (site?.domain || "acmestore.io").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
+    const domain = (site?.domain || "flagship-store.com").toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
     // CRITICAL: Strictly filter toxic links that actually target domain!
     const toxicItems = backlinks.filter((b) => b.is_toxic && b.target_url.toLowerCase().includes(domain));
     
@@ -292,7 +292,7 @@ export default function BacklinksPage() {
         <div className="flex flex-wrap items-center gap-1.5 bg-surface-subtle p-1 rounded-lg border border-line">
           {[
             { id: "ALL", label: `Tümü (${backlinks.length})` },
-            { id: "TOXIC", label: `🚨 Toksik / Zararlı (${toxicCount})` },
+            { id: "TOXIC", label: `Toksik / Zararlı (${toxicCount})` },
             { id: "DOFOLLOW", label: `Dofollow (${dofollowCount})` },
             { id: "NOFOLLOW", label: `Nofollow (${backlinks.length - dofollowCount})` },
             { id: "HIGH_DR", label: "Otoriter (DR > 60)" },

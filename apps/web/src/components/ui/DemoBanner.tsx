@@ -21,7 +21,7 @@ export function DemoBanner({ source, reason, error }: DemoBannerProps) {
       <div className="flex items-center gap-2 min-w-0">
         <FlaskConical className="w-3.5 h-3.5 shrink-0" aria-hidden />
         <span className="font-semibold shrink-0">Örnek veri</span>
-        <span className="truncate">
+        <span className="min-w-0 sm:truncate">
           {text}
           {error ? ` (${error})` : ""}
         </span>

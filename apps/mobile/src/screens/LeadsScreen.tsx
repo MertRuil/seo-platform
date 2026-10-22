@@ -29,7 +29,7 @@ export const LeadsScreen: React.FC = () => {
   const [copiedPitch, setCopiedPitch] = useState<boolean>(false);
 
   // Quick Calculator States
-  const [calcUrl, setCalcUrl] = useState<string>(selectedSite?.primary_url || "https://acmestore.io");
+  const [calcUrl, setCalcUrl] = useState<string>(selectedSite?.primary_url || "https://flagship-store.com");
   const [calcTraffic, setCalcTraffic] = useState<string>("85000");
   const [calcAov, setCalcAov] = useState<string>("145");
   const [calcCvr, setCalcCvr] = useState<string>("2.4");

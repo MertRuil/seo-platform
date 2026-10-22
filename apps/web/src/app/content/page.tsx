@@ -70,27 +70,27 @@ import {
 
 const SAMPLE_TEXTS_TR = [
   {
-    title: "🏥 Sağlık & Klinik (TİTCK İhlalleri)",
+    title: "Sağlık & Klinik (TİTCK İhlalleri)",
     content: "İstanbul'un en iyi doktoru ve 1 numaralı kliniğimiz ile sedef hastalığını tedavi eder, burun estetiğinde öncesi sonrası garantili sonuç sunarız. Sıfır risk ile ağrısız acısız kesin çözüm.",
     keyword: "estetik cerrahi uzmanı",
   },
   {
-    title: "⚖️ Hukuk & Avukatlık (TBB Reklam İhlalleri)",
+    title: "Hukuk & Avukatlık (TBB Reklam İhlalleri)",
     content: "Ankara'nın en iyi ceza avukatı olarak dava kazanma garantisi ve ücretsiz danışmanlık veriyoruz. %100 başarı oranı ile en başarılı avukat bürosu.",
     keyword: "ceza avukatı ankara",
   },
   {
-    title: "💊 Gıda Takviyesi (Yasaklı Zayıflama Beyanları)",
+    title: "Gıda Takviyesi (Yasaklı Zayıflama Beyanları)",
     content: "Bu bitkisel çay 1 haftada 10 kilo zayıflatır ve kanseri önler. Sağlık Bakanlığı onaylı takviye olarak doktor tavsiyeli güvenli formül.",
     keyword: "zayıflama çayı",
   },
   {
-    title: "💳 Finans & Kredi (Yetkisiz Vaatler)",
+    title: "Finans & Kredi (Yetkisiz Vaatler)",
     content: "Kripto botumuz ile günlük %10 kar ve kesin kazanç garantisi. Sicili bozuklara kredi ve senetle kredi anında hesabınızda.",
     keyword: "kredi başvurusu",
   },
   {
-    title: "✅ Mevzuata Tam Uyumlu Kurumsal Örnek",
+    title: "Mevzuata Tam Uyumlu Kurumsal Örnek",
     content: "Deneyimli hekim kadromuz ile tedavi sürecini destekleyen bilgilendirme danışmanlığı sunuyoruz. Yasal haklarınız kapsamında detaylı bilgi almak için iletişime geçebilirsiniz.",
     keyword: "sağlık danışmanlığı",
   },
@@ -98,32 +98,32 @@ const SAMPLE_TEXTS_TR = [
 
 const SAMPLE_TEXTS_EU = [
   {
-    title: "🌿 Greenwashing & Climate (Dir (EU) 2024/825)",
+    title: "Greenwashing & Climate (Dir (EU) 2024/825)",
     content: "Our new clothing line is 100% eco-friendly and 100% sustainable. Completely carbon neutral and climate positive shopping with net-zero product footprint.",
     keyword: "sustainable fashion europe",
   },
   {
-    title: "🏥 Health & Pharma (Dir 2001/83/EC & MDR)",
+    title: "Health & Pharma (Dir 2001/83/EC & MDR)",
     content: "Order Ozempic without prescription online! Our European clinic offers a guaranteed cure for diabetes with zero risk surgery and no side effects.",
     keyword: "weight loss clinic europe",
   },
   {
-    title: "🥗 Supplements & Weight Loss (EFSA Reg 1924/2006)",
+    title: "Supplements & Weight Loss (EFSA Reg 1924/2006)",
     content: "Drink our herbal extract to lose 10 kg in 2 weeks with our rapid fat burning formula. Clinically proven, cures arthritis and prevents cancer.",
     keyword: "slimming tea europe",
   },
   {
-    title: "💰 Finance & Crypto (MiCA & MiFID II)",
+    title: "Finance & Crypto (MiCA & MiFID II)",
     content: "Invest in our algorithm for guaranteed returns and risk-free investment with guaranteed crypto profit. Instant loans no credit check guaranteed.",
     keyword: "crypto trading platform eu",
   },
   {
-    title: "🛒 E-Commerce Superlative (Omnibus Directive)",
+    title: "E-Commerce Superlative (Omnibus Directive)",
     content: "We are the cheapest in Europe with an unbeatable price and unconditional money-back guarantee with no questions asked refund.",
     keyword: "electronics store europe",
   },
   {
-    title: "✅ Fully Compliant EU Standard Copy",
+    title: "Fully Compliant EU Standard Copy",
     content: "Our specialized clinical diagnostics adhere to European standards. Competitive pricing with standard 14-day statutory withdrawal rights. Capital at risk for investments.",
     keyword: "medical diagnostics eu",
   },
@@ -131,37 +131,37 @@ const SAMPLE_TEXTS_EU = [
 
 const SAMPLE_TEXTS_US = [
   {
-    title: "🏥 FDA Unapproved Disease Cure & POM (FD&C Act)",
+    title: "FDA Unapproved Disease Cure & POM (FD&C Act)",
     content: "Order Ozempic without prescription online! Our clinical formula cures cancer and provides a guaranteed cure for diabetes with zero risk surgery options.",
     keyword: "online pharmacy us",
   },
   {
-    title: "🥗 Dietary Supplements & Rapid Weight Loss (DSHEA / FTC)",
+    title: "Dietary Supplements & Rapid Weight Loss (DSHEA / FTC)",
     content: "Lose 30 lbs in 2 weeks with our rapid fat melting guarantee and lose weight without diet or exercise! Proven botanical drops prevent diabetes and heart disease.",
     keyword: "fat burner supplement us",
   },
   {
-    title: "⭐ FTC Deceptive Practices, Fake Reviews & Made in USA",
+    title: "FTC Deceptive Practices, Fake Reviews & Made in USA",
     content: "Engineered globally and 100% made in the USA! Pay for 5-star reviews on Google and Yelp with guaranteed ratings. Claim your 100% free trial no risk today.",
     keyword: "reputation management us",
   },
   {
-    title: "📈 SEC / CFTC Guaranteed Crypto Yield & Predatory Loans",
+    title: "SEC / CFTC Guaranteed Crypto Yield & Predatory Loans",
     content: "Invest in our algorithm for guaranteed returns and risk-free investing with guaranteed crypto yield. Instant loans no credit check with bad credit guaranteed approval.",
     keyword: "crypto investment us",
   },
   {
-    title: "🌿 FTC Green Guides (Environmental Claims)",
+    title: "FTC Green Guides (Environmental Claims)",
     content: "Buy our certified carbon neutral product with 100% eco-friendly and zero environmental impact design. Completely environmentally safe guaranteed.",
     keyword: "sustainable products us",
   },
   {
-    title: "⚖️ ABA Legal Outcome Guarantee (Model Rule 7.1)",
+    title: "ABA Legal Outcome Guarantee (Model Rule 7.1)",
     content: "The best lawyer in New York with 100% success rate attorney and guaranteed court victory in commercial litigation. Guaranteed million dollar settlement.",
     keyword: "personal injury lawyer ny",
   },
   {
-    title: "✅ Fully Compliant US Standard Copy",
+    title: "Fully Compliant US Standard Copy",
     content: "Our certified clinical team provides diagnostic evaluations and physician consultations. Dietary supplement statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease. Investments involve risk, including loss of principal. Prior results do not guarantee a similar outcome.",
     keyword: "wellness healthcare us",
   },
@@ -169,42 +169,42 @@ const SAMPLE_TEXTS_US = [
 
 const SAMPLE_TEXTS_ASIA = [
   {
-    title: "🏥 PMD Act & Yakki-ho (Japan Unapproved Medical)",
+    title: "PMD Act & Yakki-ho (Japan Unapproved Medical)",
     content: "Our luxury facial essence permanently removes wrinkles and reverses aging completely! Daily drink cures cancer and diabetes with miracle botanical remedy.",
     keyword: "anti aging skincare tokyo",
   },
   {
-    title: "⭐ Stealth Marketing & Fake Reviews (JCAA / KFTC)",
+    title: "Stealth Marketing & Fake Reviews (JCAA / KFTC)",
     content: "Boost your store ranking: purchase fake reviews and stealth marketing service for Google, Xiaohongshu, and Naver with undisclosed influencer promotion.",
     keyword: "influencer marketing seoul",
   },
   {
-    title: "🏆 China SAMR Absolute Superlatives (Art. 9)",
+    title: "China SAMR Absolute Superlatives (Art. 9)",
     content: "Our brand provides national level best engineering, the absolute best in China with highest level quality. Guaranteed Japan's number one cosmetic product.",
     keyword: "ecommerce brand shanghai",
   },
   {
-    title: "🥗 Dietary Supplements & Rapid Slimming (MHLW / MFDS)",
+    title: "Dietary Supplements & Rapid Slimming (MHLW / MFDS)",
     content: "Lose 10 kg in 2 weeks without diet or exercise! Drink our miracle slimming tea for effortless fat burning supplement results while sleeping.",
     keyword: "slimming tea asia",
   },
   {
-    title: "📈 Singapore MAS Crypto & Guaranteed Lending",
+    title: "Singapore MAS Crypto & Guaranteed Lending",
     content: "Earn guaranteed crypto yield with our 100% risk-free investment algorithm bot in Singapore! Instant personal loans no credit check with guaranteed loan approval.",
     keyword: "crypto trading platform singapore",
   },
   {
-    title: "🌿 Singapore CCCS Green Claims & Carbon Neutral",
+    title: "Singapore CCCS Green Claims & Carbon Neutral",
     content: "Our sneakers feature 100% eco-friendly materials and certified carbon neutral delivery with zero carbon guaranteed across APAC.",
     keyword: "sustainable fashion singapore",
   },
   {
-    title: "🚭 Vaping & Online Casino Prohibition (Singapore)",
+    title: "Vaping & Online Casino Prohibition (Singapore)",
     content: "Buy vapes online in Singapore with fast shipping or play at the trusted online casino Singapore with instant payouts.",
     keyword: "online retail singapore",
   },
   {
-    title: "✅ Fully Compliant Asian / APAC Copy",
+    title: "Fully Compliant Asian / APAC Copy",
     content: "Formulated with gentle botanical extracts to support skin hydration and maintain natural barrier balance. Certified under Japanese cosmetic standards. Consult a certified dermatologist for personalized guidance.",
     keyword: "hydrating lotion tokyo",
   },
@@ -212,22 +212,22 @@ const SAMPLE_TEXTS_ASIA = [
 
 const SAMPLE_TEXTS_UK = [
   {
-    title: "💉 Health & POMs (Botox & Injections - ASA Rule 12.12)",
+    title: "Health & POMs (Botox & Injections - ASA Rule 12.12)",
     content: "Visit our London aesthetics clinic for cheap botox injections and discounted botulinum toxin treatments! Book your botox appointment today.",
     keyword: "botox clinic london",
   },
   {
-    title: "🏥 Unproven Disease Cure (ASA CAP Rule 12.1)",
+    title: "Unproven Disease Cure (ASA CAP Rule 12.1)",
     content: "Our natural herbal tincture cures cancer and guarantees complete healing without medication. 100% guaranteed cure for arthritis.",
     keyword: "natural cancer remedy uk",
   },
   {
-    title: "🪙 FCA Crypto Promotions (PS23/6 Statutory Rules)",
+    title: "FCA Crypto Promotions (PS23/6 Statutory Rules)",
     content: "Earn guaranteed crypto returns with zero risk cryptocurrency investment! Refer a friend get £50 crypto bonus with passive crypto income guaranteed.",
     keyword: "crypto trading platform uk",
   },
   {
-    title: "🌿 CMA Green Claims Code & DMCC Act 2024",
+    title: "CMA Green Claims Code & DMCC Act 2024",
     content: "Buy our 100% eco-friendly jackets! Completely carbon neutral product with the greenest choice guarantee and zero carbon delivery across the UK.",
     keyword: "sustainable fashion uk",
   },
@@ -237,12 +237,12 @@ const SAMPLE_TEXTS_UK = [
     keyword: "electronics store uk",
   },
   {
-    title: "🚭 Vaping Advertising Prohibition (CAP Rule 22)",
+    title: "Vaping Advertising Prohibition (CAP Rule 22)",
     content: "Buy nicotine vapes online with cheap disposable vapes and elf bar sale deals available for fast delivery.",
     keyword: "online vape shop uk",
   },
   {
-    title: "✅ Fully Compliant UK Standard Copy",
+    title: "Fully Compliant UK Standard Copy",
     content: "Consult our GMC-registered clinicians for comprehensive facial aesthetic consultations. Certified organic skincare supporting skin hydration. Capital at risk for investments; past performance is not a guide to future returns.",
     keyword: "facial aesthetic consultation london",
   },
@@ -250,37 +250,37 @@ const SAMPLE_TEXTS_UK = [
 
 const SAMPLE_TEXTS_MENA = [
   {
-    title: "🎰 Kumar & Bahis (BAE 55/2023 & TDRA)",
+    title: "Kumar & Bahis (BAE 55/2023 & TDRA)",
     content: "Join the best online casino and play poker for real money with instant liquor delivery in Dubai and sports betting.",
     keyword: "online casino dubai",
   },
   {
-    title: "🏥 Tıbbi Şifa & Mucizevi İddialar (MOHAP / SFDA)",
+    title: "Tıbbi Şifa & Mucizevi İddialar (MOHAP / SFDA)",
     content: "خلطة سحرية لعلاج السكري بشكل نهائي وشفاء تام من السرطان مع تخسيس 10 كيلو في أسبوع مضمون.",
     keyword: "علاج السكري دبي",
   },
   {
-    title: "💊 Reçeteli İlaç (POM) Satışı (MOHAP 1983/4)",
+    title: "Reçeteli İlaç (POM) Satışı (MOHAP 1983/4)",
     content: "Fast express delivery: buy ozempic without prescription in dubai or order xanax online today with cash on delivery.",
     keyword: "buy ozempic online uae",
   },
   {
-    title: "⭐ Gizli Reklam & Mawthooq (NMC & GAMR)",
+    title: "Gizli Reklam & Mawthooq (NMC & GAMR)",
     content: "تجربة شخصية غير مدفوعة وأفضل متجر عطور بدون إعلان، زوروا الرابط للشراء فوراً.",
     keyword: "عطور الرياض",
   },
   {
-    title: "💰 Kripto & Garanti Getiri (VARA & SAMA)",
+    title: "Kripto & Garanti Getiri (VARA & SAMA)",
     content: "Invest in our fund for guaranteed monthly returns of 50% with zero risk investment dubai crypto trading.",
     keyword: "crypto investment uae",
   },
   {
-    title: "🏡 Lisanssız Emlak (Suudi Fal / Dubai RERA)",
+    title: "Lisanssız Emlak (Suudi Fal / Dubai RERA)",
     content: "عقارات للبيع بدون ترخيص فال وشقق فندقية فاخرة بدون تصريح إعلاني مباشر من المالك.",
     keyword: "عقارات للبيع الرياض",
   },
   {
-    title: "✅ Tam Uyumlu BAE / Körfez Örneği",
+    title: "Tam Uyumlu BAE / Körfez Örneği",
     content: "Welcome to our licensed executive hotel in Dubai. Official DTCM tourism license DTCM-12345. Enjoy our signature restaurant.",
     keyword: "hotel dubai downtown",
   },
@@ -546,7 +546,7 @@ export default function ContentOptimizerPage() {
           }`}
         >
           <Scale className="w-4 h-4 text-accent" />
-          🛡️ Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "🇹🇷 TR" : complianceRegion === "EU" ? "🇪🇺 EU" : complianceRegion === "US" ? "🇺🇸 US" : complianceRegion === "UK" ? "🇬🇧 UK" : complianceRegion === "ASIA" ? "🌏 ASIA" : "🇦🇪 MENA"})
+          Mevzuat Uyum Kalkanı ({complianceRegion === "TR" ? "TR" : complianceRegion === "EU" ? "EU" : complianceRegion === "US" ? "US" : complianceRegion === "UK" ? "UK" : complianceRegion === "ASIA" ? "ASIA" : "MENA"})
           {complianceViolations.length > 0 && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-critical-soft text-critical font-mono text-2xs">
               {complianceViolations.length}
@@ -599,7 +599,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇹🇷</span> Türkiye (TR)
+                <span></span> Türkiye (TR)
               </button>
               <button
                 type="button"
@@ -614,7 +614,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇪🇺</span> Avrupa Birliği (EU)
+                <span></span> Avrupa Birliği (EU)
               </button>
               <button
                 type="button"
@@ -629,7 +629,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇺🇸</span> ABD (FTC / FDA / SEC)
+                <span></span> ABD (FTC / FDA / SEC)
               </button>
               <button
                 type="button"
@@ -644,7 +644,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇬🇧</span> Birleşik Krallık (UK)
+                <span></span> Birleşik Krallık (UK)
               </button>
               <button
                 type="button"
@@ -659,7 +659,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🌏</span> Asya / APAC
+                Asya / APAC
               </button>
               <button
                 type="button"
@@ -674,7 +674,7 @@ export default function ContentOptimizerPage() {
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>🇦🇪</span> BAE & Körfez (MENA)
+                <span></span> BAE & Körfez (MENA)
               </button>
             </div>
           </div>
@@ -889,31 +889,31 @@ export default function ContentOptimizerPage() {
               : complianceRegion === "UK"
               ? [
                   { id: "ALL", label: "All UK Sectors" },
-                  { id: "HEALTH_ASA_CAP", label: "🏥 Health, POMs & Botox (ASA CAP 12)" },
-                  { id: "FINANCIAL_FCA", label: "🪙 Finance & Crypto (FCA PS23/6)" },
-                  { id: "GREEN_CLAIMS_CMA", label: "🌿 Green Claims & DMCC (CMA)" },
+                  { id: "HEALTH_ASA_CAP", label: "Health, POMs & Botox (ASA CAP 12)" },
+                  { id: "FINANCIAL_FCA", label: "Finance & Crypto (FCA PS23/6)" },
+                  { id: "GREEN_CLAIMS_CMA", label: "Green Claims & DMCC (CMA)" },
                   { id: "CONSUMER_CMA_ASA", label: "⏱️ Dark Patterns & Scarcity (DMCC)" },
-                  { id: "VAPING_TOBACCO_ASA", label: "🚭 Nicotine Vaping (CAP 22)" },
+                  { id: "VAPING_TOBACCO_ASA", label: "Nicotine Vaping (CAP 22)" },
                 ]
               : complianceRegion === "ASIA"
               ? [
                   { id: "ALL", label: "All Asia / APAC Sectors" },
-                  { id: "COSMETICS_HEALTH_PMDA", label: "🏥 Health & Cosmetics (PMD Act/HSA)" },
-                  { id: "STEALTH_MARKETING_JCAA_KFTC", label: "⭐ Stealth Marketing (JCAA/KFTC)" },
-                  { id: "ABSOLUTE_SUPERLATIVES_SAMR", label: "🏆 Superlatives (SAMR Art. 9)" },
-                  { id: "DIETARY_SUPPLEMENTS_WEIGHTLOSS", label: "🥗 Supplements & Slimming" },
-                  { id: "FINANCIAL_CRYPTO_MAS", label: "💳 Crypto & Loans (MAS DPT)" },
-                  { id: "GREEN_CLAIMS_APAC", label: "🌿 Green Claims (CCCS)" },
-                  { id: "VAPING_GAMBLING_BAN_APAC", label: "🚭 Vaping & Gambling Ban" },
+                  { id: "COSMETICS_HEALTH_PMDA", label: "Health & Cosmetics (PMD Act/HSA)" },
+                  { id: "STEALTH_MARKETING_JCAA_KFTC", label: "Stealth Marketing (JCAA/KFTC)" },
+                  { id: "ABSOLUTE_SUPERLATIVES_SAMR", label: "Superlatives (SAMR Art. 9)" },
+                  { id: "DIETARY_SUPPLEMENTS_WEIGHTLOSS", label: "Supplements & Slimming" },
+                  { id: "FINANCIAL_CRYPTO_MAS", label: "Crypto & Loans (MAS DPT)" },
+                  { id: "GREEN_CLAIMS_APAC", label: "Green Claims (CCCS)" },
+                  { id: "VAPING_GAMBLING_BAN_APAC", label: "Vaping & Gambling Ban" },
                 ]
               : [
                   { id: "ALL", label: "Tüm MENA Sektörleri" },
-                  { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "🕌 İslami Değerler & Kumar (TDRA)" },
-                  { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "🏥 Tıbbi İddialar (MOHAP/SFDA)" },
-                  { id: "INFLUENCER_MAWTHOOQ_NMC", label: "⭐ Mawthooq & Gizli Reklam" },
-                  { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "🪙 Kripto & Garanti Getiri (VARA)" },
-                  { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "🏡 Emlak Lisansı (Fal/RERA)" },
-                  { id: "VAPING_TOBACCO_BAN_MENA", label: "🚭 Tütün & Elektronik Sigara" },
+                  { id: "ISLAMIC_VALUES_PUBLIC_MORALS", label: "İslami Değerler & Kumar (TDRA)" },
+                  { id: "HEALTH_MEDICAL_MOHAP_SFDA", label: "Tıbbi İddialar (MOHAP/SFDA)" },
+                  { id: "INFLUENCER_MAWTHOOQ_NMC", label: "Mawthooq & Gizli Reklam" },
+                  { id: "FINANCIAL_CRYPTO_VARA_SAMA", label: "Kripto & Garanti Getiri (VARA)" },
+                  { id: "ECOMMERCE_REAL_ESTATE_FAL", label: "Emlak Lisansı (Fal/RERA)" },
+                  { id: "VAPING_TOBACCO_BAN_MENA", label: "Tütün & Elektronik Sigara" },
                 ]
             ).map((sec) => (
               <button
@@ -1144,7 +1144,7 @@ export default function ContentOptimizerPage() {
                   <span>Kelime: {contentDraft.split(/\s+/).filter(Boolean).length}</span>
                   {complianceViolations.length > 0 && (
                     <span className="text-critical font-bold">
-                      ⚠️ {complianceViolations.length} Türkiye mevzuat uyarısı
+                      {complianceViolations.length} Türkiye mevzuat uyarısı
                     </span>
                   )}
                 </div>

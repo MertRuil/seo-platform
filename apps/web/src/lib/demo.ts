@@ -4,6 +4,9 @@
  * "Örnek veri" bandıyla gösterilir. Sahte veri asla bantsız görünmez.
  */
 
+/** Web ve mobil örnek veride görünen tek site; ekranlar başka bir örnek ad uydurmaz. */
+export const DEMO_SITE = { name: "Flagship Store", domain: "flagship-store.com" } as const;
+
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
 
 export const SEVERITY_LABEL: Record<Severity, string> = {

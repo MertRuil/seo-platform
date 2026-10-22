@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
 import { scanTextForMenaCompliance } from "./src/lib/compliance-mena";
-import { siteSummary, scoreTone } from "./src/lib/summary";
+import { siteSummary, scoreTone, plainTask } from "./src/lib/summary";
+import { navGroups, SITE_HEALTH_TABS, isNavItemActive } from "./src/lib/nav";
 import { formatCompact, formatDelta, formatPercentValue, formatTry } from "./src/lib/format";
 
 async function run() {
@@ -366,6 +367,30 @@ async function run() {
   assert.deepStrictEqual([scoreTone(80), scoreTone(79), scoreTone(49)], ["evidence", "warn", "critical"]);
   console.log("  siteSummary: ok");
 
+  // Sade Mod görev metni teknik terim taşımaz; bilinmeyen kategori özgün başlığı korur.
+  assert.strictEqual(plainTask({ title: "x", category: "CANONICAL" }).title, "Bir sayfanın Google'da yanlış adresle görünmesini düzeltin");
+  assert.strictEqual(plainTask({ title: "x", category: "İÇ LİNK" }).title, "Önemli bir sayfaya site içinden daha çok bağlantı verin");
+  assert.strictEqual(plainTask({ title: "x", category: "KEYWORD_CANNIBALIZATION_CANDIDATE" }).title, "Aynı aramada birbiriyle yarışan sayfalarınızı ayırın");
+  assert.strictEqual(plainTask({ title: "x", category: "CTR_SNIPPET_OPPORTUNITY" }).title, "Arama sonucundaki başlığınızı daha çok tıklanacak şekilde yenileyin");
+  assert.strictEqual(plainTask({ title: "Özgün başlık", category: "BILINMEYEN" }).title, "Özgün başlık");
+  for (const c of ["CANONICAL", "CTR", "İÇ LİNK", "SCHEMA", "REDIRECT_CHAIN", "RULE_INTERNAL_LINK_TO_404"]) {
+    assert.doesNotMatch(plainTask({ title: "x", category: c }).title + plainTask({ title: "x", category: c }).benefit, /canonical|anchor|pagerank|diff|schema/i, c);
+  }
+  console.log("  plainTask: ok");
+
+  // Menü 5 alan; her sayfa ya menüden ya Site sağlığı sekmelerinden açılır.
+  assert.deepStrictEqual(navGroups.map((g) => g.label), ["Özet", "Yapılacaklar", "Görünürlük", "Site sağlığı", "Yönetim"]);
+  const reachable = new Set([...navGroups.flatMap((g) => g.items.map((i) => i.href)), ...SITE_HEALTH_TABS.map((t) => t.href)]);
+  const pages = readdirSync("src/app", { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !["api", "login"].includes(e.name) && readdirSync(join("src/app", e.name)).includes("page.tsx"))
+    .map((e) => `/${e.name}`);
+  assert.deepStrictEqual(pages.filter((p) => !reachable.has(p)), [], "menüden ulaşılamayan sayfa");
+  const icons = navGroups.flatMap((g) => g.items.map((i) => i.icon));
+  assert.strictEqual(new Set(icons).size, icons.length, "menüde tekrar eden ikon");
+  const health = navGroups.flatMap((g) => g.items).find((i) => i.href === "/health")!;
+  assert(isNavItemActive(health, "/issues") && isNavItemActive(health, "/crawls") && !isNavItemActive(health, "/keywords"));
+  console.log("  menü yapısı: ok");
+
   // tailwind.config.js renk paletini ve gölge/yarıçap ölçeğini daralttığı için bu sınıflar CSS üretmez, sessizce stilsiz kalır.
   const undefinedClass =
     /(?<![\w-])(?:[a-z]+:)*(?:(?:text|bg|border|from|to|via|ring|divide|fill|stroke|accent)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d+|rounded-(?:xl|2xl|3xl)|shadow-(?:sm|md|lg|xl|2xl|inner)|(?:bg|text)-accent-(?:strong|contrast))(?![\w-])/g;
@@ -373,6 +398,11 @@ async function run() {
     readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? tsxFiles(join(dir, e.name)) : e.name.endsWith(".tsx") ? [join(dir, e.name)] : []));
   const offenders = tsxFiles("src").flatMap((f) => (readFileSync(f, "utf8").match(undefinedClass) ?? []).map((c) => `${f}: ${c}`));
   assert.deepStrictEqual(offenders, [], "tanımsız Tailwind sınıfı");
+
+  // Arayüz metninde emoji yok; durum renk, ikon ve metinle anlatılır.
+  const emoji = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+  const emojiFiles = tsxFiles("src").filter((f) => emoji.test(readFileSync(f, "utf8")));
+  assert.deepStrictEqual(emojiFiles, [], "emoji içeren bileşen");
   console.log("  tailwind sınıfları tanımlı: ok");
 
   console.log("ALL UI LOGIC TESTS PASSED");

@@ -290,7 +290,7 @@ export default function KeywordsPage() {
                                 title={`TR: ${trViolations[0].title} (${trViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-critical shrink-0" />
-                                🇹🇷 TR İhlal Riski: {trViolations[0].title}
+                                TR İhlal Riski: {trViolations[0].title}
                               </span>
                             )}
                             {euViolations.length > 0 && (
@@ -299,7 +299,7 @@ export default function KeywordsPage() {
                                 title={`EU: ${euViolations[0].title} (${euViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-warn shrink-0" />
-                                🇪🇺 EU Violation: {euViolations[0].title}
+                                EU Violation: {euViolations[0].title}
                               </span>
                             )}
                             {usViolations.length > 0 && (
@@ -308,7 +308,7 @@ export default function KeywordsPage() {
                                 title={`US: ${usViolations[0].title} (${usViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                                🇺🇸 US Violation: {usViolations[0].title}
+                                US Violation: {usViolations[0].title}
                               </span>
                             )}
                             {ukViolations.length > 0 && (
@@ -317,7 +317,7 @@ export default function KeywordsPage() {
                                 title={`UK: ${ukViolations[0].title} (${ukViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                                🇬🇧 UK Violation: {ukViolations[0].title}
+                                UK Violation: {ukViolations[0].title}
                               </span>
                             )}
                             {asiaViolations.length > 0 && (
@@ -326,7 +326,7 @@ export default function KeywordsPage() {
                                 title={`Asia: ${asiaViolations[0].title} (${asiaViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                                🌏 Asia Violation: {asiaViolations[0].title}
+                                Asia Violation: {asiaViolations[0].title}
                               </span>
                             )}
                             {menaViolations.length > 0 && (
@@ -335,7 +335,7 @@ export default function KeywordsPage() {
                                 title={`MENA: ${menaViolations[0].title} (${menaViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-evidence shrink-0" />
-                                🇦🇪 MENA İhlali: {menaViolations[0].title}
+                                MENA İhlali: {menaViolations[0].title}
                               </span>
                             )}
                           </div>
@@ -504,7 +504,7 @@ export default function KeywordsPage() {
                               title={`TR: ${expTr[0].title} (${expTr[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-critical shrink-0" />
-                              🇹🇷 TR Yasaklı: {expTr[0].title}
+                              TR Yasaklı: {expTr[0].title}
                             </span>
                           )}
                           {expEu.length > 0 && (
@@ -513,7 +513,7 @@ export default function KeywordsPage() {
                               title={`EU: ${expEu[0].title} (${expEu[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-warn shrink-0" />
-                              🇪🇺 EU Prohibited: {expEu[0].title}
+                              EU Prohibited: {expEu[0].title}
                             </span>
                           )}
                           {expUs.length > 0 && (
@@ -522,7 +522,7 @@ export default function KeywordsPage() {
                               title={`US: ${expUs[0].title} (${expUs[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                              🇺🇸 US Prohibited: {expUs[0].title}
+                              US Prohibited: {expUs[0].title}
                             </span>
                           )}
                           {expAsia.length > 0 && (
@@ -531,7 +531,7 @@ export default function KeywordsPage() {
                               title={`Asia: ${expAsia[0].title} (${expAsia[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                              🌏 Asia Prohibited: {expAsia[0].title}
+                              Asia Prohibited: {expAsia[0].title}
                             </span>
                           )}
                           {expUk.length > 0 && (
@@ -540,7 +540,7 @@ export default function KeywordsPage() {
                               title={`UK: ${expUk[0].title} (${expUk[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
-                              🇬🇧 UK Prohibited: {expUk[0].title}
+                              UK Prohibited: {expUk[0].title}
                             </span>
                           )}
                           {expMena.length > 0 && (
@@ -549,7 +549,7 @@ export default function KeywordsPage() {
                               title={`MENA: ${expMena[0].title} (${expMena[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-evidence shrink-0" />
-                              🇦🇪 MENA Yasaklı: {expMena[0].title}
+                              MENA Yasaklı: {expMena[0].title}
                             </span>
                           )}
                           {item.has_ai_overview && (
@@ -616,7 +616,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-critical-soft border border-critical/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-critical font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-critical shrink-0" />
-                  <span>🇹🇷 TR Reklam Mevzuatı Uyarısı: {scanTurkishCompliance(newKeyword)[0].title}</span>
+                  <span>TR Reklam Mevzuatı Uyarısı: {scanTurkishCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-critical leading-relaxed">
                   "{scanTurkishCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTurkishCompliance(newKeyword)[0].legalBasis} uyarınca yasaktır. Reklam Kurulu cezası riski taşır.
@@ -630,7 +630,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-warn-soft border border-warn/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-warn font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-warn shrink-0" />
-                  <span>🇪🇺 EU Regulatory Compliance Warning: {scanEuCompliance(newKeyword)[0].title}</span>
+                  <span>EU Regulatory Compliance Warning: {scanEuCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-warn leading-relaxed">
                   "{scanEuCompliance(newKeyword)[0].matchedPattern}" violates {scanEuCompliance(newKeyword)[0].legalBasis}.
@@ -644,7 +644,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-accent-soft border border-accent/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-accent-ink font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
-                  <span>🇺🇸 US Federal Compliance Warning: {scanUsCompliance(newKeyword)[0].title}</span>
+                  <span>US Federal Compliance Warning: {scanUsCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-accent-ink leading-relaxed">
                   "{scanUsCompliance(newKeyword)[0].matchedPattern}" violates {scanUsCompliance(newKeyword)[0].legalBasis} (FTC/FDA penalty risk).
@@ -658,7 +658,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-accent-soft border border-accent/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-accent-ink font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
-                  <span>🌏 Asia / APAC Regulatory Warning: {scanAsiaCompliance(newKeyword)[0].title}</span>
+                  <span>Asia / APAC Regulatory Warning: {scanAsiaCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-accent-ink leading-relaxed">
                   "{scanAsiaCompliance(newKeyword)[0].matchedPattern}" violates {scanAsiaCompliance(newKeyword)[0].legalBasis} ({scanAsiaCompliance(newKeyword)[0].penaltyRisk}).
@@ -672,7 +672,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-accent-soft border border-accent/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-accent-ink font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
-                  <span>🇬🇧 UK Regulatory Compliance Warning: {scanTextForUkCompliance(newKeyword)[0].title}</span>
+                  <span>UK Regulatory Compliance Warning: {scanTextForUkCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-accent-ink leading-relaxed">
                   "{scanTextForUkCompliance(newKeyword)[0].matchedPattern}" violates {scanTextForUkCompliance(newKeyword)[0].legalBasis} ({scanTextForUkCompliance(newKeyword)[0].penaltyRisk}).
@@ -686,7 +686,7 @@ export default function KeywordsPage() {
               <div className="mt-2 p-2.5 bg-evidence-soft border border-evidence/30 rounded-sm space-y-1">
                 <div className="flex items-center gap-1.5 text-evidence font-bold text-xs">
                   <AlertTriangle className="w-3.5 h-3.5 text-evidence shrink-0" />
-                  <span>🇦🇪 Orta Doğu & Körfez (MENA) Mevzuat Uyarısı: {scanTextForMenaCompliance(newKeyword)[0].title}</span>
+                  <span>Orta Doğu & Körfez (MENA) Mevzuat Uyarısı: {scanTextForMenaCompliance(newKeyword)[0].title}</span>
                 </div>
                 <p className="text-2xs text-evidence leading-relaxed">
                   "{scanTextForMenaCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTextForMenaCompliance(newKeyword)[0].legalBasis} ({scanTextForMenaCompliance(newKeyword)[0].penaltyRisk}) ile çelişmektedir.

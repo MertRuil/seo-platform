@@ -217,7 +217,7 @@ export default function GeoPage() {
 
         setNotice({
           tone: res.success ? "success" : "warn",
-          text: `⚡ ${res.message}`,
+          text: `${res.message}`,
         });
         setDeployingAction(null);
         return;

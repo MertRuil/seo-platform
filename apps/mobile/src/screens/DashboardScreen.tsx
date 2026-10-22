@@ -306,7 +306,7 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
       <View style={styles.siteHeader}>
         <View style={styles.siteHeaderLeft}>
           <Text style={styles.siteTitle} numberOfLines={1}>{selectedSite?.name || "Web Siteniz"}</Text>
-          <Text style={styles.siteUrl} numberOfLines={1}>{selectedSite?.primary_url || "https://acmestore.io"}</Text>
+          <Text style={styles.siteUrl} numberOfLines={1}>{selectedSite?.primary_url || "https://flagship-store.com"}</Text>
         </View>
         <View style={styles.modeBadge}>
           <Ionicons name="flash-sharp" size={11} color={Colors.primary} />
@@ -390,8 +390,8 @@ Detaylı teknik analiz ve AI onarım adımları için SEO Platform paneline göz
         </View>
       </GlassCard>
 
-      {/* Google Search Console & Organic Performance */}
-      {(() => {
+      {/* Google Search Console & Organic Performance — demo modunda bağlantı hatası gösterilmez; brifingdeki örnek değerlerle çelişir */}
+      {!isDemoMode && (() => {
         const isConnected = Boolean(googleSync?.gsc.connected && googleSync?.status === "HEALTHY");
         const isAuthFailed = Boolean(googleSync?.status === "ERROR" || googleSync?.gsc.status === "AUTH_FAILED");
         const clicksText = isConnected ? (googleSync?.gsc.total_clicks ?? 0).toLocaleString() : "—";

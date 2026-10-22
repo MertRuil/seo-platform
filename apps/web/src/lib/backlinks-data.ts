@@ -20,8 +20,8 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-1",
     source_url: "https://techcrunch.com/2026/02/top-enterprise-seo-platforms",
     source_domain: "techcrunch.com",
-    target_url: "https://acmestore.io",
-    anchor_text: "Acme Store Platform",
+    target_url: "https://flagship-store.com",
+    anchor_text: "Flagship Store Platform",
     anchor_category: "BRAND",
     is_dofollow: true,
     domain_authority: 91,
@@ -36,7 +36,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-2",
     source_url: "https://searchengineland.com/geo-ai-search-optimization-guide",
     source_domain: "searchengineland.com",
-    target_url: "https://acmestore.io/geo",
+    target_url: "https://flagship-store.com/geo",
     anchor_text: "yapay zeka seo araçları ve geo",
     anchor_category: "EXACT_MATCH",
     is_dofollow: true,
@@ -52,8 +52,8 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-3",
     source_url: "https://medium.com/@seoguru/best-ecommerce-practices-2026",
     source_domain: "medium.com",
-    target_url: "https://acmestore.io/blog/ecommerce-seo",
-    anchor_text: "https://acmestore.io/blog/ecommerce-seo",
+    target_url: "https://flagship-store.com/blog/ecommerce-seo",
+    anchor_text: "https://flagship-store.com/blog/ecommerce-seo",
     anchor_category: "NAKED_URL",
     is_dofollow: false,
     domain_authority: 82,
@@ -68,7 +68,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-4",
     source_url: "https://e-ticaret-rehberi.org/baglantilar",
     source_domain: "e-ticaret-rehberi.org",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "tıklayın",
     anchor_category: "GENERIC",
     is_dofollow: true,
@@ -84,7 +84,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-5",
     source_url: "https://free-crypto-casino-bonus.xyz/links-list",
     source_domain: "free-crypto-casino-bonus.xyz",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "online casino baccarat win free",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -104,7 +104,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-6",
     source_url: "https://auto-traffic-pbn.top/directory-scrape",
     source_domain: "auto-traffic-pbn.top",
-    target_url: "https://acmestore.io/products",
+    target_url: "https://flagship-store.com/products",
     anchor_text: "cheap replica watches payday",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -124,8 +124,8 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-7",
     source_url: "https://webmaster-turkey.net/forum/seo-tartisma",
     source_domain: "webmaster-turkey.net",
-    target_url: "https://acmestore.io/hakkimizda",
-    anchor_text: "Acme Store uzman incelemesi",
+    target_url: "https://flagship-store.com/hakkimizda",
+    anchor_text: "Flagship Store uzman incelemesi",
     anchor_category: "PARTIAL_MATCH",
     is_dofollow: true,
     domain_authority: 56,
@@ -140,7 +140,7 @@ export const INITIAL_BACKLINKS: WebBacklinkItem[] = [
     id: "bl-8",
     source_url: "https://spambot-linkfarm.click/viagra-cialis",
     source_domain: "spambot-linkfarm.click",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "buy viagra online overnight",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -247,7 +247,7 @@ export function getSiteBacklinks(site?: { id?: string; domain?: string; primary_
   if (domain === "analyticshub.com" || siteId === "site-2") {
     return ANALYTICSHUB_BACKLINKS;
   }
-  if (domain === "acmestore.io" || siteId === "site-1" || !domain) {
+  if (domain === "flagship-store.com" || siteId === "site-1" || !domain) {
     return INITIAL_BACKLINKS;
   }
   // Gerçek müşteri siteleri için örnek link uydurulmaz; arka uç da boş listeyle başlar

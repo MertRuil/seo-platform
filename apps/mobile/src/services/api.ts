@@ -166,9 +166,9 @@ export async function safeNetworkFetch(
 export const MOCK_SITES: SiteSummary[] = [
   {
     id: "site-1",
-    name: "Acme Ecommerce Store",
-    domain: "acmestore.io",
-    primary_url: "https://acmestore.io",
+    name: "Flagship Store",
+    domain: "flagship-store.com",
+    primary_url: "https://flagship-store.com",
     health_score: 87,
     last_crawled_at: new Date(Date.now() - 3600000 * 4).toISOString(),
     execution_mode: "AUTO_LOW_RISK"
@@ -294,7 +294,7 @@ export async function fetchRecommendations(siteId: string, domain?: string): Pro
     // fallback
   }
 
-  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "acmestore.io";
+  const cleanDomain = domain ? domain.replace(/^https?:\/\//, "").replace(/\/$/, "") : "flagship-store.com";
 
   if (siteId === "site-1" || !domain) {
     return MOCK_RECOMMENDATIONS;
@@ -739,9 +739,9 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
     recommendation_template: "Kırık URL'leri en yakın ilgili kategoriye 301 kalıcı yönlendirmesiyle bağlayın.",
     affected_url_count: 3,
     affected_urls: [
-      "https://acmestore.io/products/old-summer-shoe",
-      "https://acmestore.io/categories/archive-2023",
-      "https://acmestore.io/blog/deleted-post"
+      "https://flagship-store.com/products/old-summer-shoe",
+      "https://flagship-store.com/categories/archive-2023",
+      "https://flagship-store.com/blog/deleted-post"
     ],
     documentation_url: "https://developers.google.com/search/docs/crawling-indexing/http-network-errors"
   },
@@ -754,9 +754,9 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
     recommendation_template: "Sayfa <head> alanına orijinal parametresiz URL'yi rel=canonical olarak ekleyin.",
     affected_url_count: 5,
     affected_urls: [
-      "https://acmestore.io/catalog?sort=price_asc",
-      "https://acmestore.io/catalog?color=blue",
-      "https://acmestore.io/catalog?size=m"
+      "https://flagship-store.com/catalog?sort=price_asc",
+      "https://flagship-store.com/catalog?color=blue",
+      "https://flagship-store.com/catalog?size=m"
     ],
     documentation_url: "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls"
   },
@@ -769,8 +769,8 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
     recommendation_template: "Hero banner görselini WebP/AVIF formatına dönüştürün ve fetchpriority='high' ekleyin.",
     affected_url_count: 4,
     affected_urls: [
-      "https://acmestore.io/landing/black-friday",
-      "https://acmestore.io/collection/new-arrivals"
+      "https://flagship-store.com/landing/black-friday",
+      "https://flagship-store.com/collection/new-arrivals"
     ]
   },
   {
@@ -782,8 +782,8 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
     recommendation_template: "Sayfa içeriğini özetleyen 120-155 karakter uzunluğunda özgün açıklamalar yazın.",
     affected_url_count: 8,
     affected_urls: [
-      "https://acmestore.io/blog/sustainable-fashion-tips",
-      "https://acmestore.io/blog/how-to-choose-size"
+      "https://flagship-store.com/blog/sustainable-fashion-tips",
+      "https://flagship-store.com/blog/how-to-choose-size"
     ]
   }
 ];
@@ -830,7 +830,7 @@ export async function fetchSiteIssues(siteId: string, domain?: string): Promise<
   return MOCK_ISSUES.map(issue => ({
     ...issue,
     affected_urls: (issue.affected_urls || []).map(u => 
-      u.replace("https://acmestore.io", `https://${cleanDomain}`)
+      u.replace("https://flagship-store.com", `https://${cleanDomain}`)
     )
   }));
 }
@@ -1507,7 +1507,7 @@ export let MOCK_GEO_PROMPTS: GeoPromptItem[] = [
     citation_rank: 1,
     platform_results: {
       ChatGPT: { mentioned: true, snippet: "Platform, otonom teknik denetim ve GEO optimizasyonu konusunda öne çıkan çözümler arasındadır." },
-      Perplexity: { mentioned: true, snippet: "Referans kaynaklar arasında doğrudan ilk sırada atıf yapılmıştır (Kaynak: acmestore.io)." },
+      Perplexity: { mentioned: true, snippet: "Referans kaynaklar arasında doğrudan ilk sırada atıf yapılmıştır (Kaynak: flagship-store.com)." },
       Gemini: { mentioned: true, snippet: "Teknik SEO araçları karşılaştırmasında listelenmektedir." }
     },
     top_competitor_cited: "semrush.com"
@@ -2832,8 +2832,8 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-1",
     source_url: "https://techcrunch.com/2026/02/top-enterprise-seo-platforms",
     source_domain: "techcrunch.com",
-    target_url: "https://acmestore.io",
-    anchor_text: "Acme Store Platform",
+    target_url: "https://flagship-store.com",
+    anchor_text: "Flagship Store Platform",
     anchor_category: "BRAND",
     is_dofollow: true,
     domain_authority: 91,
@@ -2848,7 +2848,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-2",
     source_url: "https://searchengineland.com/geo-ai-search-optimization-guide",
     source_domain: "searchengineland.com",
-    target_url: "https://acmestore.io/geo",
+    target_url: "https://flagship-store.com/geo",
     anchor_text: "yapay zeka seo araçları ve geo",
     anchor_category: "EXACT_MATCH",
     is_dofollow: true,
@@ -2864,8 +2864,8 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-3",
     source_url: "https://medium.com/@seoguru/best-ecommerce-practices-2026",
     source_domain: "medium.com",
-    target_url: "https://acmestore.io/blog/ecommerce-seo",
-    anchor_text: "https://acmestore.io/blog/ecommerce-seo",
+    target_url: "https://flagship-store.com/blog/ecommerce-seo",
+    anchor_text: "https://flagship-store.com/blog/ecommerce-seo",
     anchor_category: "NAKED_URL",
     is_dofollow: false,
     domain_authority: 82,
@@ -2880,7 +2880,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-4",
     source_url: "https://e-ticaret-rehberi.org/baglantilar",
     source_domain: "e-ticaret-rehberi.org",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "tıklayın",
     anchor_category: "GENERIC",
     is_dofollow: true,
@@ -2896,7 +2896,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-5",
     source_url: "https://free-crypto-casino-bonus.xyz/links-list",
     source_domain: "free-crypto-casino-bonus.xyz",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "online casino baccarat win free",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -2916,7 +2916,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-6",
     source_url: "https://auto-traffic-pbn.top/directory-scrape",
     source_domain: "auto-traffic-pbn.top",
-    target_url: "https://acmestore.io/products",
+    target_url: "https://flagship-store.com/products",
     anchor_text: "cheap replica watches payday",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -2936,8 +2936,8 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-7",
     source_url: "https://webmaster-turkey.net/forum/seo-tartisma",
     source_domain: "webmaster-turkey.net",
-    target_url: "https://acmestore.io/hakkimizda",
-    anchor_text: "Acme Store uzman incelemesi",
+    target_url: "https://flagship-store.com/hakkimizda",
+    anchor_text: "Flagship Store uzman incelemesi",
     anchor_category: "PARTIAL_MATCH",
     is_dofollow: true,
     domain_authority: 56,
@@ -2952,7 +2952,7 @@ export let MOCK_BACKLINKS: BacklinkItem[] = [
     id: "bl-8",
     source_url: "https://spambot-linkfarm.click/viagra-cialis",
     source_domain: "spambot-linkfarm.click",
-    target_url: "https://acmestore.io",
+    target_url: "https://flagship-store.com",
     anchor_text: "buy viagra online overnight",
     anchor_category: "SPAM",
     is_dofollow: true,
@@ -3058,7 +3058,7 @@ export function getBacklinksForSite(siteId?: string, domain?: string): BacklinkI
   if (cleanDomain === "analyticshub.com" || siteId === "site-2") {
     return [...MOCK_BACKLINKS_ANALYTICSHUB];
   }
-  if (cleanDomain === "acmestore.io" || siteId === "site-1" || !cleanDomain) {
+  if (cleanDomain === "flagship-store.com" || siteId === "site-1" || !cleanDomain) {
     return [...MOCK_BACKLINKS];
   }
   // Custom user domain: generate clean backlinks targeting their actual domain
@@ -3132,7 +3132,7 @@ export async function fetchBacklinkSummary(siteId?: string, domain?: string): Pr
   };
 }
 
-export function generateMobileDisavowText(backlinks: BacklinkItem[], domainName: string = "acmestore.io"): string {
+export function generateMobileDisavowText(backlinks: BacklinkItem[], domainName: string = "flagship-store.com"): string {
   const cleanDomain = domainName.toLowerCase().replace(/^https?:\/\//, "").split("/")[0].trim();
   // Strictly filter toxic links that actually target domainName
   const toxicItems = backlinks.filter((b) => {
@@ -3198,7 +3198,7 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
   last_synced_at: new Date(Date.now() - 1000 * 60 * 14).toISOString(), // 14 mins ago
   date_range: "Son 28 Gün",
   gsc: {
-    property: "sc-domain:acmestore.io",
+    property: "sc-domain:flagship-store.com",
     connected: true,
     status: "CONNECTED",
     total_clicks: 14850,
@@ -3207,7 +3207,7 @@ export const MOCK_GOOGLE_SYNC: GoogleSyncTelemetry = {
     avg_position: 4.8,
     top_queries_count: 320,
     sample_queries: [
-      { query: "acme ecommerce store", clicks: 3420, impressions: 18400, position: 1.2 },
+      { query: "flagship store", clicks: 3420, impressions: 18400, position: 1.2 },
       { query: "organik ürün satın al", clicks: 1890, impressions: 32000, position: 3.4 },
       { query: "en uygun fiyatlı organik ürünler", clicks: 840, impressions: 14200, position: 2.1 },
       { query: "hızlı teslimat e-ticaret", clicks: 610, impressions: 19800, position: 6.8 },
@@ -3258,7 +3258,7 @@ export const MOCK_GOOGLE_SYNC_ERROR: GoogleSyncTelemetry = {
   last_synced_at: new Date().toISOString(),
   date_range: "Son 28 Gün",
   gsc: {
-    property: "sc-domain:acmestore.io",
+    property: "sc-domain:flagship-store.com",
     connected: false,
     status: "AUTH_FAILED",
     error_message: "OAuth erişim izni iptal edildi veya süresi doldu.",
@@ -3389,7 +3389,7 @@ export async function fetchGoogleSyncTelemetry(siteId?: string, orgId?: string):
           error_message: data.error_message || data.error_detail || MOCK_GOOGLE_SYNC_ERROR.error_message,
           gsc: {
             ...MOCK_GOOGLE_SYNC_ERROR.gsc,
-            property: data.gsc?.property || "sc-domain:acmestore.io",
+            property: data.gsc?.property || "sc-domain:flagship-store.com",
             error_message: data.gsc?.error_message || data.error_message || "Google API yetkilendirme hatası",
           },
           ga4: {
@@ -4090,7 +4090,7 @@ export let MOCK_CHANGE_SETS: ChangeSetItem[] = [
         target_url: "/kategori/elektronik?sort=price",
         operation: "UPDATE_CANONICAL",
         state_before: '<link rel="canonical" href="/kategori/elektronik?sort=price" />',
-        state_after: '<link rel="canonical" href="https://acmestore.io/kategori/elektronik" />',
+        state_after: '<link rel="canonical" href="https://flagship-store.com/kategori/elektronik" />',
         expected_hash_before: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         status: "APPLIED"
       }
@@ -4110,7 +4110,7 @@ export let MOCK_CHANGE_SETS: ChangeSetItem[] = [
         target_url: "/hakkimizda",
         operation: "INJECT_JSON_LD",
         state_before: "<!-- No Organization Schema -->",
-        state_after: '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Acme","url":"https://acmestore.io"}</script>',
+        state_after: '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Flagship Store","url":"https://flagship-store.com"}</script>',
         expected_hash_before: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         status: "APPLIED"
       }
