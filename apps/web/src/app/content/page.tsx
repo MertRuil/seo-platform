@@ -423,8 +423,8 @@ export default function ContentOptimizerPage() {
       {/* Header */}
       <PageHeader
         icon={<PenTool className="w-5 h-5 text-accent" />}
-        title="İçerik Optimizasyonu & Türkiye Mevzuat Uyum Kalkanı"
-        description="Surfer SEO standardında NLP içerik skoru, Google Helpful Content semantik varlıkları ve Türkiye Reklam Kurulu / TİTCK / TBB mevzuatına göre yasaklı kelime denetimi."
+        title="İçerik"
+        description="Sayfa metninin konuyu ne kadar kapsadığını puanlar ve eksik kavramları listeler. Metni Reklam Kurulu, TİTCK ve TBB kurallarına göre yasaklı ifadeler için tarar."
         actions={
           <div className="flex items-center gap-2">
             {criticalViolations.length > 0 ? (
@@ -495,7 +495,7 @@ export default function ContentOptimizerPage() {
             label: "İçerik Kalite Skoru",
             value: data.contentScore === null ? "—" : `${data.contentScore} / 100`,
             tone: data.contentScore === null ? "default" : data.contentScore >= 80 ? "evidence" : "warn",
-            hint: "Surfer SEO NLP standardı",
+            hint: "Konu kapsamı puanı",
           },
           {
             label: "GEO (AI Arama) Skoru",

@@ -181,8 +181,8 @@ export default function BacklinksPage() {
       {/* Header */}
       <PageHeader
         icon={<Link2 className="w-5 h-5 text-accent" />}
-        title="Backlink Analizi & Toksik Link Dedektörü"
-        description="Ahrefs ve Moz standartlarında gelen bağlantı profili, Domain Rating (DR), Dofollow/Nofollow oranları, spam skorları ve Google Penguin cezalarından korunmak için tek tıkla Google Disavow dosyası oluşturucu."
+        title="Backlinkler"
+        description="Sitenize bağlantı veren alan adları, otorite puanı (DR), dofollow ve nofollow oranı, spam puanı. Zararlı bağlantılar için Google disavow dosyası hazırlanır."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -313,8 +313,8 @@ export default function BacklinksPage() {
 
         <div className="relative min-w-[240px]">
           <Input
-            aria-label="Domain veya anchor text ara"
-            placeholder="Domain veya anchor text ara..."
+            aria-label="Alan adı veya bağlantı metni ara"
+            placeholder="Alan adı veya bağlantı metni ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -328,7 +328,7 @@ export default function BacklinksPage() {
             <thead className="bg-surface-subtle border-b border-line text-muted uppercase tracking-wider font-semibold">
               <tr>
                 <th className="py-3 px-4">Kaynak Sayfa & Domain</th>
-                <th className="py-3 px-3">Bağlantı Metni (Anchor)</th>
+                <th className="py-3 px-3">Bağlantı Metni</th>
                 <th className="py-3 px-3 text-center">DR / Otorite</th>
                 <th className="py-3 px-3 text-center">Spam Skoru</th>
                 <th className="py-3 px-3">Tür</th>
@@ -461,7 +461,7 @@ export default function BacklinksPage() {
           </div>
 
           <div>
-            <Label htmlFor="anchor_text">Bağlantı Metni (Anchor Text)</Label>
+            <Label htmlFor="anchor_text">Bağlantı Metni</Label>
             <Input
               id="anchor_text"
               placeholder="Örn: En İyi SEO Platformu"

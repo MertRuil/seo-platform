@@ -778,7 +778,7 @@ export const MOCK_ISSUES: SiteIssueItem[] = [
     category: "ON_PAGE",
     severity: "WARNING",
     title: "Eksik veya Boş Meta Açıklamaları",
-    description: "Arama motoru SERP sonuçlarında tıklama oranını (CTR) doğrudan etkileyen meta açıklamaları bazı blog yazılarında eksik.",
+    description: "Arama sonuçlarında tıklama oranını (CTR) doğrudan etkileyen meta açıklamaları bazı blog yazılarında eksik.",
     recommendation_template: "Sayfa içeriğini özetleyen 120-155 karakter uzunluğunda özgün açıklamalar yazın.",
     affected_url_count: 8,
     affected_urls: [
@@ -1416,7 +1416,7 @@ export async function analyzeContentUrl(url: string, targetKeyword?: string): Pr
     missing_headings: ["H2: 2026 Arama Trendleri", "H3: Sıkça Sorulan Sorular (FAQ)"],
     ai_suggestions: [
       "Hedef anahtar kelime ilk 100 kelime içerisinde bir kez daha vurgulanmalı.",
-      "İçeriğe 1 adet tablo veya karşılaştırma listesi eklenmesi 'Direct Answer' formatını güçlendirir.",
+      "İçeriğe 1 adet tablo veya karşılaştırma listesi eklenmesi doğrudan yanıt olarak alıntılanma ihtimalini artırır.",
       "Sayfa sonuna FAQ Schema destekli 3 soru ekleyin."
     ]
   };
@@ -4066,9 +4066,9 @@ export async function exportLeadToCrm(
       email: req.contact_email,
       phone: req.contact_phone,
       annual_potential: req.annual_value,
-      source: "SEO Platform Lead Magnet"
+      source: "CALPEO hızlı denetim"
     },
-    message: `${req.company_name} başarıyla Sistem CRM'e aktarıldı. (Lead ID: ${leadId})`
+    message: `${req.company_name} başarıyla Sistem CRM'e aktarıldı. (CRM kayıt no: ${leadId})`
   };
 }
 
@@ -4257,7 +4257,7 @@ export async function rollbackChangeSet(
 
   return {
     success: true,
-    message: `ChangeSet #${changeSetId} başarıyla atomik olarak geri alındı (Rollback tamamlandı).`,
+    message: `Değişiklik seti #${changeSetId} geri alındı.`,
     change_set: MOCK_CHANGE_SETS.find(cs => cs.id === changeSetId)
   };
 }

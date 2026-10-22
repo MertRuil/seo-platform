@@ -47,7 +47,7 @@ export default function OncelikliIslerPage() {
       olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
     });
     setBusy(null);
-    setNotice(`"${f.query}" için optimizasyon seti #${id} oluşturuldu; diff sayfasına yönlendiriliyorsunuz.`);
+    setNotice(`"${f.query}" için optimizasyon seti #${id} oluşturuldu; Değişiklikler sayfasına yönlendiriliyorsunuz.`);
     setTimeout(() => router.push("/changes"), 900);
   };
 
@@ -61,7 +61,7 @@ export default function OncelikliIslerPage() {
       />
 
       {notice && (
-        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Diff'e git</Button>}>
+        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Değişikliğe git</Button>}>
           {notice}
         </Notice>
       )}

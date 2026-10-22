@@ -20,8 +20,8 @@ export default function SeoDeneyleriPage() {
       <DemoBanner source={res.source} reason={res.reason} />
       <PageHeader
         icon={<FlaskConical className="w-5 h-5" />}
-        title="SEO deneyleri ve nedensellik (Diff-in-Diff)"
-        description="Varyant ve kontrol sayfa gruplarını karşılaştırarak mevsimsellik ve algoritma güncellemelerinden arındırılmış net etkiyi ölçer."
+        title="Deneyler"
+        description="Varyant ve kontrol sayfa gruplarını karşılaştırarak mevsimsellik ve algoritma güncellemelerinden arındırılmış net etkiyi ölçer (farkların farkı yöntemi)."
       />
 
       {res.data.length === 0 ? (

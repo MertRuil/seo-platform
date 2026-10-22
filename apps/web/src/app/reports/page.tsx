@@ -251,7 +251,7 @@ export default function ReportsPage() {
       <div className="print:hidden space-y-3">
         <PageHeader
           icon={<FileText className="w-5 h-5 text-accent" />}
-          title="Ajans & Whitelabel Raporlama Merkezi"
+          title="Raporlar"
           description="Seçili sitenin tarama, Google Search Console, backlink ve öneri verilerinden müşteri raporu hazırlayın. PDF veya CSV olarak dışa aktarın."
           actions={
             <div className="flex flex-wrap items-center gap-2">
@@ -286,7 +286,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="print:hidden">
-        <Panel title="Whitelabel & Rapor Özelleştirme" sub="Raporun üzerinde görünecek ajans ve müşteri bilgilerini yapılandırın">
+        <Panel title="Rapordaki marka" sub="Raporu kendi ajans adınızla verin: rapor üstünde görünecek ajans ve müşteri bilgileri">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <Label htmlFor="agency_name">Ajans / Danışman Şirket Adı</Label>

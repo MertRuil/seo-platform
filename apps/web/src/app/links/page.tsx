@@ -32,7 +32,7 @@ export default function IcLinkGrafiPage() {
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
       <DemoBanner source={res.source} reason={res.reason} error={res.error} />
-      <PageHeader icon={<Link2 className="w-5 h-5" />} title="İç link grafı ve PageRank" description="Yönlendirilmiş link grafı üzerinden otorite akışı, yetim sayfalar ve bağlantı fırsatları." />
+      <PageHeader icon={<Link2 className="w-5 h-5" />} title="İç bağlantılar" description="Sayfalar arasındaki bağlantılar üzerinden otoritenin nasıl dağıldığı (PageRank), hiç bağlantı almayan sayfalar ve eklenebilecek bağlantılar." />
 
       {res.loading ? (
         <Panel>

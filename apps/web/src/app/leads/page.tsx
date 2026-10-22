@@ -178,8 +178,8 @@ export default function LeadsCrmPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Müşteri & CRM Köprüsü"
-        description="10-Saniyede SEO Denetimi, Finansal Gelir Kaybı Hesaplayıcı ve Sistem CRM Fırsat Aktarımı."
+        title="Müşteri adayları"
+        description="Bir sitenin hızlı denetimini yapıp tahmini gelir kaybını hesaplayın; aday kartını CRM sisteminize aktarın."
         actions={
           <div className="flex items-center gap-3">
             <Button
@@ -231,10 +231,7 @@ export default function LeadsCrmPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Instant Audit & Loss Calculator */}
         <div className="lg:col-span-6 space-y-6">
-          <Panel
-            title="10-Saniyede Müşteri Denetimi & Gelir Kaybı Hesaplayıcı"
-            actions={<Badge tone="accent">Lead Magnet Motoru</Badge>}
-          >
+          <Panel title="Hızlı denetim ve gelir kaybı hesabı">
             <form onSubmit={handleGenerateLead} className="space-y-4 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -358,7 +355,7 @@ export default function LeadsCrmPage() {
                   className="w-full gap-2 font-semibold py-2.5"
                   icon={<Sparkles className={`w-4 h-4 ${isCalculating ? "animate-spin" : ""}`} />}
                 >
-                  {isCalculating ? "Denetim ve Kayıp Hesaplanıyor..." : "Finansal Kaybı Hesapla & Lead Kartı Oluştur"}
+                  {isCalculating ? "Denetim ve Kayıp Hesaplanıyor..." : "Kaybı hesapla ve aday kartı oluştur"}
                 </Button>
               </div>
             </form>
@@ -443,7 +440,7 @@ export default function LeadsCrmPage() {
                   <div className="p-3 rounded-lg bg-evidence/10 border border-evidence/30 text-xs text-evidence flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Check className="w-4 h-4 shrink-0" />
-                      <span>{lastExportResult.message} (CRM Lead ID: <b>{lastExportResult.crm_lead_id}</b>)</span>
+                      <span>{lastExportResult.message} (CRM kayıt no: <b>{lastExportResult.crm_lead_id}</b>)</span>
                     </div>
                   </div>
                 )}
@@ -479,9 +476,9 @@ export default function LeadsCrmPage() {
         </div>
       </div>
 
-      {/* Leads Table / Pipeline List */}
+      {/* Aday listesi */}
       <Panel
-        title="Müşteri & Fırsat Havuzu (Lead Pipeline)"
+        title="Müşteri adayları"
         actions={<Badge tone="neutral">{leads.length} Aday Firma</Badge>}
       >
         <div className="overflow-x-auto pt-2">

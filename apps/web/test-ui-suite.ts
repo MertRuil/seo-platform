@@ -435,6 +435,33 @@ async function run() {
   }
   console.log("  ortak belirteçler ve kontrast: ok");
 
+  // Terim sözlüğündeki İngilizce ifadeler arayüz metnine girmez; başlıklar rakip ürünle kıyaslamaz.
+  const glossary: { pattern: string; flags: string; tr: string }[] = JSON.parse(readFileSync("../../packages/glossary/terms.json", "utf8")).terms;
+  const uiFiles = [
+    ...tsxFiles("src/app").filter((f) => !f.startsWith(join("src", "app", "api"))),
+    ...tsxFiles("src/components"),
+    "src/lib/demo.ts", "src/lib/serverless-store.ts", "src/lib/summary.ts", "src/lib/nav.ts",
+  ];
+  const termHits = uiFiles.flatMap((f) =>
+    readFileSync(f, "utf8").split("\n").flatMap((line, i) =>
+      /^\s*(\/\/|\*|\/\*|\{\/\*|import )/.test(line)
+        ? []
+        : glossary.filter((t) => new RegExp(t.pattern, t.flags).test(line)).map((t) => `${f}:${i + 1} → ${t.tr}`)
+    )
+  );
+  assert.deepStrictEqual(termHits, [], "sözlükte Türkçesi olan İngilizce terim");
+  const headerTexts = tsxFiles("src/app").flatMap((f) => {
+    const src = readFileSync(f, "utf8");
+    return [...src.matchAll(/<PageHeader\b/g)].map((m) => {
+      // title ve description her sayfada bileşenin ilk satırlarında.
+      const props = src.slice(m.index, m.index + 600);
+      const attr = (name: string) => props.match(new RegExp(`${name}="([^"]*)"`))?.[1] ?? "";
+      return `${f}: ${attr("title")} ${attr("description")}`;
+    });
+  });
+  assert.deepStrictEqual(headerTexts.filter((t) => /Semrush|Ahrefs|Surfer|\bMoz\b|standard|kalitesinde/i.test(t)), [], "sayfa başlığında rakip kıyası");
+  console.log("  terim sözlüğü: ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 

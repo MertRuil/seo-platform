@@ -144,8 +144,8 @@ export default function BilgiTabaniPage() {
       {!live && <Notice tone="warn">Bilgi tabanı arka ucuna ulaşılamadı; kaynak listesi ve sayılar varsayılan değerler.</Notice>}
       <PageHeader
         icon={<BookOpen className="w-5 h-5" />}
-        title="Bilgi tabanı (RAG)"
-        description="Ajanların gerekçe için kullandığı resmi kaynaklar: hibrit arama (BM25 + vektör) ve yeni bilgi için doğrulama kapısı."
+        title="Bilgi tabanı"
+        description="Ajanların önerilerine gerekçe olarak gösterdiği resmi kaynaklar. Yeni bilgi eklenmeden önce doğrulanır."
       />
 
       <MetricStrip

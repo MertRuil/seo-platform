@@ -19,6 +19,17 @@ assert.deepEqual(offenders(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{2
 // Eski indigo/mor palet geri gelmesin; renkler theme/colors.ts üzerinden belirteç dosyasından gelir.
 assert.deepEqual(offenders(/#6366F1|#8B5CF6|rgba\(99, ?102, ?241/gi), [], 'belirteç dışı marka rengi');
 
+// Terim sözlüğündeki İngilizce ifadeler arayüz metnine girmez (web ile aynı liste).
+const glossary = JSON.parse(fs.readFileSync(path.join(__dirname, '../../packages/glossary/terms.json'), 'utf8')).terms;
+const termHits = sources.flatMap(([f, s]) =>
+  s.split('\n').flatMap((line, i) =>
+    /^\s*(\/\/|\*|\/\*|\{\/\*|import )/.test(line)
+      ? []
+      : glossary.filter((t) => new RegExp(t.pattern, t.flags).test(line)).map((t) => `${f}:${i + 1} → ${t.tr}`)
+  )
+);
+assert.deepEqual(termHits, [], 'sözlükte Türkçesi olan İngilizce terim');
+
 // Metni olmayan her dokunulabilir öğenin ekran okuyucu etiketi olmalı.
 const unlabeled = [];
 for (const [f, s] of sources) {

@@ -564,8 +564,8 @@ export default function BaglayicilarPage() {
       <DemoBanner source={demo.source} reason={demo.reason} />
       <PageHeader
         icon={<Sliders className="w-5 h-5 text-accent-ink" />}
-        title="Entegrasyonlar & Bağlayıcılar Hub'ı"
-        description="Google Search Console, Google Analytics 4 (GA4), CMS yayıncıları ve anlık alarm kanallarını (Slack, Telegram, Discord) tek merkezden yönetin."
+        title="Bağlantılar ve ayarlar"
+        description="Search Console, Google Analytics 4, CMS ve bildirim kanallarını (Slack, Telegram, Discord) buradan bağlayın."
         actions={
           <div className="flex items-center gap-2">
             <Badge tone="accent">
@@ -592,19 +592,19 @@ export default function BaglayicilarPage() {
           onClick={() => setActiveTab("google")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeTab === "google"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-soft text-accent-ink border border-accent/30 shadow-xs"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >
           <Globe className="w-4 h-4" />
-          Google Hub (GSC + GA4)
+          Google (Search Console ve GA4)
           <span className="ml-1 w-2 h-2 rounded-full bg-evidence animate-pulse" />
         </button>
         <button
           onClick={() => setActiveTab("connectors")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeTab === "connectors"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-soft text-accent-ink border border-accent/30 shadow-xs"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >
@@ -616,7 +616,7 @@ export default function BaglayicilarPage() {
           onClick={() => setActiveTab("alerts")}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeTab === "alerts"
-              ? "bg-accent-surface text-accent-ink border border-accent/30 shadow-xs"
+              ? "bg-accent-soft text-accent-ink border border-accent/30 shadow-xs"
               : "text-muted hover:text-ink hover:bg-surface"
           }`}
         >

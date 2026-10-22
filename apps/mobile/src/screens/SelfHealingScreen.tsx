@@ -139,7 +139,7 @@ export const SelfHealingScreen: React.FC = () => {
       const res = await rollbackChangeSet(selectedSite?.id || "site-1", csId);
       if (res && res.success) {
         setStatusMsg({
-          text: `ChangeSet #${csId} atomik olarak geri alındı (Rollback tamamlandı).`,
+          text: `Değişiklik seti #${csId} geri alındı.`,
           type: "success"
         });
         await loadChangeSets();
@@ -163,8 +163,8 @@ export const SelfHealingScreen: React.FC = () => {
             <Ionicons name="shield-checkmark" size={18} color={Colors.primary} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Otonom Düzeltme & Rollback</Text>
-            <Text style={styles.headerSub}>Self-Healing Engine & Atomik Kalkan</Text>
+            <Text style={styles.headerTitle}>Otomatik düzeltme ve geri alma</Text>
+            <Text style={styles.headerSub}>Her değişiklik yedeklenir, tek dokunuşla geri alınır</Text>
           </View>
         </View>
 
@@ -263,7 +263,7 @@ export const SelfHealingScreen: React.FC = () => {
                 </View>
                 <View style={styles.bFeatItem}>
                   <Ionicons name="return-up-back" size={14} color={Colors.primary} />
-                  <Text style={styles.bFeatText}>1-Tıkla Rollback Koruması</Text>
+                  <Text style={styles.bFeatText}>Tek dokunuşla geri alma</Text>
                 </View>
                 <View style={styles.bFeatItem}>
                   <Ionicons name="git-branch" size={14} color={Colors.primary} />
@@ -321,7 +321,7 @@ export const SelfHealingScreen: React.FC = () => {
                     <Text style={styles.impactText}>Tahmini Etki: {issue.impact}</Text>
                   </View>
 
-                  {/* Diff Snippet Preview */}
+                  {/* Eski ve yeni kod önizlemesi */}
                   <View style={styles.diffPreview}>
                     <View style={styles.diffLineBefore}>
                       <Text style={styles.diffPrefix}>-</Text>
@@ -348,7 +348,7 @@ export const SelfHealingScreen: React.FC = () => {
                     ) : (
                       <>
                         <Ionicons name="flash" size={15} color="#FFFFFF" />
-                        <Text style={styles.healBtnText}>Otonom Düzelt (Self-Heal)</Text>
+                        <Text style={styles.healBtnText}>Otomatik düzelt</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -363,7 +363,7 @@ export const SelfHealingScreen: React.FC = () => {
           <>
             <View style={styles.changesHeaderRow}>
               <Text style={styles.sectionHeader}>Geçmiş Değişiklik Kümeleri</Text>
-              <Text style={styles.changesSub}>Rollback yapılabilir aktif kayıtlar</Text>
+              <Text style={styles.changesSub}>Geri alınabilir değişiklikler</Text>
             </View>
 
             {loading ? (
@@ -386,7 +386,7 @@ export const SelfHealingScreen: React.FC = () => {
                   <GlassCard key={cs.id} style={styles.changeSetCard}>
                     <View style={styles.csTop}>
                       <View>
-                        <Text style={styles.csIdText}>ChangeSet #{cs.id}</Text>
+                        <Text style={styles.csIdText}>Değişiklik seti #{cs.id}</Text>
                         <Text style={styles.csDate}>
                           {new Date(cs.created_at).toLocaleString("tr-TR")}
                         </Text>
@@ -459,7 +459,7 @@ export const SelfHealingScreen: React.FC = () => {
                       </View>
                     ))}
 
-                    {/* Rollback Action Button */}
+                    {/* Geri alma düğmesi */}
                     {isExecuted && (
                       <TouchableOpacity accessibilityRole="button"
                         style={styles.rollbackBtn}
@@ -473,7 +473,7 @@ export const SelfHealingScreen: React.FC = () => {
                           <>
                             <Ionicons name="return-up-back" size={15} color={Colors.danger} />
                             <Text style={styles.rollbackBtnText}>
-                              Atomik Olarak Geri Al (Rollback)
+                              Değişikliği geri al
                             </Text>
                           </>
                         )}
@@ -506,8 +506,8 @@ export const SelfHealingScreen: React.FC = () => {
                 icon: "finger-print-outline"
               },
               {
-                title: "2. Atomik Geri Alma (Atomic Rollback)",
-                desc: "Her ChangeSet uygulandığı anda orijinal HTML/durum yedeği saklanır. İstenildiği anda tek tıkla eski haline dönülebilir.",
+                title: "2. Tek adımda geri alma",
+                desc: "Her değişiklik seti uygulandığı anda orijinal HTML/durum yedeği saklanır. İstenildiği anda tek tıkla eski haline dönülebilir.",
                 icon: "arrow-undo-outline"
               },
               {

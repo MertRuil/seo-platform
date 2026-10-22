@@ -165,7 +165,7 @@ export const LeadsScreen: React.FC = () => {
             <Ionicons name="briefcase-outline" size={18} color={Colors.success} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>Sistem CRM & Lead Köprüsü</Text>
+            <Text style={styles.headerTitle}>Müşteri adayları</Text>
             <Text style={styles.headerSub}>Finansal Kayıp Analizi & Teklif Motoru</Text>
           </View>
         </View>
@@ -390,7 +390,7 @@ export const LeadsScreen: React.FC = () => {
             ) : leads.length === 0 ? (
               <GlassCard style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyTitle}>Henüz Lead Kaydı Bulunmuyor</Text>
+                <Text style={styles.emptyTitle}>Henüz müşteri adayı yok</Text>
                 <Text style={styles.emptyDesc}>Yeni bir denetim çalıştırarak müşteri adayı oluşturun.</Text>
               </GlassCard>
             ) : (
@@ -550,7 +550,7 @@ export const LeadsScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      {/* New Lead Modal */}
+      {/* Yeni aday formu */}
       <Modal
         visible={leadModal}
         transparent
@@ -559,7 +559,7 @@ export const LeadsScreen: React.FC = () => {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Yeni Müşteri Lead Kartı</Text>
+            <Text style={styles.modalTitle}>Yeni müşteri adayı</Text>
             <Text style={styles.modalSub}>
               Sistem CRM'e aktarılmak üzere müşteri adayı bilgilerini doldurun:
             </Text>
@@ -634,7 +634,7 @@ export const LeadsScreen: React.FC = () => {
                   setActiveSegment("LEADS");
                 }}
               >
-                <Text style={styles.modalSubmitText}>Lead Oluştur</Text>
+                <Text style={styles.modalSubmitText}>Aday oluştur</Text>
               </TouchableOpacity>
             </View>
           </View>

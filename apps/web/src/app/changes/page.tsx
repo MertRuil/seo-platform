@@ -212,8 +212,8 @@ export default function DegisikliklerPage() {
       <DemoBanner source={demo.source} reason={demo.reason} />
       <PageHeader
         icon={<GitCommit className="w-5 h-5" />}
-        title="Değişiklik setleri ve diff"
-        description="Her değişiklik yan yana diff olarak incelenir; uygulamada yazma öncesi hash doğrulanır, yedek alınır, doğrulama başarısızsa otomatik geri alınır."
+        title="Değişiklikler"
+        description="Her değişikliği eski ve yeni hâliyle yan yana inceleyin. Uygulamadan önce dosyanın değişmediği doğrulanır ve yedek alınır; doğrulama başarısız olursa değişiklik otomatik geri alınır."
         actions={
           <Badge tone="neutral" mono>
             {sets.length} set
@@ -300,7 +300,7 @@ export default function DegisikliklerPage() {
 
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-muted">Yan yana diff</span>
+            <span className="font-semibold text-muted">Eski ve yeni hâl yan yana</span>
             <Button size="sm" variant="ghost" onClick={copyCode} icon={<Copy className="w-3.5 h-3.5" />}>
               {copied ? "Kopyalandı" : "Yeni kodu kopyala"}
             </Button>
@@ -338,16 +338,16 @@ export default function DegisikliklerPage() {
         <div className="mt-4 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-evidence-soft text-evidence font-medium text-2xs border border-evidence/20">
-              <ShieldCheck className="w-3.5 h-3.5" /> SafeSiteExecutor Korumalı
+              <ShieldCheck className="w-3.5 h-3.5" /> Güvenli yazma
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface text-ink font-mono text-2xs border border-line">
-              <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> SHA-256 Concurrency Hash
+              <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> Yazmadan önce dosya özeti kontrolü
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface text-ink font-medium text-2xs border border-line">
-              <RotateCcw className="w-3.5 h-3.5 text-muted" /> Otomatik Rollback Kalkanı
+              <RotateCcw className="w-3.5 h-3.5 text-muted" /> Hata olursa otomatik geri alma
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink font-medium text-2xs border border-accent/20">
-              <Zap className="w-3.5 h-3.5" /> IndexNow Hızlı Ping
+              <Zap className="w-3.5 h-3.5" /> IndexNow ile hızlı bildirim
             </span>
           </div>
           <span className="text-muted text-2xs">

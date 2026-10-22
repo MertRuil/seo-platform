@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { DEMO_KEYWORDS, type KeywordItem, type KeywordResearchItem } from "@/lib/demo";
 import { formatCompact, formatNumber, formatTry } from "@/lib/format";
+import { serpFeatureLabel } from "@/lib/terms";
 import { useSite } from "@/context/SiteContext";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DemoBanner } from "@/components/ui/DemoBanner";
@@ -162,8 +163,8 @@ export default function KeywordsPage() {
       {/* Header */}
       <PageHeader
         icon={<KeyRound className="w-5 h-5 text-accent" />}
-        title="Anahtar Kelimeler & Sıralama Takibi"
-        description="Semrush ve Ahrefs kalitesinde SERP pozisyon takibi, arama hacimleri, zorluk skorları ve 2026 AI Overview SERP özellikleri."
+        title="Anahtar kelimeler"
+        description="Takip ettiğiniz kelimelerin Google sırası, arama hacmi ve zorluk puanı; sonuç sayfasında AI Genel Bakış çıkıp çıkmadığı."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -183,7 +184,7 @@ export default function KeywordsPage() {
       {/* Metric Strip */}
       <MetricStrip
         items={[
-          { label: "Takip Edilen Kelime", value: formatNumber(keywords.length), hint: "Aktif SERP takibi" },
+          { label: "Takip Edilen Kelime", value: formatNumber(keywords.length), hint: "Google sırası günlük ölçülüyor" },
           { label: "İlk 3'te", value: formatNumber(top3), tone: "evidence", hint: "En yüksek CTR dilimi" },
           { label: "İlk 10'da (Sayfa 1)", value: formatNumber(top10), tone: "default", hint: "Organik trafik üretenler" },
           { label: "Ortalama Sıralama", value: avgPos, hint: "Tüm portföy" },
@@ -264,7 +265,7 @@ export default function KeywordsPage() {
                   <th className="py-3 px-3 text-right">Aylık Hacim</th>
                   <th className="py-3 px-3">Zorluk (KD%)</th>
                   <th className="py-3 px-3 text-right">CPC</th>
-                  <th className="py-3 px-4">SERP Özellikleri</th>
+                  <th className="py-3 px-4">Sonuç sayfasında</th>
                   <th className="py-3 px-4">Hedef Sayfa</th>
                 </tr>
               </thead>
@@ -351,7 +352,7 @@ export default function KeywordsPage() {
                       {/* Rank Position */}
                       <td className="py-3.5 px-3 text-center">
                         {item.current_pos === null ? (
-                          <span className="text-xs text-muted" title="SERP pozisyonu henüz ölçülmedi">—</span>
+                          <span className="text-xs text-muted" title="Google sırası henüz ölçülmedi">—</span>
                         ) : (
                         <span
                           className={`inline-flex items-center justify-center w-8 h-8 rounded-sm font-mono font-bold text-sm ${
@@ -429,7 +430,7 @@ export default function KeywordsPage() {
                         {item.cpc === null ? "—" : formatTry(item.cpc)}
                       </td>
 
-                      {/* SERP Features */}
+                      {/* Sonuç sayfası özellikleri */}
                       <td className="py-3.5 px-4">
                         <div className="flex flex-wrap gap-1">
                           {item.serp_features?.map((feat, i) => (
@@ -438,7 +439,7 @@ export default function KeywordsPage() {
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-medium bg-surface-2 text-ink border border-line"
                             >
                               {feat === "AI Overview" && <Sparkles className="w-2.5 h-2.5 text-accent" />}
-                              {feat}
+                              {serpFeatureLabel(feat)}
                             </span>
                           ))}
                         </div>
@@ -482,7 +483,7 @@ export default function KeywordsPage() {
             </div>
 
             <div className="mt-6">
-              <h3 className="text-sm font-bold text-ink mb-3">Önerilen Yüksek Potansiyelli Terimler (2026 SERP Analizi)</h3>
+              <h3 className="text-sm font-bold text-ink mb-3">Önerilen kelimeler</h3>
               <div className="divide-y divide-line border border-line rounded-sm overflow-hidden">
                 {researchResults.map((item, idx) => {
                   const isTracked = keywords.some((k) => k.keyword.toLowerCase() === item.keyword.toLowerCase());
@@ -554,7 +555,7 @@ export default function KeywordsPage() {
                           )}
                           {item.has_ai_overview && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink">
-                              <Sparkles className="w-3 h-3 text-accent" /> AI Overview SERP
+                              <Sparkles className="w-3 h-3 text-accent" /> {serpFeatureLabel("AI Overview")}
                             </span>
                           )}
                           <Badge tone={item.type === "QUESTION" ? "accent" : "neutral"} mono>
@@ -600,7 +601,7 @@ export default function KeywordsPage() {
         title="Yeni Anahtar Kelimeyi Takibe Al"
       >
         <p className="text-xs text-muted mb-4">
-          Sıralama robotumuz Google Türkiye SERP sonuçlarını günlük tarayarak pozisyon grafiği ve AI Overview görünürlüğünü kaydeder.
+          Kelimenin Google Türkiye sırası her gün ölçülür; sonuç sayfasında AI Genel Bakış çıkıp çıkmadığı da kaydedilir.
         </p>
         <form onSubmit={handleAddKeyword} className="space-y-4">
           <div>

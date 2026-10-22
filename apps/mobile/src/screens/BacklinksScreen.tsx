@@ -213,7 +213,7 @@ export const BacklinksScreen: React.FC = () => {
                   </View>
 
                   <View style={styles.anchorBox}>
-                    <Text style={styles.anchorLabel}>Anchor:</Text>
+                    <Text style={styles.anchorLabel}>Bağlantı metni:</Text>
                     <Text style={styles.anchorValue} numberOfLines={1}>"{item.anchor_text}"</Text>
                     <View style={[
                       styles.categoryBadge,

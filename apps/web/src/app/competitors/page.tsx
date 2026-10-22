@@ -67,8 +67,8 @@ export default function CompetitorsPage() {
       {/* Header */}
       <PageHeader
         icon={<Users className="w-5 h-5 text-accent" />}
-        title="Rakip Analizi & Keyword Gap"
-        description="Ahrefs ve Semrush standartlarında başa baş rakip karşılaştırması, pazar payı ve rakiplerin ilk sayfada olduğu sizin eksik kaldığınız anahtar kelime açıkları (Keyword Gap)."
+        title="Rakipler"
+        description="Rakiplerinizle sıra, görünürlük ve pazar payı karşılaştırması. Kelime açığı: rakiplerin ilk sayfada olduğu, sizin sıralanmadığınız kelimeler."
         actions={
           <Button
             variant="primary"
@@ -88,7 +88,7 @@ export default function CompetitorsPage() {
         items={[
           { label: "Aktif Rakip Sayısı", value: formatNumber(competitors.length), hint: "İzlenen alan adları" },
           { label: "Ortalama Rakip Skoru", value: "93 / 100", hint: "Pazar liderleri" },
-          { label: "Keyword Gap Fırsatı", value: `${keywordGap.length} Terim`, tone: "warn", hint: "Rakiplerin önde olduğu kelimeler" },
+          { label: "Kelime açığı", value: `${keywordGap.length} kelime`, tone: "warn", hint: "Rakiplerin önde olduğu kelimeler" },
           { label: "Bizim GEO Görünürlüğümüz", value: `%${DEMO_COMPETITORS.myGeoVisibility}`, tone: "evidence", hint: "Yapay zeka pazar payı" },
         ]}
       />
@@ -199,16 +199,16 @@ export default function CompetitorsPage() {
         </div>
       </Panel>
 
-      {/* Keyword Gap Matrix */}
+      {/* Kelime açığı tablosu */}
       <Panel
-        title="Keyword Gap Analizi (Rakiplerin Sıralandığı, Sizin Eksik Olduğunuz Terimler)"
+        title="Kelime açığı: rakiplerin sıralandığı, sizin olmadığınız kelimeler"
         sub="Rakiplerinizin ilk sayfadan organik trafik çektiği ancak sitenizin henüz sıralanmadığı yüksek potansiyelli açıklar."
       >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-surface-2 border-b border-line text-xs font-semibold text-muted uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-4">Açık Anahtar Kelime (Gap)</th>
+                <th className="py-3 px-4">Kelime</th>
                 <th className="py-3 px-3 text-right">Aylık Hacim</th>
                 <th className="py-3 px-3 text-center">Bizim Sıramız</th>
                 <th className="py-3 px-3 text-center">Semrush Sırası</th>
@@ -284,7 +284,7 @@ export default function CompetitorsPage() {
         title="Yeni Rakip Alan Adı Ekle"
       >
         <p className="text-xs text-muted mb-4">
-          Rakibinizin domain adresini girin. Algoritmamız sitenin organik anahtar kelimelerini, trafik tahminlerini ve SERP çakışmalarını hesaplar.
+          Rakibinizin domain adresini girin. Algoritmamız sitenin organik anahtar kelimelerini, trafik tahminlerini ve aynı sonuç sayfalarında karşılaştığınız kelimeleri hesaplar.
         </p>
         <form onSubmit={handleAddCompetitor} className="space-y-4">
           <div>

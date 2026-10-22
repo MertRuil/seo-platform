@@ -169,7 +169,7 @@ if (!globalStore.__calpeoStore) {
       {
         source_url: "https://flagship-store.com/blog/en-iyi-kulakliklar",
         target_url: "https://flagship-store.com/urunler/yeni-nesil-kulaklik",
-        reason: "Yüksek otoriteli blog yazısından ticari ürün sayfasına yönlendirici anchor link eksik.",
+        reason: "Yüksek otoriteli blog yazısından ticari ürün sayfasına yönlendiren bağlantı (uygun bağlantı metniyle) eksik.",
         source_pagerank: 0.14,
         target_pagerank: 0.12,
       },

@@ -94,7 +94,7 @@ export const CompetitorsScreen: React.FC = () => {
         >
           <Ionicons name="git-compare" size={15} color={activeTabSub === "GAP" ? Colors.primary : Colors.textMuted} />
           <Text style={[styles.tabText, activeTabSub === "GAP" && styles.tabTextActive]}>
-            Keyword Gap ({gapItems.length})
+            Kelime açığı ({gapItems.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -166,7 +166,7 @@ export const CompetitorsScreen: React.FC = () => {
           </>
         ) : (
           <>
-            {/* Keyword Gap Explanation */}
+            {/* Kelime açığı açıklaması */}
             <GlassCard style={styles.benchmarkCard}>
               <View style={styles.benchHeader}>
                 <Ionicons name="sparkles" size={16} color={Colors.accent} />

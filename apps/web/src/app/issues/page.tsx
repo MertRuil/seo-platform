@@ -101,7 +101,7 @@ export default function SorunlarPage() {
     });
     setCreated((prev) => [...prev, issue.id]);
     setBusyId(null);
-    setNotice(`Düzeltme seti #${id} hazırlandı; diff sayfasına yönlendiriliyorsunuz.`);
+    setNotice(`Düzeltme seti #${id} hazırlandı; Değişiklikler sayfasına yönlendiriliyorsunuz.`);
     setTimeout(() => router.push("/changes"), 900);
   };
 
@@ -114,7 +114,7 @@ export default function SorunlarPage() {
       <PageHeader
         icon={<AlertTriangle className="w-5 h-5" />}
         title="Tespit edilen sorunlar"
-        description="Taramada saptanan teknik ve içerik bulguları. Her bulgu için düzeltme seti oluşturup diff'i inceleyebilir, sonra uygulayabilirsiniz."
+        description="Taramada bulunan teknik ve içerik sorunları. Her sorun için düzeltme seti oluşturup eski ve yeni hâli yan yana inceleyebilir, sonra uygulayabilirsiniz."
         actions={
           <FilterChips<Filter>
             label="Önem filtresi"
@@ -132,7 +132,7 @@ export default function SorunlarPage() {
       />
 
       {notice && (
-        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Diff'e git</Button>}>
+        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Değişikliğe git</Button>}>
           {notice}
         </Notice>
       )}
@@ -199,7 +199,7 @@ export default function SorunlarPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       {done ? (
                         <Button size="sm" variant="secondary" icon={<CheckCircle2 className="w-3.5 h-3.5 text-evidence" />} onClick={() => router.push("/changes")}>
-                          Düzeltildi · Diff İncele
+                          Düzeltildi · Değişikliği incele
                         </Button>
                       ) : (
                         <>
@@ -213,7 +213,7 @@ export default function SorunlarPage() {
                             Otonom Düzelt
                           </Button>
                           <Button size="sm" variant="ghost" loading={busy} onClick={() => handleCreateSet(issue)} icon={busy ? undefined : <ChevronRight className="w-3.5 h-3.5" />}>
-                            {busy ? "Hazırlanıyor" : "Diff İncele"}
+                            {busy ? "Hazırlanıyor" : "Değişikliği incele"}
                           </Button>
                         </>
                       )}

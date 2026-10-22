@@ -128,7 +128,7 @@ export function UpgradeModal({
             <li className="flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-accent shrink-0 mt-0.5" />
               <span>
-                <strong>SEO Deneyleri (Causal Impact)</strong> & A/B Diff testi
+                <strong>SEO deneyleri</strong>: değişikliğin net etkisini kontrol sayfalarıyla ölçme
               </span>
             </li>
           </ul>

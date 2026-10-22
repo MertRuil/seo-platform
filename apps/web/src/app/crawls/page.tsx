@@ -190,7 +190,7 @@ export default function SiteTaramalariPage() {
       yeniKod: `<!-- Önerilen çözüm -->\n${iss.recommendation}`,
       olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
     });
-    setNotice({ tone: "success", text: `"${iss.title}" için düzeltme seti #${id} oluşturuldu; diff sayfasına yönlendiriliyorsunuz.` });
+    setNotice({ tone: "success", text: `"${iss.title}" için düzeltme seti #${id} oluşturuldu; Değişiklikler sayfasına yönlendiriliyorsunuz.` });
     setTimeout(() => router.push("/changes"), 800);
   };
 

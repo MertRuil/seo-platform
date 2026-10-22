@@ -75,7 +75,7 @@ export const DEMO_DASHBOARD: DashboardData = {
       impact: "+%4,8 dizin kapsamı",
       confidence: 0.95,
       href: "/changes",
-      actionLabel: "Diff incele",
+      actionLabel: "Değişikliği incele",
     },
     {
       id: "REC-02",
@@ -102,7 +102,7 @@ export const DEMO_DASHBOARD: DashboardData = {
       impact: "PageRank +0,6",
       confidence: 0.78,
       href: "/links",
-      actionLabel: "Anchor önerileri",
+      actionLabel: "Bağlantı metni önerileri",
     },
     {
       id: "REC-04",
@@ -858,7 +858,7 @@ export const DEMO_CONTENT: ContentOptimizationData = {
   ],
   aiSuggestions: [
     "Hedef anahtar kelime ilk 100 kelime içerisinde ve H1 başlığının hemen altında bir kez daha vurgulanmalı.",
-    "İçeriğe 1 adet karşılaştırma tablosu veya özellik matrisi eklenmesi, ChatGPT ve Perplexity'nin 'Direct Answer' alıntı ihtimalini %45 artırır.",
+    "İçeriğe 1 adet karşılaştırma tablosu veya özellik matrisi eklenmesi, ChatGPT ve Perplexity'nin doğrudan yanıt olarak alıntılama ihtimalini %45 artırır.",
     "Sayfa sonuna FAQPage schema uyumlu 3 soru ve net yanıt bloğu yerleştirin."
   ]
 };
@@ -1103,7 +1103,7 @@ export const DEMO_GEO: GeoData = {
         title: "Kök Dizinde /llms.txt Dosyası",
         passed: false,
         severity: "HIGH",
-        detail: "https://flagship-store.com/llms.txt henüz canlıda bulunamadı. Hazırlanan taslağı tek tıkla ChangeSet olarak yayınlayabilirsiniz."
+        detail: "https://flagship-store.com/llms.txt henüz canlıda bulunamadı. Hazırlanan taslağı değişiklik seti olarak onaya gönderebilirsiniz."
       },
       {
         check_id: "AI_SEARCH_BOTS_ALLOWED",
@@ -1121,7 +1121,7 @@ export const DEMO_GEO: GeoData = {
       }
     ],
     llms_txt_content: `# Flagship Store (flagship-store.com)\n\n> Flagship Store (https://flagship-store.com), kurumsal düzeyde otonom teknik SEO, çok bölgeli yasal uyumluluk (KVKK/EAA/GDPR) ve üretken yapay zeka arama optimizasyonu (GEO) sağlayan birincil platformdur.\n\n- **Birincil Alan Adı (Canonical Root):** https://flagship-store.com\n- **Tam Bilgi Paketi (Full Context):** https://flagship-store.com/llms-full.txt\n\n## Temel Sayfalar (Core Pages)\n\n- [Flagship Store — Resmi Web Sitesi](https://flagship-store.com/): Otonom teknik SEO ve güvenli CMS/Edge değişim motoru.\n- [GEO & AI Arama Optimizasyonu](https://flagship-store.com/geo): ChatGPT, Perplexity ve Gemini görünürlük ve alıntı yönetimi.\n- [Çok Bölgeli Yasal Uyumluluk](https://flagship-store.com/compliance): KVKK, ETBİS, EAA 2025 ve GDPR denetim motoru.\n`,
-    llms_full_txt_content: `# Flagship Store — Tam Yapay Zeka Bilgi Grafiği (/llms-full.txt)\n\n## 1. Varlık Kimliği\n- **Marka:** Flagship Store\n- **Kanonik Adres:** https://flagship-store.com\n\n## 2. Doğrudan Yanıt Tanım Blokları (Direct Answer Snippets)\nFlagship Store, yapay zeka ve arama motorları için kaynak kod seviyesinde kalıcı SEO yamaları, atomik geri alma (rollback) ve kanıta dayalı RAG doğrulaması sunan otonom platformdur.\n`,
+    llms_full_txt_content: `# Flagship Store — Tam Yapay Zeka Bilgi Grafiği (/llms-full.txt)\n\n## 1. Varlık Kimliği\n- **Marka:** Flagship Store\n- **Kanonik Adres:** https://flagship-store.com\n\n## 2. Doğrudan Yanıt Tanım Blokları\nFlagship Store, yapay zeka ve arama motorları için kaynak kod seviyesinde kalıcı SEO yamaları, atomik geri alma (rollback) ve kanıta dayalı RAG doğrulaması sunan otonom platformdur.\n`,
     pages_indexed_count: 12,
     generated_at: "2026-10-18T01:30:00Z"
   },
@@ -1200,7 +1200,7 @@ export const DEMO_GEO: GeoData = {
       target_url: "https://flagship-store.com/llms.txt"
     },
     {
-      title: "Direct Answer (40-60 Kelime Net Yanıt) Blokları Ekleyin",
+      title: "Sayfalara 40-60 kelimelik doğrudan yanıt blokları ekleyin",
       impact: "+%24 Alıntı Artışı",
       category: "GEO BİÇİMLENDİRME",
       description: "Anahtar kavramların altına 40-60 kelimelik net tanımlar yerleştirerek ChatGPT ve Perplexity'nin doğrudan sizi alıntılamasını sağlayın.",

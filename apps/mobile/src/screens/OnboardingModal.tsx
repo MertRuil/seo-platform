@@ -56,7 +56,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onClo
     { id: "TRAFFIC", label: "Organik Trafik Artırma", icon: "trending-up", desc: "Google arama sonuçlarından sitenize gelen tıklamaları katlama." },
     { id: "RANKINGS", label: "Google İlk Sayfa Sıralaması", icon: "ribbon-outline", desc: "Hedef anahtar kelimelerde ilk 3 sıraya yükselme." },
     { id: "TECHNICAL_SEO", label: "Kritik Teknik Hataları Düzeltme", icon: "shield-checkmark-outline", desc: "404, kanonikleştirme, sitemap ve Core Web Vitals temizliği." },
-    { id: "COMPETITOR", label: "Rakip Analizi & Keyword Gap", icon: "analytics-outline", desc: "Rakiplerin organik stratejisini ve kelime boşluklarını keşfetme." },
+    { id: "COMPETITOR", label: "Rakipler ve kelime açığı", icon: "analytics-outline", desc: "Rakiplerin organik stratejisini ve kelime boşluklarını keşfetme." },
   ];
 
   const handleFinishOnboarding = async () => {

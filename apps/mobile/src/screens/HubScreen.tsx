@@ -19,16 +19,16 @@ export const HubScreen: React.FC = () => {
   const HUB_MODULES = [
     {
       tab: "leads" as const,
-      title: "Sistem CRM & Lead'ler",
-      desc: "10-saniyede ciro kaybı tespiti ve tek tıkla CRM senkronizasyonu",
+      title: "Müşteri adayları",
+      desc: "Bir sitenin hızlı denetimi, tahmini gelir kaybı ve CRM'e aktarma",
       icon: "briefcase" as const,
       color: Colors.success,
       bg: tint(Colors.success, 0.12)
     },
     {
       tab: "self_healing" as const,
-      title: "Otonom Düzelt & Rollback",
-      desc: "Self-healing SEO motoru, change sets ve atomik geri alma",
+      title: "Otomatik düzeltme",
+      desc: "Onaylanan düzeltmeleri uygular; her değişiklik geri alınabilir",
       icon: "shield-checkmark" as const,
       color: Colors.primary,
       bg: tint(Colors.primary, 0.12)
@@ -52,7 +52,7 @@ export const HubScreen: React.FC = () => {
     {
       tab: "competitors" as const,
       title: "Rakip Analizi",
-      desc: "Sektör rakipleri, SEO skoru ve keyword gap karşılaştırması",
+      desc: "Rakiplerle sıra karşılaştırması ve kelime açığı",
       icon: "people" as const,
       color: Colors.accent,
       bg: tint(Colors.accent, 0.12)

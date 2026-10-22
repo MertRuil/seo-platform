@@ -164,7 +164,7 @@ export const AiAssistantScreen: React.FC = () => {
                   </Text>
                 </View>
 
-                {/* Source Citations */}
+                {/* Kaynaklar */}
                 {msg.sources && msg.sources.length > 0 && (
                   <View style={styles.sourcesBox}>
                     <Ionicons name="book-outline" size={12} color={Colors.textMuted} />

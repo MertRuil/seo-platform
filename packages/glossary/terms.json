@@ -1,0 +1,80 @@
+{
+  "$comment": "Arayüz terim sözlüğü (web ve mobil). Ekranda 'pattern' ile eşleşen İngilizce ifade yazılmaz, 'tr' karşılığı kullanılır. Search Console, PageRank, canonical, robots.txt, DR, dofollow gibi ürün ve standart adları olduğu gibi kalır. İki uygulamanın testi bu listeyi arayüz metinlerinde arar.",
+  "terms": [
+    {
+      "pattern": "\\bKeyword Gap\\b",
+      "flags": "i",
+      "tr": "kelime açığı"
+    },
+    {
+      "pattern": "\\bLead(?:s|'ler|'leri)?\\b",
+      "flags": "",
+      "tr": "müşteri adayı"
+    },
+    {
+      "pattern": "\\bPipeline\\b",
+      "flags": "",
+      "tr": "aday listesi"
+    },
+    {
+      "pattern": "\\bWhite-?label\\b",
+      "flags": "i",
+      "tr": "kendi markanızla rapor"
+    },
+    {
+      "pattern": "\\bCitation\\b",
+      "flags": "",
+      "tr": "atıf, kaynak gösterilme"
+    },
+    {
+      "pattern": "\\bMonte Carlo\\b",
+      "flags": "",
+      "tr": "çok turlu deneme"
+    },
+    {
+      "pattern": "\\bMC\\b",
+      "flags": "",
+      "tr": "anılma olasılığı"
+    },
+    {
+      "pattern": "\\b[Dd]iff(?:'[ei]|-in-Diff)?\\b",
+      "flags": "",
+      "tr": "değişiklik, eski ve yeni hâl yan yana"
+    },
+    {
+      "pattern": "\\b[Aa]nchor\\b",
+      "flags": "",
+      "tr": "bağlantı metni"
+    },
+    {
+      "pattern": "\\bChangeSet\\b|\\bchange sets?\\b",
+      "flags": "",
+      "tr": "değişiklik seti"
+    },
+    {
+      "pattern": "\\bDirect Answer\\b",
+      "flags": "",
+      "tr": "doğrudan yanıt"
+    },
+    {
+      "pattern": "\\bGrounding\\b",
+      "flags": "i",
+      "tr": "canlı web araması"
+    },
+    {
+      "pattern": "\\bRollback\\b",
+      "flags": "",
+      "tr": "geri alma"
+    },
+    {
+      "pattern": "\\bSelf-[Hh]eal(?:ing)?\\b",
+      "flags": "",
+      "tr": "otomatik düzeltme"
+    },
+    {
+      "pattern": "\\bSERP\\b",
+      "flags": "",
+      "tr": "arama sonuçları"
+    }
+  ]
+}

@@ -173,12 +173,12 @@ ${footer}`;
               <Text style={styles.summaryBody}>{activeReport.executive_summary}</Text>
             </GlassCard>
 
-            {/* Whitelabel Customization Section */}
+            {/* Rapordaki marka */}
             <GlassCard style={styles.whitelabelCard}>
               <View style={styles.whitelabelHeaderRow}>
                 <View style={styles.whitelabelTitleGroup}>
                   <Ionicons name="business-outline" size={17} color={Colors.primary} />
-                  <Text style={styles.whitelabelTitle}>Ajans Whitelabel Rapor Modu</Text>
+                  <Text style={styles.whitelabelTitle}>Raporu kendi ajans adımla ver</Text>
                 </View>
                 <Switch
                   value={isWhitelabelActive}
@@ -236,7 +236,7 @@ ${footer}`;
               >
                 <Ionicons name="share-social-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.exportBtnText}>
-                  {isWhitelabelActive ? "Whitelabel Raporu Paylaş" : "Raporu Paylaş / Gönder"}
+                  {isWhitelabelActive ? "Markalı raporu paylaş" : "Raporu paylaş"}
                 </Text>
               </TouchableOpacity>
 
