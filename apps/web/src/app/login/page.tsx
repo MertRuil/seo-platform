@@ -274,7 +274,7 @@ export default function LoginPage() {
                     <div className="p-2.5 rounded bg-surface border border-line flex items-center justify-between text-xs mt-1 animate-fade-in">
                       <div>
                         <div className="font-semibold text-ink">Sağlık Skoru: {quickAuditResult.score}/100</div>
-                        <div className="text-2xs text-muted">
+                        <div className="text-xs text-muted">
                           {quickAuditResult.issues} bulgu tespit edildi ({quickAuditResult.critical} kritik)
                         </div>
                       </div>
@@ -352,7 +352,7 @@ export default function LoginPage() {
                   </div>
                   {mode === "register" && password && (
                     <div className="mt-2">
-                      <div className="flex items-center justify-between text-2xs text-muted mb-1">
+                      <div className="flex items-center justify-between text-xs text-muted mb-1">
                         <span>Şifre gücü</span>
                         <span className="font-semibold">{strengthLabel(strength)}</span>
                       </div>
@@ -392,7 +392,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <p className="text-center text-2xs text-muted mt-4">Şifreler tuzlanmış PBKDF2 ile saklanır · Oturum HMAC-SHA256 imzalı</p>
+            <p className="text-center text-xs text-muted mt-4">Şifreler tuzlanmış PBKDF2 ile saklanır · Oturum HMAC-SHA256 imzalı</p>
           </div>
         </main>
       </div>

@@ -77,7 +77,7 @@ export function LevelSelectorModal() {
               </div>
 
               <div className="inline-block mb-1">
-                <span className="text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-evidence/15 text-evidence">
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-evidence/15 text-evidence">
                   Önerilen · Kolay
                 </span>
               </div>
@@ -129,7 +129,7 @@ export function LevelSelectorModal() {
               </div>
 
               <div className="inline-block mb-1">
-                <span className="text-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-accent/15 text-accent-ink">
+                <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-accent/15 text-accent-ink">
                   Ajans & Uzman
                 </span>
               </div>

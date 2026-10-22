@@ -300,7 +300,7 @@ export default function ReportsPage() {
                   <button
                     type="button"
                     onClick={() => setClientName(site.name || site.domain || "")}
-                    className="text-[11px] text-accent hover:underline mb-1"
+                    className="text-xs text-accent hover:underline mb-1"
                     title="Seçili sitenin adına sıfırla"
                   >
                     Site adına sıfırla
@@ -309,7 +309,7 @@ export default function ReportsPage() {
               </div>
               <Input id="client_name" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder={site?.name || "Örn: Marka / Müşteri Adı"} />
               {site && (
-                <p className="text-[11px] text-muted mt-1 truncate">
+                <p className="text-xs text-muted mt-1 truncate">
                   Seçili Site: <span className="font-semibold text-ink">{site.name}</span> ({activeDomain})
                 </p>
               )}
@@ -357,13 +357,13 @@ export default function ReportsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-surface-subtle border border-line print:bg-surface-2 print:border-line-strong">
           <div>
-            <span className="text-[11px] font-semibold text-muted print:text-muted uppercase tracking-wider block">Müşteri & Alan Adı</span>
+            <span className="text-xs font-semibold text-muted print:text-muted uppercase tracking-wider block">Müşteri & Alan Adı</span>
             <p className="text-sm font-bold text-ink print:text-black mt-0.5">{activeClient}</p>
             <p className="text-xs font-mono text-muted print:text-muted">{activeUrl}</p>
           </div>
 
           <div>
-            <span className="text-[11px] font-semibold text-muted print:text-muted uppercase tracking-wider block">Yönetici Değerlendirmesi</span>
+            <span className="text-xs font-semibold text-muted print:text-muted uppercase tracking-wider block">Yönetici Değerlendirmesi</span>
             <p className="text-xs text-ink print:text-ink mt-0.5 leading-relaxed">"{customNote}"</p>
           </div>
         </div>
@@ -375,7 +375,7 @@ export default function ReportsPage() {
               <div key={k.label} className="p-4 rounded-lg bg-surface border border-line print:border-line-strong print:bg-white">
                 <span className="text-xs text-muted print:text-muted block">{k.label}</span>
                 <span className="text-2xl font-extrabold text-ink print:text-black font-mono block mt-1">{k.value}</span>
-                <span className="text-[11px] text-muted print:text-muted">{k.sub}</span>
+                <span className="text-xs text-muted print:text-muted">{k.sub}</span>
               </div>
             ))}
           </div>
@@ -459,7 +459,7 @@ export default function ReportsPage() {
         </div>
 
         {agencyLabel && (
-          <div className="pt-4 border-t border-line print:border-line-strong text-[11px] text-muted print:text-muted">
+          <div className="pt-4 border-t border-line print:border-line-strong text-xs text-muted print:text-muted">
             <p>
               © {new Date().getFullYear()} {agencyLabel}
             </p>

@@ -42,7 +42,7 @@ export function DataTable<T>({ columns, rows, rowKey, caption, empty, className 
                 scope="col"
                 style={c.width ? { width: c.width } : undefined}
                 className={cn(
-                  "px-4 py-2.5 text-2xs font-semibold uppercase tracking-wider text-muted whitespace-nowrap",
+                  "px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted whitespace-nowrap",
                   c.align === "right" && "text-right",
                   c.align === "center" && "text-center"
                 )}

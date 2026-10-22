@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { areaPath, linePath, niceMax, xPositions, type PlotOptions } from "./chart-math";
 
@@ -29,10 +29,12 @@ interface TrendChartProps {
   className?: string;
 }
 
-const W = 640;
-const PAD_X = 40;
+// Koordinat genişliği ekrandaki genişliğe eşitlenir; böylece eksen yazısı her ekranda AXIS_FONT px kalır.
+const DEFAULT_W = 640;
+const AXIS_FONT = 11;
+const PAD_X = 44;
 const PAD_RIGHT = 12;
-const PAD_TOP = 18;
+const PAD_TOP = 20;
 const PAD_BOTTOM = 26;
 
 const strokeClass = { accent: "stroke-accent", evidence: "stroke-evidence" } as const;
@@ -42,6 +44,21 @@ const textClass = { accent: "text-accent", evidence: "text-evidence" } as const;
 /** Bağımlılıksız SVG zaman serisi: alan + çizgi, ince grid, vurgulu son nokta, dağıtım işaretleri, hover tooltip. */
 export function TrendChart({ labels, series, markers = [], height = 220, format = (n) => String(n), ariaLabel, className }: TrendChartProps) {
   const [hover, setHover] = useState<number | null>(null);
+  const [W, setW] = useState(DEFAULT_W);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = Math.round(el.getBoundingClientRect().width);
+      if (w > 0) setW(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const max = useMemo(() => niceMax(series.flatMap((s) => s.values)), [series]);
   // xPositions padX'i iki yana uygular: ilk nokta PAD_X'te, son nokta W - PAD_RIGHT'ta olsun diye genişlik PAD_X kadar uzatılır.
@@ -69,7 +86,7 @@ export function TrendChart({ labels, series, markers = [], height = 220, format 
   const hoverX = hover !== null ? xs[hover] : null;
 
   return (
-    <div className={cn("relative", className)}>
+    <div ref={boxRef} className={cn("relative", className)}>
       <svg
         viewBox={`0 0 ${W} ${height}`}
         className="w-full h-auto block select-none"
@@ -84,7 +101,7 @@ export function TrendChart({ labels, series, markers = [], height = 220, format 
           return (
             <g key={g}>
               <line x1={PAD_X} x2={W - PAD_RIGHT} y1={y} y2={y} className="stroke-line" strokeWidth={1} strokeDasharray={g === 0 ? undefined : "3 3"} />
-              <text x={PAD_X - 6} y={y + 3} textAnchor="end" className="fill-muted font-mono" fontSize={9}>
+              <text x={PAD_X - 6} y={y + 4} textAnchor="end" className="fill-muted font-mono" fontSize={AXIS_FONT}>
                 {format(max * g)}
               </text>
             </g>
@@ -101,7 +118,7 @@ export function TrendChart({ labels, series, markers = [], height = 220, format 
             <g key={i}>
               {m.windowPoints ? <rect x={x} y={PAD_TOP} width={Math.max(0, x2 - x)} height={baseline - PAD_TOP} className="fill-warn" fillOpacity={0.06} /> : null}
               <line x1={x} x2={x} y1={PAD_TOP - 6} y2={baseline} className="stroke-warn" strokeWidth={1} strokeDasharray="3 3" />
-              <text x={x + 4} y={PAD_TOP - 8} className="fill-warn font-mono" fontSize={9}>
+              <text x={x + 4} y={PAD_TOP - 8} className="fill-warn font-mono" fontSize={AXIS_FONT}>
                 {m.label}
               </text>
             </g>
@@ -140,12 +157,13 @@ export function TrendChart({ labels, series, markers = [], height = 220, format 
             )
           )}
 
-        {/* x etiketleri (sıkışmayı önlemek için en fazla 8) */}
+        {/* x etiketleri: etiket başına en az 72 px, en fazla 8 */}
         {labels.map((l, i) => {
-          const every = Math.ceil(labels.length / 8);
-          if (i % every !== 0 && i !== labels.length - 1) return null;
+          const every = Math.ceil(labels.length / Math.max(2, Math.min(8, Math.floor(W / 72))));
+          const last = labels.length - 1;
+          if (i !== last && (i % every !== 0 || last - i < every)) return null;
           return (
-            <text key={i} x={xs[i]} y={height - 8} textAnchor={i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"} className="fill-muted font-mono" fontSize={9}>
+            <text key={i} x={xs[i]} y={height - 7} textAnchor={i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"} className="fill-muted font-mono" fontSize={AXIS_FONT}>
               {l}
             </text>
           );

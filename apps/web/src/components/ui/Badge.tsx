@@ -61,7 +61,7 @@ export function SeverityBadge({ severity }: { severity: Severity | string }) {
 /** Beta etiketi: ölçümü henüz olmayan metrikler için. */
 export function BetaBadge() {
   return (
-    <Badge tone="warn" mono className="text-2xs px-1.5">
+    <Badge tone="warn" mono className="text-xs px-1.5">
       BETA
     </Badge>
   );

@@ -451,25 +451,25 @@ export default function GeoPage() {
                   <div className="flex items-baseline justify-between">
                     <div>
                       <div className="text-2xl font-mono font-bold text-ink">%{p.score}</div>
-                      <div className="text-2xs text-muted">Görünürlük</div>
+                      <div className="text-xs text-muted">Görünürlük</div>
                     </div>
                     {typeof p.avg_confidence === "number" && (
                       <div className="text-right">
                         <div className="text-xs font-mono font-semibold text-accent-ink">
                           %{Math.round(p.avg_confidence * 100)}
                         </div>
-                        <div className="text-2xs text-muted">Anılma olasılığı</div>
+                        <div className="text-xs text-muted">Anılma olasılığı</div>
                       </div>
                     )}
                   </div>
 
                   <div className="border-t border-line pt-2 flex items-center justify-between text-xs font-mono">
                     <div>
-                      <span className="text-muted block text-2xs">Bahsedilme</span>
+                      <span className="text-muted block text-xs">Bahsedilme</span>
                       <span className="font-semibold text-ink">{p.mentions}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-muted block text-2xs">Kaynak gösterilme</span>
+                      <span className="text-muted block text-xs">Kaynak gösterilme</span>
                       <span className="font-semibold text-accent-ink">{p.citations}</span>
                     </div>
                   </div>
@@ -578,7 +578,7 @@ export default function GeoPage() {
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-ink">{engine}</span>
                             {res.mentioned ? (
-                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-evidence">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-evidence">
                                 <CheckCircle2 className="w-3 h-3" /> Anıldı
                                 {typeof res.mention_probability === "number" && (
                                   <span className="font-mono text-2xs">
@@ -587,7 +587,7 @@ export default function GeoPage() {
                                 )}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-critical">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-critical">
                                 <AlertCircle className="w-3 h-3" /> Anılmadı
                               </span>
                             )}
@@ -597,7 +597,7 @@ export default function GeoPage() {
                       ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-2xs text-muted pt-1 border-t border-line/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted pt-1 border-t border-line/50">
                       <span>
                         En çok kaynak gösterilen rakip:{" "}
                         <strong className="text-ink">{p.top_competitor_cited}</strong>
@@ -675,7 +675,7 @@ export default function GeoPage() {
                       <ExternalLink className="w-3 h-3 shrink-0" />
                       <span className="truncate">{src.url}</span>
                     </a>
-                    <p className="text-2xs text-muted bg-surface p-2 rounded-xs border border-line/70">
+                    <p className="text-xs text-muted bg-surface p-2 rounded-xs border border-line/70">
                       <strong>Neden seçildi:</strong> {src.why_cited}
                     </p>
                   </div>
@@ -701,7 +701,7 @@ export default function GeoPage() {
                             prompt_context: src.title,
                           })
                         }
-                        className="text-2xs font-semibold text-accent-ink hover:underline inline-flex items-center gap-1"
+                        className="text-xs font-semibold text-accent-ink hover:underline inline-flex items-center gap-1"
                       >
                         Bu kaynağın önüne geçmek için öneri hazırla <ArrowRight className="w-3 h-3" />
                       </button>
@@ -747,7 +747,7 @@ export default function GeoPage() {
 
                   {/* AI Bot Badges */}
                   <div>
-                    <div className="text-2xs font-semibold text-muted mb-1.5">
+                    <div className="text-xs font-semibold text-muted mb-1.5">
                       robots.txt&apos;de yapay zeka botlarının erişimi
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -782,7 +782,7 @@ export default function GeoPage() {
                       )}
                       <div className="space-y-0.5">
                         <div className="text-xs font-bold text-ink">{chk.title}</div>
-                        <p className="text-2xs text-muted leading-relaxed">{chk.detail}</p>
+                        <p className="text-xs text-muted leading-relaxed">{chk.detail}</p>
                       </div>
                     </div>
                   ))}

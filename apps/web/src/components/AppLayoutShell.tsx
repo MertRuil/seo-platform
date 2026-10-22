@@ -125,7 +125,7 @@ function SiteSwitcher() {
               >
                 <span className="min-w-0">
                   <span className="block font-medium truncate">{s.normalized_domain || s.domain}</span>
-                  <span className="block text-2xs text-muted truncate">{s.name}</span>
+                  <span className="block text-xs text-muted truncate">{s.name}</span>
                 </span>
                 {s.id === site?.id && <Check className="w-4 h-4 text-accent shrink-0" aria-hidden />}
               </button>

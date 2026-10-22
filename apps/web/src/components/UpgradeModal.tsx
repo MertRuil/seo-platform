@@ -86,7 +86,7 @@ export function UpgradeModal({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-2xs font-semibold bg-accent-soft text-accent-ink mb-1">
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-accent-soft text-accent-ink mb-1">
                 <Lock className="w-3 h-3" /> PRO YÜKSELTME
               </div>
               <h2 className="text-base font-bold text-ink leading-tight">{featureTitle}</h2>

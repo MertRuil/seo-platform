@@ -462,6 +462,19 @@ async function run() {
   assert.deepStrictEqual(headerTexts.filter((t) => /Semrush|Ahrefs|Surfer|\bMoz\b|standard|kalitesinde/i.test(t)), [], "sayfa başlığında rakip kıyası");
   console.log("  terim sözlüğü: ok");
 
+  // Yazı boyutu alt sınırı 12 px; 11 px (text-2xs) yalnızca mono etiketlerde.
+  const smallText = uiFiles.flatMap((f) =>
+    readFileSync(f, "utf8").split("\n").flatMap((line, i) => {
+      const hits = [...line.matchAll(/text-\[(\d+(?:\.\d+)?)px\]|fontSize=\{(\d+)\}/g)].filter((m) => Number(m[1] ?? m[2]) < 12).map((m) => m[0]);
+      if (/text-2xs(?![\w-])/.test(line) && !line.includes("font-mono")) hits.push("text-2xs");
+      return hits.map((h) => `${f}:${i + 1} ${h}`);
+    })
+  );
+  assert.deepStrictEqual(smallText, [], "12 px altı yazı");
+  // Grafik koordinatları ekrandaki genişliğe eşit; eksen yazısı bu yüzden gerçek px.
+  assert(Number(/const AXIS_FONT = (\d+)/.exec(readFileSync("src/components/ui/TrendChart.tsx", "utf8"))?.[1]) >= 11, "grafik eksen yazısı 11 px altında");
+  console.log("  yazı boyutu alt sınırı: ok");
+
   console.log("ALL UI LOGIC TESTS PASSED");
 }
 

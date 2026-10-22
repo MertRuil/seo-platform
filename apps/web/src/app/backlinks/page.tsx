@@ -364,7 +364,7 @@ export default function BacklinksPage() {
                           <ExternalLink className="w-3 h-3" aria-hidden />
                         </a>
                       </div>
-                      <div className="text-muted font-mono text-[11px] truncate" title={item.source_url}>
+                      <div className="text-muted font-mono text-2xs truncate" title={item.source_url}>
                         {item.source_url.replace(/^https?:\/\//, "")}
                       </div>
                     </td>
@@ -375,7 +375,7 @@ export default function BacklinksPage() {
                       </div>
                       <div className="mt-1">
                         <span
-                          className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border ${
+                          className={`text-2xs uppercase font-mono px-1.5 py-0.5 rounded border ${
                             item.anchor_category === "SPAM"
                               ? "bg-warn/20 border-warn/40 text-warn font-semibold"
                               : "bg-surface border-line text-muted"
@@ -390,12 +390,12 @@ export default function BacklinksPage() {
                       <span className="font-mono font-bold text-ink">
                         {item.domain_authority}
                       </span>
-                      <span className="text-[10px] text-muted block">UR: {item.page_authority}</span>
+                      <span className="text-xs text-muted block">UR: {item.page_authority}</span>
                     </td>
 
                     <td className="py-3 px-3 text-center">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
+                        className={`inline-block px-2 py-0.5 rounded text-2xs font-mono font-bold ${
                           item.spam_score > 60
                             ? "bg-warn/20 text-warn"
                             : item.spam_score > 25
@@ -418,7 +418,7 @@ export default function BacklinksPage() {
                         <div>
                           <Badge tone="warn">Toksik Link</Badge>
                           {item.toxicity_reasons.length > 0 && (
-                            <p className="text-[10px] text-warn mt-1 max-w-[180px] leading-tight">
+                            <p className="text-xs text-warn mt-1 max-w-[180px] leading-tight">
                               {item.toxicity_reasons[0]}
                             </p>
                           )}
@@ -428,7 +428,7 @@ export default function BacklinksPage() {
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono text-muted text-[11px]">
+                    <td className="py-3 px-4 text-right font-mono text-muted text-2xs">
                       {item.first_seen}
                     </td>
                   </tr>
@@ -500,7 +500,7 @@ export default function BacklinksPage() {
               {cleanDisavowNotice}
             </p>
           </div>
-          <div className="p-3 bg-surface-subtle border border-line rounded-lg text-[11px] text-muted space-y-1">
+          <div className="p-3 bg-surface-subtle border border-line rounded-lg text-xs text-muted space-y-1">
             <div className="font-semibold text-ink">Google Arama Merkezi (Search Central) Uyarısı:</div>
             <p>
               "Disavow aracı yalnızca sitenize yönelik yapay, yanıltıcı veya manipülatif bağlantılar için kullanılmalıdır. Sitenize link vermemiş alan adlarını disavow etmek faydasız olduğu gibi, geçerli yönlendirmeleri yanlışlıkla engelleme riski taşır."

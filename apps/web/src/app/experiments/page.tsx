@@ -40,17 +40,17 @@ export default function SeoDeneyleriPage() {
               <Inset>
                 <div className="text-xs text-muted">Varyant büyümesi</div>
                 <div className="text-2xl font-semibold text-evidence mt-1 tabular-nums">+%{formatNumber(e.variantPct, 1)}</div>
-                <p className="text-2xs text-muted mt-1">Değişen sayfalar</p>
+                <p className="text-xs text-muted mt-1">Değişen sayfalar</p>
               </Inset>
               <Inset>
                 <div className="text-xs text-muted">Kontrol büyümesi</div>
                 <div className="text-2xl font-semibold text-ink mt-1 tabular-nums">+%{formatNumber(e.controlPct, 1)}</div>
-                <p className="text-2xs text-muted mt-1">Değişmeyen sayfalar (genel pazar)</p>
+                <p className="text-xs text-muted mt-1">Değişmeyen sayfalar (genel pazar)</p>
               </Inset>
               <Inset className="border-accent bg-accent-soft">
                 <div className="text-xs text-accent-ink">Net nedensel etki</div>
                 <div className="text-2xl font-semibold text-accent-ink mt-1 tabular-nums">+%{formatNumber(e.liftPct, 1)}</div>
-                <p className="text-2xs text-accent-ink mt-1">Algoritma dalgalanması hariç</p>
+                <p className="text-xs text-accent-ink mt-1">Algoritma dalgalanması hariç</p>
               </Inset>
             </div>
           </Panel>

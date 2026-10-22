@@ -129,7 +129,7 @@ export default function AiCopilotPage() {
               <span className="text-xs font-bold text-ink group-hover:text-accent-ink">{p.title}</span>
               <Sparkles className="w-3.5 h-3.5 text-accent opacity-70 group-hover:opacity-100" />
             </div>
-            <p className="text-2xs text-muted truncate">{p.prompt}</p>
+            <p className="text-xs text-muted truncate">{p.prompt}</p>
           </button>
         ))}
       </div>
@@ -167,7 +167,7 @@ export default function AiCopilotPage() {
                     {isAssistant && (
                       <div className="space-y-2 pl-1">
                         {m.sources && m.sources.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5 text-2xs text-muted">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
                             <span className="font-semibold text-faint">Kaynaklar:</span>
                             {m.sources.map((s, idx) => (
                               <span key={idx} className="bg-surface-2 px-1.5 py-0.5 rounded-xs border border-line">

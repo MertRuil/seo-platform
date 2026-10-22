@@ -287,7 +287,7 @@ export default function KeywordsPage() {
                             <span className="font-semibold text-ink">{item.keyword}</span>
                             {trViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-critical-soft text-critical border border-critical/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-critical-soft text-critical border border-critical/30"
                                 title={`TR: ${trViolations[0].title} (${trViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-critical shrink-0" />
@@ -296,7 +296,7 @@ export default function KeywordsPage() {
                             )}
                             {euViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-warn-soft text-warn border border-warn/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-warn-soft text-warn border border-warn/30"
                                 title={`EU: ${euViolations[0].title} (${euViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-warn shrink-0" />
@@ -305,7 +305,7 @@ export default function KeywordsPage() {
                             )}
                             {usViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                                 title={`US: ${usViolations[0].title} (${usViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -314,7 +314,7 @@ export default function KeywordsPage() {
                             )}
                             {ukViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                                 title={`UK: ${ukViolations[0].title} (${ukViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -323,7 +323,7 @@ export default function KeywordsPage() {
                             )}
                             {asiaViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                                 title={`Asia: ${asiaViolations[0].title} (${asiaViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -332,7 +332,7 @@ export default function KeywordsPage() {
                             )}
                             {menaViolations.length > 0 && (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-evidence-soft text-evidence border border-evidence/30"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-evidence-soft text-evidence border border-evidence/30"
                                 title={`MENA: ${menaViolations[0].title} (${menaViolations[0].legalBasis})`}
                               >
                                 <AlertTriangle className="w-2.5 h-2.5 text-evidence shrink-0" />
@@ -436,7 +436,7 @@ export default function KeywordsPage() {
                           {item.serp_features?.map((feat, i) => (
                             <span
                               key={i}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-medium bg-surface-2 text-ink border border-line"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-medium bg-surface-2 text-ink border border-line"
                             >
                               {feat === "AI Overview" && <Sparkles className="w-2.5 h-2.5 text-accent" />}
                               {serpFeatureLabel(feat)}
@@ -501,7 +501,7 @@ export default function KeywordsPage() {
                           <span className="font-semibold text-ink text-sm">{item.keyword}</span>
                           {expTr.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-critical-soft text-critical border border-critical/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-critical-soft text-critical border border-critical/30"
                               title={`TR: ${expTr[0].title} (${expTr[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-critical shrink-0" />
@@ -510,7 +510,7 @@ export default function KeywordsPage() {
                           )}
                           {expEu.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-warn-soft text-warn border border-warn/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-warn-soft text-warn border border-warn/30"
                               title={`EU: ${expEu[0].title} (${expEu[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-warn shrink-0" />
@@ -519,7 +519,7 @@ export default function KeywordsPage() {
                           )}
                           {expUs.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                               title={`US: ${expUs[0].title} (${expUs[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -528,7 +528,7 @@ export default function KeywordsPage() {
                           )}
                           {expAsia.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                               title={`Asia: ${expAsia[0].title} (${expAsia[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -537,7 +537,7 @@ export default function KeywordsPage() {
                           )}
                           {expUk.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink border border-accent/30"
                               title={`UK: ${expUk[0].title} (${expUk[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-accent shrink-0" />
@@ -546,7 +546,7 @@ export default function KeywordsPage() {
                           )}
                           {expMena.length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-evidence-soft text-evidence border border-evidence/30"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-evidence-soft text-evidence border border-evidence/30"
                               title={`MENA: ${expMena[0].title} (${expMena[0].legalBasis})`}
                             >
                               <AlertTriangle className="w-2.5 h-2.5 text-evidence shrink-0" />
@@ -554,7 +554,7 @@ export default function KeywordsPage() {
                             </span>
                           )}
                           {item.has_ai_overview && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-2xs font-semibold bg-accent-soft text-accent-ink">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs text-xs font-semibold bg-accent-soft text-accent-ink">
                               <Sparkles className="w-3 h-3 text-accent" /> {serpFeatureLabel("AI Overview")}
                             </span>
                           )}
@@ -619,10 +619,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-critical shrink-0" />
                   <span>TR Reklam Mevzuatı Uyarısı: {scanTurkishCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-critical leading-relaxed">
+                <p className="text-xs text-critical leading-relaxed">
                   "{scanTurkishCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTurkishCompliance(newKeyword)[0].legalBasis} uyarınca yasaktır. Reklam Kurulu cezası riski taşır.
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Tavsiye Edilen Alternatif: {scanTurkishCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
@@ -633,10 +633,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-warn shrink-0" />
                   <span>EU Regulatory Compliance Warning: {scanEuCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-warn leading-relaxed">
+                <p className="text-xs text-warn leading-relaxed">
                   "{scanEuCompliance(newKeyword)[0].matchedPattern}" violates {scanEuCompliance(newKeyword)[0].legalBasis}.
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Compliant EU Recommendation: {scanEuCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
@@ -647,10 +647,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
                   <span>US Federal Compliance Warning: {scanUsCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-accent-ink leading-relaxed">
+                <p className="text-xs text-accent-ink leading-relaxed">
                   "{scanUsCompliance(newKeyword)[0].matchedPattern}" violates {scanUsCompliance(newKeyword)[0].legalBasis} (FTC/FDA penalty risk).
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Compliant US Recommendation: {scanUsCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
@@ -661,10 +661,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
                   <span>Asia / APAC Regulatory Warning: {scanAsiaCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-accent-ink leading-relaxed">
+                <p className="text-xs text-accent-ink leading-relaxed">
                   "{scanAsiaCompliance(newKeyword)[0].matchedPattern}" violates {scanAsiaCompliance(newKeyword)[0].legalBasis} ({scanAsiaCompliance(newKeyword)[0].penaltyRisk}).
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Compliant Asia Recommendation: {scanAsiaCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
@@ -675,10 +675,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-accent shrink-0" />
                   <span>UK Regulatory Compliance Warning: {scanTextForUkCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-accent-ink leading-relaxed">
+                <p className="text-xs text-accent-ink leading-relaxed">
                   "{scanTextForUkCompliance(newKeyword)[0].matchedPattern}" violates {scanTextForUkCompliance(newKeyword)[0].legalBasis} ({scanTextForUkCompliance(newKeyword)[0].penaltyRisk}).
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Compliant UK Recommendation: {scanTextForUkCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>
@@ -689,10 +689,10 @@ export default function KeywordsPage() {
                   <AlertTriangle className="w-3.5 h-3.5 text-evidence shrink-0" />
                   <span>Orta Doğu & Körfez (MENA) Mevzuat Uyarısı: {scanTextForMenaCompliance(newKeyword)[0].title}</span>
                 </div>
-                <p className="text-2xs text-evidence leading-relaxed">
+                <p className="text-xs text-evidence leading-relaxed">
                   "{scanTextForMenaCompliance(newKeyword)[0].matchedPattern}" ifadesi {scanTextForMenaCompliance(newKeyword)[0].legalBasis} ({scanTextForMenaCompliance(newKeyword)[0].penaltyRisk}) ile çelişmektedir.
                 </p>
-                <p className="text-2xs text-evidence font-semibold">
+                <p className="text-xs text-evidence font-semibold">
                   Önerilen Uyumlu Alternatif: {scanTextForMenaCompliance(newKeyword)[0].suggestedFix}
                 </p>
               </div>

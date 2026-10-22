@@ -139,11 +139,11 @@ export default function GenelGorunumPage() {
 
               <div className="flex items-center gap-4 shrink-0">
                 <div className="text-center p-4 rounded-lg bg-surface border border-line min-w-[120px]">
-                  <div className="text-2xs uppercase tracking-wider text-muted font-bold">Sağlık Puanı</div>
+                  <div className="text-xs uppercase tracking-wider text-muted font-bold">Sağlık Puanı</div>
                   <div className={cn("text-3xl font-bold mt-1", TONE_TEXT[scoreTone(d.health.score)])}>
                     {d.health.score} <span className="text-xs text-muted font-normal">/ 100</span>
                   </div>
-                  <div className="text-2xs text-muted mt-0.5">{d.health.critical > 0 ? `${d.health.critical} acil sorun` : "Acil sorun yok"}</div>
+                  <div className="text-xs text-muted mt-0.5">{d.health.critical > 0 ? `${d.health.critical} acil sorun` : "Acil sorun yok"}</div>
                 </div>
 
                 <Link
@@ -517,7 +517,7 @@ export default function GenelGorunumPage() {
                       </span>
                     </div>
                     <div className="text-xl font-mono font-semibold text-ink mt-1 tabular-nums">{m.score}</div>
-                    <div className="text-2xs text-muted">{m.status}</div>
+                    <div className="text-xs text-muted">{m.status}</div>
                   </Inset>
                 ))}
               </div>

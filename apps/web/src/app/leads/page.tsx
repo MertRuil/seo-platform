@@ -395,7 +395,7 @@ export default function LeadsCrmPage() {
                   <div className="text-center sm:text-right px-4 py-2 rounded-lg bg-surface border border-line">
                     <div className="text-xs text-muted">Sağlık Skoru</div>
                     <div className="text-2xl font-bold text-warn">{selectedLead.metrics.health_score}/100</div>
-                    <div className="text-[11px] text-muted">Kritik Risk</div>
+                    <div className="text-xs text-muted">Kritik Risk</div>
                   </div>
                 </div>
 
@@ -513,11 +513,11 @@ export default function LeadsCrmPage() {
                         <Briefcase className="w-3.5 h-3.5 text-accent" />
                         {lead.company_name}
                       </div>
-                      <div className="text-[11px] text-muted">{lead.target_url}</div>
+                      <div className="text-xs text-muted">{lead.target_url}</div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="text-ink">{lead.contact_name || "Yetkili"}</div>
-                      <div className="text-[11px] text-muted">{lead.contact_email}</div>
+                      <div className="text-xs text-muted">{lead.contact_email}</div>
                     </td>
                     <td className="py-3 px-4 text-ink font-medium">
                       {lead.metrics.monthly_traffic.toLocaleString()} / ay
@@ -528,17 +528,17 @@ export default function LeadsCrmPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded bg-surface-2 text-ink text-[11px] border border-line">
+                      <span className="px-2 py-0.5 rounded bg-surface-2 text-ink text-xs border border-line">
                         {lead.recommended_tier}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       {lead.crm_status === "synced" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-evidence font-medium">
+                        <span className="inline-flex items-center gap-1 text-xs text-evidence font-medium">
                           <Check className="w-3 h-3" /> Sistem CRM'de
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-warn font-medium">
+                        <span className="inline-flex items-center gap-1 text-xs text-warn font-medium">
                           Taslak
                         </span>
                       )}

@@ -142,8 +142,8 @@ export default function CompetitorsPage() {
                 </td>
                 <td className="py-4 px-4">
                   <div className="flex flex-wrap gap-1">
-                    <span className="px-2 py-0.5 rounded-xs text-2xs bg-surface border border-line text-ink">otonom seo</span>
-                    <span className="px-2 py-0.5 rounded-xs text-2xs bg-surface border border-line text-ink">yapay zeka canonical</span>
+                    <span className="px-2 py-0.5 rounded-xs text-xs bg-surface border border-line text-ink">otonom seo</span>
+                    <span className="px-2 py-0.5 rounded-xs text-xs bg-surface border border-line text-ink">yapay zeka canonical</span>
                   </div>
                 </td>
               </tr>
@@ -186,7 +186,7 @@ export default function CompetitorsPage() {
                   <td className="py-3.5 px-4">
                     <div className="flex flex-wrap gap-1">
                       {comp.top_keywords.map((kw, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-xs text-2xs bg-surface-2 text-muted border border-line">
+                        <span key={i} className="px-2 py-0.5 rounded-xs text-xs bg-surface-2 text-muted border border-line">
                           {kw}
                         </span>
                       ))}

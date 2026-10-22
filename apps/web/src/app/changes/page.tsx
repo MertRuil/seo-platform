@@ -307,11 +307,11 @@ export default function DegisikliklerPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
             <div className="rounded-sm border-l-2 border-critical bg-critical-soft p-3 overflow-x-auto">
-              <div className="text-2xs font-semibold uppercase tracking-wider text-critical mb-2">− Önceki durum</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-critical mb-2">− Önceki durum</div>
               <pre className="whitespace-pre-wrap text-critical leading-relaxed">{current.oncekiKod}</pre>
             </div>
             <div className="rounded-sm border-l-2 border-evidence bg-evidence-soft p-3 overflow-x-auto">
-              <div className="text-2xs font-semibold uppercase tracking-wider text-evidence mb-2">+ Uygulanacak durum</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-evidence mb-2">+ Uygulanacak durum</div>
               <pre className="whitespace-pre-wrap text-evidence leading-relaxed">{current.yeniKod}</pre>
             </div>
           </div>
@@ -337,20 +337,20 @@ export default function DegisikliklerPage() {
 
         <div className="mt-4 pt-3 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-evidence-soft text-evidence font-medium text-2xs border border-evidence/20">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-evidence-soft text-evidence font-medium text-xs border border-evidence/20">
               <ShieldCheck className="w-3.5 h-3.5" /> Güvenli yazma
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface text-ink font-mono text-2xs border border-line">
               <CheckCircle2 className="w-3.5 h-3.5 text-accent" /> Yazmadan önce dosya özeti kontrolü
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface text-ink font-medium text-2xs border border-line">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface text-ink font-medium text-xs border border-line">
               <RotateCcw className="w-3.5 h-3.5 text-muted" /> Hata olursa otomatik geri alma
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink font-medium text-2xs border border-accent/20">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink font-medium text-xs border border-accent/20">
               <Zap className="w-3.5 h-3.5" /> IndexNow ile hızlı bildirim
             </span>
           </div>
-          <span className="text-muted text-2xs">
+          <span className="text-muted text-xs">
             Sunucu hatası veya içerik sapmasında otomatik geri alınır.
           </span>
         </div>

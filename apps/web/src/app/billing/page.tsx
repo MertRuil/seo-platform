@@ -237,7 +237,7 @@ export default function BillingPage() {
                   <h2 className="text-lg font-bold text-ink">{subscription.plan_name} Planı</h2>
                   <span
                     className={cn(
-                      "px-2 py-0.5 rounded-full text-2xs font-semibold tracking-wide uppercase",
+                      "px-2 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase",
                       subscription.status === "ACTIVE"
                         ? "bg-accent-soft text-accent-ink"
                         : "bg-warn-soft text-warn"
@@ -306,7 +306,7 @@ export default function BillingPage() {
                     type="button"
                     onClick={() => handleGrantCredits(100)}
                     disabled={creditLoading}
-                    className="text-2xs text-accent hover:underline font-semibold cursor-pointer disabled:opacity-50"
+                    className="text-xs text-accent hover:underline font-semibold cursor-pointer disabled:opacity-50"
                   >
                     +100 Ekle
                   </button>
@@ -316,7 +316,7 @@ export default function BillingPage() {
                   <span className="text-xs text-muted font-normal ml-1">kredi</span>
                 </div>
               </div>
-              <div className="text-2xs text-muted mt-3">
+              <div className="text-xs text-muted mt-3">
                 Denetim, öneri ve roadmap üretimi için kullanılır.
               </div>
             </div>
@@ -382,7 +382,7 @@ export default function BillingPage() {
               )}
             >
               <span>Yıllık Fatura</span>
-              <span className="bg-accent-soft text-accent-ink text-2xs px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-accent-soft text-accent-ink text-xs px-1.5 py-0.2 rounded-full font-bold">
                 %20 Tasarruf
               </span>
             </button>
@@ -409,7 +409,7 @@ export default function BillingPage() {
                 )}
               >
                 {isPro && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-ink text-2xs font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-accent-ink text-xs font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                     En Popüler
                   </div>
                 )}
@@ -418,12 +418,12 @@ export default function BillingPage() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-base font-bold text-ink">{plan.name}</h3>
                     {isCurrent && (
-                      <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-accent-soft text-accent-ink">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-accent-soft text-accent-ink">
                         Mevcut
                       </span>
                     )}
                   </div>
-                  <p className="text-2xs text-muted min-h-[32px] leading-relaxed">
+                  <p className="text-xs text-muted min-h-[32px] leading-relaxed">
                     {plan.description}
                   </p>
 
@@ -438,7 +438,7 @@ export default function BillingPage() {
                       </span>
                     </div>
                     {billingInterval === "year" && priceObj?.amount_minor > 0 && (
-                      <span className="text-2xs text-accent mt-0.5 block">
+                      <span className="text-xs text-accent mt-0.5 block">
                         Aylık ${(priceObj.amount_minor / 1200).toFixed(0)} denk gelir
                       </span>
                     )}
@@ -646,7 +646,7 @@ export default function BillingPage() {
                     </td>
                     <td className="py-3 px-4 font-mono font-semibold">{inv.total_formatted}</td>
                     <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-semibold bg-accent-soft text-accent-ink">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent-soft text-accent-ink">
                         {inv.status}
                       </span>
                     </td>
@@ -744,7 +744,7 @@ function UsageMetricCard({
             <Icon className="w-3.5 h-3.5 text-accent" /> {title}
           </span>
           {locked ? (
-            <span className="text-2xs font-semibold px-1.5 py-0.2 bg-surface text-muted rounded-sm border border-line">
+            <span className="text-xs font-semibold px-1.5 py-0.2 bg-surface text-muted rounded-sm border border-line">
               Kilitli
             </span>
           ) : (

@@ -30,7 +30,7 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
           {!collapsed && (
             <span className="min-w-0">
               <span className="block font-bold text-sm tracking-wider text-ink leading-4">CALPEO</span>
-              <span className="block text-2xs text-muted leading-4">Kanıt & karar sistemi</span>
+              <span className="block text-xs text-muted leading-4">Kanıt & karar sistemi</span>
             </span>
           )}
         </Link>
@@ -99,7 +99,7 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
             {!collapsed && (
               <div className="min-w-0">
                 <div className="text-sm font-medium text-ink truncate">{user?.fullName || "Kullanıcı"}</div>
-                <div className="text-2xs text-muted truncate">{user?.role || ""}</div>
+                <div className="text-xs text-muted truncate">{user?.role || ""}</div>
               </div>
             )}
           </div>
