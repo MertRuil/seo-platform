@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import json
 from packages.shared.database import get_db
 from packages.shared.models import CrawlPage, AuditLog, User, Membership
+from packages.shared.text_search import fold, fold_text
 from apps.api.routes.sites import verify_site_access
 from services.security.jwt_auth import get_current_user_payload
 
@@ -63,7 +64,8 @@ async def list_crawl_pages(
         CrawlPage.crawl_run_id == crawl_id
     )
     if q:
-        query = query.where(or_(CrawlPage.url.ilike(f"%{q}%"), CrawlPage.title.ilike(f"%{q}%")))
+        needle = fold_text(q)
+        query = query.where(or_(fold(CrawlPage.url).contains(needle, autoescape=True), fold(func.coalesce(CrawlPage.title, "")).contains(needle, autoescape=True)))
     if status_code is not None:
         query = query.where(CrawlPage.status_code == status_code)
     if noindex is not None:

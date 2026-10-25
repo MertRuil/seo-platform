@@ -143,6 +143,24 @@ async def test_users_list_search_and_detail(client):
 
 
 @pytest.mark.asyncio
+async def test_search_ignores_turkish_dotted_and_dotless_i(client):
+    _, admin_token = await create_user_token(is_platform_admin=True)
+    owner_id, _ = await create_user_token()
+    await make_org(owner_id, "İpek Kırtasiye")
+    async with AsyncSessionLocal() as db:
+        owner = await db.get(User, owner_id)
+        owner.full_name = "İrem Işık"
+        await db.commit()
+
+    for q in ("ipek", "İPEK", "kirtasiye", "kırtasiye"):
+        res = await client.get("/api/v1/admin/organizations", params={"q": q}, headers=bearer(admin_token))
+        assert [o["name"] for o in res.json()["items"]] == ["İpek Kırtasiye"], q
+    for q in ("irem", "İrem", "ışık"):
+        res = await client.get("/api/v1/admin/users", params={"q": q}, headers=bearer(admin_token))
+        assert res.json()["total"] == 1, q
+
+
+@pytest.mark.asyncio
 async def test_create_org_and_member_management_with_last_owner_guard(client):
     _, admin_token = await create_user_token(is_platform_admin=True)
     owner_id, _ = await create_user_token()

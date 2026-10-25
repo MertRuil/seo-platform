@@ -18,6 +18,7 @@ from packages.shared.models import (
     AuditLog, BillingEvent, CrawlRun, CreditLedger, Invoice, Membership, Organization,
     Plan, PlanPrice, Site, Subscription, UsageCounter, UsageEvent, User,
 )
+from packages.shared.text_search import fold, fold_text
 from services.accounts.provisioning import create_owned_organization
 from services.agents.base import model_for
 from services.billing.entitlements import EntitlementGuard
@@ -311,10 +312,10 @@ async def list_users(
 ):
     query = select(User).order_by(User.created_at.desc(), User.id)
     if q:
-        needle = q.strip().lower()
+        needle = fold_text(q)
         query = query.where(or_(
-            func.lower(User.email).contains(needle, autoescape=True),
-            func.lower(func.coalesce(User.full_name, "")).contains(needle, autoescape=True),
+            fold(User.email).contains(needle, autoescape=True),
+            fold(func.coalesce(User.full_name, "")).contains(needle, autoescape=True),
         ))
     if status_filter:
         query = query.where(User.is_active.is_(status_filter == "active"))
@@ -453,10 +454,10 @@ async def list_organizations(
 ):
     query = select(Organization).order_by(Organization.created_at.desc(), Organization.id)
     if q:
-        needle = q.strip().lower()
+        needle = fold_text(q)
         query = query.where(or_(
-            func.lower(Organization.name).contains(needle, autoescape=True),
-            func.lower(Organization.slug).contains(needle, autoescape=True),
+            fold(Organization.name).contains(needle, autoescape=True),
+            fold(Organization.slug).contains(needle, autoescape=True),
         ))
     if plan:
         query = query.join(Subscription, Subscription.organization_id == Organization.id).join(Plan, Plan.id == Subscription.plan_id).where(Plan.code == plan)
