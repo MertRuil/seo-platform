@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { FilterChips } from "@/components/ui/Input";
 import { Badge, SeverityBadge, severityStripeClass } from "@/components/ui/Badge";
 import { DemoBanner } from "@/components/ui/DemoBanner";
-import { EmptyState, Notice, SkeletonRows } from "@/components/ui/States";
+import { EmptyState, Notice, SkeletonRows, type NoticeTone } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
 
 type Filter = "ALL" | Severity;
@@ -30,55 +30,64 @@ export default function SorunlarPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [created, setCreated] = useState<string[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: NoticeTone; text: string; linked?: boolean } | null>(null);
 
   useEffect(() => {
     setCreated(readChangeSets().map((s) => s.sorunId).filter((x): x is string => !!x));
   }, []);
 
   const handleSelfHeal = async (issue: IssueItem) => {
+    if (!org?.id || !site?.id) {
+      setNotice({ tone: "info", text: "Bu bir örnek sorun. Site seçili olmadığı için hiçbir şey uygulanmadı." });
+      return;
+    }
     setBusyId(issue.id + "-heal");
     setNotice(null);
-
-    let connectorType = "Safe Executor Sandbox";
-    if (org?.id && site?.id) {
-      try {
-        const healRes = await api.selfHealIssue(org.id, site.id, {
-          issue_id: issue.id,
-          issue_title: issue.title,
-          target_url: issue.url,
-          category: issue.category,
-          risk_level: issue.severity || "LOW",
-          auto_execute: true,
-          state_before: issue.before,
-          state_after: issue.after,
+    try {
+      const res = await api.selfHealIssue(org.id, site.id, {
+        issue_id: issue.id,
+        issue_title: issue.title,
+        target_url: issue.url,
+        category: issue.category,
+        risk_level: issue.severity || "LOW",
+        auto_execute: true,
+        state_before: issue.before,
+        state_after: issue.after,
+      });
+      if (res.execution && !res.execution.success) {
+        setNotice({
+          tone: "error",
+          text: `Sorun #${issue.id} düzeltilemedi: ${res.execution.error_message || "yürütücü hata döndürdü"}.${res.execution.rolled_back ? " Sayfa yedekten geri yüklendi." : ""}`,
         });
-        if (healRes.connector_type) connectorType = healRes.connector_type;
-      } catch {
-        // Fallback gracefully
+        return;
       }
-    } else {
-      await new Promise((r) => setTimeout(r, 600));
+      const applied = res.change_set.status === "SUCCESS";
+      addChangeSet({
+        id: res.change_set.id,
+        sorunId: issue.id,
+        baslik: issue.title,
+        onem: issue.severity,
+        etkilenenSayfa: issue.url,
+        kategori: issue.category,
+        oneri: issue.fix,
+        durum: applied ? "UYGULANDI" : "BEKLİYOR",
+        oncekiKod: issue.before,
+        yeniKod: issue.after,
+        olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
+      });
+      setCreated((prev) => [...prev, issue.id]);
+      setNotice(
+        !applied
+          ? { tone: "info", text: `${res.message} Yüksek riskli değişiklikler uygulanmadan önce onay bekler.`, linked: true }
+          : res.connector_type === "SANDBOX"
+          ? { tone: "info", text: `Sorun #${issue.id} için düzeltme sandbox bağlayıcısında denendi; canlı siteye yazılmadı.`, linked: true }
+          : { tone: "success", text: `Sorun #${issue.id} ${res.connector_type} bağlayıcısıyla düzeltildi. Yazmadan önce yedek alındı ve sonuç doğrulandı.`, linked: true }
+      );
+    } catch (err) {
+      setNotice({ tone: "error", text: `Sorun #${issue.id} düzeltilemedi: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+    } finally {
+      setBusyId(null);
     }
-
-    const id = newChangeSetId();
-    addChangeSet({
-      id,
-      sorunId: issue.id,
-      baslik: issue.title,
-      onem: issue.severity,
-      etkilenenSayfa: issue.url,
-      kategori: issue.category,
-      oneri: issue.fix,
-      durum: "UYGULANDI",
-      oncekiKod: issue.before,
-      yeniKod: issue.after,
-      olusturulmaTarihi: new Date().toLocaleTimeString("tr-TR"),
-    });
-
-    setCreated((prev) => [...prev, issue.id]);
-    setBusyId(null);
-    setNotice(`Sorun #${issue.id} (${connectorType}) ile başarıyla otonom düzeltildi! Pre-write backup alındı, SHA-256 doğrulandı.`);
   };
 
   const handleCreateSet = async (issue: IssueItem) => {
@@ -101,7 +110,7 @@ export default function SorunlarPage() {
     });
     setCreated((prev) => [...prev, issue.id]);
     setBusyId(null);
-    setNotice(`Düzeltme seti #${id} hazırlandı; Değişiklikler sayfasına yönlendiriliyorsunuz.`);
+    setNotice({ tone: "success", text: `Düzeltme seti #${id} hazırlandı; Değişiklikler sayfasına yönlendiriliyorsunuz.` });
     setTimeout(() => router.push("/changes"), 900);
   };
 
@@ -132,8 +141,12 @@ export default function SorunlarPage() {
       />
 
       {notice && (
-        <Notice tone="success" onClose={() => setNotice(null)} action={<Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Değişikliğe git</Button>}>
-          {notice}
+        <Notice
+          tone={notice.tone}
+          onClose={() => setNotice(null)}
+          action={notice.linked ? <Button size="sm" variant="evidence" onClick={() => router.push("/changes")}>Değişikliğe git</Button> : undefined}
+        >
+          {notice.text}
         </Notice>
       )}
 

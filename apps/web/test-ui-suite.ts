@@ -424,6 +424,14 @@ async function run() {
   assert(!/serverless-store|lib\/demo|DEMO_/.test(walk("src/app/admin").map((f) => readFileSync(f, "utf8")).join("\n")), "yönetim ekranında örnek veri");
   // Bilgi bankası formu yalnızca platform yöneticisine
   assert(/const canIngest = Boolean\(user\?\.isAdmin\);/.test(readFileSync("src/app/knowledge/page.tsx", "utf8")), "bilgi bankası formu yönetici dışına açık");
+  // Düzeltme ve geri alma hata verdiğinde set "uygulandı" sayılmaz.
+  for (const page of ["src/app/changes/page.tsx", "src/app/issues/page.tsx"]) {
+    const code = readFileSync(page, "utf8");
+    for (const m of code.matchAll(/catch \([^)]*\) \{([\s\S]*?)\n {4}\}/g)) {
+      assert(!/UYGULANDI|GERİ_ALINDI|tone: "success"/.test(m[1]), `${page}: hata dalında başarı`);
+    }
+    assert(!/sandbox koruma motorunda uygulandı|Fallback gracefully|Sandbox execution fallback/.test(code), `${page}: sahte sandbox başarısı`);
+  }
   assert.strictEqual(adminQuery({ q: "", page: 2, admin: true, plan: undefined }), "?page=2&admin=true");
   assert.strictEqual(adminQuery({}), "");
   assert.strictEqual(formatMoneyMinor(11900, "USD"), "$119,00");

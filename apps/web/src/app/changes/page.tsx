@@ -116,57 +116,60 @@ export default function DegisikliklerPage() {
 
   const current = sets[active] ?? DEMO_CHANGESETS[0];
 
-  const update = (durum: ChangeSetItem["durum"]) => {
+  const update = (patch: Partial<ChangeSetItem>) => {
     const next = [...sets];
-    next[active] = { ...next[active], durum };
+    next[active] = { ...next[active], ...patch };
     setSets(next);
     writeChangeSets(next);
   };
+
+  // Yerel ve örnek setlerin kimliği "CS-" ile başlar; sunucunun oluşturduğu setler UUID taşır.
+  const isServerSet = !current.id.startsWith("CS-");
 
   const handleApply = async () => {
     if (!isAdmin) {
       setNotice({ tone: "error", text: "Değişiklikleri canlıya yalnızca platform yöneticileri uygulayabilir." });
       return;
     }
+    if (!org?.id || !site?.id) {
+      setNotice({ tone: "info", text: "Bu bir örnek değişiklik seti. Site seçili olmadığı için hiçbir şey uygulanmadı." });
+      return;
+    }
     setBusy(true);
     setNotice(null);
-
-    // Call live backend Self-Heal / Execution API if connected
-    if (org?.id && site?.id) {
-      try {
-        const healRes = await api.selfHealIssue(org.id, site.id, {
-          issue_id: current.sorunId,
-          issue_title: current.baslik,
-          target_url: current.etkilenenSayfa,
-          category: current.kategori,
-          risk_level: current.onem || "LOW",
-          auto_execute: true,
-          state_before: current.oncekiKod,
-          state_after: current.yeniKod,
+    try {
+      const res = await api.selfHealIssue(org.id, site.id, {
+        issue_id: current.sorunId,
+        issue_title: current.baslik,
+        target_url: current.etkilenenSayfa,
+        category: current.kategori,
+        risk_level: current.onem || "LOW",
+        auto_execute: true,
+        state_before: current.oncekiKod,
+        state_after: current.yeniKod,
+      });
+      if (res.execution && !res.execution.success) {
+        setNotice({
+          tone: "error",
+          text: `Değişiklik uygulanamadı: ${res.execution.error_message || "yürütücü hata döndürdü"}.${res.execution.rolled_back ? " Sayfa yedekten geri yüklendi." : ""}`,
         });
-
-        if (healRes.success) {
-          update("UYGULANDI");
-          setBusy(false);
-          setNotice({
-            tone: "success",
-            text: `Değişiklik seti #${current.id} (${healRes.connector_type || "Safe Executor"}) başarıyla uygulandı! Pre-write backup alındı, SHA-256 hash doğrulandı, IndexNow bildirimi yapıldı.`,
-          });
-          return;
-        }
-      } catch (err: any) {
-        // Fallback to local sandbox notification if offline
+      } else if (res.change_set.status === "SUCCESS") {
+        // Geri alma sunucudaki seti hedeflesin diye yerel kimlik sunucu kimliğiyle değiştirilir.
+        update({ id: res.change_set.id, durum: "UYGULANDI" });
+        setNotice(
+          res.connector_type === "SANDBOX"
+            ? { tone: "info", text: "Değişiklik sandbox bağlayıcısında denendi; canlı siteye yazılmadı." }
+            : { tone: "success", text: `Değişiklik ${res.connector_type} bağlayıcısıyla uygulandı. Yazmadan önce yedek alındı ve sonuç doğrulandı.` }
+        );
+      } else {
+        update({ id: res.change_set.id });
+        setNotice({ tone: "info", text: `${res.message} Yüksek riskli değişiklikler uygulanmadan önce onay bekler.` });
       }
+    } catch (err) {
+      setNotice({ tone: "error", text: `Değişiklik uygulanamadı: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+    } finally {
+      setBusy(false);
     }
-
-    // Sandbox execution fallback
-    await new Promise((r) => setTimeout(r, 800));
-    update("UYGULANDI");
-    setBusy(false);
-    setNotice({
-      tone: "success",
-      text: `Değişiklik seti #${current.id} sandbox koruma motorunda uygulandı: SHA-256 hash doğrulandı, pre-write yedek alındı, doğrulama geçti.`,
-    });
   };
 
   const handleRollback = async () => {
@@ -174,31 +177,25 @@ export default function DegisikliklerPage() {
       setNotice({ tone: "error", text: "Geri almayı yalnızca platform yöneticileri yapabilir." });
       return;
     }
+    if (!org?.id || !site?.id || !isServerSet) {
+      setNotice({ tone: "info", text: "Bu set sunucuda uygulanmadığı için geri alınacak bir değişiklik yok." });
+      return;
+    }
     setBusy(true);
     setNotice(null);
-
-    // Call live backend rollback API if connected
-    if (org?.id && site?.id && current.id && !current.id.startsWith("CS-LIVE-") && !current.id.startsWith("CS-0")) {
-      try {
-        const rbRes = await api.rollbackChangeSet(org.id, site.id, current.id);
-        if (rbRes.success) {
-          update("GERİ_ALINDI");
-          setBusy(false);
-          setNotice({
-            tone: "info",
-            text: "Geri alma başarıyla tamamlandı; SafeSiteExecutor yedek durumunu geri yükledi, sayfa önceki haline döndü.",
-          });
-          return;
-        }
-      } catch {
-        // Fallback to local rollback
+    try {
+      const res = await api.rollbackChangeSet(org.id, site.id, current.id);
+      if (res.success) {
+        update({ durum: "GERİ_ALINDI" });
+        setNotice({ tone: "info", text: "Geri alma tamamlandı; yedek geri yüklendi, sayfa önceki durumuna döndü." });
+      } else {
+        setNotice({ tone: "error", text: `Geri alma tamamlanamadı: ${res.error_message || "bağlayıcı yedeği geri yükleyemedi"}` });
       }
+    } catch (err) {
+      setNotice({ tone: "error", text: `Geri alma tamamlanamadı: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+    } finally {
+      setBusy(false);
     }
-
-    await new Promise((r) => setTimeout(r, 600));
-    update("GERİ_ALINDI");
-    setBusy(false);
-    setNotice({ tone: "info", text: "Geri alma tamamlandı; yedek geri yüklendi, sayfa önceki durumuna döndü." });
   };
 
   const copyCode = () => {
