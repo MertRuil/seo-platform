@@ -209,7 +209,11 @@ async def health_ready():
         import logging
         logging.getLogger("uvicorn.error").error(f"Health ready DB check failed: {e}")
         db_status = "unhealthy"
-    return {"status": "ready" if db_status == "connected" else "degraded", "database": db_status}
+    # Yük dengeleyici ve izleme yalnızca durum koduna bakar; veritabanı yoksa servis hazır değildir.
+    return JSONResponse(
+        status_code=200 if db_status == "connected" else 503,
+        content={"status": "ready" if db_status == "connected" else "degraded", "database": db_status},
+    )
 
 # Mount API v1 Routers
 app.include_router(auth.router, prefix="/api/v1")

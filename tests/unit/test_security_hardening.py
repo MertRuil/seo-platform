@@ -112,6 +112,22 @@ async def test_health_ready_sanitized():
         assert "password" not in str(data).lower()
         assert "traceback" not in str(data).lower()
 
+
+@pytest.mark.anyio
+async def test_health_ready_returns_503_when_database_down(monkeypatch):
+    import apps.api.main as main_module
+
+    class BrokenEngine:
+        def connect(self):
+            raise ConnectionError("db down")
+
+    monkeypatch.setattr(main_module, "engine", BrokenEngine())
+    transport = ASGITransport(app=main_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/health/ready")
+    assert res.status_code == 503
+    assert res.json() == {"status": "degraded", "database": "unhealthy"}
+
 @pytest.mark.anyio
 async def test_sitemap_xml_bomb_defused():
     # Billion Laughs XML payload
