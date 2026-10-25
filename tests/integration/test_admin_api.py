@@ -65,6 +65,7 @@ ADMIN_CALLS = [
     ("DELETE", "/api/v1/admin/organizations/x/members/y", None),
     ("POST", "/api/v1/admin/organizations/x/plan", {"plan_code": "pro", "reason": "deneme"}),
     ("POST", "/api/v1/admin/organizations/x/credits", {"amount": 5, "reason": "deneme"}),
+    ("GET", "/api/v1/admin/plans", None),
     ("GET", "/api/v1/admin/billing/summary", None),
     ("GET", "/api/v1/admin/billing/subscriptions", None),
     ("GET", "/api/v1/admin/billing/invoices", None),
@@ -77,7 +78,7 @@ ADMIN_CALLS = [
 
 @pytest.mark.asyncio
 async def test_every_admin_endpoint_rejects_non_admins(client):
-    assert len(ADMIN_CALLS) == 20
+    assert len(ADMIN_CALLS) == 21
     _, user_token = await create_user_token(claims={"is_admin": True, "role": "OWNER"})
     admin_id, _ = await create_user_token(is_platform_admin=True)
     local_token = create_access_token({"sub": admin_id, "auth_source": "nextjs_local"})
@@ -137,6 +138,7 @@ async def test_users_list_search_and_detail(client):
 
     detail = (await client.get(f"/api/v1/admin/users/{owner_id}", headers=bearer(admin_token))).json()
     assert detail["memberships"][0]["role"] == "OWNER"
+    assert detail["created_at"].endswith("+00:00")
     assert (await client.get("/api/v1/admin/users/yok", headers=bearer(admin_token))).status_code == 404
 
 
@@ -242,6 +244,10 @@ async def test_billing_summary_mrr_rules(client):
     assert s["past_due"] == 1
     assert s["canceled_last_30_days"] == 1
     assert s["new_paid_last_30_days"] == 3
+
+    plans = {p["code"]: p for p in (await client.get("/api/v1/admin/plans", headers=bearer(admin_token))).json()}
+    assert plans["m"]["monthly_price"] == {"amount_minor": 3900, "currency": "USD"}
+    assert plans["y"]["monthly_price"] == {"amount_minor": 10000, "currency": "TRY"}
 
     events = (await client.get("/api/v1/admin/billing/events", params={"processed": "false"}, headers=bearer(admin_token))).json()
     assert events["items"][0]["error"] == "imza geçersiz"

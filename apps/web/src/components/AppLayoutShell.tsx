@@ -18,6 +18,7 @@ import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { LevelSelectorModal } from "@/components/ui/LevelSelectorModal";
 import { SiteHealthTabs, isSiteHealthPath } from "@/components/SiteHealthTabs";
+import { isAdminPath } from "@/lib/nav";
 import { DEMO_SITE } from "@/lib/demo";
 import { Loader2, Sun, Moon, Menu, ChevronDown, Check, Plus, FlaskConical, Globe, Sprout, Gauge } from "lucide-react";
 
@@ -203,6 +204,8 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isLoginPage = pathname === "/login";
+  // Yönetim ekranları siteye bağlı değil: site seçici ve dönem gizlenir
+  const adminArea = isAdminPath(pathname);
 
   useEffect(() => {
     try {
@@ -301,11 +304,17 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Menüyü aç" className="lg:hidden w-9 h-9 shrink-0 inline-flex items-center justify-center rounded-sm text-muted hover:text-ink hover:bg-surface-2 cursor-pointer">
               <Menu className="w-5 h-5" aria-hidden />
             </button>
-            <SiteSwitcher />
-            <div className="hidden xl:block">{periodControl}</div>
-            <span className="hidden xl:inline text-xs text-muted truncate">
-              {source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}
-            </span>
+            {adminArea ? (
+              <span className="text-sm font-semibold text-ink truncate">Platform yönetimi</span>
+            ) : (
+              <>
+                <SiteSwitcher />
+                <div className="hidden xl:block">{periodControl}</div>
+                <span className="hidden xl:inline text-xs text-muted truncate">
+                  {source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -330,9 +339,9 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="xl:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-2 bg-surface border-b border-line">
-          {periodControl}
-          <span className="hidden sm:inline text-xs text-muted truncate">{source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}</span>
+        <div className={cn("xl:hidden flex items-center justify-between gap-3 px-4 sm:px-6 py-2 bg-surface border-b border-line", adminArea && "sm:hidden")}>
+          {!adminArea && periodControl}
+          {!adminArea && <span className="hidden sm:inline text-xs text-muted truncate">{source === "live" && crawl ? `Son tarama ${formatRelative(crawl.finished_at ?? crawl.created_at)}` : source === "demo" ? "Örnek veri" : ""}</span>}
           <div className="sm:hidden">{themeControl}</div>
         </div>
 

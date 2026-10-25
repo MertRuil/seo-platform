@@ -18,6 +18,7 @@ import {
   Swords,
   FileBarChart,
   Contact,
+  Building2,
 } from "lucide-react";
 
 interface NavItem {
@@ -27,6 +28,8 @@ interface NavItem {
   badge?: "pending" | "critical";
   /** Bu öğe altında sekme olarak açılan diğer adresler. */
   also?: readonly string[];
+  /** Bu önekle başlayan tüm adreslerde (detay sayfaları dahil) etkin sayılır. */
+  prefix?: string;
 }
 
 interface NavGroup {
@@ -91,7 +94,36 @@ export const navGroups: NavGroup[] = [
   },
 ];
 
-export function isNavItemActive(item: Pick<NavItem, "href" | "also">, path: string): boolean {
+/** Platform yönetimi bölümleri; menüde tek giriş, aralarında üstteki sekmelerle geçilir. */
+export const ADMIN_TABS = [
+  { name: "Genel bakış", href: "/admin" },
+  { name: "Kullanıcılar", href: "/admin/users" },
+  { name: "Organizasyonlar", href: "/admin/organizations" },
+  { name: "Ödemeler", href: "/admin/billing" },
+  { name: "Kullanım", href: "/admin/usage" },
+  { name: "Denetim kaydı", href: "/admin/audit" },
+] as const;
+
+const adminNavGroup: NavGroup = {
+  label: "Platform",
+  items: [{ name: "Platform Yönetimi", href: "/admin", icon: Building2, prefix: "/admin" }],
+};
+
+/** Platform yönetimi girişi yalnızca yöneticiye görünür; asıl yetki kontrolü arka uçtadır. */
+export function visibleNavGroups(isAdmin: boolean): NavGroup[] {
+  return isAdmin ? [...navGroups, adminNavGroup] : navGroups;
+}
+
+export function isAdminPath(path: string): boolean {
+  return path === "/admin" || path.startsWith("/admin/");
+}
+
+export function isAdminTabActive(href: string, path: string): boolean {
+  return href === "/admin" ? path === "/admin" : path === href || path.startsWith(`${href}/`);
+}
+
+export function isNavItemActive(item: Pick<NavItem, "href" | "also" | "prefix">, path: string): boolean {
+  if (item.prefix && (path === item.prefix || path.startsWith(`${item.prefix}/`))) return true;
   return path === item.href || (item.also?.includes(path) ?? false);
 }
 

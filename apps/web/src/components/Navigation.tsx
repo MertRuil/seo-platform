@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useQueue } from "@/hooks/useQueue";
 import { cn } from "@/lib/cn";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { navGroups, isNavItemActive } from "@/lib/nav";
+import { visibleNavGroups, isNavItemActive } from "@/lib/nav";
 
 interface NavigationProps {
   currentPath?: string;
@@ -48,7 +48,7 @@ export function Navigation({ currentPath = "/", collapsed = false, onToggleColla
             <PanelLeftOpen className="w-4 h-4" aria-hidden />
           </button>
         )}
-        {navGroups.map((group) => (
+        {visibleNavGroups(Boolean(user?.isAdmin)).map((group) => (
           <div key={group.label}>
             {!collapsed && <div className="font-mono text-2xs font-semibold uppercase tracking-wider text-muted px-2.5 mb-1">{group.label}</div>}
             {collapsed && <div className="border-t border-line mx-1 mb-2" aria-hidden />}

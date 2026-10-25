@@ -5,8 +5,9 @@ import { decideSource } from "./src/lib/dataSource";
 import { niceMax, linePath, areaPath, xPositions } from "./src/components/ui/chart-math";
 import { scanTextForMenaCompliance } from "./src/lib/compliance-mena";
 import { siteSummary, scoreTone, plainTask } from "./src/lib/summary";
-import { navGroups, SITE_HEALTH_TABS, isNavItemActive } from "./src/lib/nav";
-import { formatCompact, formatDelta, formatPercentValue, formatTry } from "./src/lib/format";
+import { navGroups, SITE_HEALTH_TABS, ADMIN_TABS, isNavItemActive, isAdminTabActive, visibleNavGroups } from "./src/lib/nav";
+import { adminQuery } from "./src/lib/api";
+import { formatCompact, formatDelta, formatPercentValue, formatTry, formatMoneyMinor, formatMinorByCurrency } from "./src/lib/format";
 
 async function run() {
   console.log("UI LOGIC TEST SUITE");
@@ -380,7 +381,7 @@ async function run() {
 
   // Menü 5 alan; her sayfa ya menüden ya Site sağlığı sekmelerinden açılır.
   assert.deepStrictEqual(navGroups.map((g) => g.label), ["Özet", "Yapılacaklar", "Görünürlük", "Site sağlığı", "Yönetim"]);
-  const reachable = new Set([...navGroups.flatMap((g) => g.items.map((i) => i.href)), ...SITE_HEALTH_TABS.map((t) => t.href)]);
+  const reachable = new Set([...visibleNavGroups(true).flatMap((g) => g.items.map((i) => i.href)), ...SITE_HEALTH_TABS.map((t) => t.href)]);
   const pages = readdirSync("src/app", { withFileTypes: true })
     .filter((e) => e.isDirectory() && !["api", "login"].includes(e.name) && readdirSync(join("src/app", e.name)).includes("page.tsx"))
     .map((e) => `/${e.name}`);
@@ -390,6 +391,30 @@ async function run() {
   const health = navGroups.flatMap((g) => g.items).find((i) => i.href === "/health")!;
   assert(isNavItemActive(health, "/issues") && isNavItemActive(health, "/crawls") && !isNavItemActive(health, "/keywords"));
   console.log("  menü yapısı: ok");
+
+  // Platform yönetimi: menü girişi yalnızca yöneticiye; detay sayfalarında da etkin; her sekmenin sayfası var.
+  assert(!visibleNavGroups(false).some((g) => g.items.some((i) => i.href === "/admin")), "yönetici olmayana yönetim menüsü");
+  const adminItem = visibleNavGroups(true).flatMap((g) => g.items).find((i) => i.href === "/admin")!;
+  assert(adminItem && isNavItemActive(adminItem, "/admin/organizations/abc") && !isNavItemActive(adminItem, "/administrator"));
+  assert(isAdminTabActive("/admin/organizations", "/admin/organizations/abc") && !isAdminTabActive("/admin", "/admin/users"));
+  for (const t of ADMIN_TABS) {
+    const dir = join("src/app", t.href);
+    assert(readdirSync(dir).includes("page.tsx"), `${t.href} sayfası yok`);
+  }
+  // Yönetim vekili yerel depoya ya da örnek veriye düşmez.
+  const adminProxy = readFileSync("src/app/api/v1/admin/[...path]/route.ts", "utf8");
+  assert(!/serverless-store|serverlessStore|demoFallback|DEMO_/.test(adminProxy), "yönetim vekilinde yedek veri");
+  assert(adminProxy.includes("req.nextUrl.search") && adminProxy.includes("status: 503"));
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+  assert(!/serverless-store|lib\/demo|DEMO_/.test(walk("src/app/admin").map((f) => readFileSync(f, "utf8")).join("\n")), "yönetim ekranında örnek veri");
+  // Bilgi bankası formu yalnızca platform yöneticisine
+  assert(/const canIngest = Boolean\(user\?\.isAdmin\);/.test(readFileSync("src/app/knowledge/page.tsx", "utf8")), "bilgi bankası formu yönetici dışına açık");
+  assert.strictEqual(adminQuery({ q: "", page: 2, admin: true, plan: undefined }), "?page=2&admin=true");
+  assert.strictEqual(adminQuery({}), "");
+  assert.strictEqual(formatMoneyMinor(11900, "USD"), "$119,00");
+  assert.strictEqual(formatMinorByCurrency({ USD: 7800, TRY: 10000 }), "₺100,00 · $78,00");
+  assert.strictEqual(formatMinorByCurrency({}), "—");
+  console.log("  platform yönetimi: ok");
 
   // tailwind.config.js renk paletini ve gölge/yarıçap ölçeğini daralttığı için bu sınıflar CSS üretmez, sessizce stilsiz kalır.
   const undefinedClass =

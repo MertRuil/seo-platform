@@ -63,13 +63,14 @@ class CreditGrantRequest(BaseModel):
     reason: str = Field(..., min_length=5, max_length=500)
 
 
-def _iso(dt: Optional[datetime]) -> Optional[str]:
-    return dt.isoformat() if dt else None
-
-
 def _aware(dt: Optional[datetime]) -> Optional[datetime]:
     # SQLite saat dilimi bilgisini kaybediyor; karşılaştırmalar için UTC kabul edilir.
     return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
+
+
+def _iso(dt: Optional[datetime]) -> Optional[str]:
+    # Bölgesiz zaman tarayıcıda yerel saat sanılır; her zaman UTC işaretiyle döner.
+    return _aware(dt).isoformat() if dt else None
 
 
 async def _paginate(db: AsyncSession, query, page: int, page_size: int):
@@ -635,6 +636,14 @@ async def grant_credits(
 
 
 # ---------- Ödemeler ----------
+
+@router.get("/plans")
+async def list_plans(db: AsyncSession = Depends(get_db)):
+    # Elle plan atamada herkese açık olmayan planlar (enterprise gibi) da seçilebilir.
+    plans = (await db.execute(select(Plan).order_by(Plan.sort_order, Plan.code))).scalars().all()
+    prices = await _prices_by_plan(db)
+    return [{"code": p.code, "name": p.name, "is_public": p.is_public, "monthly_price": _monthly_price(prices.get(p.id, []))} for p in plans]
+
 
 @router.get("/billing/summary")
 async def billing_summary(db: AsyncSession = Depends(get_db)):

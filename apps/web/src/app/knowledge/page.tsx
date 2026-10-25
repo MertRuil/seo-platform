@@ -60,7 +60,8 @@ const FALLBACK_SOURCES: SourceItem[] = [
 
 export default function BilgiTabaniPage() {
   const { user, token } = useAuth();
-  const canIngest = Boolean(user?.isAdmin || user?.isSuperAdmin || user?.role?.toLowerCase().includes("yönetici") || user?.role === "SEO_MANAGER");
+  // Arka uç yüklemeyi yalnızca platform yöneticisine açar (veritabanındaki is_platform_admin); form da yalnızca ona görünür.
+  const canIngest = Boolean(user?.isAdmin);
 
   const [sources, setSources] = useState<SourceItem[]>(FALLBACK_SOURCES);
   const [stats, setStats] = useState<StatsData>({ total_chunks: 44, active_chunks: 39, deprecated_chunks: 5, verified_chunks: 39, level_1_official_chunks: 44 });
@@ -220,8 +221,8 @@ export default function BilgiTabaniPage() {
           <Inset className="flex items-start gap-3 text-sm">
             <Lock className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden />
             <div>
-              <div className="font-semibold text-ink">Doğrulama kapısı yönetici yetkisi gerektirir</div>
-              <p className="text-muted">Yeni kural eklemek platform ve SEO yöneticilerine açıktır; mevcut kaynakları yukarıdan arayabilirsiniz.</p>
+              <div className="font-semibold text-ink">Doğrulama kapısı platform yöneticilerine açık</div>
+              <p className="text-muted">Yeni kural yalnızca platform ekibi tarafından eklenir; mevcut kaynakları yukarıdan arayabilirsiniz.</p>
             </div>
           </Inset>
         )}

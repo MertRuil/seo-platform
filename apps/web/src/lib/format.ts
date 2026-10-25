@@ -71,3 +71,26 @@ export function shortUrl(url: string, max = 48): string {
     return url.length > max ? `${url.slice(0, max - 1)}…` : url;
   }
 }
+
+/** Kuruş cinsinden tutar: (11900, "USD") → "$119,00". Kurla çevrilmez. */
+export function formatMoneyMinor(minor: number | null | undefined, currency: string): string {
+  if (minor === null || minor === undefined || !Number.isFinite(minor)) return "—";
+  try {
+    return new Intl.NumberFormat("tr-TR", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
+  } catch {
+    return `${formatNumber(minor / 100, 2)} ${currency}`;
+  }
+}
+
+/** Para birimine göre ayrı tutarlar: { USD: 7800, TRY: 10000 } → "$78,00 · ₺100,00"; boşsa "—". */
+export function formatMinorByCurrency(byCurrency: Record<string, number> | null | undefined): string {
+  const entries = Object.entries(byCurrency ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  return entries.length ? entries.map(([cur, minor]) => formatMoneyMinor(minor, cur)).join(" · ") : "—";
+}
+
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", year: "numeric" });
+}

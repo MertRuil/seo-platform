@@ -84,3 +84,11 @@ export function Segmented<T extends string | number>({ options, value, onChange,
     </div>
   );
 }
+
+export function Select({ className, children, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select className={cn(inputBase, "pr-8 cursor-pointer", className)} {...rest}>
+      {children}
+    </select>
+  );
+}

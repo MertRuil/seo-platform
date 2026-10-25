@@ -489,6 +489,71 @@ class ApiClient {
       }
     );
   }
+
+  // Platform yönetimi (yalnızca platform yöneticileri; yetki arka uçta veritabanından kontrol edilir)
+  adminOverview() {
+    return this.request<AdminOverview>("/admin/overview");
+  }
+  adminSystem() {
+    return this.request<AdminSystemStatus>("/admin/system");
+  }
+  adminPlans() {
+    return this.request<AdminPlan[]>("/admin/plans");
+  }
+  adminUsers(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminUserRow>>(`/admin/users${adminQuery(params)}`);
+  }
+  adminUser(userId: string) {
+    return this.request<AdminUserDetail>(`/admin/users/${userId}`);
+  }
+  adminUpdateUser(userId: string, data: { is_active?: boolean; is_platform_admin?: boolean }) {
+    return this.request<{ id: string; is_active: boolean; is_platform_admin: boolean }>(`/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+  adminOrganizations(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminOrgRow>>(`/admin/organizations${adminQuery(params)}`);
+  }
+  adminCreateOrganization(data: { name: string; owner_email: string; slug?: string }) {
+    return this.request<{ id: string; name: string; slug: string; owner_id: string }>("/admin/organizations", { method: "POST", body: JSON.stringify(data) });
+  }
+  adminOrganization(orgId: string) {
+    return this.request<AdminOrgDetail>(`/admin/organizations/${orgId}`);
+  }
+  adminAddMember(orgId: string, data: { email: string; role: AdminRole }) {
+    return this.request<{ user_id: string; role: AdminRole }>(`/admin/organizations/${orgId}/members`, { method: "POST", body: JSON.stringify(data) });
+  }
+  adminUpdateMember(orgId: string, userId: string, role: AdminRole) {
+    return this.request<{ user_id: string; role: AdminRole }>(`/admin/organizations/${orgId}/members/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) });
+  }
+  adminRemoveMember(orgId: string, userId: string) {
+    return this.request<void>(`/admin/organizations/${orgId}/members/${userId}`, { method: "DELETE" });
+  }
+  adminChangePlan(orgId: string, data: { plan_code: string; reason: string }) {
+    return this.request<{ plan_code: string; status: string; provider: string }>(`/admin/organizations/${orgId}/plan`, { method: "POST", body: JSON.stringify(data) });
+  }
+  adminGrantCredits(orgId: string, data: { amount: number; reason: string }) {
+    return this.request<{ balance: number }>(`/admin/organizations/${orgId}/credits`, { method: "POST", body: JSON.stringify(data) });
+  }
+  adminBillingSummary() {
+    return this.request<AdminBillingSummary>("/admin/billing/summary");
+  }
+  adminSubscriptions(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminSubscriptionRow>>(`/admin/billing/subscriptions${adminQuery(params)}`);
+  }
+  adminInvoices(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminInvoiceRow>>(`/admin/billing/invoices${adminQuery(params)}`);
+  }
+  adminBillingEvents(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminBillingEventRow>>(`/admin/billing/events${adminQuery(params)}`);
+  }
+  adminUsage(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminUsageRow> & { period_start: string; period_end: string }>(`/admin/usage${adminQuery(params)}`);
+  }
+  adminUsageDetail(orgId: string) {
+    return this.request<AdminUsageDetail>(`/admin/usage/${orgId}`);
+  }
+  adminAudit(params: AdminQuery = {}) {
+    return this.request<AdminPage<AdminAuditRow>>(`/admin/audit${adminQuery(params)}`);
+  }
 }
 
 export interface PriceResponse {
@@ -621,6 +686,212 @@ export interface ExportCrmResponse {
   destination: string;
   synced_payload: any;
   message: string;
+}
+
+// ---------- Platform yönetimi ----------
+
+export type AdminQuery = Record<string, string | number | boolean | null | undefined>;
+
+/** Boş değerleri atlayarak sorgu dizgesi kurar. */
+export function adminQuery(params: AdminQuery): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+export const ADMIN_ROLES = ["OWNER", "ADMIN", "SEO_MANAGER", "EDITOR", "VIEWER"] as const;
+export type AdminRole = (typeof ADMIN_ROLES)[number];
+
+/** Para birimine göre kuruş cinsinden tutarlar: { USD: 7800, TRY: 10000 } */
+export type MinorByCurrency = Record<string, number>;
+
+export interface AdminPage<T> {
+  total: number;
+  page: number;
+  page_size: number;
+  items: T[];
+}
+
+export interface AdminAuditRow {
+  id: string;
+  created_at: string;
+  user_id: string | null;
+  user_email: string | null;
+  organization_id: string | null;
+  organization_name: string | null;
+  site_id: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  state_before: string | null;
+  state_after: string | null;
+  ip_address: string | null;
+}
+
+export interface AdminBillingSummary {
+  basis: "list_price";
+  mrr_minor: MinorByCurrency;
+  collected_this_month_minor: MinorByCurrency;
+  past_due: number;
+  new_paid_last_30_days: number;
+  canceled_last_30_days: number;
+}
+
+export interface AdminOverview {
+  users: { total: number; active: number };
+  organizations: number;
+  sites: number;
+  crawls_last_7_days: { total: number; failed: number };
+  plans: Record<string, number>;
+  billing: AdminBillingSummary;
+  recent_admin_actions: AdminAuditRow[];
+}
+
+export interface AdminSystemStatus {
+  environment: string;
+  database: boolean;
+  redis: boolean;
+  queue: "redis" | "unavailable" | "in_process";
+  llm: { provider: string | null; model: string | null; api_key_configured: boolean };
+  smtp_configured: boolean;
+  payments_configured: boolean;
+}
+
+export interface AdminMoney {
+  amount_minor: number;
+  currency: string;
+}
+
+export interface AdminPlan {
+  code: string;
+  name: string;
+  is_public: boolean;
+  monthly_price: AdminMoney | null;
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  is_platform_admin: boolean;
+  created_at: string | null;
+  last_login_at: string | null;
+  memberships: Array<{ organization_id: string; organization_name: string; role: AdminRole }>;
+}
+
+export interface AdminUserDetail extends Omit<AdminUserRow, "memberships"> {
+  memberships: Array<{ organization_id: string; organization_name: string; role: AdminRole; created_at: string | null }>;
+  owned_sites: Array<{ id: string; organization_id: string; name: string; domain: string }>;
+  audit: AdminAuditRow[];
+}
+
+export interface AdminUsed {
+  used: number;
+  limit: number | null;
+}
+
+export interface AdminOrgRow {
+  id: string;
+  name: string;
+  slug: string;
+  plan_code: string | null;
+  plan_name: string | null;
+  subscription_status: string | null;
+  member_count: number;
+  site_count: number;
+  ai_credits: AdminUsed;
+  created_at: string | null;
+}
+
+export interface AdminOrgDetail {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string | null;
+  members: Array<{ user_id: string; email: string; full_name: string | null; role: AdminRole; created_at: string | null }>;
+  sites: Array<{
+    id: string;
+    name: string;
+    domain: string;
+    verification_status: string;
+    last_crawl: { id: string; status: string; created_at: string | null; finished_at: string | null } | null;
+  }>;
+  subscription: {
+    plan_code: string | null;
+    plan_name: string | null;
+    status: string;
+    provider: string | null;
+    current_period_end: string | null;
+    trial_ends_at: string | null;
+  } | null;
+  usage: Record<AdminUsageMetric, AdminUsed>;
+  ai_credit_balance: number;
+  tokens: { used_this_month: number; monthly_budget: number };
+}
+
+export interface AdminSubscriptionRow {
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  plan_code: string;
+  plan_name: string;
+  status: string;
+  provider: string | null;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  cancel_at_period_end: boolean;
+  monthly_price: AdminMoney | null;
+  created_at: string | null;
+}
+
+export interface AdminInvoiceRow {
+  id: string;
+  number: string | null;
+  organization_id: string;
+  organization_name: string;
+  status: string;
+  currency: string;
+  subtotal_minor: number;
+  tax_minor: number;
+  total_minor: number;
+  pdf_url: string | null;
+  issued_at: string | null;
+  paid_at: string | null;
+}
+
+export interface AdminBillingEventRow {
+  id: string;
+  provider: string;
+  event_type: string;
+  created_at: string | null;
+  processed_at: string | null;
+  error: string | null;
+}
+
+export const ADMIN_USAGE_METRICS = ["pages_crawled", "auto_fixes", "ai_credits", "ai_tokens"] as const;
+export type AdminUsageMetric = (typeof ADMIN_USAGE_METRICS)[number];
+
+export interface AdminUsageCell extends AdminUsed {
+  ratio: number | null;
+  level: "ok" | "warn" | "over" | null;
+}
+
+export interface AdminUsageRow {
+  organization_id: string;
+  organization_name: string;
+  plan_code: string | null;
+  metrics: Record<AdminUsageMetric, AdminUsageCell>;
+}
+
+export interface AdminUsageDetail {
+  organization_id: string;
+  daily: Array<{ date: string; metric: AdminUsageMetric; quantity: number }>;
+  events: Array<{ id: string; metric: AdminUsageMetric; quantity: number; ref_type: string | null; ref_id: string | null; created_at: string | null }>;
+  credit_ledger: Array<{ id: string; delta: number; reason: string; balance_after: number; ref_id: string | null; created_at: string | null }>;
 }
 
 export const api = new ApiClient();

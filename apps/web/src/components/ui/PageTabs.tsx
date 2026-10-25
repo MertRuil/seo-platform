@@ -34,7 +34,7 @@ export function PageTabs<K extends string>({ tabs, value, onChange, label, idPre
   };
 
   return (
-    <div role="tablist" aria-label={label} className="flex gap-1 border-b border-line overflow-x-auto custom-scrollbar">
+    <div role="tablist" aria-label={label} className="flex gap-1 border-b border-line overflow-x-auto overflow-y-hidden custom-scrollbar">
       {tabs.map((t, i) => {
         const active = t.key === value;
         return (
