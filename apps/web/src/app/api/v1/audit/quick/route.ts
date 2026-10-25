@@ -122,7 +122,9 @@ export async function POST(req: NextRequest) {
     if (pythonBackend) {
       try {
         const proxyHeaders: Record<string, string> = { "Content-Type": "application/json" };
-        const authHeader = req.headers.get("authorization");
+        // Oturum çerezdeyse de iletilir; arka uç AI kullanımını kullanıcının organizasyonuna yazar.
+        const cookieToken = req.cookies.get("seo_platform_token")?.value;
+        const authHeader = req.headers.get("authorization") || (cookieToken ? `Bearer ${cookieToken}` : null);
         if (authHeader) proxyHeaders["Authorization"] = authHeader;
 
         const pyRes = await fetch(`${pythonBackend}/audit/quick`, {

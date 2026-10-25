@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, status
 import asyncio
+import logging
 import time
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -80,13 +81,48 @@ def _build_knowledge_store() -> HybridKnowledgeStore:
     return store
 
 from services.security.rate_limiter import quick_audit_limiter, get_client_ip
+from services.security.jwt_auth import security, get_current_user_payload
 from fastapi import Depends
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.future import select
+
+logger = logging.getLogger(__name__)
+
+
+async def _optional_user_payload(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[dict]:
+    """Uç herkese açık; geçerli oturum varsa AI kullanımı kullanıcının organizasyonuna yazılır."""
+    if not credentials:
+        return None
+    try:
+        return await get_current_user_payload(credentials)
+    except HTTPException:
+        return None
+
+
+async def _record_quick_audit_tokens(llm_provider, user_id: Optional[str], url: str) -> None:
+    from packages.shared.database import AsyncSessionLocal
+    from packages.shared.models import Membership
+    from services.security.token_budget import TokenBudgetService
+
+    org_id = None
+    if user_id:
+        async with AsyncSessionLocal() as db:
+            org_id = (await db.execute(
+                select(Membership.organization_id).where(Membership.user_id == user_id).order_by(Membership.created_at).limit(1)
+            )).scalar()
+            if org_id:
+                await TokenBudgetService.record_provider_usage(db, org_id, llm_provider, ref_type="QUICK_AUDIT", ref_id=url[:255])
+                return
+    # Oturumsuz denetimin maliyeti hiçbir organizasyona yazılamaz; platform maliyeti için günlüğe düşer.
+    tokens = llm_provider.take_tokens() if hasattr(llm_provider, "take_tokens") else 0
+    if tokens:
+        logger.info("quick_audit_anonymous_ai_tokens tokens=%d", tokens)
 
 KNOWLEDGE_STORE = _build_knowledge_store()
 AUDIT_CAPACITY = asyncio.Semaphore(4)
 
 @router.post("/quick", response_model=QuickAuditResponse, status_code=status.HTTP_200_OK, dependencies=[Depends(quick_audit_limiter)])
-async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
+async def perform_quick_site_audit(req: QuickAuditRequest, request: Request, user: Optional[dict] = Depends(_optional_user_payload)):
     """
     Canlı bir web sitesinin URL'sini alarak anında tarar,
     deterministik SEO kurallarını ve AI uzman ajanlarını çalıştırır.
@@ -173,6 +209,7 @@ async def perform_quick_site_audit(req: QuickAuditRequest, request: Request):
             pages_by_url={normalized_url: page_context},
             max_issues=QUICK_AUDIT_MAX_AI_ISSUES
         )
+        await _record_quick_audit_tokens(llm_provider, (user or {}).get("sub"), normalized_url)
 
     formatted_issues = [
         IssueDetail(

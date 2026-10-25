@@ -80,3 +80,39 @@ async def test_last_month_usage_does_not_block_new_month(async_db: AsyncSession)
     assert checked.tokens_used_this_month == 0
     assert await TokenBudgetService.monthly_tokens(async_db, [org.id]) == {}
 
+
+class _TokenProvider:
+    def __init__(self, tokens: int):
+        self._tokens = tokens
+
+    def take_tokens(self) -> int:
+        used, self._tokens = self._tokens, 0
+        return used
+
+
+@pytest.mark.anyio
+async def test_quick_audit_tokens_go_to_signed_in_users_org():
+    import uuid
+    from apps.api.routes.quick_audit import _record_quick_audit_tokens
+    from packages.shared.database import AsyncSessionLocal, engine
+    from packages.shared.models import Membership, User
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    suffix = uuid.uuid4().hex[:8]
+    async with AsyncSessionLocal() as db:
+        user = User(email=f"qa-{suffix}@example.com", hashed_password="x")
+        org = Organization(name=f"QA {suffix}", slug=f"qa-{suffix}", monthly_token_budget=10000, tokens_used_this_month=0)
+        db.add_all([user, org])
+        await db.flush()
+        db.add(Membership(user_id=user.id, organization_id=org.id, role="OWNER"))
+        await db.commit()
+        user_id, org_id = user.id, org.id
+
+    await _record_quick_audit_tokens(_TokenProvider(1234), user_id, "https://example.com/")
+    anonymous = _TokenProvider(99)
+    await _record_quick_audit_tokens(anonymous, None, "https://example.com/")
+
+    async with AsyncSessionLocal() as db:
+        assert await TokenBudgetService.monthly_tokens(db, [org_id]) == {org_id: 1234}
+    assert anonymous.take_tokens() == 0

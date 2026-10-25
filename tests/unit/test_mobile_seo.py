@@ -370,7 +370,7 @@ async def test_quick_audit_mobile_response():
     fake_request = Request({"type": "http", "client": ("127.0.0.1", 12345), "headers": []})
 
     with patch("services.crawler.safe_client.SafeHttpClient.fetch", return_value=mock_resp):
-        response = await perform_quick_site_audit(req, fake_request)
+        response = await perform_quick_site_audit(req, fake_request, user=None)
         assert response.status_code == 200
         assert response.page_info["viewport"] == "width=device-width, initial-scale=1"
         assert response.page_info["is_mobile_friendly"] is True
