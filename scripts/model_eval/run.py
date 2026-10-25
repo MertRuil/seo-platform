@@ -1,9 +1,10 @@
-"""Copilot ve öneri üretimini birden fazla modelde çalıştırıp sonuçları kaydeder.
+"""Copilot, öneri üretimi ve siteye yazılacak değer önerilerini birden fazla modelde çalıştırıp sonuçları kaydeder.
 
 Kullanım:
     .venv/bin/python scripts/model_eval/run.py --dry-run          # API çağrısı yok, akışı doğrular
     .venv/bin/python scripts/model_eval/run.py                    # gerçek çağrılar (ücretli)
     .venv/bin/python scripts/model_eval/run.py --limit 3 --only copilot
+    .venv/bin/python scripts/model_eval/run.py --only actions       # yalnızca başlık/meta/JSON-LD önerileri
 
 Anahtarlar ortamdan ya da kök .env'den okunur: ANTHROPIC_API_KEY, GOOGLE_API_KEY (veya GEMINI_API_KEY).
 Sonuçlar scripts/model_eval/results/<zaman>/results.jsonl dosyasına yazılır; ardından report.py
@@ -24,7 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from fixtures import COPILOT_CASES, REC_CASES, SITES  # noqa: E402
+from fixtures import ACTION_CASES, COPILOT_CASES, REC_CASES, SITES  # noqa: E402
+from services.agents.base import LLMProvider  # noqa: E402
 from services.agents.technical_agent import SYSTEM_INSTRUCTION as TECHNICAL_SYSTEM_INSTRUCTION  # noqa: E402
 
 # Fiyatlar USD / 1M token; düşünme token'ları çıktı fiyatından faturalanır.
@@ -68,6 +70,23 @@ REC_SCHEMA = {
     "additionalProperties": False,
 }
 
+_NULLABLE_TEXT = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+# Üretimde proposed_schema_json serbest yapılı bir nesne; katı JSON şeması serbest anahtara izin vermediği için
+# burada JSON metni olarak istenir ve report.py ayrıştırıp aynı kontrolden geçirir.
+ACTION_SCHEMA = dict(
+    REC_SCHEMA,
+    properties={
+        **REC_SCHEMA["properties"],
+        "proposed_title": _NULLABLE_TEXT,
+        "proposed_meta_description": _NULLABLE_TEXT,
+        "proposed_schema_json": {"anyOf": [
+            {"type": "string", "description": "Complete corrected JSON-LD object serialized as a JSON string."},
+            {"type": "null"},
+        ]},
+    },
+    required=REC_SCHEMA["required"] + ["proposed_title", "proposed_meta_description", "proposed_schema_json"],
+)
+
 
 def load_env() -> None:
     try:
@@ -104,6 +123,38 @@ Raw Title: {page.get('title')}
 </UNTRUSTED_PAGE_CONTENT>
 """
     return {"kind": "rec", "id": case["id"], "system": REC_SYSTEM, "prompt": prompt, "schema": REC_SCHEMA}
+
+
+class _PromptCaptured(Exception):
+    def __init__(self, prompt: str, system: str):
+        super().__init__("prompt yakalandı")
+        self.prompt, self.system = prompt, system
+
+
+class _CapturingLLM(LLMProvider):
+    async def generate(self, prompt, system_instruction="", temperature=0.2):
+        raise _PromptCaptured(prompt, system_instruction)
+
+    async def generate_structured(self, prompt, output_schema, system_instruction="", temperature=0.1):
+        raise _PromptCaptured(prompt, system_instruction)
+
+
+async def action_task(case: dict) -> dict:
+    """Prompt ve sistem talimatı üretimdeki ajandan yakalanır; ajan değişince test de onunla değişir."""
+    from services.agents.orchestrator import AiOrchestrator
+    from services.rag.hybrid_store import HybridKnowledgeStore
+    from services.seo_engine.base import IssueSeverity, RuleCategory, RuleCheckResult
+
+    issue = RuleCheckResult(
+        passed=False, rule_id=case["rule_id"], category=RuleCategory.CONTENT, severity=IssueSeverity.MEDIUM,
+        title=case["title"], description=case["description"], evidence=case["evidence"], recommendation_template="",
+    )
+    try:
+        await AiOrchestrator(_CapturingLLM(), HybridKnowledgeStore())._analyze(issue, case["page"]["url"], case["page"])
+    except _PromptCaptured as captured:
+        return {"kind": "action", "id": case["id"], "system": captured.system, "prompt": captured.prompt,
+                "schema": ACTION_SCHEMA, "case": case}
+    raise RuntimeError(f"{case['id']}: ajan modeli çağırmadı")
 
 
 async def call_anthropic(client, model: str, task: dict, effort: str) -> dict:
@@ -186,14 +237,32 @@ async def call_gemini(http, api_key: str, model: str, task: dict, level: str) ->
     return {"error": last_error or "bilinmeyen hata"}
 
 
+def _fake_proposed(case: dict) -> dict:
+    # Kuru çalıştırmada sayfa verisinden kaba değerler: bir kısmı kontrolden geçer, bir kısmı (uzunluk) reddedilir.
+    page, rule = case["page"], case["rule_id"]
+    values = {"proposed_title": None, "proposed_meta_description": None, "proposed_schema_json": None}
+    if "TITLE" in rule:
+        values["proposed_title"] = page.get("h1")
+    elif "META" in rule:
+        values["proposed_meta_description"] = page.get("title")
+    elif "SCHEMA" in rule and page.get("structured_data"):
+        block = dict(page["structured_data"][0])
+        block["headline" if block.get("@type") == "Article" else "name"] = page.get("h1")
+        values["proposed_schema_json"] = json.dumps(block, ensure_ascii=False)
+    return values
+
+
 def fake_call(model: str, task: dict) -> dict:
     if task["schema"]:
-        text = json.dumps({
+        data = {
             "title": f"Örnek öneri ({model})", "category": "TECHNICAL_SEO",
             "problem_diagnosis": "Kuru çalıştırma.", "proposed_solution": "Kuru çalıştırma.",
             "technical_reason": "Kuru çalıştırma.", "confidence": 0.5, "expected_impact": "Yok.",
             "effort": "LOW", "risk_level": "LOW", "citations": [],
-        }, ensure_ascii=False)
+        }
+        if task["kind"] == "action":
+            data.update(_fake_proposed(task["case"]))
+        text = json.dumps(data, ensure_ascii=False)
     else:
         text = f"Kuru çalıştırma yanıtı ({model}). Veride 412 sayfa ve 120 tıklama var; dönüşüm verisi bulunmuyor."
     return {"text": text, "stop_reason": "dry_run", "input_tokens": 1500, "output_tokens": 400, "thinking_tokens": 0}
@@ -207,6 +276,8 @@ async def run(args) -> Path:
         tasks += [copilot_task(c) for c in COPILOT_CASES]
     if args.only in (None, "recs"):
         tasks += [rec_task(c) for c in REC_CASES]
+    if args.only in (None, "actions"):
+        tasks += [await action_task(c) for c in ACTION_CASES]
     if args.limit:
         seen: dict = {}
         limited = []
@@ -269,10 +340,10 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--dry-run", action="store_true", help="API çağrısı yapmadan akışı doğrula")
     p.add_argument("--models", nargs="*", choices=list(MODELS), help="yalnızca bu modeller")
-    p.add_argument("--only", choices=["copilot", "recs"])
+    p.add_argument("--only", choices=["copilot", "recs", "actions"])
     p.add_argument("--limit", type=int, help="her türden ilk N madde")
     p.add_argument("--effort-copilot", default="low", help="Haiku effort / Gemini thinkingLevel (Copilot)")
-    p.add_argument("--effort-recs", default="medium", help="Haiku effort / Gemini thinkingLevel (öneriler)")
+    p.add_argument("--effort-recs", default="medium", help="Haiku effort / Gemini thinkingLevel (öneriler ve değer önerileri)")
     args = p.parse_args()
     out_dir = asyncio.run(run(args))
 
