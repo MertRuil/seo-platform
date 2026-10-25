@@ -18,9 +18,16 @@ const relaxed = {
   },
 };
 
+// Tailwind ve PostCSS yapilandirmalari CommonJS olarak yuklenir; require() burada gecerli.
+const commonJsConfigs = {
+  files: ["*.config.js"],
+  rules: { "@typescript-eslint/no-require-imports": "off" },
+};
+
 export default [
   { ignores: [".next/**", "node_modules/**", "next-env.d.ts"] },
   ...coreWebVitals,
   ...typescript,
   relaxed,
+  commonJsConfigs,
 ];
