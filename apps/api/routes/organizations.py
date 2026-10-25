@@ -9,6 +9,7 @@ from packages.contracts.organization import (
 )
 from services.security.jwt_auth import get_current_user_payload
 from services.billing.entitlements import EntitlementGuard
+from services.accounts.provisioning import create_owned_organization
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
 
@@ -33,17 +34,8 @@ async def create_organization(
             detail="Bu benzersiz kod adı (slug) ile kaydedilmiş bir organizasyon zaten mevcut."
         )
 
-    org = Organization(name=req.name, slug=req.slug)
-    db.add(org)
-    await db.flush()
-
     # Oluşturan kullanıcı OWNER yapılır
-    membership = Membership(
-        user_id=user_id,
-        organization_id=org.id,
-        role='OWNER'
-    )
-    db.add(membership)
+    org = await create_owned_organization(db, user_id, req.name, slug=req.slug)
     await db.commit()
     await db.refresh(org)
 
@@ -73,6 +65,8 @@ async def list_organizations(
         select(Organization)
         .join(Membership, Membership.organization_id == Organization.id)
         .where(Membership.user_id == user_id)
+        # İlk katıldığı organizasyon başta: web varsayılan olarak ilkini seçer.
+        .order_by(Membership.created_at, Organization.id)
     )
     result = await db.execute(query)
     orgs = result.scalars().all()

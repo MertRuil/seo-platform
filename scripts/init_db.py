@@ -24,6 +24,7 @@ from packages.shared.models import (
     KnowledgeDocument, KnowledgeChunk
 )
 from services.security.crypto import hash_password, encrypt_secret
+from services.accounts.provisioning import ensure_personal_organization
 from services.rag.seeds import SEED_DOCUMENTS
 from services.rag.chunker import SemanticChunker
 from services.rag.hybrid_store import HybridKnowledgeStore
@@ -172,6 +173,9 @@ async def seed_initial_data(session: AsyncSession):
     # Demo organization/site/connectors are development-only fixtures; production data comes from real users.
     if settings.is_production_like:
         print("   [SKIP] Demo organization/site not seeded in production/staging.")
+        # Organizasyonu olmayan yönetici site ekleyemez; kendi organizasyonu açılır (abonelik ilk erişimde oluşur).
+        if admin_user is not None and await ensure_personal_organization(session, admin_user):
+            print("   [OK] Created organization for admin user")
     elif admin_user is not None:
         await seed_demo_workspace(session, admin_user)
 

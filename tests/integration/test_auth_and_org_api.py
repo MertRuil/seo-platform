@@ -64,8 +64,9 @@ async def test_auth_and_tenant_flow():
         res = await client.get("/api/v1/organizations", headers=headers)
         assert res.status_code == 200
         orgs = res.json()
-        assert len(orgs) == 1
-        assert orgs[0]["id"] == org_id
+        # Kayıtta açılan kişisel organizasyon başta, sonradan oluşturulan ikinci sırada
+        assert [o["name"] for o in orgs] == ["SEO Lead", "Acme Corp"]
+        assert orgs[1]["id"] == org_id
 
         # 7. Create Site in Organization
         site_payload = {

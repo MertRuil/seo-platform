@@ -26,6 +26,8 @@ from services.security.jwt_auth import (
     password_fingerprint,
 )
 from services.security.oauth_verifier import verify_oauth_token
+from services.accounts.provisioning import ensure_personal_organization
+from services.billing.entitlements import EntitlementGuard
 from services.security.password_mailer import send_password_code
 from services.security.rate_limiter import RateLimiter
 
@@ -87,8 +89,12 @@ async def register(req: UserRegisterRequest, db: AsyncSession = Depends(get_db))
         full_name=req.full_name.strip() if req.full_name else None
     )
     db.add(user)
+    await db.flush()
+    # Organizasyonsuz kullanıcı site ekleyemez; kayıtla birlikte kendi organizasyonu ve free planı açılır.
+    org = await ensure_personal_organization(db, user)
     await db.commit()
     await db.refresh(user)
+    await EntitlementGuard.get_or_create_subscription(db, org.id)
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -240,8 +246,11 @@ async def oauth_login(req: OAuthLoginRequest, db: AsyncSession = Depends(get_db)
             is_active=True
         )
         db.add(user)
+        await db.flush()
+        org = await ensure_personal_organization(db, user)
         await db.commit()
         await db.refresh(user)
+        await EntitlementGuard.get_or_create_subscription(db, org.id)
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is deactivated")
