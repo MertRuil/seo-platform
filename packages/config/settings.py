@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     DATAFORSEO_PASSWORD: Optional[str] = None
     OPENPAGERANK_API_KEY: Optional[str] = None
 
+    # Paddle ödemeleri
+    PADDLE_API_KEY: Optional[str] = None
+    PADDLE_WEBHOOK_SECRET: Optional[str] = None
+    PADDLE_SANDBOX: bool = True
+
     # App URLs
     API_BASE_URL: str = "http://localhost:8000"
     FRONTEND_URL: str = "http://localhost:3000"

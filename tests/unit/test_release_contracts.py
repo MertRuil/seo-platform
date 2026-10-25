@@ -85,8 +85,20 @@ async def test_backup_is_persisted_before_mutation_and_restores_exact_state():
 
 
 def test_unsigned_payment_webhooks_are_rejected(monkeypatch):
-    monkeypatch.delenv("PADDLE_WEBHOOK_SECRET",raising=False)
+    from packages.config.settings import settings
+    monkeypatch.setattr(settings,"PADDLE_WEBHOOK_SECRET",None)
     assert not PaddleBillingProvider().verify_webhook_signature({},b'{}')
+
+
+def test_paddle_reads_keys_from_settings(monkeypatch):
+    # .env dosyası os.environ'a değil settings'e yüklenir.
+    from packages.config.settings import settings
+    monkeypatch.delenv("PADDLE_API_KEY",raising=False)
+    monkeypatch.setattr(settings,"PADDLE_API_KEY","from-settings")
+    monkeypatch.setattr(settings,"PADDLE_SANDBOX",False)
+    provider=PaddleBillingProvider()
+    assert provider.api_key=="from-settings"
+    assert provider.api_base_url=="https://api.paddle.com"
 
 
 @pytest.mark.asyncio

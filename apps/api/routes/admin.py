@@ -3,7 +3,6 @@ Platform yönetim uçları (/api/v1/admin). Yalnızca veritabanında is_platform
 Her yazma işlemi audit_logs tablosuna önceki ve sonraki durumuyla kaydedilir.
 """
 import json
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -293,8 +292,8 @@ async def system_status(db: AsyncSession = Depends(get_db)):
             "api_key_configured": bool(key_field and getattr(settings, key_field, None)),
         },
         "smtp_configured": bool(settings.SMTP_HOST),
-        # Paddle sağlayıcısı anahtarları ortam değişkeninden okuyor; aynı kaynağa bakılır.
-        "payments_configured": bool(os.getenv("PADDLE_API_KEY") and os.getenv("PADDLE_WEBHOOK_SECRET")),
+        # Paddle sağlayıcısıyla aynı kaynak: settings.
+        "payments_configured": bool(settings.PADDLE_API_KEY and settings.PADDLE_WEBHOOK_SECRET),
     }
 
 

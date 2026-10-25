@@ -1,4 +1,3 @@
-import os
 import json
 import hmac
 import hashlib
@@ -40,11 +39,11 @@ class PaddleBillingProvider(BillingProvider):
         webhook_secret: Optional[str] = None,
         is_sandbox: Optional[bool] = None
     ):
-        self.api_key = api_key or os.getenv("PADDLE_API_KEY", "")
-        self.webhook_secret = webhook_secret or os.getenv("PADDLE_WEBHOOK_SECRET", "")
-        
-        env_sandbox = os.getenv("PADDLE_SANDBOX", "true").lower() in ("true", "1", "yes")
-        self.is_sandbox = is_sandbox if is_sandbox is not None else env_sandbox
+        # .env yalnızca settings'e yüklenir; os.getenv orada tanımlı anahtarları görmez.
+        from packages.config.settings import settings
+        self.api_key = api_key or settings.PADDLE_API_KEY or ""
+        self.webhook_secret = webhook_secret or settings.PADDLE_WEBHOOK_SECRET or ""
+        self.is_sandbox = is_sandbox if is_sandbox is not None else settings.PADDLE_SANDBOX
 
         self.api_base_url = (
             "https://sandbox-api.paddle.com" if self.is_sandbox else "https://api.paddle.com"

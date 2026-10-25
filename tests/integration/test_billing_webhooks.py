@@ -38,8 +38,9 @@ async def _post_signed_webhook(client: AsyncClient, payload: dict):
 @pytest.mark.asyncio
 async def test_billing_checkout_portal_and_webhook_flow(monkeypatch):
     # Test ortamında sağlayıcı yalnızca mock_ anahtarla simüle checkout/portal döner; webhook imzası zorunlu.
-    monkeypatch.setenv("PADDLE_API_KEY", "mock_integration")
-    monkeypatch.setenv("PADDLE_WEBHOOK_SECRET", WEBHOOK_SECRET)
+    from packages.config.settings import settings
+    monkeypatch.setattr(settings, "PADDLE_API_KEY", "mock_integration")
+    monkeypatch.setattr(settings, "PADDLE_WEBHOOK_SECRET", WEBHOOK_SECRET)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Register & Login
