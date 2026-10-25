@@ -84,7 +84,7 @@ export default function SorunlarPage() {
           : { tone: "success", text: `Sorun #${issue.id} ${res.connector_type} bağlayıcısıyla düzeltildi. Yazmadan önce yedek alındı ve sonuç doğrulandı.`, linked: true }
       );
     } catch (err) {
-      setNotice({ tone: "error", text: `Sorun #${issue.id} düzeltilemedi: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+      setNotice({ tone: "error", text: err instanceof Error && err.message ? err.message : `Sorun #${issue.id} düzeltilemedi: sunucuya ulaşılamadı.` });
     } finally {
       setBusyId(null);
     }

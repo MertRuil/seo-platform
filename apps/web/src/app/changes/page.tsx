@@ -28,6 +28,7 @@ export default function DegisikliklerPage() {
   const demo = useSiteData<ChangeSetItem[]>("changesets", async () => DEMO_CHANGESETS, DEMO_CHANGESETS, { requires: "none" });
 
   const [sets, setSets] = useState<ChangeSetItem[]>([]);
+  const [fromServer, setFromServer] = useState(false);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -68,6 +69,7 @@ export default function DegisikliklerPage() {
             });
 
             setSets(mapped);
+            setFromServer(true);
             return;
           }
         } catch {
@@ -76,6 +78,7 @@ export default function DegisikliklerPage() {
       }
 
       // 2. LocalStorage & Demo Fallback
+      setFromServer(false);
       const saved = readChangeSets();
       if (saved.length > 0) {
         setSets(saved);
@@ -166,7 +169,7 @@ export default function DegisikliklerPage() {
         setNotice({ tone: "info", text: `${res.message} Yüksek riskli değişiklikler uygulanmadan önce onay bekler.` });
       }
     } catch (err) {
-      setNotice({ tone: "error", text: `Değişiklik uygulanamadı: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+      setNotice({ tone: "error", text: err instanceof Error && err.message ? err.message : "Değişiklik uygulanamadı: sunucuya ulaşılamadı." });
     } finally {
       setBusy(false);
     }
@@ -192,7 +195,7 @@ export default function DegisikliklerPage() {
         setNotice({ tone: "error", text: `Geri alma tamamlanamadı: ${res.error_message || "bağlayıcı yedeği geri yükleyemedi"}` });
       }
     } catch (err) {
-      setNotice({ tone: "error", text: `Geri alma tamamlanamadı: ${err instanceof Error && err.message ? err.message : "sunucuya ulaşılamadı"}` });
+      setNotice({ tone: "error", text: err instanceof Error && err.message ? err.message : "Geri alma tamamlanamadı: sunucuya ulaşılamadı." });
     } finally {
       setBusy(false);
     }
@@ -206,7 +209,7 @@ export default function DegisikliklerPage() {
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
-      <DemoBanner source={demo.source} reason={demo.reason} />
+      <DemoBanner source={fromServer ? "live" : demo.source} reason={demo.reason} />
       <PageHeader
         icon={<GitCommit className="w-5 h-5" />}
         title="Değişiklikler"
