@@ -145,6 +145,8 @@ async def login(req: UserLoginRequest, db: AsyncSession = Depends(get_db)):
 
     # Login successful - reset failed attempts
     _clear_failed_attempts(clean_email)
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
 
     token_data = _build_user_token_data(user)
     return TokenResponse(
@@ -256,6 +258,8 @@ async def oauth_login(req: OAuthLoginRequest, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=403, detail="User account is deactivated")
 
     _clear_failed_attempts(clean_email)
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
 
     token_data = _build_user_token_data(user)
     return TokenResponse(

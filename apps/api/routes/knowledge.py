@@ -2,6 +2,9 @@ import os
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from services.security.jwt_auth import get_current_user_payload
+from services.security.admin_guard import is_platform_admin
+from sqlalchemy.ext.asyncio import AsyncSession
+from packages.shared.database import get_db
 from packages.config.settings import settings
 from packages.contracts.knowledge import (
     KnowledgeSearchRequest,
@@ -153,22 +156,22 @@ async def search_knowledge(request: KnowledgeSearchRequest):
 @router.post("/verify-and-ingest", response_model=DocumentIngestResponse, dependencies=[Depends(knowledge_ingest_limiter)])
 async def verify_and_ingest_document(
     request: DocumentIngestRequest,
-    payload: dict = Depends(get_current_user_payload)
+    payload: dict = Depends(get_current_user_payload),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Submits a candidate document to the autonomous curator agent:
-    1. Requires ADMIN or OWNER authorization.
+    1. Requires platform admin (the knowledge store is shared by every tenant).
     2. Verifies source authority tier.
     3. Runs deterministic anti-myth checks.
     4. Rejects false claims or unverified community sources.
     5. Chunks and ingests verified documents into the RAG knowledge store.
     """
-    user_role = payload.get("role", "")
-    is_admin = payload.get("is_admin", False)
-    if not is_admin and user_role not in ("OWNER", "ADMIN", "SEO_MANAGER"):
+    # Token'daki is_admin/role alanlarına güvenilmez; arka uç token'ında role hiç yok, yetki veritabanından okunur.
+    if not await is_platform_admin(db, payload):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yalnızca yetkili platform ve SEO yöneticileri RAG bilgi deposuna veri ekleyebilir."
+            detail="Bilgi tabanı tüm müşterilerce paylaşılır; yalnızca platform yöneticileri belge ekleyebilir."
         )
 
     doc_payload = {

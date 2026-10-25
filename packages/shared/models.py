@@ -40,6 +40,7 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     is_platform_admin = Column(Boolean, default=False, nullable=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
@@ -366,7 +367,8 @@ class AuditLog(Base):
     __table_args__ = {'extend_existing': True}
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    # Boş: kullanıcıyı pasife almak gibi organizasyona bağlı olmayan platform işlemleri
+    organization_id = Column(String(36), ForeignKey('organizations.id', ondelete='CASCADE'), nullable=True, index=True)
     user_id = Column(String(36), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     site_id = Column(String(36), ForeignKey('sites.id', ondelete='CASCADE'), nullable=True, index=True)
     action = Column(String(100), nullable=False)

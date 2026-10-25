@@ -360,8 +360,10 @@ async def run_audit_and_ai_job(site_id: str, crawl_run_id: str) -> int:
                 pages_by_url=pages_by_url
             )
 
-            # Record token usage for organization
-            await TokenBudgetService.record_usage_for_site(db, site_id, tokens_used=max(500, len(recs_data) * 400))
+            # Sağlayıcının bildirdiği gerçek token sayısı organizasyona yazılır
+            org_id = (await db.execute(select(Site.organization_id).where(Site.id == site_id))).scalar()
+            if org_id:
+                await TokenBudgetService.record_provider_usage(db, org_id, llm_provider, ref_type="crawl_recommendations", ref_id=crawl_run_id)
 
             # 4. Save recommendations to database
             created_count = 0

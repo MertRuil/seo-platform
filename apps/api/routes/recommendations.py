@@ -102,8 +102,9 @@ async def get_strategic_roadmap(
     await EntitlementGuard.ensure_limit(db, org_id, "ai_credits", requested_qty=3)
     await TokenBudgetService.check_budget_for_site(db, site_id, estimated_tokens=1500)
 
+    llm_provider = get_llm_provider()
     orchestrator = AiOrchestrator(
-        llm_provider=get_llm_provider(),
+        llm_provider=llm_provider,
         knowledge_store=HybridKnowledgeStore()
     )
     roadmap = await orchestrator.generate_strategic_roadmap(
@@ -113,6 +114,6 @@ async def get_strategic_roadmap(
         critical_issues_count=critical_count,
         opportunities_count=opportunity_count
     )
-    await TokenBudgetService.record_usage_for_site(db, site_id, tokens_used=1500)
+    await TokenBudgetService.record_provider_usage(db, org_id, llm_provider, ref_type="strategic_roadmap", ref_id=site_id)
     await UsageService.consume(db, org_id, "ai_credits", quantity=3, ref_type="strategic_roadmap", ref_id=site_id)
     return StrategicRoadmapResponse(**roadmap)

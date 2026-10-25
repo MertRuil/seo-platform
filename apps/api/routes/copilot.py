@@ -12,6 +12,7 @@ from apps.api.routes.sites import verify_site_access
 from packages.shared.database import get_db
 from packages.shared.models import CrawlPage, CrawlRun, GscSearchMetric, Recommendation
 from services.agents.base import DeterministicTestLLMProvider, get_llm_provider
+from services.security.token_budget import TokenBudgetService
 from services.security.jwt_auth import get_current_user_payload
 from services.security.rate_limiter import copilot_limiter
 
@@ -151,4 +152,5 @@ async def copilot_chat(
     except Exception:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI modeli yanıt vermedi.")
 
+    await TokenBudgetService.record_provider_usage(db, org_id, provider, ref_type="copilot_chat", ref_id=site_id)
     return CopilotChatResponse(reply=reply.strip(), context_sources=sources)

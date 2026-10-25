@@ -24,6 +24,26 @@ class EntitlementGuard:
     _lock = asyncio.Lock()
 
     @classmethod
+    async def switch_plan(cls, db: AsyncSession, org_id: str, plan: Plan, provider: Optional[str] = None) -> Subscription:
+        """
+        Aboneliği verilen plana geçirir ve planın AI kredisini tanımlar.
+        Ödeme onayı kontrolü çağırana aittir (kullanıcı ucu veya platform yöneticisi).
+        """
+        sub = await cls.get_or_create_subscription(db, org_id)
+        sub.plan_id = plan.id
+        sub.plan = plan
+        sub.status = "ACTIVE"
+        if provider:
+            sub.provider = provider
+        await db.commit()
+        await db.refresh(sub)
+
+        plan_credits = next((l.hard_limit for l in plan.limits if l.metric == "ai_credits"), 0)
+        if plan_credits > 0:
+            await UsageService.grant_credits(db, org_id, plan_credits, reason="PLAN_GRANT", ref_id=f"switch_{plan.code}")
+        return sub
+
+    @classmethod
     async def get_or_create_subscription(cls, db: AsyncSession, org_id: str) -> Subscription:
         """
         Organizasyonun aktif aboneliğini döner. Eğer henüz bir abonelik atanmamışsa,

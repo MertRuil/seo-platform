@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from apps.api.routes.knowledge import router as knowledge_router
 from services.security.jwt_auth import create_access_token
+from tests.auth_helpers import create_user_token
 
 # Test FastAPI instance mounting the knowledge router under /api/v1
 api_app = FastAPI(title="Knowledge API Test")
@@ -66,7 +67,7 @@ async def test_knowledge_verify_and_ingest_requires_auth():
 @pytest.mark.anyio
 async def test_knowledge_verify_and_ingest_rejection():
     transport = ASGITransport(app=api_app)
-    token = create_access_token({"sub": "admin_test", "is_admin": True, "role": "ADMIN"})
+    _, token = await create_user_token(is_platform_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Submit debunked myth with authorized admin token
@@ -84,7 +85,7 @@ async def test_knowledge_verify_and_ingest_rejection():
 @pytest.mark.anyio
 async def test_knowledge_verify_and_ingest_success():
     transport = ASGITransport(app=api_app)
-    token = create_access_token({"sub": "admin_test", "is_admin": True, "role": "ADMIN"})
+    _, token = await create_user_token(is_platform_admin=True)
     headers = {"Authorization": f"Bearer {token}"}
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Submit valid Level 1 doc with authorized admin token
@@ -97,3 +98,16 @@ async def test_knowledge_verify_and_ingest_success():
         data = res.json()
         assert data["verification_status"] == "VERIFIED"
         assert data["chunks_ingested"] >= 1
+
+
+@pytest.mark.anyio
+async def test_knowledge_ingest_ignores_forged_admin_claims():
+    # Veritabanında yönetici olmayan kullanıcı, token'a is_admin/role yazsa da bilgi tabanına belge ekleyemez
+    _, token = await create_user_token(claims={"is_admin": True, "role": "OWNER"})
+    async with AsyncClient(transport=ASGITransport(app=api_app), base_url="http://test") as client:
+        res = await client.post("/api/v1/knowledge/verify-and-ingest", json={
+            "title": "Google Search Central: Sitemaps",
+            "content": "# Sitemaps\nSitemaps help discovery.",
+            "canonical_url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview"
+        }, headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 403

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from packages.config.settings import settings
 from packages.shared.database import engine, Base
 from apps.api.routes import (
+    admin,
     auth,
     organizations,
     sites,
@@ -232,6 +233,7 @@ app.include_router(geo.router, prefix="/api/v1")
 app.include_router(leads.router, prefix="/api/v1")
 app.include_router(copilot.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 
 @app.get("/api/v1/notifications")
 async def get_notifications():

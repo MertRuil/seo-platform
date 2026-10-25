@@ -45,6 +45,16 @@ PROPOSED_VALUES_RULE = (
 )
 
 class LLMProvider(ABC):
+    # Sağlayıcının yanıtta bildirdiği token sayıları birikir; çağıran işin sonunda take_tokens() ile organizasyona yazar.
+    _tokens_used: int = 0
+
+    def _add_tokens(self, input_tokens, output_tokens) -> None:
+        self._tokens_used = self._tokens_used + int(input_tokens or 0) + int(output_tokens or 0)
+
+    def take_tokens(self) -> int:
+        used, self._tokens_used = self._tokens_used, 0
+        return used
+
     @abstractmethod
     async def generate(self, prompt: str, system_instruction: str = "", temperature: float = 0.2) -> str:
         pass
@@ -122,6 +132,8 @@ class GoogleGenAIProvider(LLMProvider):
             )
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usageMetadata") or {}
+            self._add_tokens(meta.get("promptTokenCount"), meta.get("candidatesTokenCount"))
             return data["candidates"][0]["content"]["parts"][0]["text"]
 
     async def generate_structured(
@@ -158,6 +170,8 @@ class GoogleGenAIProvider(LLMProvider):
             )
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usageMetadata") or {}
+            self._add_tokens(meta.get("promptTokenCount"), meta.get("candidatesTokenCount"))
             raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
             parsed_json = json.loads(raw_text)
             return output_schema.model_validate(parsed_json)
@@ -195,6 +209,8 @@ class OpenAIProvider(LLMProvider):
             resp = await client.post(self.endpoint, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usage") or {}
+            self._add_tokens(meta.get("prompt_tokens"), meta.get("completion_tokens"))
             return data["choices"][0]["message"]["content"]
 
     async def generate_structured(
@@ -230,6 +246,8 @@ class OpenAIProvider(LLMProvider):
             resp = await client.post(self.endpoint, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usage") or {}
+            self._add_tokens(meta.get("prompt_tokens"), meta.get("completion_tokens"))
             raw_text = data["choices"][0]["message"]["content"]
             parsed_json = json.loads(raw_text)
             return output_schema.model_validate(parsed_json)
@@ -266,6 +284,8 @@ class AnthropicProvider(LLMProvider):
             resp = await client.post(self.endpoint, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usage") or {}
+            self._add_tokens(meta.get("input_tokens"), meta.get("output_tokens"))
             return data["content"][0]["text"]
 
     async def generate_structured(
@@ -303,6 +323,8 @@ class AnthropicProvider(LLMProvider):
             resp = await client.post(self.endpoint, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
+            meta = data.get("usage") or {}
+            self._add_tokens(meta.get("input_tokens"), meta.get("output_tokens"))
             raw_text = data["content"][0]["text"].strip()
             if raw_text.startswith("```"):
                 lines = raw_text.splitlines()

@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient, ASGITransport
 from apps.api.main import app as main_app
 from services.security.jwt_auth import create_access_token
+from tests.auth_helpers import create_user_token
 from services.executor.connectors.webhook import GenericWebhookConnector
 from services.executor.connectors.wordpress import WordPressConnector
 from services.crawler.sitemap_parser import SitemapParser
@@ -34,7 +35,7 @@ async def test_knowledge_ingest_unauthenticated_blocked():
 @pytest.mark.anyio
 async def test_knowledge_ingest_authenticated_allowed():
     transport = ASGITransport(app=main_app)
-    admin_token = create_access_token({"sub": "admin_user_01", "is_admin": True, "role": "ADMIN"})
+    _, admin_token = await create_user_token(is_platform_admin=True)
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.post("/api/v1/knowledge/verify-and-ingest", json={

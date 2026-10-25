@@ -21,6 +21,7 @@ from services.billing.plans import seed_billing_plans
 from services.billing.usage import UsageService
 from services.billing.entitlements import EntitlementGuard
 from services.billing.provider.factory import get_billing_provider
+from services.security.admin_guard import is_platform_admin
 
 router = APIRouter(tags=["Billing & Subscriptions"])
 
@@ -131,14 +132,17 @@ async def verify_org_billing_access(org_id: str, payload: dict, db: AsyncSession
     return membership
 
 
-def _manual_billing_allowed(payload: dict) -> bool:
+async def _manual_billing_allowed(db: AsyncSession, payload: dict) -> bool:
     """
     Ödeme sağlayıcısını atlayan işlemler (ücretli plana doğrudan geçiş, elle kredi tanımlama)
     yalnız platform yöneticisine veya yerel/test ortamına açıktır. Üretimde organizasyon sahibi
     bu uçlarla kendine ücretsiz Pro plan ya da sınırsız kredi tanımlayabiliyordu.
+    Yöneticilik token'dan değil veritabanından okunur; kaldırılan yetki token süresi dolmadan geçersiz olur.
     """
     from packages.config.settings import settings
-    return bool(payload.get("is_admin")) or not settings.is_production_like
+    if not settings.is_production_like:
+        return True
+    return await is_platform_admin(db, payload)
 
 
 # ==========================================
@@ -290,23 +294,13 @@ async def switch_organization_plan(
         raise HTTPException(status_code=404, detail=f"'{req.plan_code}' kodlu plan bulunamadı")
 
     # Ücretsiz plana dönüş serbest; ücretli plan yalnız ödeme onayıyla (webhook) etkinleşir.
-    if target_plan.code != "free" and not _manual_billing_allowed(payload):
+    if target_plan.code != "free" and not await _manual_billing_allowed(db, payload):
         raise HTTPException(
             status_code=402,
             detail="Ücretli plana geçiş ödeme sayfası üzerinden yapılır. Lütfen 'Plana geç' ile ödeme adımını tamamlayın."
         )
 
-    sub = await EntitlementGuard.get_or_create_subscription(db, org_id)
-    sub.plan_id = target_plan.id
-    sub.plan = target_plan
-    sub.status = "ACTIVE"
-    await db.commit()
-    await db.refresh(sub)
-
-    # Eğer yeni planın AI kredisi varsa, orantılı grant yap
-    plan_credits = next((l.hard_limit for l in target_plan.limits if l.metric == "ai_credits"), 0)
-    if plan_credits > 0:
-        await UsageService.grant_credits(db, org_id, plan_credits, reason="PLAN_GRANT", ref_id=f"switch_{target_plan.code}")
+    await EntitlementGuard.switch_plan(db, org_id, target_plan)
 
     return await get_subscription_details(org_id=org_id, payload=payload, db=db)
 
@@ -323,7 +317,7 @@ async def grant_ai_credits(
     """
     await verify_org_billing_access(org_id, payload, db, allowed_roles=["OWNER", "ADMIN"])
 
-    if not _manual_billing_allowed(payload):
+    if not await _manual_billing_allowed(db, payload):
         raise HTTPException(
             status_code=403,
             detail="AI kredisi yalnızca ödeme onayıyla veya platform yöneticisi tarafından tanımlanabilir."

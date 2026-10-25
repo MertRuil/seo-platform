@@ -113,3 +113,24 @@ class TokenBudgetService:
         if not site or not site.organization_id:
             return 0
         return await cls.record_usage(db, site.organization_id, tokens_used)
+
+    @classmethod
+    async def record_provider_usage(
+        cls,
+        db: AsyncSession,
+        organization_id: str,
+        provider,
+        ref_type: Optional[str] = None,
+        ref_id: Optional[str] = None
+    ) -> int:
+        """
+        Sağlayıcının bildirdiği gerçek token sayısını organizasyona yazar: dönemlik sayaç ve kullanım olayı
+        (yönetim paneli) ile aylık bütçe sayacı. Anahtarsız test sağlayıcısı token bildirmez, kayıt düşmez.
+        """
+        from services.billing.usage import UsageService
+        tokens = provider.take_tokens() if hasattr(provider, "take_tokens") else 0
+        if tokens <= 0:
+            return 0
+        await UsageService.consume(db, organization_id, "ai_tokens", tokens, ref_type=ref_type, ref_id=ref_id)
+        await cls.record_usage(db, organization_id, tokens)
+        return tokens
