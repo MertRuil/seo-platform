@@ -404,7 +404,19 @@ async function run() {
   // Yönetim vekili yerel depoya ya da örnek veriye düşmez.
   const proxyLib = readFileSync("src/lib/backend-proxy.ts", "utf8");
   assert(/export async function proxyBackendOnly[\s\S]*req\.nextUrl\.search[\s\S]*status: 503/.test(proxyLib), "proxyBackendOnly sorgu dizgesini korumalı ve 503 dönmeli");
-  for (const route of ["admin/[...path]", "billing/[...path]", "knowledge/[...path]", "organizations/[orgId]/billing/[...path]"]) {
+  const SITE = "organizations/[orgId]/sites/[siteId]";
+  for (const route of [
+    "admin/[...path]",
+    "billing/[...path]",
+    "knowledge/[...path]",
+    "organizations/[orgId]/billing/[...path]",
+    "auth/me",
+    `${SITE}/change-sets/[changeSetId]`,
+    `${SITE}/change-sets/[changeSetId]/rollback`,
+    `${SITE}/self-heal`,
+    `${SITE}/leads`,
+    `${SITE}/leads/[...path]`,
+  ]) {
     const code = readFileSync(`src/app/api/v1/${route}/route.ts`, "utf8");
     assert(code.includes("proxyBackendOnly(") && !/serverless-store|serverlessStore|demoFallback|DEMO_/.test(code), `${route} vekili yedek veriye düşmemeli`);
   }
@@ -420,17 +432,6 @@ async function run() {
   console.log("  platform yönetimi: ok");
 
   // api.ts'teki her yolun Next tarafında bir vekil ucu olmalı; yoksa istek 404 alır.
-  // KNOWN_MISSING: bu commit'te kapsam dışı bırakılan, karşılığı henüz olmayan yollar. Liste yalnızca küçülmeli.
-  const KNOWN_MISSING = new Set([
-    "/auth/me",
-    "/organizations/*/sites/*/change-sets/*",
-    "/organizations/*/sites/*/change-sets/*/rollback",
-    "/organizations/*/sites/*/leads",
-    "/organizations/*/sites/*/leads/export-crm",
-    "/organizations/*/sites/*/leads/generate",
-    "/organizations/*/sites/*/leads/quick-audit",
-    "/organizations/*/sites/*/self-heal",
-  ]);
   const apiRoot = "src/app/api/v1";
   const routeDirs = walk(apiRoot)
     .filter((f) => f.endsWith("/route.ts"))
@@ -447,9 +448,9 @@ async function run() {
     [...apiSource.matchAll(/(?:this\.request<[^(]*\(|API_BASE_URL\}`?\s*\+?\s*`?)\s*[`"]?(\/[a-z][^`"?$]*(?:\$\{[^}]+\}[^`"?$]*)*)/g)]
       .map((m) => m[1].replace(/\$\{adminQuery\([^)]*\)\}/g, "").replace(/\$\{[^}]+\}/g, "*").replace(/\/$/, ""))
   );
-  const unrouted = [...clientPaths].filter((p) => !KNOWN_MISSING.has(p) && !routeDirs.some((r) => routeMatches(p.split("/").filter(Boolean), r)));
+  const unrouted = [...clientPaths].filter((p) => !routeDirs.some((r) => routeMatches(p.split("/").filter(Boolean), r)));
   assert.deepStrictEqual(unrouted, [], "Next vekil ucu olmayan istemci yolu");
-  for (const p of ["/billing/plans", "/organizations/*/billing/subscription", "/knowledge/stats", "/knowledge/verify-and-ingest"]) {
+  for (const p of ["/billing/plans", "/organizations/*/billing/subscription", "/knowledge/stats", "/auth/me", "/organizations/*/sites/*/self-heal", "/organizations/*/sites/*/leads", "/organizations/*/sites/*/leads/export-crm"]) {
     assert(clientPaths.has(p), `tarama ${p} yolunu bulamadı`);
   }
   console.log("  istemci yolları vekilde: ok");
