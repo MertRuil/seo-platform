@@ -135,3 +135,17 @@ export function demoFallbackOrUnavailable(build: () => unknown): NextResponse {
   }
   return NextResponse.json(build());
 }
+
+/**
+ * Yalnızca arka uçtan okunan bölümler (yönetim, faturalama, bilgi bankası) için vekil:
+ * sorgu dizgesi korunur, yerel depoya ya da örnek veriye düşülmez; arka uca ulaşılamazsa 503 döner.
+ */
+export async function proxyBackendOnly(req: NextRequest, endpointPath: string, unavailableDetail: string): Promise<NextResponse> {
+  const proxied = await tryBackendProxy(req, `${endpointPath}${req.nextUrl.search}`);
+  if (proxied) return proxied;
+  return NextResponse.json({ detail: unavailableDetail }, { status: 503, headers: { "Retry-After": "30" } });
+}
+
+export function joinPathSegments(segments: string[]): string {
+  return segments.map(encodeURIComponent).join("/");
+}
