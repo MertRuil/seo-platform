@@ -552,7 +552,7 @@ async def get_organization(org_id: str, db: AsyncSession = Depends(get_db)):
         } if sub else None,
         "usage": {m: {"used": usage.get(m, 0), "limit": limits[m]} for m in USAGE_METRICS},
         "ai_credit_balance": await UsageService.get_credit_balance(db, org_id),
-        "tokens": {"used_this_month": org.tokens_used_this_month, "monthly_budget": org.monthly_token_budget},
+        "tokens": {"used_this_month": usage.get("ai_tokens", 0), "monthly_budget": org.monthly_token_budget},
     }
 
 

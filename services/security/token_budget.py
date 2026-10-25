@@ -1,11 +1,11 @@
 import math
 import logging
-from typing import Optional
+from typing import Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from packages.shared.models import Organization, Site
+from packages.shared.models import Organization, Site, UsageCounter
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,25 @@ class TokenBudgetService:
         total_chars = len(prompt or "") + len(completion or "")
         return max(100, math.ceil(total_chars / 4.0))
 
+    @staticmethod
+    async def monthly_tokens(db: AsyncSession, organization_ids: List[str]) -> Dict[str, int]:
+        """
+        Bu takvim ayının (UTC) ai_tokens sayaçları. Ay dönünce yeni dönemin sayacı olmadığından kullanım
+        kendiliğinden sıfırdan başlar; Organization.tokens_used_this_month yalnızca bu değerin kopyasıdır.
+        """
+        from services.billing.usage import UsageService
+        if not organization_ids:
+            return {}
+        period_start, _ = UsageService.get_current_period()
+        rows = (await db.execute(
+            select(UsageCounter.organization_id, UsageCounter.used).where(
+                UsageCounter.organization_id.in_(organization_ids),
+                UsageCounter.metric == "ai_tokens",
+                UsageCounter.period_start == period_start,
+            )
+        )).all()
+        return {org_id: used for org_id, used in rows}
+
     @classmethod
     async def check_budget(
         cls,
@@ -49,13 +68,15 @@ class TokenBudgetService:
         if not org:
             return None
 
-        if org.tokens_used_this_month + estimated_tokens > org.monthly_token_budget:
+        used = (await cls.monthly_tokens(db, [org.id])).get(org.id, 0)
+        org.tokens_used_this_month = used
+        if used + estimated_tokens > org.monthly_token_budget:
             logger.warning(
                 f"Token budget exceeded for org '{org.name}' ({org.id}): "
-                f"{org.tokens_used_this_month + estimated_tokens} > {org.monthly_token_budget}"
+                f"{used + estimated_tokens} > {org.monthly_token_budget}"
             )
             raise TokenBudgetExceededException(
-                used=org.tokens_used_this_month,
+                used=used,
                 budget=org.monthly_token_budget,
                 org_name=org.name
             )
@@ -66,23 +87,23 @@ class TokenBudgetService:
         cls,
         db: AsyncSession,
         organization_id: str,
-        tokens_used: int
+        tokens_used: int,
+        ref_type: Optional[str] = None,
+        ref_id: Optional[str] = None
     ) -> int:
         """
-        Atomically records token consumption and updates organization state.
+        Token tüketimini bu dönemin ai_tokens sayacına ve kullanım olaylarına yazar; aylık toplamı döner.
         """
+        from services.billing.usage import UsageService
         if tokens_used <= 0:
             return 0
 
-        stmt = select(Organization).where(Organization.id == organization_id)
-        res = await db.execute(stmt)
-        org = res.scalars().first()
+        org = (await db.execute(select(Organization).where(Organization.id == organization_id))).scalars().first()
         if not org:
             return 0
 
-        org.tokens_used_this_month = (org.tokens_used_this_month or 0) + tokens_used
+        org.tokens_used_this_month = await UsageService.consume(db, organization_id, "ai_tokens", tokens_used, ref_type=ref_type, ref_id=ref_id)
         await db.commit()
-        await db.refresh(org)
         logger.info(f"Recorded {tokens_used} AI tokens for org '{org.name}'. Total this month: {org.tokens_used_this_month}")
         return org.tokens_used_this_month
 
@@ -127,10 +148,8 @@ class TokenBudgetService:
         Sağlayıcının bildirdiği gerçek token sayısını organizasyona yazar: dönemlik sayaç ve kullanım olayı
         (yönetim paneli) ile aylık bütçe sayacı. Anahtarsız test sağlayıcısı token bildirmez, kayıt düşmez.
         """
-        from services.billing.usage import UsageService
         tokens = provider.take_tokens() if hasattr(provider, "take_tokens") else 0
         if tokens <= 0:
             return 0
-        await UsageService.consume(db, organization_id, "ai_tokens", tokens, ref_type=ref_type, ref_id=ref_id)
-        await cls.record_usage(db, organization_id, tokens)
+        await cls.record_usage(db, organization_id, tokens, ref_type=ref_type, ref_id=ref_id)
         return tokens

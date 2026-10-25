@@ -9,6 +9,7 @@ from packages.contracts.organization import (
 )
 from services.security.jwt_auth import get_current_user_payload
 from services.billing.entitlements import EntitlementGuard
+from services.security.token_budget import TokenBudgetService
 from services.accounts.provisioning import create_owned_organization
 
 router = APIRouter(prefix="/organizations", tags=["Organizations"])
@@ -47,7 +48,7 @@ async def create_organization(
         name=org.name,
         slug=org.slug,
         monthly_token_budget=org.monthly_token_budget,
-        tokens_used_this_month=org.tokens_used_this_month
+        tokens_used_this_month=0
     )
 
 @router.get(
@@ -70,13 +71,14 @@ async def list_organizations(
     )
     result = await db.execute(query)
     orgs = result.scalars().all()
+    tokens = await TokenBudgetService.monthly_tokens(db, [o.id for o in orgs])
     return [
         OrganizationResponse(
             id=o.id,
             name=o.name,
             slug=o.slug,
             monthly_token_budget=o.monthly_token_budget,
-            tokens_used_this_month=o.tokens_used_this_month
+            tokens_used_this_month=tokens.get(o.id, 0)
         )
         for o in orgs
     ]
