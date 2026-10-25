@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from packages.config.settings import settings
+from services.agents.base import model_for
 from services.geo.llms_txt_service import LlmsTxtService
 
 logger = logging.getLogger("services.geo")
@@ -157,7 +158,7 @@ class GeoTrackerService:
         api_key = getattr(settings, "GOOGLE_API_KEY", None)
         if not api_key:
             return None
-        model = getattr(settings, "DEFAULT_LLM_MODEL", None) or "gemini-1.5-pro"
+        model = model_for("google")
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         try:
             import httpx
@@ -215,7 +216,7 @@ class GeoTrackerService:
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "gpt-4o",
+                        "model": model_for("openai"),
                         "messages": [
                             {
                                 "role": "system",
@@ -251,7 +252,7 @@ class GeoTrackerService:
                         "content-type": "application/json",
                     },
                     json={
-                        "model": "claude-3-5-sonnet-20241022",
+                        "model": model_for("anthropic"),
                         "max_tokens": 600,
                         "temperature": temperature,
                         "messages": [

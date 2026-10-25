@@ -19,6 +19,7 @@ from packages.shared.models import (
     Plan, PlanPrice, Site, Subscription, UsageCounter, UsageEvent, User,
 )
 from services.accounts.provisioning import create_owned_organization
+from services.agents.base import model_for
 from services.billing.entitlements import EntitlementGuard
 from services.billing.usage import UsageService
 from services.security.admin_guard import require_platform_admin
@@ -288,7 +289,7 @@ async def system_status(db: AsyncSession = Depends(get_db)):
         "queue": "redis" if redis_ok else ("unavailable" if settings.is_production_like else "in_process"),
         "llm": {
             "provider": provider or None,
-            "model": settings.DEFAULT_LLM_MODEL,
+            "model": model_for(provider) if provider in ("google", "openai", "anthropic", "claude") else None,
             "api_key_configured": bool(key_field and getattr(settings, key_field, None)),
         },
         "smtp_configured": bool(settings.SMTP_HOST),

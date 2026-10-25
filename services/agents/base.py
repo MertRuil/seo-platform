@@ -105,7 +105,7 @@ class DeterministicTestLLMProvider(LLMProvider):
 
 class GoogleGenAIProvider(LLMProvider):
     """Production LLM provider using Google Gemini via async REST API."""
-    def __init__(self, api_key: str, model: str = "gemini-1.5-pro", rate_limiter=None):
+    def __init__(self, api_key: str, model: str = "gemini-3.8-flash", rate_limiter=None):
         self.api_key = api_key
         self.model = model
         self.rate_limiter = rate_limiter
@@ -255,7 +255,7 @@ class OpenAIProvider(LLMProvider):
 
 class AnthropicProvider(LLMProvider):
     """Production LLM provider for Anthropic Claude models."""
-    def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022", rate_limiter=None):
+    def __init__(self, api_key: str, model: str = "claude-opus-5-5", rate_limiter=None):
         self.api_key = api_key
         self.model = model
         self.rate_limiter = rate_limiter
@@ -343,6 +343,26 @@ def is_placeholder_provider(provider: LLMProvider) -> bool:
     return isinstance(provider, DeterministicTestLLMProvider) and settings.is_production_like
 
 
+# Sağlayıcı başına varsayılan model. DEFAULT_LLM_MODEL tek ayar olduğundan başka sağlayıcının modelini
+# (ör. openai seçiliyken gemini-*) ya da kapatılmış bir modeli gösteriyorsa yerine bu kullanılır.
+DEFAULT_MODELS = {"google": "gemini-3.8-flash", "openai": "gpt-4o", "anthropic": "claude-opus-5-5"}
+_MODEL_FAMILIES = {"google": ("gemini-",), "openai": ("gpt-", "o1", "o3", "o4"), "anthropic": ("claude-",)}
+RETIRED_MODEL_PREFIXES = ("gemini-1.", "gemini-2.0", "claude-2", "claude-3-", "claude-instant")
+
+
+def model_for(provider: str) -> str:
+    import logging
+    from packages.config.settings import settings
+    key = "anthropic" if provider == "claude" else provider
+    configured = (settings.DEFAULT_LLM_MODEL or "").strip()
+    if not configured.startswith(_MODEL_FAMILIES.get(key, ())):
+        return DEFAULT_MODELS[key]
+    if configured.startswith(RETIRED_MODEL_PREFIXES):
+        logging.getLogger(__name__).warning("DEFAULT_LLM_MODEL=%s kapatılmış bir model; %s kullanılıyor", configured, DEFAULT_MODELS[key])
+        return DEFAULT_MODELS[key]
+    return configured
+
+
 def get_llm_provider(rate_limiter=None) -> LLMProvider:
     """
     Factory function returning the configured LLM provider.
@@ -356,7 +376,7 @@ def get_llm_provider(rate_limiter=None) -> LLMProvider:
         if settings.GOOGLE_API_KEY:
             return GoogleGenAIProvider(
                 api_key=settings.GOOGLE_API_KEY,
-                model=settings.DEFAULT_LLM_MODEL or "gemini-1.5-pro",
+                model=model_for("google"),
                 rate_limiter=rate_limiter
             )
         elif getattr(settings, "ENVIRONMENT", "development") in ("production", "staging"):
@@ -365,17 +385,16 @@ def get_llm_provider(rate_limiter=None) -> LLMProvider:
         if settings.OPENAI_API_KEY:
             return OpenAIProvider(
                 api_key=settings.OPENAI_API_KEY,
-                model=settings.DEFAULT_LLM_MODEL or "gpt-4o",
+                model=model_for("openai"),
                 rate_limiter=rate_limiter
             )
         elif getattr(settings, "ENVIRONMENT", "development") in ("production", "staging"):
             raise ValueError("OpenAI provider configured but OPENAI_API_KEY is missing in production environment.")
     elif provider_name in ("anthropic", "claude"):
         if settings.ANTHROPIC_API_KEY:
-            model = settings.DEFAULT_LLM_MODEL if "claude" in (settings.DEFAULT_LLM_MODEL or "") else "claude-3-5-sonnet-20241022"
             return AnthropicProvider(
                 api_key=settings.ANTHROPIC_API_KEY,
-                model=model,
+                model=model_for("anthropic"),
                 rate_limiter=rate_limiter
             )
         elif getattr(settings, "ENVIRONMENT", "development") in ("production", "staging"):

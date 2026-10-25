@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     PERPLEXITY_API_KEY: Optional[str] = None
-    DEFAULT_LLM_MODEL: str = "gemini-1.5-pro"
+    DEFAULT_LLM_MODEL: str = "gemini-3.8-flash"
     DEFAULT_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # RAG Knowledge System & Rate Limiting
