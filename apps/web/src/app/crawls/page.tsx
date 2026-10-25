@@ -98,10 +98,12 @@ export default function SiteTaramalariPage() {
       selectSite(created.id);
       setSiteName("");
       setSiteUrl("");
-      setNotice({
-        tone: "success",
-        text: `${created.normalized_domain} başarıyla tarandı ve analiz edildi (#${run.id.slice(0, 8).toUpperCase()})! Şimdi Teknik Sağlık veya Genel Görünüm sayfalarından gerçek bulguları inceleyebilirsiniz.`,
-      });
+      const runLabel = run.id.slice(0, 8).toUpperCase();
+      setNotice(
+        run.status === "COMPLETED"
+          ? { tone: "success", text: `${created.normalized_domain} tarandı (#${runLabel}). Bulgular Teknik Sağlık ve Genel Görünüm sayfalarında.` }
+          : { tone: "info", text: `${created.normalized_domain} kaydedildi, tarama #${runLabel} başladı. Tamamlanınca AI denetimi otomatik başlar; durumu bu sayfayı yenileyerek görebilirsiniz.` }
+      );
     } catch (err) {
       setSiteError(err instanceof ApiError ? err.message : (err as any).message || "Site kaydedilemedi.");
     } finally {

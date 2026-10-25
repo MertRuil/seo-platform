@@ -77,8 +77,9 @@ export default function GenelGorunumPage() {
   const isDemo = overview.source === "demo";
   const topQueue = queue.data.slice(0, 4);
   const criticalCount = queue.critical;
-  const trendUp = d.visibilityDelta >= 0;
   const hasSeries = d.series.google.length > 1;
+  // Seri yoksa eğilim bilinmez; rozet ve başlık yön iddia etmez.
+  const trendUp = hasSeries && d.visibilityDelta >= 0;
   const summary = siteSummary(d.health.score, d.health.critical, queue.pending);
   const siteName = site ? site.name : DEMO_SITE.name;
 
@@ -109,10 +110,10 @@ export default function GenelGorunumPage() {
   };
 
   const headline = useMemo(() => {
-    const first = trendUp ? "Görünürlük artıyor" : "Görünürlük geriliyor";
+    const first = !hasSeries ? "Görünürlük verisi henüz yok" : trendUp ? "Görünürlük artıyor" : "Görünürlük geriliyor";
     const second = criticalCount > 0 ? `${criticalCount} kritik iş karar bekliyor.` : "karar bekleyen kritik iş yok.";
     return { first, second };
-  }, [trendUp, criticalCount]);
+  }, [hasSeries, trendUp, criticalCount]);
 
   const chartSeries = [
     { name: "Google", values: d.series.google, tone: "accent" as const },
@@ -171,9 +172,11 @@ export default function GenelGorunumPage() {
               </div>
               <div className="mt-3 pt-3 border-t border-line/60 text-xs text-muted flex items-center justify-between">
                 <span>Son {period} günde Google'dan</span>
-                <span className={trendUp ? "text-evidence font-semibold" : "text-critical font-semibold"}>
-                  {formatDelta(d.visibilityDelta)}
-                </span>
+                {hasSeries ? (
+                  <span className={trendUp ? "text-evidence font-semibold" : "text-critical font-semibold"}>{formatDelta(d.visibilityDelta)}</span>
+                ) : (
+                  <span>—</span>
+                )}
               </div>
             </div>
 
@@ -268,9 +271,11 @@ export default function GenelGorunumPage() {
             title="Google Ziyaretçi Akışı"
             sub="Google aramalarından sitenize gelen ziyaretçi sayısı, haftalık"
             actions={
-              <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                {trendUp ? "Artıyor" : "Azalıyor"}
-              </Badge>
+              hasSeries ? (
+                <Badge tone={trendUp ? "evidence" : "critical"} mono>
+                  {trendUp ? "Artıyor" : "Azalıyor"}
+                </Badge>
+              ) : undefined
             }
           >
             {hasSeries ? (
@@ -388,9 +393,11 @@ export default function GenelGorunumPage() {
               title="Görünürlük"
               sub={d.series.ai ? "Google organik ve AI atıf, tek eğri ve kırılım · dağıtımlar işaretli" : "Google organik tıklamalar (GSC) · dağıtımlar işaretli"}
               actions={
-                <Badge tone={trendUp ? "evidence" : "critical"} mono>
-                  {formatDelta(d.visibilityDelta)} · {period} gün
-                </Badge>
+                hasSeries ? (
+                  <Badge tone={trendUp ? "evidence" : "critical"} mono>
+                    {formatDelta(d.visibilityDelta)} · {period} gün
+                  </Badge>
+                ) : undefined
               }
             >
               {overview.loading ? (

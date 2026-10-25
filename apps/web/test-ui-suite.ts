@@ -432,6 +432,9 @@ async function run() {
     }
     assert(!/sandbox koruma motorunda uygulandı|Fallback gracefully|Sandbox execution fallback/.test(code), `${page}: sahte sandbox başarısı`);
   }
+  // Seri yokken eğilim rozeti, sürerken "tarandı" bildirimi gösterilmez.
+  assert(/const trendUp = hasSeries && /.test(readFileSync("src/app/page.tsx", "utf8")), "veri yokken eğilim yönü");
+  assert(/run\.status === "COMPLETED"\s*\?\s*\{ tone: "success"/.test(readFileSync("src/app/crawls/page.tsx", "utf8")), "tarama sürerken başarı bildirimi");
   assert.strictEqual(adminQuery({ q: "", page: 2, admin: true, plan: undefined }), "?page=2&admin=true");
   assert.strictEqual(adminQuery({}), "");
   assert.strictEqual(formatMoneyMinor(11900, "USD"), "$119,00");
